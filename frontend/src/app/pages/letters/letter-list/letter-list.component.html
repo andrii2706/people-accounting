@@ -1,0 +1,65 @@
+<app-page-header
+  eyebrow="Журнал"
+  title="Вихідні листи"
+  subtitle="Реєстр усіх листів до ТЦК з вихідними номерами, датами та статусом відправки."
+/>
+
+<div class="card mb-4 flex flex-wrap gap-3 p-3">
+  <select class="input w-auto" (change)="setType($any($event.target).value)" aria-label="Тип">
+    <option value="">Усі типи</option>
+    @for (t of typeOptions; track t.value) {
+      <option [value]="t.value" [selected]="t.value === type()">{{ t.label }}</option>
+    }
+  </select>
+  <select class="input w-auto" (change)="setStatus($any($event.target).value)" aria-label="Статус">
+    <option value="">Усі статуси</option>
+    <option value="DRAFT" [selected]="status() === 'DRAFT'">Чернетки</option>
+    <option value="SENT" [selected]="status() === 'SENT'">Надіслані</option>
+    <option value="FAILED" [selected]="status() === 'FAILED'">З помилкою</option>
+  </select>
+</div>
+
+<div class="card overflow-x-auto">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Вих. №</th>
+        <th>Дата</th>
+        <th>Тип</th>
+        <th>Зміст</th>
+        <th>Адресат</th>
+        <th>Статус</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (l of letters(); track l.id) {
+        <tr>
+          <td class="font-mono font-semibold whitespace-nowrap">
+            <a [routerLink]="['/letters', l.id]" class="hover:text-brand-600">{{ l.number }}</a>
+          </td>
+          <td class="whitespace-nowrap tabular-nums">{{ l.date | uaDate }}</td>
+          <td class="text-sm whitespace-nowrap">{{ typeLabel(l.type) }}</td>
+          <td class="max-w-[360px] text-sm">{{ l.subject }}</td>
+          <td class="max-w-[220px] text-sm text-muted">
+            {{ l.tck?.name || l.recipientEmail || '—' }}
+          </td>
+          <td><app-letter-status [status]="l.status" /></td>
+          <td class="text-right">
+            <a
+              class="btn btn-ghost px-2"
+              [href]="lettersService.documentUrl(l.id)"
+              download
+              title="Завантажити .docx"
+              ><app-icon name="download"
+            /></a>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7" class="py-12 text-center text-sm text-muted">Листів ще немає</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -1,0 +1,115 @@
+import { httpResource } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map } from 'rxjs';
+import type { PendingChange } from '../core/api/api.types';
+import { AuthStore } from '../core/auth/auth.store';
+import { Icon, type IconName } from '../shared/icon';
+
+interface NavItem {
+  path: string;
+  label: string;
+  icon: IconName;
+  exact?: boolean;
+  adminOnly?: boolean;
+}
+
+@Component({
+  selector: 'app-shell',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon],
+  template: `
+    <div class="flex min-h-screen">
+      <!-- бічна панель -->
+      <aside
+        class="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-brand-900/40 bg-brand-900 text-brand-100 transition-transform lg:translate-x-0"
+        [class.-translate-x-full]="!menuOpen()"
+      >
+        <div class="flex items-center gap-3 px-5 py-5">
+          <span class="grid size-9 place-items-center rounded-lg bg-brand-500/30 text-brand-100"><app-icon name="shield" [size]="20" /></span>
+          <div class="leading-tight">
+            <p class="text-sm font-semibold text-white">Військовий облік</p>
+            <p class="text-[11px] tracking-wide text-brand-200/70 uppercase">персонал підприємства</p>
+          </div>
+        </div>
+
+        <nav class="flex-1 space-y-0.5 px-3 py-2" aria-label="Головне меню">
+          @for (item of nav(); track item.path) {
+            <a
+              [routerLink]="item.path"
+              routerLinkActive="!bg-white/10 !text-white"
+              [routerLinkActiveOptions]="{ exact: !!item.exact }"
+              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-brand-100/80 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <app-icon [name]="item.icon" />
+              <span class="flex-1">{{ item.label }}</span>
+              @if (item.path === '/notifications' && pendingCount() > 0) {
+                <span class="rounded-full bg-[#d9a441] px-1.5 text-[11px] font-semibold text-brand-900">{{ pendingCount() }}</span>
+              }
+            </a>
+          }
+        </nav>
+
+        <div class="border-t border-white/10 p-3">
+          <div class="flex items-center gap-3 rounded-lg px-2 py-2">
+            <span class="grid size-8 place-items-center rounded-full bg-brand-500/40 text-xs font-semibold text-white">{{ auth.initials() }}</span>
+            <div class="min-w-0 flex-1 leading-tight">
+              <p class="truncate text-sm text-white">{{ auth.user()?.fullName }}</p>
+              <p class="text-[11px] text-brand-200/70">{{ auth.isAdmin() ? 'Адміністратор' : 'Кадровик' }}</p>
+            </div>
+            <button type="button" class="rounded-md p-1.5 text-brand-200/70 hover:bg-white/10 hover:text-white" (click)="auth.logout()" title="Вийти">
+              <app-icon name="logout" />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      @if (menuOpen()) {
+        <button type="button" class="fixed inset-0 z-20 bg-black/30 lg:hidden" aria-label="Закрити меню" (click)="menuOpen.set(false)"></button>
+      }
+
+      <div class="flex min-w-0 flex-1 flex-col lg:pl-64">
+        <header class="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas/90 px-4 py-3 backdrop-blur lg:hidden">
+          <button type="button" class="btn btn-ghost px-2" (click)="menuOpen.set(true)" aria-label="Меню">☰</button>
+          <span class="text-sm font-semibold">Військовий облік</span>
+        </header>
+        <main class="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-8 sm:py-8">
+          <router-outlet />
+        </main>
+      </div>
+    </div>
+  `,
+})
+export class Shell {
+  protected readonly auth = inject(AuthStore);
+  protected readonly menuOpen = signal(false);
+
+  private readonly navigationTick = toSignal(
+    inject(Router).events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map((e) => {
+        this.menuOpen.set(false);
+        return (e as NavigationEnd).id;
+      }),
+    ),
+    { initialValue: 0 },
+  );
+
+  private readonly pending = httpResource<PendingChange[]>(() => {
+    this.navigationTick(); // перезапит лічильника після кожної навігації
+    return '/api/employees/changes/pending';
+  }, { defaultValue: [] });
+  protected readonly pendingCount = computed(() => this.pending.value().length);
+
+  private readonly items: NavItem[] = [
+    { path: '/', label: 'Огляд', icon: 'dashboard', exact: true },
+    { path: '/employees', label: 'Працівники', icon: 'users' },
+    { path: '/notifications', label: 'Повідомлення ТЦК', icon: 'bell' },
+    { path: '/letters', label: 'Вихідні листи', icon: 'mail' },
+    { path: '/reports/lists', label: 'Списки (Дод. 13)', icon: 'table' },
+    { path: '/reports/operational', label: 'Відомість (Дод. 12)', icon: 'file' },
+    { path: '/settings', label: 'Налаштування', icon: 'settings' },
+  ];
+  protected readonly nav = computed(() => this.items.filter((i) => !i.adminOnly || this.auth.isAdmin()));
+}

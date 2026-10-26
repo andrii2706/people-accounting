@@ -1,0 +1,204 @@
+@if (l(); as l) {
+  <a
+    routerLink="/letters"
+    class="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+    ><app-icon name="arrowLeft" [size]="16" /> Журнал листів</a
+  >
+
+  <header class="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p class="mb-1 text-xs font-semibold tracking-[0.14em] text-brand-600 uppercase">
+        {{ typeLabel() }}
+      </p>
+      <h1 class="text-2xl font-semibold tracking-tight">
+        Вих. № {{ l.number }} від {{ l.date | uaDate }}
+      </h1>
+      <p class="mt-1 text-sm text-muted">{{ l.subject }}</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <app-letter-status [status]="l.status" />
+      @if (signed()) {
+        <span class="rounded-full bg-[#e3f1e5] px-2 py-0.5 text-xs font-medium text-ok"
+          >Підписано КЕП</span
+        >
+      }
+      <a class="btn btn-secondary" [href]="lettersService.documentUrl(l.id)" download
+        ><app-icon name="download" /> Документ .docx</a
+      >
+    </div>
+  </header>
+
+  <div class="grid gap-6 lg:grid-cols-[1fr_400px]">
+    <div class="space-y-6">
+      <section class="card p-5">
+        <h2 class="mb-3 font-semibold">Склад листа</h2>
+        <dl class="grid gap-3 text-sm sm:grid-cols-2">
+          <div>
+            <dt class="text-xs text-muted">Адресат</dt>
+            <dd>{{ l.tck?.name || '—' }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-muted">Адреса ТЦК</dt>
+            <dd>{{ l.tck?.address || '—' }}</dd>
+          </div>
+          @if (l.employee) {
+            <div>
+              <dt class="text-xs text-muted">Працівник</dt>
+              <dd>
+                <a
+                  [routerLink]="['/employees', l.employee.id]"
+                  class="text-brand-600 hover:underline"
+                  >{{ l.employee.fullName }}</a
+                >
+              </dd>
+            </div>
+          }
+          @if (l.params.reportDate) {
+            <div>
+              <dt class="text-xs text-muted">Станом на</dt>
+              <dd>{{ l.params.reportDate | uaDate }}</dd>
+            </div>
+          }
+        </dl>
+
+        @if (l.changes.length) {
+          <h3 class="mt-5 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
+            Повідомлення у додатках
+          </h3>
+          <ol class="list-decimal space-y-1 pl-5 text-sm">
+            @for (c of l.changes; track c.id) {
+              <li>
+                {{ changeLabel(c.type) }} з {{ c.effectiveDate | uaDate }}
+                @if (c.newValue) {
+                  — {{ c.newValue }}
+                }
+              </li>
+            }
+          </ol>
+        }
+        <p class="mt-4 text-xs text-muted">
+          У документі: супровідний лист, повідомлення про зміну облікових даних (Додаток 4) та опис
+          вкладення ф. 107 — якщо лист надсилається Укрпоштою.
+        </p>
+      </section>
+
+      <app-letter-signing
+        [letterId]="l.id"
+        [letterStatus]="l.status"
+        [state]="signing()"
+        [config]="signingConfig()"
+        (changed)="refreshPage()"
+      />
+
+      @if (l.status !== 'SENT' && !signing().frozen) {
+        <section class="card p-5">
+          <h2 class="mb-3 font-semibold">Реквізити</h2>
+          <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <label class="block"
+              ><span class="label">Вих. №</span
+              ><input
+                class="input font-mono"
+                [value]="number()"
+                (input)="number.set($any($event.target).value)"
+            /></label>
+            <label class="block"
+              ><span class="label">Дата</span
+              ><input
+                class="input"
+                type="date"
+                [value]="date()"
+                (input)="date.set($any($event.target).value)"
+            /></label>
+            <button type="button" class="btn btn-secondary" (click)="saveMeta()">Зберегти</button>
+          </div>
+          <label class="mt-3 block">
+            <span class="label">ТЦК-адресат</span>
+            <select class="input" (change)="changeTck($any($event.target).value)">
+              <option value="" disabled [selected]="!l.tckId">— оберіть —</option>
+              @for (t of dict.activeTcks(); track t.id) {
+                <option [value]="t.id" [selected]="t.id === l.tckId">{{ t.name }}</option>
+              }
+            </select>
+          </label>
+        </section>
+      }
+
+      @if (l.emails.length) {
+        <section class="card p-5">
+          <h2 class="mb-3 font-semibold">Історія відправки</h2>
+          <ul class="space-y-2 text-sm">
+            @for (m of l.emails; track m.id) {
+              <li class="rounded-lg bg-sunken/60 px-3 py-2">
+                <p>
+                  <span
+                    class="font-medium"
+                    [class]="m.status === 'SENT' ? 'text-ok' : 'text-danger'"
+                    >{{ m.status === 'SENT' ? 'Надіслано' : 'Помилка' }}</span
+                  >
+                  → {{ m.to }} <span class="text-muted">· {{ m.createdAt | uaDateTime }}</span>
+                </p>
+                @if (m.error) {
+                  <p class="mt-1 text-xs text-muted">{{ m.error }}</p>
+                }
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    </div>
+
+    <aside class="space-y-4">
+      <form class="card space-y-4 p-5" (submit)="send($event)" novalidate>
+        <h2 class="flex items-center gap-2 font-semibold">
+          <app-icon name="send" /> Надіслати електронною поштою
+        </h2>
+        @if (!l.mailConfigured) {
+          <p class="rounded-lg bg-[#fdf6ec] px-3 py-2 text-xs text-warning">
+            SMTP не налаштовано — лист буде збережено на сервері (.eml) замість відправки.
+            Налаштуйте SMTP_* у .env бекенду.
+          </p>
+        }
+        <app-form-field label="Кому" [required]="true" [field]="sendForm.to">
+          <input class="input" type="email" [formField]="sendForm.to" />
+        </app-form-field>
+        <app-form-field label="Копія" [field]="sendForm.cc">
+          <input class="input" type="email" [formField]="sendForm.cc" />
+        </app-form-field>
+        <app-form-field label="Текст листа">
+          <textarea class="input min-h-32" [formField]="sendForm.message"></textarea>
+        </app-form-field>
+        <button type="submit" class="btn btn-primary w-full" [disabled]="sendForm().submitting()">
+          {{
+            sendForm().submitting()
+              ? 'Надсилаємо…'
+              : l.status === 'SENT'
+                ? 'Надіслати ще раз'
+                : signed()
+                  ? 'Надіслати з документом і підписом'
+                  : 'Надіслати з документом'
+          }}
+        </button>
+      </form>
+
+      <div class="card space-y-2 p-5">
+        @if (l.status !== 'SENT') {
+          <button type="button" class="btn btn-secondary w-full" (click)="markSent()">
+            Позначити як відправлений поштою
+          </button>
+          @if (!signed()) {
+            <button type="button" class="btn btn-danger w-full" (click)="remove()">
+              Видалити чернетку
+            </button>
+            <p class="text-xs text-muted">
+              Після видалення зміни повернуться в чергу «Повідомлення ТЦК».
+            </p>
+          }
+        } @else {
+          <p class="text-sm text-muted">
+            Відправлено {{ l.sentAt | uaDateTime }}. Надісланий лист не редагується.
+          </p>
+        }
+      </div>
+    </aside>
+  </div>
+}

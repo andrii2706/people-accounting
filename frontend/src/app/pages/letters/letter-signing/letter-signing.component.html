@@ -1,0 +1,226 @@
+<section class="card p-5" aria-labelledby="signing-title">
+  <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <h2 id="signing-title" class="flex items-center gap-2 font-semibold">
+      <app-icon name="signature" /> Підпис КЕП
+    </h2>
+    @if (hasSignatures()) {
+      <a class="btn btn-secondary" [href]="signatures.packageUrl(letterId())" download
+        ><app-icon name="download" /> Пакет для ТЦК (.zip)</a
+      >
+    }
+  </div>
+
+  @if (!state().frozen) {
+    <!-- крок 1: фіксація -->
+    <p class="text-sm text-muted">
+      Щоб підписати лист кваліфікованим електронним підписом, спершу зафіксуйте документ: він
+      збережеться без змін, і саме цей файл буде підписано та надіслано до ТЦК. Перевірте реквізити
+      та адресата — після першого підпису змінити їх не можна.
+    </p>
+    <button type="button" class="btn btn-primary mt-4" [disabled]="busy()" (click)="freeze()">
+      <app-icon name="lock" /> Зафіксувати документ для підпису
+    </button>
+  } @else {
+    <!-- зафіксований документ -->
+    <div class="rounded-lg bg-sunken/60 px-3 py-2 text-sm">
+      <p class="flex flex-wrap items-center gap-x-2">
+        <app-icon name="lock" [size]="16" />
+        <span class="font-medium">{{ state().documentFilename }}</span>
+        <span class="text-muted">· зафіксовано {{ state().documentFrozenAt | uaDateTime }}</span>
+      </p>
+      <p class="mt-1 text-xs text-muted">
+        SHA-256:
+        <span class="font-mono" [title]="state().documentSha256 ?? ''">{{ shortHash() }}</span>
+      </p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <a
+          class="btn btn-ghost px-2 py-1 text-xs"
+          [href]="signatures.signingFileUrl(letterId())"
+          download
+          ><app-icon name="download" [size]="14" /> Файл для підпису</a
+        >
+        @if (!hasSignatures() && letterStatus() !== 'SENT') {
+          <button
+            type="button"
+            class="btn btn-ghost px-2 py-1 text-xs"
+            [disabled]="busy()"
+            (click)="unfreeze()"
+          >
+            Скасувати фіксацію
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- зібрані підписи -->
+    @if (hasSignatures()) {
+      <ul class="mt-4 space-y-3">
+        @for (sig of state().signatures; track sig.id) {
+          @for (s of sig.signers; track $index) {
+            <li class="rounded-lg border border-line px-3 py-2 text-sm">
+              <div class="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p class="font-medium">{{ s.name }}</p>
+                  <p class="text-xs text-muted">
+                    {{ s.title }}{{ s.title && s.organization ? ', ' : '' }}{{ s.organization }}
+                    @if (s.edrpou) {
+                      · ЄДРПОУ {{ s.edrpou }}
+                    }
+                  </p>
+                </div>
+                <span
+                  class="rounded-full px-2 py-0.5 text-xs font-medium"
+                  [class]="verification[s.verification].cls"
+                  [title]="verification[s.verification].hint"
+                  >{{ verification[s.verification].label }}</span
+                >
+              </div>
+              <dl class="mt-2 grid gap-x-4 gap-y-1 text-xs text-muted sm:grid-cols-2">
+                <div>
+                  Час підпису: {{ s.signingTime | uaDateTime }}{{ s.hasTimestamp ? ' (TSP)' : '' }}
+                </div>
+                <div>Алгоритм: {{ s.signatureAlgorithm }} / {{ s.digestAlgorithm }}</div>
+                <div>Надавач: {{ s.issuer || '—' }}</div>
+                <div>Сертифікат до: {{ s.certificateValidTo | uaDateTime }}</div>
+              </dl>
+              @if (s.notes.length) {
+                <ul class="mt-2 list-disc space-y-0.5 pl-4 text-xs text-warning">
+                  @for (n of s.notes; track n) {
+                    <li>{{ n }}</li>
+                  }
+                </ul>
+              }
+              @if ($first) {
+                <p class="mt-2 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+                  <span>
+                    {{ sig.method === 'WIDGET' ? 'Підписано у застосунку' : 'Завантажено файл' }} ·
+                    {{ sig.uploadedByName }} · {{ sig.createdAt | uaDateTime }}
+                  </span>
+                  <a
+                    class="text-brand-600 hover:underline"
+                    [href]="signatures.signatureFileUrl(letterId(), sig.id)"
+                    download
+                    >.p7s</a
+                  >
+                </p>
+              }
+            </li>
+          }
+        }
+      </ul>
+      <p class="mt-2 text-xs text-muted">
+        Офіційна перевірка підпису:
+        <a
+          class="text-brand-600 hover:underline"
+          [href]="config().verifyUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          >{{ config().verifyUrl }}</a
+        >
+        (завантажте документ і файл .p7s).
+      </p>
+    }
+
+    <!-- додати підпис -->
+    <div class="mt-5 border-t border-line pt-4">
+      <h3 class="mb-3 text-sm font-semibold">
+        {{ hasSignatures() ? 'Додати ще підпис' : 'Підписати' }}
+      </h3>
+      @if (config().widget.enabled) {
+        <div class="mb-4 inline-flex rounded-lg bg-sunken p-1 text-sm" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            class="rounded-md px-3 py-1"
+            [class]="mode() === 'widget' ? 'bg-surface font-medium shadow-sm' : 'text-muted'"
+            [attr.aria-selected]="mode() === 'widget'"
+            (click)="setMode('widget')"
+          >
+            Ключ КЕП тут
+          </button>
+          <button
+            type="button"
+            role="tab"
+            class="rounded-md px-3 py-1"
+            [class]="mode() === 'upload' ? 'bg-surface font-medium shadow-sm' : 'text-muted'"
+            [attr.aria-selected]="mode() === 'upload'"
+            (click)="setMode('upload')"
+          >
+            Файл підпису .p7s
+          </button>
+        </div>
+      }
+
+      @if (mode() === 'widget' && config().widget.enabled) {
+        <p class="text-sm text-muted">
+          Віджет ІІТ працює з файловими ключами будь-якого кваліфікованого надавача, захищеними
+          носіями та хмарними КЕП (зокрема Дія.Підпис). Ключ і пароль обробляються у фреймі ІІТ —
+          застосунок їх не отримує.
+        </p>
+        <div
+          [id]="widgetContainerId"
+          class="mt-3 overflow-hidden rounded-lg border border-line [&>iframe]:h-[560px] [&>iframe]:w-full"
+          [class.hidden]="widgetStage() === 'idle'"
+        ></div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          @switch (widgetStage()) {
+            @case ('idle') {
+              <button type="button" class="btn btn-primary" (click)="readKey()">
+                <app-icon name="key" /> Зчитати ключ
+              </button>
+            }
+            @case ('reading') {
+              <button type="button" class="btn btn-ghost" (click)="resetWidget()">Скасувати</button>
+            }
+            @default {
+              <button
+                type="button"
+                class="btn btn-primary"
+                [disabled]="busy()"
+                (click)="signWithWidget()"
+              >
+                <app-icon name="signature" />
+                {{ widgetStage() === 'signing' ? 'Підписуємо…' : 'Підписати документ' }}
+              </button>
+              <button type="button" class="btn btn-ghost" (click)="resetWidget()">
+                Інший ключ
+              </button>
+            }
+          }
+        </div>
+      } @else {
+        <ol class="list-decimal space-y-1 pl-5 text-sm text-muted">
+          <li>
+            Завантажте
+            <a
+              class="text-brand-600 hover:underline"
+              [href]="signatures.signingFileUrl(letterId())"
+              download
+              >файл для підпису</a
+            >.
+          </li>
+          <li>
+            Підпишіть його будь-яким засобом КЕП — Дія.Підпис (id.gov.ua/sign), czo.gov.ua/sign,
+            «ІІТ Користувач ЦСК», Вчасно, M.E.Doc тощо. Формат —
+            <b>CAdES, окремий файл підпису (.p7s)</b>.
+          </li>
+          <li>Додайте отриманий файл .p7s сюди.</li>
+        </ol>
+        <label class="btn btn-secondary mt-4 cursor-pointer" [class.opacity-60]="busy()">
+          <app-icon name="upload" /> {{ busy() ? 'Перевіряємо…' : 'Додати файл .p7s' }}
+          <input
+            type="file"
+            class="sr-only"
+            accept=".p7s,.p7m,.sig,.pem,.txt,application/pkcs7-signature"
+            [disabled]="busy()"
+            (change)="upload($event)"
+          />
+        </label>
+        <p class="mt-2 text-xs text-muted">
+          Сервер перевіряє, що підпис зроблено саме під зафіксований документ, і зберігає його без
+          змін.
+        </p>
+      }
+    </div>
+  }
+</section>

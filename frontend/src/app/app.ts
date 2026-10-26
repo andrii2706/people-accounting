@@ -1,0 +1,30 @@
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { ToastService } from './core/ui/toast.service';
+import { Icon } from './shared/icon';
+
+@Component({
+  selector: 'app-root',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterOutlet, Icon],
+  template: `
+    <router-outlet />
+
+    <div class="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[min(380px,calc(100vw-2rem))] flex-col gap-2" aria-live="polite">
+      @for (t of toasts.toasts(); track t.id) {
+        <div
+          class="pointer-events-auto flex items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-lg"
+          [class]="t.kind === 'error' ? 'border-danger/30 bg-[#fdf1ef] text-danger' : t.kind === 'success' ? 'border-ok/30 bg-[#eef7ef] text-ok' : 'border-line bg-surface text-ink'"
+          role="status"
+        >
+          <app-icon [name]="t.kind === 'error' ? 'alert' : 'check'" class="mt-0.5" />
+          <p class="flex-1">{{ t.text }}</p>
+          <button type="button" class="opacity-60 hover:opacity-100" (click)="toasts.dismiss(t.id)" aria-label="Закрити"><app-icon name="x" [size]="16" /></button>
+        </div>
+      }
+    </div>
+  `,
+})
+export class App {
+  protected readonly toasts = inject(ToastService);
+}

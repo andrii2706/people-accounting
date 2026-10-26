@@ -1,0 +1,139 @@
+<app-page-header
+  eyebrow="Налаштування"
+  title="Користувачі"
+  subtitle="Доступ до персональних даних мають лише облікові записи зі списку. Усі дії записуються в журнал."
+>
+  <a routerLink="/settings" class="btn btn-ghost"><app-icon name="arrowLeft" /> Назад</a>
+</app-page-header>
+
+@if (issuedPassword(); as issued) {
+  <section class="mb-6 rounded-xl border border-warning/40 bg-[#fdf9f2] p-5" role="alert">
+    <p class="font-semibold text-warning">Тимчасовий пароль для «{{ issued.user }}»</p>
+    <p class="mt-1 text-sm text-muted">
+      Показується лише зараз. Передайте його особисто або телефоном, не електронною поштою.
+      Користувач змінить його при першому вході.
+    </p>
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+      <code
+        class="rounded-lg border border-line bg-surface px-3 py-2 font-mono text-base tracking-wider"
+        >{{ issued.password }}</code
+      >
+      <button type="button" class="btn btn-secondary" (click)="copyPassword()">Копіювати</button>
+      <button type="button" class="btn btn-ghost" (click)="issuedPassword.set(null)">
+        Сховати
+      </button>
+    </div>
+  </section>
+}
+
+<div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+  <div class="card overflow-x-auto">
+    <table class="table-base">
+      <thead>
+        <tr>
+          <th>Користувач</th>
+          <th>Роль</th>
+          <th>Останній вхід</th>
+          <th>Стан</th>
+          <th class="text-right">Дії</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of users(); track u.id) {
+          <tr>
+            <td>
+              <p class="font-medium">{{ u.fullName }}</p>
+              <p class="text-xs text-muted">{{ u.email }}</p>
+            </td>
+            <td>
+              <select
+                class="input w-auto py-1"
+                (change)="setRole(u, $any($event.target).value)"
+                [disabled]="u.id === auth.user()?.id"
+              >
+                <option value="HR" [selected]="u.role === 'HR'">Кадровик</option>
+                <option value="ADMIN" [selected]="u.role === 'ADMIN'">Адміністратор</option>
+              </select>
+            </td>
+            <td class="text-sm whitespace-nowrap text-muted">
+              {{ u.lastLoginAt | uaDateTime: 'ще не входив' }}
+            </td>
+            <td class="space-y-1">
+              @if (!u.isActive) {
+                <span
+                  class="inline-flex rounded-full bg-[#fbe9e7] px-2 py-0.5 text-xs font-medium text-danger"
+                  >заблокований</span
+                >
+              } @else if (lockedIds().has(u.id)) {
+                <span
+                  class="inline-flex rounded-full bg-[#f6ecdf] px-2 py-0.5 text-xs font-medium text-warning"
+                  >вхід тимчасово заблоковано</span
+                >
+              } @else {
+                <span
+                  class="inline-flex rounded-full bg-[#e3f1e5] px-2 py-0.5 text-xs font-medium text-ok"
+                  >активний</span
+                >
+              }
+              @if (u.mustChangePassword) {
+                <p class="text-xs text-muted">тимчасовий пароль</p>
+              }
+            </td>
+            <td class="text-right whitespace-nowrap">
+              @if (lockedIds().has(u.id)) {
+                <button type="button" class="btn btn-ghost py-1 text-xs" (click)="unlock(u)">
+                  Розблокувати вхід
+                </button>
+              }
+              <button type="button" class="btn btn-ghost py-1 text-xs" (click)="resetPassword(u)">
+                Скинути пароль
+              </button>
+              @if (u.id !== auth.user()?.id) {
+                <button
+                  type="button"
+                  class="btn py-1 text-xs"
+                  [class]="u.isActive ? 'btn-danger' : 'btn-secondary'"
+                  (click)="toggle(u)"
+                >
+                  {{ u.isActive ? 'Заблокувати' : 'Активувати' }}
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <form class="card space-y-4 p-5" (submit)="create($event)" novalidate>
+    <h2 class="font-semibold">Новий користувач</h2>
+    <app-form-field label="Ім’я та прізвище" [required]="true" [field]="userForm.fullName">
+      <input class="input" [formField]="userForm.fullName" />
+    </app-form-field>
+    <app-form-field label="Email" [required]="true" [field]="userForm.email">
+      <input class="input" type="email" [formField]="userForm.email" />
+    </app-form-field>
+    <app-form-field
+      label="Тимчасовий пароль"
+      [required]="true"
+      [field]="userForm.password"
+      hint="12+ символів, літери й цифри. Користувач змінить його при першому вході."
+    >
+      <input
+        class="input"
+        type="text"
+        autocomplete="new-password"
+        [formField]="userForm.password"
+      />
+    </app-form-field>
+    <app-form-field label="Роль">
+      <select class="input" [formField]="userForm.role">
+        <option value="HR">Кадровик</option>
+        <option value="ADMIN">Адміністратор</option>
+      </select>
+    </app-form-field>
+    <button type="submit" class="btn btn-primary w-full" [disabled]="userForm().submitting()">
+      Створити
+    </button>
+  </form>
+</div>

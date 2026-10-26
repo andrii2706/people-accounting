@@ -1,0 +1,12 @@
+<ul class="flex flex-col gap-1">
+  @for (w of visible(); track w.code) {
+    <li
+      class="flex items-start gap-1.5 text-xs"
+      [class]="
+        w.level === 'danger' ? 'text-danger' : w.level === 'warning' ? 'text-warning' : 'text-muted'
+      "
+    >
+      <span class="mt-1.5 size-1.5 shrink-0 rounded-full bg-current"></span>{{ w.message }}
+    </li>
+  }
+</ul>

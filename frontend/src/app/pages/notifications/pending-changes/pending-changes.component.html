@@ -1,0 +1,72 @@
+<app-page-header
+  eyebrow="Повідомлення ТЦК"
+  title="Зміни, про які треба повідомити"
+  subtitle="Зміни облікових даних фіксуються автоматично при редагуванні картки. Для кожного працівника формується лист із повідомленнями за Додатком 4 та описом вкладення."
+/>
+
+<div class="space-y-4">
+  @for (g of groups(); track g.employeeId) {
+    <section class="card overflow-hidden" [class.border-danger/40]="g.overdue">
+      <header
+        class="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-sunken/40 px-5 py-3"
+      >
+        <div>
+          <a
+            [routerLink]="['/employees', g.employeeId]"
+            class="font-semibold hover:text-brand-600"
+            >{{ g.fullName }}</a
+          >
+          <p class="text-xs text-muted">
+            {{ g.tckName || 'ТЦК не вказано' }}
+            @if (g.tckEmail) {
+              · {{ g.tckEmail }}
+            } @else if (g.tckName) {
+              · <span class="text-warning">немає email ТЦК</span>
+            }
+          </p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary"
+          [disabled]="busy() === g.employeeId || !g.tckId"
+          (click)="createLetter(g)"
+        >
+          <app-icon name="file" /> Сформувати лист ({{ g.changes.length }})
+        </button>
+      </header>
+      <ul class="divide-y divide-line">
+        @for (c of g.changes; track c.id) {
+          <li class="flex flex-wrap items-start justify-between gap-3 px-5 py-3 text-sm">
+            <div class="min-w-0">
+              <p class="font-medium">
+                {{ c.typeLabel }}
+                <span class="font-normal text-muted">· з {{ c.effectiveDate | uaDate }}</span>
+              </p>
+              @if (c.newValue) {
+                <p class="text-muted">{{ c.newValue }}</p>
+              }
+              <p class="text-xs text-muted">Підстава: {{ c.basis || 'не вказано' }}</p>
+            </div>
+            <p
+              class="text-xs whitespace-nowrap"
+              [class]="c.overdue ? 'font-semibold text-danger' : 'text-muted'"
+            >
+              {{ c.overdue ? 'прострочено з' : 'до' }} {{ c.deadline | uaDate }}
+            </p>
+          </li>
+        }
+      </ul>
+    </section>
+  } @empty {
+    <div class="card flex flex-col items-center gap-2 px-6 py-16 text-center">
+      <span class="grid size-12 place-items-center rounded-full bg-brand-100 text-brand-600"
+        ><app-icon name="check" [size]="22"
+      /></span>
+      <p class="font-medium">Усі зміни повідомлено</p>
+      <p class="text-sm text-muted">
+        Нові з’являться тут, щойно ви зміните ПІБ, посаду, адресу, паспорт, освіту чи сімейний стан
+        працівника.
+      </p>
+    </div>
+  }
+</div>

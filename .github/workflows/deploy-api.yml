@@ -1,0 +1,92 @@
+# Деплой NestJS API в Cloud Run (приватний сервіс, лише IAM).
+# Фронтенд (Angular SSR) розгортає Firebase App Hosting автоматично з гілки main.
+#
+# Потрібні змінні репозиторію (Settings → Variables) — їх друкує infra/bootstrap.sh.
+# Автентифікація — Workload Identity Federation: жодних JSON-ключів у GitHub.
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths: ['backend/**', '.github/workflows/deploy-api.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+env:
+  REGION: ${{ vars.GCP_REGION }}
+  SERVICE: military-registry-api
+  MIGRATE_JOB: military-registry-migrate
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/military-registry/api:${{ github.sha }}
+  # Спільні для сервісу і завдання міграцій
+  SECRETS: >-
+    DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,DATA_ENCRYPTION_KEY=DATA_ENCRYPTION_KEY:latest,BLIND_INDEX_KEY=BLIND_INDEX_KEY:latest
+  ENV_VARS: >-
+    NODE_ENV=production,COOKIE_SECURE=true,STORAGE_DRIVER=gcs,STORAGE_BUCKET=${{ vars.GCP_BUCKET }},SWAGGER=false,DB_MIGRATIONS_RUN=false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Захист через GitHub Environments: обов'язкове підтвердження, лише гілка main
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Збірка і публікація образу
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" backend
+          docker push "$IMAGE"
+
+      - name: Міграції БД (Cloud Run Job) — до перемикання трафіку
+        run: |
+          gcloud run jobs deploy "$MIGRATE_JOB" \
+            --image "$IMAGE" --region "$REGION" \
+            --service-account "${{ vars.GCP_API_SA }}" \
+            --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
+            --set-secrets "$SECRETS" \
+            --set-env-vars "$ENV_VARS" \
+            --command node --args dist/database/migrate.js \
+            --max-retries 0 --task-timeout 10m --quiet
+          gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --wait
+
+      - name: Деплой сервісу (без публічного доступу)
+        env:
+          # роздільник «@» замість коми: у SMTP_FROM можуть бути коми й пробіли
+          RUNTIME_ENV: >-
+            APP_ORIGIN=${{ vars.APP_ORIGIN }}@TRUST_PROXY_HOPS=2@ADMIN_EMAIL=${{ vars.ADMIN_EMAIL }}@SMTP_HOST=${{ vars.SMTP_HOST }}@SMTP_PORT=${{ vars.SMTP_PORT || '587' }}@SMTP_SECURE=${{ vars.SMTP_SECURE || 'false' }}@SMTP_USER=${{ vars.SMTP_USER }}@SMTP_FROM=${{ vars.SMTP_FROM }}@SIGN_WIDGET_SCRIPT_URL=${{ vars.SIGN_WIDGET_SCRIPT_URL }}@SIGN_WIDGET_FRAME_URL=${{ vars.SIGN_WIDGET_FRAME_URL }}
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE" --region "$REGION" \
+            --service-account "${{ vars.GCP_API_SA }}" \
+            --no-allow-unauthenticated \
+            --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
+            --set-secrets "$SECRETS,ADMIN_PASSWORD=ADMIN_PASSWORD:latest,SMTP_PASS=SMTP_PASS:latest" \
+            --set-env-vars "^@^${ENV_VARS//,/@}@${RUNTIME_ENV}" \
+            --cpu 1 --memory 512Mi --concurrency 40 \
+            --min-instances 0 --max-instances 4 --timeout 60 \
+            --execution-environment gen2 --cpu-boost --quiet
+
+      - name: Доступ до API лише для фронтенду (App Hosting)
+        run: |
+          gcloud run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
+            --member "serviceAccount:${{ vars.GCP_WEB_SA }}" --role roles/run.invoker --quiet >/dev/null
+          # переконуємось, що публічного доступу немає
+          if gcloud run services get-iam-policy "$SERVICE" --region "$REGION" --format=json | grep -q '"allUsers"'; then
+            echo "::error::API доступний публічно (allUsers) — це заборонено"; exit 1
+          fi
+          echo "API: $(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"

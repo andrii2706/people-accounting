@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+/*
+ * Дизайн-токени. Стримана «штабна» палітра: тепло-сірий фон, оливковий акцент,
+ * сигнальні кольори лише для статусів.
+ */
+@theme {
+  --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --color-canvas: #f5f4ef;
+  --color-surface: #ffffff;
+  --color-sunken: #eceae2;
+  --color-line: #dedbd0;
+  --color-ink: #1d211a;
+  --color-muted: #646a5c;
+
+  --color-brand-50: #f3f5ec;
+  --color-brand-100: #e3e9d2;
+  --color-brand-200: #c8d4a8;
+  --color-brand-500: #66784a;
+  --color-brand-600: #4f5f37;
+  --color-brand-700: #3e4b2c;
+  --color-brand-900: #232a19;
+
+  --color-danger: #b42318;
+  --color-warning: #b54708;
+  --color-ok: #2f7a3b;
+  --color-info: #2a5d8f;
+}
+
+@layer base {
+  html {
+    font-size: 15px;
+  }
+  body {
+    font-family: var(--font-sans);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-surface;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-brand-600 text-white hover:bg-brand-700;
+  }
+  .btn-secondary {
+    @apply border border-line bg-surface text-ink hover:bg-sunken;
+  }
+  .btn-ghost {
+    @apply text-muted hover:bg-sunken hover:text-ink;
+  }
+  .btn-danger {
+    @apply border border-danger/30 bg-surface text-danger hover:bg-danger/5;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-sunken;
+  }
+  .input.is-invalid,
+  .input[aria-invalid='true'] {
+    @apply border-danger focus:ring-danger/20;
+  }
+  .label {
+    @apply mb-1 block text-xs font-medium tracking-wide text-muted uppercase;
+  }
+  .table-base {
+    @apply w-full text-left text-sm;
+  }
+  .table-base th {
+    @apply border-b border-line bg-sunken/60 px-3 py-2 text-xs font-semibold tracking-wide text-muted uppercase;
+  }
+  .table-base td {
+    @apply border-b border-line/70 px-3 py-2.5 align-top;
+  }
+  .table-base tbody tr:hover {
+    @apply bg-brand-50/50;
+  }
+}
+
+/* Індикатор навігації, поки резолвери вантажать дані */
+@keyframes nav-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
+.nav-progress {
+  animation: nav-progress 1s ease-in-out infinite;
+}

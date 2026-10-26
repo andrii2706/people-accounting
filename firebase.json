@@ -1,0 +1,9 @@
+{
+  "apphosting": [
+    {
+      "backendId": "military-registry-web",
+      "rootDir": "frontend",
+      "ignore": ["node_modules", ".angular", "dist", ".git", "firebase-debug.log"]
+    }
+  ]
+}

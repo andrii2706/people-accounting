@@ -1,0 +1,65 @@
+<app-page-header
+  eyebrow="Профіль"
+  [title]="auth.user()?.fullName ?? 'Профіль'"
+  [subtitle]="auth.user()?.email ?? ''"
+/>
+
+@if (auth.mustChangePassword()) {
+  <p
+    class="mb-6 max-w-xl rounded-xl border border-warning/40 bg-[#fdf9f2] px-4 py-3 text-sm text-warning"
+    role="alert"
+  >
+    Ви увійшли з тимчасовим паролем. Щоб працювати з даними, встановіть власний пароль.
+  </p>
+}
+
+<form class="card max-w-xl space-y-4 p-5 sm:p-6" (submit)="save($event)" novalidate>
+  <h2 class="font-semibold">Зміна пароля</h2>
+  <app-form-field label="Поточний пароль" [required]="true" [field]="passwordForm.currentPassword">
+    <input
+      class="input"
+      type="password"
+      autocomplete="current-password"
+      [formField]="passwordForm.currentPassword"
+    />
+  </app-form-field>
+  <app-form-field
+    label="Новий пароль"
+    [required]="true"
+    [field]="passwordForm.newPassword"
+    hint="Щонайменше 12 символів, літери й цифри. Краще — фраза з кількох слів."
+  >
+    <input
+      class="input"
+      type="password"
+      autocomplete="new-password"
+      [formField]="passwordForm.newPassword"
+    />
+  </app-form-field>
+  <app-form-field
+    label="Повторіть новий пароль"
+    [required]="true"
+    [field]="passwordForm.confirmPassword"
+  >
+    <input
+      class="input"
+      type="password"
+      autocomplete="new-password"
+      [formField]="passwordForm.confirmPassword"
+    />
+  </app-form-field>
+  @if (error()) {
+    <p
+      class="rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+      role="alert"
+    >
+      {{ error() }}
+    </p>
+  }
+  <button type="submit" class="btn btn-primary" [disabled]="passwordForm().submitting()">
+    Змінити пароль
+  </button>
+  <p class="text-xs text-muted">
+    Після зміни пароля всі інші ваші сесії (на інших комп’ютерах) буде завершено.
+  </p>
+</form>

@@ -1,0 +1,56 @@
+<app-page-header
+  eyebrow="Додаток 12 до Порядку"
+  title="Відомість оперативного обліку"
+  subtitle="Кількість призовників, військовозобов’язаних та резервістів за групами. Розрахунок — як на аркуші OCL."
+>
+  <label class="flex items-center gap-2 text-sm">
+    <span class="text-muted">Станом на</span>
+    <input
+      class="input w-auto"
+      type="date"
+      [value]="date()"
+      (change)="setDate($any($event.target).value)"
+    />
+  </label>
+  <a class="btn btn-secondary" [href]="reportsService.operationalDocxUrl(date())" download
+    ><app-icon name="download" /> .docx</a
+  >
+  <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="register()">
+    <app-icon name="mail" /> Зареєструвати лист
+  </button>
+</app-page-header>
+
+<div class="card overflow-x-auto">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th class="w-16">№</th>
+        <th>Найменування групи</th>
+        <th class="text-right">Усього</th>
+        <th class="text-right">Мають моб. розпорядження</th>
+        <th class="text-right">Заброньовані</th>
+        <th class="text-right">Не заброньовані, без розпоряджень</th>
+        <th class="text-right">Прийнято з 01.01.2020</th>
+        <th class="text-right">Звільнено з 01.01.2020</th>
+      </tr>
+    </thead>
+    <tbody [class.opacity-50]="isLoading()">
+      @for (r of rows(); track r.code) {
+        <tr [class.font-semibold]="r.code.endsWith('.')">
+          <td class="font-mono">{{ r.code }}</td>
+          <td>{{ r.title }}</td>
+          <td class="text-right tabular-nums">{{ r.total || '—' }}</td>
+          <td class="text-right tabular-nums">{{ r.mobilizationOrders || '—' }}</td>
+          <td class="text-right tabular-nums">{{ r.reserved || '—' }}</td>
+          <td class="text-right tabular-nums">{{ r.other || '—' }}</td>
+          <td class="text-right tabular-nums">{{ r.hiredSince2020 || '—' }}</td>
+          <td class="text-right tabular-nums">{{ r.dismissedSince2020 || '—' }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="mt-3 text-xs text-muted">
+  Звільнені у поточному році враховуються лише в колонці «звільнено»; мобілізовані до відомості не
+  входять.
+</p>

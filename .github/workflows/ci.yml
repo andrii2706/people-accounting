@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (NestJS)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: military
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/military
+      JWT_SECRET: ci-only-secret-ci-only-secret-0123456789
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Міграції на чистій БД (up → down → up)
+        run: |
+          node dist/database/migrate.js
+          npx typeorm migration:revert -d dist/database/data-source.js
+          node dist/database/migrate.js
+      - name: Вразливості в залежностях
+        run: npm audit --omit=dev --audit-level=high
+
+  frontend:
+    name: Frontend (Angular SSR)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx prettier --check "src/**/*.{ts,html,css}"
+      - run: npm run build
+      - name: Вразливості в залежностях
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    name: Docker-образ API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t mr-api:ci backend

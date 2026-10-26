@@ -1,0 +1,446 @@
+<app-page-header
+  [eyebrow]="isEdit() ? 'Редагування картки' : 'Новий працівник'"
+  [title]="isEdit() ? (model().lastName + ' ' + model().firstName + ' ' + model().middleName) : 'Додати працівника'"
+  subtitle="Поля відповідають картці працівника з файлу обліку. Зміни, про які треба повідомити ТЦК, фіксуються автоматично."
+>
+  <a [routerLink]="isEdit() ? ['/employees', id()] : ['/employees']" class="btn btn-ghost"><app-icon name="arrowLeft" /> Назад</a>
+</app-page-header>
+
+@if (isEdit() && employee.isLoading() && !employee.hasValue()) {
+  <div class="card h-64 animate-pulse bg-sunken/50"></div>
+} @else if (employee.error()) {
+  <div class="card p-6 text-sm text-danger">Не вдалося завантажити картку працівника.</div>
+} @else {
+  <form class="grid gap-6 xl:grid-cols-[1fr_320px]" (submit)="save($event)" novalidate>
+    <div class="card min-w-0">
+      <!-- вкладки -->
+      <div class="flex gap-1 overflow-x-auto border-b border-line px-3 pt-3" role="tablist">
+        @for (t of tabs; track t.id) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="tab() === t.id"
+            class="relative rounded-t-lg px-3 py-2 text-sm whitespace-nowrap"
+            [class]="tab() === t.id ? 'bg-surface font-semibold text-ink shadow-[inset_0_-2px_0_var(--color-brand-600)]' : 'text-muted hover:text-ink'"
+            (click)="tab.set(t.id)"
+          >
+            {{ t.label }}
+            @if (tabErrors()[t.id]) {
+              <span class="ml-1 inline-block size-1.5 rounded-full bg-danger align-middle"></span>
+            }
+          </button>
+        }
+      </div>
+
+      <div class="p-5 sm:p-6">
+        @switch (tab()) {
+          @case ('personal') {
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <app-form-field label="Прізвище" [required]="true" [field]="f.lastName">
+                <input class="input" [formField]="f.lastName" autocomplete="off" />
+              </app-form-field>
+              <app-form-field label="Ім’я" [required]="true" [field]="f.firstName">
+                <input class="input" [formField]="f.firstName" autocomplete="off" />
+              </app-form-field>
+              <app-form-field label="По батькові" [field]="f.middleName">
+                <input class="input" [formField]="f.middleName" autocomplete="off" />
+              </app-form-field>
+              <app-form-field label="Стать">
+                <select class="input" [formField]="f.gender">
+                  <option value="M">чоловіча</option>
+                  <option value="F">жіноча</option>
+                </select>
+              </app-form-field>
+              <app-form-field label="Дата народження" [field]="f.birthDate">
+                <input class="input" type="date" [formField]="f.birthDate" />
+              </app-form-field>
+              <app-form-field label="РНОКПП (ІПН)" [field]="f.rnokpp" hint="10 цифр" [warning]="rnokppHint() ?? ''">
+                <input class="input font-mono" inputmode="numeric" [formField]="f.rnokpp" />
+              </app-form-field>
+              <app-form-field label="Табельний номер" [field]="f.personnelNumber">
+                <input class="input font-mono" [formField]="f.personnelNumber" />
+              </app-form-field>
+              <app-form-field label="Телефон" [field]="f.phone" hint="+380 67 123 45 67">
+                <input class="input" type="tel" [formField]="f.phone" />
+              </app-form-field>
+              <app-form-field label="Email" [field]="f.email">
+                <input class="input" type="email" [formField]="f.email" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2 lg:col-span-3" label="Адреса задекларованого (зареєстрованого) місця проживання" [field]="f.registeredAddress">
+                <input class="input" [formField]="f.registeredAddress" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2 lg:col-span-3" label="Адреса фактичного місця проживання" hint="Якщо збігається з зареєстрованою — залиште порожнім" [field]="f.actualAddress">
+                <input class="input" [formField]="f.actualAddress" />
+              </app-form-field>
+            </div>
+          }
+
+          @case ('work') {
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <app-form-field class="sm:col-span-2" label="Посада" [field]="f.position">
+                <input class="input" [formField]="f.position" />
+              </app-form-field>
+              <app-form-field label="Підрозділ" [field]="f.department">
+                <input class="input" [formField]="f.department" />
+              </app-form-field>
+              <app-form-field label="Дата прийняття на роботу" [field]="f.hireDate">
+                <input class="input" type="date" [formField]="f.hireDate" />
+              </app-form-field>
+              <app-form-field label="Наказ про прийняття №" [field]="f.hireOrderNumber">
+                <input class="input" [formField]="f.hireOrderNumber" />
+              </app-form-field>
+              <app-form-field label="Дата наказу" [field]="f.hireOrderDate">
+                <input class="input" type="date" [formField]="f.hireOrderDate" />
+              </app-form-field>
+              <app-form-field label="Посада з дати" hint="Якщо переведено на іншу посаду" [field]="f.positionSince">
+                <input class="input" type="date" [formField]="f.positionSince" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2" label="Реквізити акта про призначення на посаду" hint="напр. наказ № 15-к від 01.03.2026" [field]="f.positionOrder">
+                <input class="input" [formField]="f.positionOrder" />
+              </app-form-field>
+            </div>
+            @if (isEdit() && employee.value()?.dismissalDate) {
+              <p class="mt-6 rounded-lg bg-sunken px-4 py-3 text-sm text-muted">
+                Працівника звільнено. Реквізити звільнення змінюються з картки працівника.
+              </p>
+            }
+          }
+
+          @case ('military') {
+            <div class="mb-5 flex flex-wrap items-center gap-6 rounded-lg bg-sunken/60 px-4 py-3">
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.militaryRegistered" />
+                Перебуває на військовому обліку
+              </label>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.navy" />
+                Корабельні звання (ВМС)
+              </label>
+            </div>
+
+            <h3 class="mb-3 text-sm font-semibold">Облікові дані</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <app-form-field label="Військове звання" [hint]="rank()?.compositionLabel ?? ''">
+                <select class="input" [formField]="f.rankCode">
+                  <option value="">— не вказано —</option>
+                  @for (r of dict.ranks(); track r.code) {
+                    <option [value]="'' + r.code">{{ r.code === 0 ? 'призовник (без звання)' : (model().navy ? r.navy : r.army) }}</option>
+                  }
+                </select>
+              </app-form-field>
+              <app-form-field label="ВОС" [hint]="isOfficer() ? '6 символів для офіцерів' : '3 символи'" [field]="f.vos">
+                <input class="input font-mono" [formField]="f.vos" />
+              </app-form-field>
+              <app-form-field [label]="isOfficer() ? 'Розряд' : 'Категорія обліку'" hint="1 або 2" [field]="f.accountingCategory">
+                <input class="input" [formField]="f.accountingCategory" />
+              </app-form-field>
+              @if (isOfficer()) {
+                <app-form-field label="Профіль підготовки" [field]="f.trainingProfile">
+                  <input class="input" [formField]="f.trainingProfile" />
+                </app-form-field>
+              }
+              <app-form-field class="sm:col-span-2" label="Реєстраційний номер облікового запису в ЄДР призовників" [field]="f.registryNumber">
+                <input class="input font-mono" [formField]="f.registryNumber" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2" label="ТЦК та СП, де перебуває на обліку" [field]="f.tckId" [required]="model().militaryRegistered && model().rankCode !== ''">
+                <select class="input" [formField]="f.tckId">
+                  <option value="">— оберіть —</option>
+                  @for (t of dict.activeTcks(); track t.id) {
+                    <option [value]="t.id">{{ t.name }}</option>
+                  }
+                </select>
+              </app-form-field>
+              <app-form-field label="На обліку з" [field]="f.tckRegisteredAt">
+                <input class="input" type="date" [formField]="f.tckRegisteredAt" />
+              </app-form-field>
+            </div>
+
+            <h3 class="mt-7 mb-3 text-sm font-semibold">Військово-обліковий документ</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <app-form-field class="sm:col-span-2 lg:col-span-3" label="Тип документа" [field]="f.militaryDocType">
+                <input class="input" list="milDocTypes" [formField]="f.militaryDocType" />
+                <datalist id="milDocTypes">
+                  @for (d of dict.dictionaries()?.militaryDocumentTypes ?? []; track d) {
+                    <option [value]="d"></option>
+                  }
+                </datalist>
+              </app-form-field>
+              <app-form-field label="Серія" [field]="f.militaryDocSeries">
+                <input class="input font-mono uppercase" [formField]="f.militaryDocSeries" />
+              </app-form-field>
+              <app-form-field label="Номер" [field]="f.militaryDocNumber">
+                <input class="input font-mono" [formField]="f.militaryDocNumber" />
+              </app-form-field>
+              <app-form-field label="Дата видачі" [field]="f.militaryDocIssuedAt">
+                <input class="input" type="date" [formField]="f.militaryDocIssuedAt" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2" label="Ким виданий" [field]="f.militaryDocIssuedBy">
+                <input class="input" [formField]="f.militaryDocIssuedBy" />
+              </app-form-field>
+              <app-form-field label="Час і дата формування (е-документ)" hint="напр. 10:15 12.06.2025" [field]="f.militaryDocGeneratedAt">
+                <input class="input" [formField]="f.militaryDocGeneratedAt" />
+              </app-form-field>
+            </div>
+
+            @if (!isOfficer() && !isConscript()) {
+              <h3 class="mt-7 mb-3 text-sm font-semibold">Придатність</h3>
+              <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <app-form-field class="sm:col-span-2" label="Придатність до військової служби" [field]="f.fitness">
+                  <input class="input" list="fitness" [formField]="f.fitness" />
+                  <datalist id="fitness">
+                    @for (d of dict.dictionaries()?.fitnessStatuses ?? []; track d) {
+                      <option [value]="d"></option>
+                    }
+                  </datalist>
+                </app-form-field>
+                <app-form-field label="Дата ВЛК" [field]="f.fitnessDate">
+                  <input class="input" type="date" [formField]="f.fitnessDate" />
+                </app-form-field>
+                <app-form-field class="sm:col-span-2" label="Графа, пункт наказу" [field]="f.fitnessBasis">
+                  <input class="input" [formField]="f.fitnessBasis" />
+                </app-form-field>
+              </div>
+            }
+
+            <h3 class="mt-7 mb-3 text-sm font-semibold">Бронювання, відстрочка, резерв</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              @if (isConscript()) {
+                <app-form-field class="sm:col-span-2 lg:col-span-3" label="Відстрочка від строкової служби (норма закону)" [field]="f.deferralConscriptionBasis">
+                  <input class="input" [formField]="f.deferralConscriptionBasis" />
+                </app-form-field>
+              } @else {
+                <app-form-field class="sm:col-span-2" label="Бронювання: пункт, розділ, номер переліку" [field]="f.reservationBasis">
+                  <input class="input" [formField]="f.reservationBasis" />
+                </app-form-field>
+                <app-form-field label="Заброньовано до" [field]="f.reservationUntil" [required]="!!model().reservationBasis">
+                  <input class="input" type="date" [formField]="f.reservationUntil" />
+                </app-form-field>
+                <app-form-field label="№ посвідчення (спецоблік)" [field]="f.specialAccountingCertificate">
+                  <input class="input" [formField]="f.specialAccountingCertificate" />
+                </app-form-field>
+                <app-form-field label="Відстрочка від мобілізації (норма закону)" [field]="f.deferralMobilizationBasis">
+                  <input class="input" [formField]="f.deferralMobilizationBasis" />
+                </app-form-field>
+              }
+              <app-form-field label="Відстрочка до" [field]="f.deferralUntil">
+                <input class="input" type="date" [formField]="f.deferralUntil" />
+              </app-form-field>
+              <app-form-field label="Служба в резерві — № команди" hint="Заповнено ⇒ резервіст" [field]="f.reserveTeamNumber">
+                <input class="input font-mono" [formField]="f.reserveTeamNumber" />
+              </app-form-field>
+              <app-form-field label="Мобілізаційне розпорядження від" [field]="f.mobilizationOrderDate">
+                <input class="input" type="date" [formField]="f.mobilizationOrderDate" />
+              </app-form-field>
+            </div>
+
+            <h3 class="mt-7 mb-3 text-sm font-semibold">Мобілізація</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <app-form-field label="Дата мобілізації" [field]="f.mobilizedAt">
+                <input class="input" type="date" [formField]="f.mobilizedAt" />
+              </app-form-field>
+              <app-form-field label="Наказ про увільнення №" [field]="f.mobilizationReleaseOrder">
+                <input class="input" [formField]="f.mobilizationReleaseOrder" />
+              </app-form-field>
+              <app-form-field label="Дата демобілізації" [field]="f.demobilizedAt">
+                <input class="input" type="date" [formField]="f.demobilizedAt" />
+              </app-form-field>
+              <app-form-field label="Наказ про допуск №" [field]="f.readmissionOrder">
+                <input class="input" [formField]="f.readmissionOrder" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2 lg:col-span-4" label="Відомості про проходження військової служби" [field]="f.militaryServiceInfo">
+                <textarea class="input min-h-20" [formField]="f.militaryServiceInfo"></textarea>
+              </app-form-field>
+            </div>
+          }
+
+          @case ('documents') {
+            <h3 class="mb-3 text-sm font-semibold">Паспорт громадянина України</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <app-form-field label="Тип">
+                <select class="input" [formField]="f.passportType">
+                  <option value="ID_CARD">ID-картка</option>
+                  <option value="BOOK">паспорт-книжечка</option>
+                </select>
+              </app-form-field>
+              <app-form-field label="Серія" [field]="f.passportSeries" [hint]="isIdCard() ? 'у ID-картки немає' : 'дві літери кирилицею'">
+                <input class="input font-mono uppercase" [formField]="f.passportSeries" />
+              </app-form-field>
+              <app-form-field label="Номер" [field]="f.passportNumber" [hint]="isIdCard() ? '9 цифр' : '6 цифр'">
+                <input class="input font-mono" inputmode="numeric" [formField]="f.passportNumber" />
+              </app-form-field>
+              <app-form-field label="Дата видачі" [field]="f.passportIssuedAt">
+                <input class="input" type="date" [formField]="f.passportIssuedAt" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2 lg:col-span-4" label="Ким виданий" [field]="f.passportIssuedBy" [hint]="isIdCard() ? 'код органу, 4 цифри, напр. 4610' : 'назва органу, що видав'">
+                <input class="input" [formField]="f.passportIssuedBy" />
+              </app-form-field>
+            </div>
+
+            <h3 class="mt-7 mb-3 text-sm font-semibold">Паспорт для виїзду за кордон</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <app-form-field label="Серія" [field]="f.foreignPassportSeries" hint="дві латинські літери">
+                <input class="input font-mono uppercase" [formField]="f.foreignPassportSeries" />
+              </app-form-field>
+              <app-form-field label="Номер" [field]="f.foreignPassportNumber" hint="6 цифр">
+                <input class="input font-mono" inputmode="numeric" [formField]="f.foreignPassportNumber" />
+              </app-form-field>
+              <app-form-field label="Дата видачі" [field]="f.foreignPassportIssuedAt">
+                <input class="input" type="date" [formField]="f.foreignPassportIssuedAt" />
+              </app-form-field>
+              <app-form-field label="Дійсний до" [field]="f.foreignPassportValidUntil">
+                <input class="input" type="date" [formField]="f.foreignPassportValidUntil" />
+              </app-form-field>
+              <app-form-field class="sm:col-span-2 lg:col-span-4" label="Ким виданий" [field]="f.foreignPassportIssuedBy">
+                <input class="input" [formField]="f.foreignPassportIssuedBy" />
+              </app-form-field>
+            </div>
+
+            <h3 class="mt-7 mb-3 text-sm font-semibold">Освіта</h3>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <app-form-field label="Рівень освіти">
+                <select class="input" [formField]="f.educationLevel">
+                  <option value="">— не вказано —</option>
+                  @for (lvl of dict.dictionaries()?.educationLevels ?? []; track lvl) {
+                    <option [value]="lvl">{{ lvl }}</option>
+                  }
+                </select>
+              </app-form-field>
+              <app-form-field label="Спеціальність" [field]="f.educationSpecialty">
+                <input class="input" [formField]="f.educationSpecialty" />
+              </app-form-field>
+              <app-form-field label="Документ про освіту (назва, серія, номер)" [field]="f.educationDocument">
+                <input class="input" [formField]="f.educationDocument" />
+              </app-form-field>
+              <app-form-field label="Дата видачі" [field]="f.educationDocumentDate">
+                <input class="input" type="date" [formField]="f.educationDocumentDate" />
+              </app-form-field>
+            </div>
+          }
+
+          @case ('family') {
+            <div class="mb-5 grid gap-4 sm:grid-cols-2">
+              <app-form-field label="Сімейний стан">
+                <select class="input" [formField]="f.maritalStatus">
+                  <option value="">— не вказано —</option>
+                  @for (s of dict.dictionaries()?.maritalStatuses ?? []; track s.value) {
+                    <option [value]="s.value">{{ model().gender === 'F' ? s.labelF : s.labelM }}</option>
+                  }
+                </select>
+              </app-form-field>
+            </div>
+
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-sm font-semibold">Члени сім’ї</h3>
+              <div class="flex flex-wrap gap-2">
+                <button type="button" class="btn btn-secondary py-1.5" (click)="addFamilyMember(model().gender === 'F' ? 'HUSBAND' : 'WIFE')">
+                  <app-icon name="plus" [size]="14" /> {{ model().gender === 'F' ? 'Чоловік' : 'Дружина' }}
+                </button>
+                <button type="button" class="btn btn-secondary py-1.5" (click)="addFamilyMember('SON')"><app-icon name="plus" [size]="14" /> Син</button>
+                <button type="button" class="btn btn-secondary py-1.5" (click)="addFamilyMember('DAUGHTER')"><app-icon name="plus" [size]="14" /> Донька</button>
+              </div>
+            </div>
+
+            @for (e of f.familyMembers().errors(); track e.kind) {
+              <p class="mb-3 rounded-lg bg-[#fdf1ef] px-3 py-2 text-sm text-danger" role="alert">{{ e.message }}</p>
+            }
+            <div class="space-y-3">
+              @for (member of f.familyMembers; track $index; let i = $index) {
+                <div class="grid items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-[110px_1fr_1fr_1fr_150px_auto]">
+                  <p class="pb-2 text-sm font-medium">{{ relationLabel(model().familyMembers[i].relation) }}</p>
+                  <app-form-field label="Прізвище" [field]="member.lastName">
+                    <input class="input" [formField]="member.lastName" />
+                  </app-form-field>
+                  <app-form-field label="Ім’я" [field]="member.firstName">
+                    <input class="input" [formField]="member.firstName" />
+                  </app-form-field>
+                  <app-form-field label="По батькові" [field]="member.middleName">
+                    <input class="input" [formField]="member.middleName" />
+                  </app-form-field>
+                  <app-form-field label="Дата народження" [field]="member.birthDate">
+                    <input class="input" type="date" [formField]="member.birthDate" />
+                  </app-form-field>
+                  <button type="button" class="btn btn-ghost mb-0.5 px-2" (click)="removeFamilyMember(i)" aria-label="Видалити"><app-icon name="x" /></button>
+                </div>
+              } @empty {
+                <p class="rounded-lg border border-dashed border-line px-4 py-6 text-center text-sm text-muted">Членів сім’ї не додано</p>
+              }
+            </div>
+          }
+
+          @case ('notes') {
+            <app-form-field label="Примітки (внутрішні, у документи не потрапляють)" [field]="f.notes">
+              <textarea class="input min-h-40" [formField]="f.notes"></textarea>
+            </app-form-field>
+          }
+        }
+      </div>
+    </div>
+
+    <!-- бічна панель -->
+    <aside class="space-y-4 xl:sticky xl:top-6 xl:self-start">
+      <section class="card p-4">
+        <p class="label">Попередній розрахунок</p>
+        <dl class="space-y-2 text-sm">
+          <div>
+            <dt class="text-xs text-muted">Категорія</dt>
+            <dd class="font-medium">{{ preview().category }}</dd>
+          </div>
+          <div>
+            <dt class="text-xs text-muted">Група списку</dt>
+            <dd class="font-medium">{{ preview().group }}</dd>
+          </div>
+          @if (rank(); as r) {
+            <div>
+              <dt class="text-xs text-muted">Граничний вік</dt>
+              <dd class="font-medium">{{ r.ageLimit }} років</dd>
+            </div>
+          }
+        </dl>
+      </section>
+
+      @if (changedLabels().length) {
+        <section class="card border-warning/40 bg-[#fdf9f2] p-4">
+          <p class="mb-1 flex items-center gap-2 text-sm font-semibold text-warning"><app-icon name="bell" [size]="16" /> Зміна піде в чергу для ТЦК</p>
+          <p class="mb-3 text-xs text-muted">
+            Змінено: {{ changedLabels().join(', ') }}. Автоматично нічого не надсилається — повідомлення ви сформуєте й відправите самі в розділі «Повідомлення ТЦК».
+          </p>
+          <div class="space-y-3">
+            <app-form-field label="Зміни діють з" [required]="true" [field]="f.changeEffectiveDate">
+              <input class="input" type="date" [formField]="f.changeEffectiveDate" />
+            </app-form-field>
+            <app-form-field label="Підстава (документ, №, дата)" hint="напр. свідоцтво про шлюб серія … № … від …" [field]="f.changeBasis">
+              <textarea class="input min-h-16" [formField]="f.changeBasis"></textarea>
+            </app-form-field>
+          </div>
+        </section>
+      }
+
+      @if (saveError() || (submitAttempted() && errorList().length)) {
+        <section class="rounded-xl border border-danger/25 bg-[#fdf1ef] p-4 text-sm" role="alert">
+          <p class="mb-2 font-semibold text-danger">{{ saveError() || 'Виправте поля перед збереженням' }}</p>
+          @if (errorList().length) {
+            <ul class="space-y-1">
+              @for (e of errorList().slice(0, 8); track $index) {
+                <li>
+                  <button type="button" class="text-left text-danger hover:underline" (click)="goTo(e)">
+                    <span class="font-medium">{{ e.label }}:</span> {{ e.message }}
+                  </button>
+                </li>
+              }
+            </ul>
+            @if (errorList().length > 8) {
+              <p class="mt-1 text-xs text-danger/80">…і ще {{ errorList().length - 8 }}</p>
+            }
+          }
+          @for (m of serverErrors(); track $index) {
+            <p class="mt-1 text-danger">{{ m }}</p>
+          }
+        </section>
+      }
+
+      <button type="submit" class="btn btn-primary w-full py-2.5" [disabled]="f().submitting()">
+        <app-icon name="check" /> {{ f().submitting() ? 'Збереження…' : isEdit() ? 'Зберегти зміни' : 'Створити картку' }}
+      </button>
+    </aside>
+  </form>
+}
