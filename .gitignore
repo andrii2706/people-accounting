@@ -2,6 +2,7 @@ node_modules/
 dist/
 .angular/
 coverage/
+*.tsbuildinfo
 *.log
 .env
 .env.*
@@ -11,4 +12,3 @@ backend/storage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
-*.tsbuildinfo

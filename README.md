@@ -10,7 +10,7 @@
 | Frontend | Angular 22 (standalone, zoneless) · **SSR** · **Tailwind CSS 4** · **Signals** (signal, computed, linkedSignal, Signal Forms) · lazy-модулі + резолвери |
 | Хостинг  | Firebase App Hosting (SSR) · Cloud Run (API, приватний) · Cloud SQL · Secret Manager · Cloud Storage — [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
 
-📄 Документація: [Розгортання](docs/DEPLOYMENT.md) · [Безпека](docs/SECURITY.md) · [Підпис КЕП](docs/KEP.md)
+📄 Документація: [Розгортання (налаштування)](docs/DEPLOYMENT.md) · [Процес деплою](docs/DEPLOYMENT-PROCESS.md) · [Безпека](docs/SECURITY.md) · [Підпис КЕП](docs/KEP.md)
 
 ---
 

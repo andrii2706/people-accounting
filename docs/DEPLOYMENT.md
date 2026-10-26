@@ -1,5 +1,8 @@
 # Розгортання: Firebase App Hosting + Cloud Run + Cloud SQL
 
+> Це одноразове налаштування інфраструктури. Щоденний процес випуску змін, правила міграцій і відкат —
+> у [DEPLOYMENT-PROCESS.md](DEPLOYMENT-PROCESS.md).
+
 ```
  Браузер ──HTTPS──▶ Firebase App Hosting (Angular SSR, Express)          europe-west4
                       │  /api/*  → проксі + ID-токен сервісного акаунта

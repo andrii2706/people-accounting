@@ -32,10 +32,36 @@ env:
 
 jobs:
   deploy:
+    # Поки інфраструктуру не налаштовано (infra/bootstrap.sh + змінні репозиторію) — деплой пропускається,
+    # а не падає на кожному push у main
+    if: vars.GCP_PROJECT_ID != ''
     runs-on: ubuntu-latest
     # Захист через GitHub Environments: обов'язкове підтвердження, лише гілка main
     environment: production
     steps:
+      - name: Перевірка змінних репозиторію
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_DEPLOY_SA: ${{ vars.GCP_DEPLOY_SA }}
+          GCP_API_SA: ${{ vars.GCP_API_SA }}
+          GCP_SQL_INSTANCE: ${{ vars.GCP_SQL_INSTANCE }}
+          GCP_BUCKET: ${{ vars.GCP_BUCKET }}
+          GCP_WEB_SA: ${{ vars.GCP_WEB_SA }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
+        run: |
+          missing=""
+          for v in GCP_PROJECT_ID GCP_REGION GCP_WIF_PROVIDER GCP_DEPLOY_SA GCP_API_SA GCP_SQL_INSTANCE GCP_BUCKET GCP_WEB_SA APP_ORIGIN ADMIN_EMAIL; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Не задано змінні (Settings → Secrets and variables → Actions → вкладка Variables, не Secrets):$missing"
+            echo "Значення друкує infra/bootstrap.sh — див. docs/DEPLOYMENT.md, крок 3."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - id: auth
