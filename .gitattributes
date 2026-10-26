@@ -1,0 +1,8 @@
+# Єдині закінчення рядків LF на всіх ОС (Prettier перевіряє endOfLine: lf; без цього на Windows git перетворює на CRLF)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary
+*.docx binary
+*.zip binary
+*.p7s binary

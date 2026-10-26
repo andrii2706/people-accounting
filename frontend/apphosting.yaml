@@ -27,7 +27,7 @@ env:
 
   # Хости, для яких дозволено SSR (захист від SSRF): домен App Hosting і власний домен
   - variable: NG_ALLOWED_HOSTS
-    value: military-registry-web--REPLACE-PROJECT.europe-west4.hosted.app,oblik.example.ua
+    value: military-registry-web--accouting-project.europe-west4.hosted.app
     availability: [RUNTIME]
 
   # Кількість проксі Google перед контейнером — для коректного IP клієнта (див. docs/SECURITY.md)

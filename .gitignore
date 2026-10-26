@@ -12,5 +12,3 @@ backend/storage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
-*.tsbuildinfo
-*.tsbuildinfo
