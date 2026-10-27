@@ -68,7 +68,7 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
 
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@v3
 
       # Environment variables go through a YAML/JSON file: values may contain ",", "@", "=" (e.g. an email)
       - name: Змінні середовища для API
