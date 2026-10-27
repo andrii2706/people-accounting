@@ -10,7 +10,7 @@ const utf8 = (value: string) => new asn1js.Utf8String({ value });
 const attr = (type: string, value: asn1js.Utf8String | asn1js.PrintableString) =>
   new pkijs.AttributeTypeAndValue({ type, value });
 
-/** Тестовий «КЕП»: самопідписаний ECDSA-сертифікат з українськими атрибутами (вигадана особа). */
+/** Test "e-signature": self-signed ECDSA certificate with Ukrainian attributes (fictitious person). */
 async function makeSigner() {
   const crypto = pkijs.getCrypto(true);
   const keys = (await crypto.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
@@ -87,14 +87,14 @@ async function ecdsaDetached(doc: Buffer, forge = false) {
   });
   await sd.sign(keys.privateKey, 0, 'SHA-256', new Uint8Array(doc));
   if (forge) {
-    // підпис іншим ключем під тим самим сертифікатом
+    // sign with another key under the same certificate
     const other = (await pkijs.getCrypto(true).generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
     await sd.sign(other.privateKey, 0, 'SHA-256', new Uint8Array(doc));
   }
   return toDer(sd);
 }
 
-/** CMS з алгоритмами ДСТУ 4145 + ГОСТ 34.311 (сам підпис фіктивний — сервер його не перевіряє). */
+/** CMS with DSTU 4145 + GOST 34.311 algorithms (the signature itself is fake — the server does not verify it). */
 async function dstuDetached(doc: Buffer) {
   const { cert } = await makeSigner();
   const si = new pkijs.SignerInfo({

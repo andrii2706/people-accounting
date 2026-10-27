@@ -7,9 +7,7 @@ import {
   linkedSignal,
   signal,
 } from '@angular/core';
-import { form, FormField, required, submit, validate } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
-import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { LetterStatusBadgeComponent } from '../../../shared/components/letter-status-badge/letter-status-badge.component';
 import { LETTER_TYPE_LABELS } from '../../../shared/constants/letter.constants';
@@ -24,11 +22,6 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { LetterSigningComponent } from '../letter-signing/letter-signing.component';
 
-const DEFAULT_MESSAGE =
-  'Добрий день!\n\nНадсилаємо документи з питань військового обліку працівників підприємства. Оригінали буде направлено поштою.';
-const SIGNED_MESSAGE =
-  'Добрий день!\n\nНадсилаємо документ з питань військового обліку працівників підприємства, підписаний кваліфікованим електронним підписом (файл .p7s — окремий підпис до документа).';
-
 @Component({
   selector: 'app-letter-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,8 +31,6 @@ const SIGNED_MESSAGE =
     LetterStatusBadgeComponent,
     UaDatePipe,
     UaDateTimePipe,
-    FormField,
-    FormFieldComponent,
     LetterSigningComponent,
   ],
   templateUrl: './letter-detail.component.html',
@@ -52,9 +43,9 @@ export class LetterDetailComponent {
 
   readonly id = input.required<string>();
 
-  /** Лист з letterDetailsResolver; після змін — повторний запуск резолвера. */
+  /** Letter from letterDetailsResolver; after changes the resolver is re-run. */
   readonly letter = input.required<LetterDetails>();
-  /** Стан підписання КЕП (letterSigningResolver) і налаштування віджета (signingConfigResolver). */
+  /** E-signing state (letterSigningResolver) and widget settings (signingConfigResolver). */
   readonly signing = input.required<SigningState>();
   readonly signingConfig = input.required<SigningConfig>();
   protected readonly signed = computed(() => this.signing().signatures.length > 0);
@@ -66,32 +57,6 @@ export class LetterDetailComponent {
 
   protected readonly number = linkedSignal(() => this.l()?.number ?? '');
   protected readonly date = linkedSignal(() => this.l()?.date ?? '');
-
-  protected readonly sendModel = linkedSignal(() => ({
-    to: this.l()?.recipientEmail || this.l()?.tck?.email || '',
-    cc: '',
-    message: this.signing().signatures.length ? SIGNED_MESSAGE : DEFAULT_MESSAGE,
-  }));
-  protected readonly sendForm = form(this.sendModel, (p) => {
-    required(p.to, { message: 'Вкажіть email ТЦК' });
-    validate(p.to, ({ value }) =>
-      value() && !/^\S+@\S+\.\S+$/.test(value())
-        ? { kind: 'email', message: 'Некоректний email' }
-        : undefined,
-    );
-    validate(p.cc, ({ value }) =>
-      value() && !/^\S+@\S+\.\S+$/.test(value())
-        ? { kind: 'email', message: 'Некоректний email' }
-        : undefined,
-    );
-  });
-
-  protected readonly changeTypes = computed(
-    () => new Map((this.dict.dictionaries()?.changeTypes ?? []).map((c) => [c.value, c.label])),
-  );
-  protected changeLabel(type: string) {
-    return this.changeTypes().get(type as never) ?? type;
-  }
 
   protected async saveMeta() {
     await this.mutate(
@@ -109,19 +74,16 @@ export class LetterDetailComponent {
   }
 
   protected async markSent() {
-    await this.mutate(() => this.lettersService.markSent(this.id()), 'Позначено як відправлений');
-  }
-
-  protected async send(event: Event) {
-    event.preventDefault();
-    await submit(this.sendForm, async () => {
-      const { to, cc, message } = this.sendModel();
-      await this.mutate(
-        () => this.lettersService.send(this.id(), { to, cc: cc || undefined, message }),
-        'Лист надіслано',
-      );
-      return undefined;
-    });
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm('Позначити лист як переданий у ТЦК? Після цього його не можна редагувати.')
+    ) {
+      return;
+    }
+    await this.mutate(
+      () => this.lettersService.markSent(this.id()),
+      'Позначено як переданий у ТЦК',
+    );
   }
 
   protected async remove() {

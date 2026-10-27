@@ -20,7 +20,7 @@ export class EmployeesController {
     return this.employees.list(query);
   }
 
-  /** Зміни, що очікують повідомлення ТЦК (по всіх працівниках). */
+  /** Changes awaiting a notice to the TCK (for all employees). */
   @Get('changes/pending')
   pending() {
     return this.employees.pendingChanges();

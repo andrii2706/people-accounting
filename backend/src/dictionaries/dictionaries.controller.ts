@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiTags, PartialType } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, MaxLength, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { Repository } from 'typeorm';
 import { AllowPendingPasswordChange, Roles } from '../common/auth.js';
 import {
@@ -21,6 +21,7 @@ class CreateTckDto {
   @IsString() @IsNotEmpty({ message: 'Вкажіть назву' }) @MaxLength(300, { message: 'Не більше 300 символів' }) name: string;
   @IsOptional() @IsString() @MaxLength(300, { message: 'Не більше 300 символів' }) nameGenitive?: string;
   @IsOptional() @IsString() @MaxLength(300, { message: 'Не більше 300 символів' }) address?: string;
+  @IsOptional() @Matches(/^(\d{5})?$/, { message: 'Поштовий індекс — 5 цифр' }) postalCode?: string;
   @IsOptional() @IsString() @MaxLength(200, { message: 'Не більше 200 символів' }) phone?: string;
   @IsOptional() @ValidateIf((o: CreateTckDto) => !!o.email) @IsEmail({}, { message: 'Некоректний email' }) @MaxLength(200) email?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
@@ -33,8 +34,8 @@ export class DictionariesController {
   constructor(@InjectRepository(Tck) private readonly tckRepo: Repository<Tck>) {}
 
   /**
-   * Усі статичні довідники одним запитом — фронтенд кешує їх у сигналі.
-   * Довідкові дані без персональних — доступні й до зміни тимчасового пароля (потрібні каркасу застосунку).
+   * All static dictionaries in one request — the frontend caches them in a signal.
+   * Reference data without personal data — available even before the temporary password is changed (needed by the app shell).
    */
   @AllowPendingPasswordChange()
   @Get('dictionaries')

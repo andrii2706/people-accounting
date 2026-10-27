@@ -5,30 +5,41 @@ import { DataSource, type EntityManager, In, IsNull, Repository } from 'typeorm'
 import type { AuthUser } from '../common/auth.js';
 import { formatUa, type IsoDate, todayIso, yearOf } from '../common/utils/dates.js';
 import { Tck } from '../dictionaries/tck.entity.js';
-import { buildChangeNotice } from '../documents/builders.js';
+import { buildChangeNotice, buildEnvelopeLabels, buildSingleNotice, noticeNumber, postalCodeOf } from '../documents/builders.js';
+import { noticeSnapshot, type NoticeSnapshot } from '../documents/notice-snapshot.js';
+import type { Employee } from '../employees/entities/employee.entity.js';
+import { CHANGE_TYPE_LABELS } from '../military/dictionaries.js';
+import { ChangeNotice } from './entities/change-notice.entity.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { EmployeesService } from '../employees/employees.service.js';
-import { MailService } from '../mail/mail.service.js';
 import { type ListGroup, LIST_GROUPS } from '../military/dictionaries.js';
 import { fullName } from '../military/employee-format.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { ReportsService } from '../reports/reports.service.js';
 import { StorageService } from '../storage/storage.service.js';
-import { EmailLog } from './entities/email-log.entity.js';
 import { LetterSignature } from './entities/letter-signature.entity.js';
 import { OutgoingLetter } from './entities/outgoing-letter.entity.js';
 import type {
   CreateChangeNoticeDto,
+  CreateChangeNoticesDto,
+  NoticeQueryDto,
   CreateReportLetterDto,
   LetterQueryDto,
-  SendLetterDto,
   UpdateLetterDto,
 } from './letters.dto.js';
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const P7S_MIME = 'application/pkcs7-signature';
 const sha256 = (data: Buffer) => createHash('sha256').update(data).digest('hex');
+
+/** "2 працівники", "5 працівників", "21 працівник" — Ukrainian plural forms. */
+export function employeesCount(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? 'працівник' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'працівники' : 'працівників';
+  return `${n} ${word}`;
+}
 
 const TYPE_TITLES = {
   CHANGE_NOTICE: 'Повідомлення про зміну облікових даних',
@@ -41,40 +52,178 @@ const TYPE_TITLES = {
 export class LettersService {
   constructor(
     @InjectRepository(OutgoingLetter) private readonly repo: Repository<OutgoingLetter>,
-    @InjectRepository(EmailLog) private readonly emailLogRepo: Repository<EmailLog>,
     @InjectRepository(Tck) private readonly tckRepo: Repository<Tck>,
     @InjectRepository(LetterSignature) private readonly signatureRepo: Repository<LetterSignature>,
+    @InjectRepository(ChangeNotice) private readonly noticeRepo: Repository<ChangeNotice>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly employees: EmployeesService,
     private readonly reports: ReportsService,
     private readonly org: OrganizationService,
-    private readonly mail: MailService,
     private readonly storage: StorageService,
   ) {}
 
   // ---------------------------------------------------------------- create
 
+  /** Notice letter for one employee (kept for the employee card and older clients). */
   async createChangeNotice(dto: CreateChangeNoticeDto, user: AuthUser) {
-    const employee = await this.employees.findEntity(dto.employeeId);
-    const id = await this.dataSource.transaction(async (m) => {
-      const where = { employeeId: employee.id, letterId: IsNull(), skipped: false, ...(dto.changeIds?.length ? { id: In(dto.changeIds) } : {}) };
-      const changes = await m.getRepository(EmployeeChange).find({ where, order: { effectiveDate: 'ASC' } });
+    const [letter] = await this.createChangeNotices(
+      { employeeIds: [dto.employeeId], changeIds: dto.changeIds, date: dto.date },
+      user,
+      dto.number,
+    );
+    return letter;
+  }
+
+  /**
+   * Notices for many employees: pending changes are grouped by the employee's TCK and one letter
+   * is created per TCK. Each change becomes a stored notice (snapshot) linked to the letter.
+   */
+  async createChangeNotices(dto: CreateChangeNoticesDto, user: AuthUser, number?: string) {
+    const ids = await this.dataSource.transaction(async (m) => {
+      const employees = await Promise.all([...new Set(dto.employeeIds)].map((id) => this.employees.findEntity(id, m)));
+      const where = {
+        employeeId: In(employees.map((e) => e.id)),
+        letterId: IsNull(),
+        skipped: false,
+        ...(dto.changeIds?.length ? { id: In(dto.changeIds) } : {}),
+      };
+      const changes = await m.getRepository(EmployeeChange).find({ where, order: { effectiveDate: 'ASC', createdAt: 'ASC' } });
       if (!changes.length) throw new BadRequestException('Немає змін, про які потрібно повідомити');
 
-      const letter = await this.newLetter(m, {
-        type: 'CHANGE_NOTICE',
-        date: dto.date ?? todayIso(),
-        number: dto.number,
-        subject: `${TYPE_TITLES.CHANGE_NOTICE}: ${fullName(employee)}`,
-        employeeId: employee.id,
-        tckId: employee.tckId,
-        recipientEmail: employee.tck?.email ?? '',
-        createdById: user.id,
-      });
-      await m.getRepository(EmployeeChange).update({ id: In(changes.map((c) => c.id)) }, { letterId: letter.id });
-      return letter.id;
+      // group by TCK; inside a letter — employees alphabetically, their changes by date
+      const byId = new Map(employees.map((e) => [e.id, e]));
+      const groups = new Map<string, Employee[]>();
+      for (const e of employees) {
+        if (!changes.some((c) => c.employeeId === e.id)) continue;
+        const key = e.tckId ?? 'none';
+        groups.set(key, [...(groups.get(key) ?? []), e]);
+      }
+
+      const created: string[] = [];
+      for (const [, group] of groups) {
+        group.sort((a, b) => fullName(a).localeCompare(fullName(b), 'uk'));
+        const groupChanges = group.flatMap((e) => changes.filter((c) => c.employeeId === e.id));
+        const single = group.length === 1;
+        const letter = await this.newLetter(m, {
+          type: 'CHANGE_NOTICE',
+          date: dto.date ?? todayIso(),
+          number: groups.size === 1 ? number : undefined,
+          subject: single
+            ? `${TYPE_TITLES.CHANGE_NOTICE}: ${fullName(group[0])}`
+            : `${TYPE_TITLES.CHANGE_NOTICE}: ${employeesCount(group.length)}`,
+          employeeId: single ? group[0].id : null,
+          tckId: group[0].tckId,
+          createdById: user.id,
+        });
+        await m.getRepository(EmployeeChange).update({ id: In(groupChanges.map((c) => c.id)) }, { letterId: letter.id });
+        await m.getRepository(ChangeNotice).save(
+          groupChanges.map((c, i) => this.noticeRow(letter.id, i + 1, byId.get(c.employeeId)!, c)),
+        );
+        created.push(letter.id);
+      }
+      return created;
     });
-    return this.get(id);
+    return Promise.all(ids.map((id) => this.get(id)));
+  }
+
+  private noticeRow(letterId: string, sequence: number, employee: Employee, change: EmployeeChange) {
+    return this.noticeRepo.create({
+      letterId,
+      sequence,
+      employeeId: employee.id,
+      changeId: change.id,
+      employeeName: fullName(employee),
+      changeType: change.type,
+      effectiveDate: change.effectiveDate,
+      content: JSON.stringify(noticeSnapshot(employee, change)),
+    });
+  }
+
+  /**
+   * Letters created before notices were stored have no snapshot rows — build them once from
+   * the current employee data, so that every notice ends up in the database.
+   */
+  private async ensureNotices(letter: OutgoingLetter): Promise<ChangeNotice[]> {
+    const existing = await this.noticeRepo.find({ where: { letterId: letter.id }, order: { sequence: 'ASC' } });
+    if (existing.length || letter.type !== 'CHANGE_NOTICE') return existing;
+    const changes = await this.dataSource
+      .getRepository(EmployeeChange)
+      .find({ where: { letterId: letter.id }, order: { effectiveDate: 'ASC', createdAt: 'ASC' } });
+    const rows: ChangeNotice[] = [];
+    for (const [i, c] of changes.entries()) {
+      const employee = await this.employees.findEntity(c.employeeId);
+      rows.push(this.noticeRow(letter.id, i + 1, employee, c));
+    }
+    return rows.length ? this.noticeRepo.save(rows) : [];
+  }
+
+  /** Envelope labels for the given letters (sender — organization, recipient — the letter's TCK). */
+  async labels(ids: string[]) {
+    const unique = [...new Set(ids)];
+    if (!unique.length) throw new BadRequestException('Оберіть хоча б один лист');
+    if (unique.length > 200) throw new BadRequestException('Не більше 200 листів за раз');
+    const letters = await this.repo.find({ where: { id: In(unique) }, relations: { tck: true }, order: { year: 'ASC', sequence: 'ASC' } });
+    if (letters.length !== unique.length) throw new NotFoundException('Деякі листи не знайдено');
+    const org = await this.org.get();
+    const sender = {
+      name: org.shortName || org.fullName,
+      address: org.address,
+      postalCode: postalCodeOf(org.postalCode, org.address),
+      phone: org.phone,
+    };
+    const buffer = await buildEnvelopeLabels(
+      letters.map((l) => ({
+        sender,
+        recipient: {
+          name: l.tck?.name ?? '',
+          address: l.tck?.address ?? '',
+          postalCode: postalCodeOf(l.tck?.postalCode, l.tck?.address),
+          phone: l.tck?.phone ?? '',
+        },
+      })),
+    );
+    const filename = letters.length === 1 ? `Наклейка ${letters[0].number.replace(/[\\/:*?"<>|]/g, '-')}.docx` : `Наклейки (${letters.length}).docx`;
+    return { buffer, filename };
+  }
+
+  /** Stored notices, optionally for one employee — the history shown in the employee card. */
+  async notices(query: NoticeQueryDto) {
+    const rows = await this.noticeRepo.find({
+      where: { ...(query.employeeId ? { employeeId: query.employeeId } : {}), ...(query.letterId ? { letterId: query.letterId } : {}) },
+      relations: { letter: true },
+      order: { createdAt: 'DESC', sequence: 'ASC' },
+    });
+    const totals = new Map<string, number>();
+    for (const letterId of new Set(rows.map((r) => r.letterId))) {
+      totals.set(letterId, await this.noticeRepo.countBy({ letterId }));
+    }
+    return rows.map(({ content: _c, letter, ...n }) => ({
+      ...n,
+      typeLabel: CHANGE_TYPE_LABELS[n.changeType],
+      number: noticeNumber(letter.number, n.sequence, totals.get(n.letterId) ?? 1),
+      letter: { id: letter.id, number: letter.number, date: letter.date, status: letter.status },
+    }));
+  }
+
+  /** One notice (Annex 4) as a separate .docx. */
+  async noticeDocument(id: string) {
+    const notice = await this.noticeRepo.findOne({ where: { id }, relations: { letter: { tck: true } } });
+    if (!notice) throw new NotFoundException('Повідомлення не знайдено');
+    const total = await this.noticeRepo.countBy({ letterId: notice.letterId });
+    const org = await this.org.get();
+    const responsible = await this.org.responsibleAt(notice.letter.date);
+    const snapshot = JSON.parse(notice.content) as NoticeSnapshot;
+    const ref = { number: notice.letter.number, date: notice.letter.date };
+    const buffer = await buildSingleNotice({
+      letter: ref,
+      tck: notice.letter.tck,
+      org,
+      responsible,
+      total,
+      notice: { ...snapshot, sequence: notice.sequence, changeType: notice.changeType },
+    });
+    const number = noticeNumber(ref.number, notice.sequence, total).replace(/[\\/:*?"<>|]/g, '-');
+    return { buffer, filename: `Повідомлення ${number} ${snapshot.lastName}.docx`, letterId: notice.letterId };
   }
 
   async createReportLetter(dto: CreateReportLetterDto, user: AuthUser) {
@@ -86,7 +235,6 @@ export class LettersService {
         number: dto.number,
         subject: `${TYPE_TITLES[dto.type]}${dto.employeeIds?.length ? ' (витяг)' : ''} станом на ${formatUa(dto.reportDate)}`,
         tckId: tck?.id ?? null,
-        recipientEmail: tck?.email ?? '',
         params: { reportDate: dto.reportDate, groups: dto.groups ?? null, employeeIds: dto.employeeIds ?? null },
         createdById: user.id,
       });
@@ -95,7 +243,7 @@ export class LettersService {
     return this.get(id);
   }
 
-  /** Наступний номер у журналі вихідних за рік — під advisory-lock, щоб не було дублів. */
+  /** Next number in the yearly outgoing register — under an advisory lock to avoid duplicates. */
   private async newLetter(m: EntityManager, data: Partial<OutgoingLetter> & { date: IsoDate; number?: string }) {
     const year = yearOf(data.date);
     await m.query('SELECT pg_advisory_xact_lock($1)', [year]);
@@ -122,7 +270,13 @@ export class LettersService {
       .addOrderBy('l.sequence', 'DESC');
     if (query.type) qb.andWhere('l.type = :type', { type: query.type });
     if (query.status) qb.andWhere('l.status = :status', { status: query.status });
-    if (query.employeeId) qb.andWhere('l.employeeId = :employeeId', { employeeId: query.employeeId });
+    if (query.employeeId) {
+      // single-employee letters and multi-employee letters that contain a notice for this employee
+      qb.andWhere(
+        '(l.employeeId = :employeeId OR EXISTS (SELECT 1 FROM change_notices n WHERE n."letterId" = l.id AND n."employeeId" = :employeeId))',
+        { employeeId: query.employeeId },
+      );
+    }
     if (query.year) qb.andWhere('l.year = :year', { year: Number(query.year) });
     return qb.getMany().then((letters) => letters.map(({ documentKey, ...l }) => ({
       ...l,
@@ -134,16 +288,19 @@ export class LettersService {
   async get(id: string) {
     const letter = await this.repo.findOne({ where: { id }, relations: { tck: true, employee: true, changes: true } });
     if (!letter) throw new NotFoundException('Лист не знайдено');
-    const emails = await this.emailLogRepo.find({ where: { letterId: id }, order: { createdAt: 'DESC' } });
     const signatureCount = await this.signatureRepo.countBy({ letterId: id });
+    const notices = await this.ensureNotices(letter);
     const { documentKey: _key, ...rest } = letter;
     return {
       ...rest,
       frozen: !!letter.documentKey,
       signatureCount,
+      notices: notices.map(({ content: _c, ...n }) => ({
+        ...n,
+        typeLabel: CHANGE_TYPE_LABELS[n.changeType],
+        number: noticeNumber(letter.number, n.sequence, notices.length),
+      })),
       employee: letter.employee ? { id: letter.employee.id, fullName: fullName(letter.employee) } : null,
-      emails,
-      mailConfigured: this.mail.isConfigured,
     };
   }
 
@@ -161,7 +318,6 @@ export class LettersService {
       const tck = await this.tckRepo.findOneBy({ id: dto.tckId });
       if (!tck) throw new BadRequestException('ТЦК не знайдено');
       letter.tckId = tck.id;
-      if (!dto.recipientEmail && tck.email) letter.recipientEmail = tck.email;
     }
     const { tckId: _ignored, ...rest } = dto;
     Object.assign(letter, rest);
@@ -195,7 +351,7 @@ export class LettersService {
   async document(id: string): Promise<{ buffer: Buffer; filename: string }> {
     const letter = await this.repo.findOne({ where: { id }, relations: { changes: true } });
     if (!letter) throw new NotFoundException();
-    // зафіксований для підпису документ не перегенеровується
+    // a document frozen for signing is never regenerated
     if (letter.documentKey) {
       const { buffer, filename } = await this.frozenDocument(id);
       return { buffer, filename };
@@ -204,15 +360,18 @@ export class LettersService {
     const ref = { number: letter.number, date: letter.date };
 
     if (letter.type === 'CHANGE_NOTICE') {
-      if (!letter.employeeId) throw new BadRequestException('Лист не прив’язаний до працівника');
-      const employee = await this.employees.findEntity(letter.employeeId);
-      if (letter.tckId && letter.tckId !== employee.tckId) {
-        employee.tck = await this.tckRepo.findOneBy({ id: letter.tckId });
-      }
-      const [org, responsible] = await Promise.all([this.org.get(), this.org.responsibleAt(letter.date)]);
-      const changes = [...letter.changes].sort((a, b) => a.effectiveDate.localeCompare(b.effectiveDate));
-      const buffer = await buildChangeNotice({ letter: ref, employee, changes, org, responsible });
-      return { buffer, filename: `Повідомлення ${safeNumber} ${employee.lastName}.docx` };
+      const rows = await this.ensureNotices(letter);
+      if (!rows.length) throw new BadRequestException('У листі немає повідомлень');
+      const [org, responsible, tck] = await Promise.all([
+        this.org.get(),
+        this.org.responsibleAt(letter.date),
+        letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
+      ]);
+      const notices = rows.map((r) => ({ ...(JSON.parse(r.content) as NoticeSnapshot), sequence: r.sequence, changeType: r.changeType }));
+      const buffer = await buildChangeNotice({ letter: ref, tck, notices, org, responsible });
+      const people = new Set(rows.map((r) => r.employeeName));
+      const who = people.size === 1 ? notices[0].lastName : employeesCount(people.size);
+      return { buffer, filename: `Повідомлення ${safeNumber} ${who}.docx` };
     }
 
     const params = letter.params as { reportDate?: string; groups?: ListGroup[] | null; employeeIds?: string[] | null };
@@ -228,7 +387,7 @@ export class LettersService {
     throw new BadRequestException('Для цього типу листа документ не формується');
   }
 
-  /** Зафіксований (для КЕП) документ з перевіркою цілісності за SHA-256. */
+  /** Document frozen for e-signing, with an integrity check by SHA-256. */
   async frozenDocument(id: string) {
     const letter = await this.repo.findOneBy({ id });
     if (!letter) throw new NotFoundException('Лист не знайдено');
@@ -242,7 +401,7 @@ export class LettersService {
     return { letter, buffer, filename: letter.documentFilename ?? 'document.docx' };
   }
 
-  /** Документ + усі файли підписів .p7s; null, якщо лист не підписано. */
+  /** Document + all .p7s signature files; null when the letter is not signed. */
   async signedAttachments(id: string) {
     const sigs = await this.signatureRepo.find({ where: { letterId: id }, order: { createdAt: 'ASC' } });
     if (!sigs.length) return null;
@@ -256,54 +415,6 @@ export class LettersService {
       });
     }
     return attachments;
-  }
-
-  // ---------------------------------------------------------------- email
-
-  async send(id: string, dto: SendLetterDto, user: AuthUser) {
-    const letter = await this.repo.findOne({ where: { id }, relations: { tck: true } });
-    if (!letter) throw new NotFoundException();
-    const to = dto.to || letter.recipientEmail || letter.tck?.email;
-    if (!to) throw new BadRequestException('Не вказано email отримувача (додайте email ТЦК у довіднику)');
-
-    const org = await this.org.get();
-    const signed = await this.signedAttachments(id);
-    let attachments = signed;
-    if (!attachments) {
-      const { buffer, filename } = await this.document(id);
-      attachments = [{ filename, content: buffer, contentType: DOCX_MIME }];
-    }
-    const subject = `${org.shortName ? `${org.shortName}: ` : ''}${letter.subject} (вих. № ${letter.number} від ${formatUa(letter.date)})`;
-    const text = [
-      dto.message?.trim() ||
-        (signed
-          ? 'Добрий день!\n\nНадсилаємо документ з питань військового обліку працівників, підписаний кваліфікованим електронним підписом (файли .p7s — окремий підпис CAdES до документа).'
-          : 'Добрий день!\n\nНадсилаємо документи з питань військового обліку працівників. Оригінали буде направлено поштою.'),
-      '',
-      `${org.headPosition} ${org.shortName}`.trim(),
-      org.headName,
-      org.phone ? `тел. ${org.phone}` : '',
-    ].filter((l) => l !== undefined).join('\n');
-
-    const log = this.emailLogRepo.create({ letterId: id, to, subject, attachments: attachments.map((a) => a.filename), sentById: user.id, status: 'FAILED' });
-    try {
-      const result = await this.mail.send({ to, cc: dto.cc, subject, text, attachments });
-      log.status = 'SENT';
-      log.messageId = result.messageId;
-      if (result.dev) log.error = `SMTP не налаштовано — лист збережено: ${result.savedTo}`;
-      letter.status = 'SENT';
-      letter.sentAt = new Date();
-      letter.recipientEmail = to;
-    } catch (err) {
-      log.error = err instanceof Error ? err.message : String(err);
-      letter.status = 'FAILED';
-    }
-    delete (letter as Partial<OutgoingLetter>).tck;
-    await this.emailLogRepo.save(log);
-    await this.repo.save(letter);
-    await this.audit(id, 'SEND', { to: [null, to], status: [null, log.status] }, user);
-    if (log.status === 'FAILED') throw new BadRequestException(`Не вдалося надіслати: ${log.error}`);
-    return this.get(id);
   }
 
   private audit(entityId: string, action: string, diff: Record<string, [unknown, unknown]>, user: AuthUser) {

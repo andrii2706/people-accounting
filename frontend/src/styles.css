@@ -85,7 +85,7 @@
   }
 }
 
-/* Індикатор навігації, поки резолвери вантажать дані */
+/* Navigation indicator while resolvers load data */
 @keyframes nav-progress {
   from {
     transform: translateX(-100%);

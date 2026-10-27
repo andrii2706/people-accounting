@@ -1,11 +1,11 @@
 /**
- * Правила валідації картки працівника — ЄДИНЕ джерело для фронтенду і бекенду.
- * Копії: frontend/src/app/core/validation/employee-rules.ts та backend/src/military/employee-rules.ts — тримайте їх однаковими
- * (після переходу на монорепо — один пакет @military/shared).
- * Без залежностей від Angular/NestJS.
+ * Employee card validation rules — the SINGLE source for the frontend and backend.
+ * Copies: frontend/src/app/shared/validators/employee-rules.ts and backend/src/military/employee-rules.ts — keep them identical
+ * (after moving to a monorepo — one package @military/shared).
+ * No dependencies on Angular/NestJS.
  */
 
-/** Максимальна довжина рядкових полів = довжина колонки в БД. */
+/** Maximum length of string fields = column length in the DB. */
 export const MAX_LENGTH = {
   personnelNumber: 30,
   lastName: 100,
@@ -55,22 +55,22 @@ export const MAX_LENGTH = {
 export type MaxLengthField = keyof typeof MAX_LENGTH;
 
 export const PATTERN = {
-  /** Літери будь-якої абетки, апостроф, дефіс, пробіл. */
+  /** Letters of any alphabet, apostrophe, hyphen, space. */
   name: /^[\p{L}][\p{L}'’ʼ\-\s.]*$/u,
   rnokpp: /^\d{10}$/,
   phone: /^\+?[\d\s()-]{10,20}$/,
   email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
-  /** Паспорт-книжечка: дві кириличні літери + 6 цифр. */
+  /** Booklet passport: two Cyrillic letters + 6 digits. */
   passportBookSeries: /^[А-ЩЬЮЯҐЄІЇа-щьюяґєії]{2}$/u,
   passportBookNumber: /^\d{6}$/,
-  /** ID-картка: 9 цифр, орган видачі — 4-значний код. */
+  /** ID card: 9 digits, issuing authority — a 4-digit code. */
   idCardNumber: /^\d{9}$/,
   idCardIssuer: /^\d{4}$/,
   foreignSeries: /^[A-Za-z]{2}$/,
   foreignNumber: /^\d{6}$/,
   militaryDocSeries: /^\p{L}{1,3}$/u,
   militaryDocNumber: /^[\p{L}\d/-]{1,50}$/u,
-  /** ВОС: офіцери — 6 символів, інші — 3 (примітка у файлі обліку, колонка DD). */
+  /** Military occupational specialty: officers — 6 characters, others — 3 (note in the Excel file, column DD). */
   vosOfficer: /^[\p{L}\d]{6}$/u,
   vosOther: /^[\p{L}\d]{3}$/u,
   accountingCategory: /^[12]$/,
@@ -103,7 +103,7 @@ export const MESSAGE = {
   invalidDate: 'Некоректна дата',
 } as const;
 
-/** Дати, які не можуть бути в майбутньому. */
+/** Dates that cannot be in the future. */
 export const NOT_FUTURE_DATES = [
   'birthDate',
   'passportIssuedAt',
@@ -117,7 +117,7 @@ export const NOT_FUTURE_DATES = [
   'demobilizedAt',
 ] as const;
 
-/** Дати документів, що не можуть бути раніше дати народження. */
+/** Document dates that cannot be earlier than the date of birth. */
 export const AFTER_BIRTH_DATES = [
   'passportIssuedAt',
   'foreignPassportIssuedAt',
@@ -128,8 +128,8 @@ export const AFTER_BIRTH_DATES = [
 ] as const;
 
 /**
- * РНОКПП містить дату народження (перші 5 цифр — кількість днів від 31.12.1899)
- * і стать (9-та цифра: непарна — чоловік). Повертає розбіжності як підказки, не як помилки.
+ * RNOKPP contains the date of birth (first 5 digits — days since 31.12.1899)
+ * and the sex (9th digit: odd — male). Returns mismatches as hints, not as errors.
  */
 export function rnokppMismatch(rnokpp: string, birthDate: string, gender: 'M' | 'F'): string | null {
   if (!PATTERN.rnokpp.test(rnokpp)) return null;

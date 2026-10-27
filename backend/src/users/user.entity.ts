@@ -22,7 +22,7 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
-  /** Збільшується при зміні пароля / блокуванні — усі видані сесії стають недійсними. */
+  /** Incremented on password change / lockout — all issued sessions become invalid. */
   @Column({ type: 'int', default: 0, select: false })
   tokenVersion: number;
 
@@ -32,7 +32,7 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   lockedUntil: Date | null;
 
-  /** Тимчасовий пароль від адміністратора — треба змінити при першому вході. */
+  /** Temporary password from an administrator — must be changed on first sign-in. */
   @Column({ type: 'boolean', default: false })
   mustChangePassword: boolean;
 

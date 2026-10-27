@@ -14,6 +14,7 @@ import { AuthService } from '../../../shared/services/auth.service';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { EmployeesService } from '../../../shared/services/employees.service';
 import { LettersService } from '../../../shared/services/letters.service';
+import type { EmployeeNotice } from '../../../shared/interfaces/letter.interface';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
@@ -44,7 +45,7 @@ interface InfoRow {
 })
 export class EmployeeDetailComponent {
   private readonly employeesService = inject(EmployeesService);
-  private readonly lettersService = inject(LettersService);
+  protected readonly lettersService = inject(LettersService);
   private readonly reportsService = inject(ReportsService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
@@ -52,8 +53,10 @@ export class EmployeeDetailComponent {
   protected readonly auth = inject(AuthService);
 
   readonly id = input.required<string>();
-  /** Картка з employeeDetailsResolver; після змін — повторний запуск резолвера (refresh). */
+  /** Card from employeeDetailsResolver; after changes the resolver is re-run (refresh). */
   readonly employee = input.required<EmployeeDetails>();
+  /** Stored notices sent to the TCK (employeeNoticesResolver). */
+  readonly notices = input.required<EmployeeNotice[]>();
   protected readonly e = computed(() => this.employee());
   private readonly refresh = injectRouteRefresh();
 
@@ -67,7 +70,7 @@ export class EmployeeDetailComponent {
   );
   protected readonly busy = signal(false);
 
-  // ---- звільнення (Signal Form)
+  // ---- dismissal (Signal Form)
   protected readonly showDismiss = signal(false);
   protected readonly dismissModel = signal({
     dismissalDate: todayIso(),
@@ -86,9 +89,7 @@ export class EmployeeDetailComponent {
 
   protected readonly extractUrl = computed(() => {
     const e = this.e();
-    return e?.derived.listGroup
-      ? this.reportsService.listsDocxUrl(undefined, e.derived.listGroup, [e.id])
-      : null;
+    return e?.derived.listGroup ? this.reportsService.listsDocxUrl(undefined, [e.id]) : null;
   });
 
   protected readonly sections = computed<{ title: string; rows: InfoRow[] }[]>(() => {

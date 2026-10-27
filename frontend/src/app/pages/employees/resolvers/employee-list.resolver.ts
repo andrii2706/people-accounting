@@ -6,10 +6,10 @@ import { resolveOr } from '../../../shared/utils/router.utils';
 
 const STATUSES = new Set(['active', 'dismissed', 'all']);
 
-/** Фільтри списку живуть у query-параметрах: ?status=all&group=G1&search=… */
+/** List filters live in query parameters: ?status=all&group=G1&search=… */
 export const employeeListResolver: ResolveFn<EmployeeList | never> = (route) => {
   const q = route.queryParamMap;
-  // URL можна відредагувати вручну — невідоме значення не повинно ламати сторінку
+  // The URL can be edited by hand — an unknown value must not break the page
   const status = q.get('status')?.toLowerCase();
   const params: Record<string, string> = {
     status: status && STATUSES.has(status) ? status : 'active',

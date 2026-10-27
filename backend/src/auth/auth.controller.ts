@@ -35,7 +35,7 @@ export class AuthController {
     private readonly audit: AuditService,
   ) {}
 
-  /** Не більше 5 спроб за хвилину з однієї адреси + блокування облікового запису після серії помилок. */
+  /** At most 5 attempts per minute from one address + account lockout after a series of failures. */
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('login')
@@ -45,7 +45,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthUser> {
-    // IP клієнта — для розслідування підбору паролів (коректний лише при правильному TRUST_PROXY_HOPS)
+    // Client IP — to investigate password guessing (correct only with a proper TRUST_PROXY_HOPS)
     const ip = req.ip ?? '';
     const result = await this.users.verifyCredentials(dto.email, dto.password);
     if (result.status === 'locked') {
@@ -70,7 +70,7 @@ export class AuthController {
     this.sessions.clear(res);
   }
 
-  /** Перевірка сесії без 401: { user: null }, якщо не увійшли. Використовує фронтенд (і SSR). */
+  /** Session check without a 401: { user: null } when not signed in. Used by the frontend (and SSR). */
   @Public()
   @Get('session')
   async session(@Req() req: Request): Promise<{ user: AuthUser | null }> {
@@ -89,7 +89,7 @@ export class AuthController {
     return user;
   }
 
-  /** Зміна власного пароля. Усі інші сесії користувача завершуються. */
+  /** Change own password. All other sessions of the user are terminated. */
   @AllowPendingPasswordChange()
   @Post('change-password')
   @HttpCode(200)

@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { Organization, ResponsiblePerson } from '../interfaces/organization.interface';
 
-/** Реквізити підприємства та відповідальні за військовий облік. */
+/** Company details and persons responsible for military registration. */
 @Injectable({ providedIn: 'root' })
 export class OrganizationService {
   private readonly http = inject(HttpClient);

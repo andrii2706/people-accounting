@@ -27,7 +27,7 @@ export class OperationalComponent {
   private readonly updateQuery = injectQueryParamsUpdate();
   protected readonly isLoading = inject(NavigationStateService).isNavigating;
 
-  /** Відомість з operationalReportResolver; дата — у query-параметрі ?date=. */
+  /** Report from operationalReportResolver; the date lives in the ?date= query parameter. */
   readonly report = input.required<OperationalReport>();
   protected readonly date = computed(() => this.report().date);
   protected readonly rows = computed(() => this.report().rows);

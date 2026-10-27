@@ -21,8 +21,8 @@ import type {
 } from '../interfaces/dictionary.interface';
 
 /**
- * Довідники (звання, ТЦК, статуси…). Завантажуються один раз резолвером каркаса
- * і далі живуть у сигналах — сторінки отримують їх уже готовими.
+ * Dictionaries (ranks, TCKs, statuses…). Loaded once by the shell resolver
+ * and then kept in signals — pages get them ready to use.
  */
 @Injectable({ providedIn: 'root' })
 export class DictionariesService {
@@ -44,7 +44,7 @@ export class DictionariesService {
     () => new Map((this._dictionaries()?.dutyCategories ?? []).map((g) => [g.value, g.label])),
   );
 
-  /** Для резолвера: якщо вже завантажено — миттєво; паралельні виклики ділять один запит. */
+  /** For the resolver: instant if already loaded; concurrent calls share one request. */
   load(): Observable<void> {
     if (this._dictionaries()) return of(undefined);
     this.inFlight ??= forkJoin({

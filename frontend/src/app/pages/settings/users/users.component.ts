@@ -13,7 +13,7 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { passwordProblems } from '../../../shared/validators/password.validators';
 
-/** Адміністрування облікових записів: ролі, блокування, скидання пароля. */
+/** Account administration: roles, lockout, password reset. */
 @Component({
   selector: 'app-users',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -33,10 +33,10 @@ export class UsersComponent {
   private readonly refresh = injectRouteRefresh();
   protected readonly auth = inject(AuthService);
 
-  /** Дані з usersResolver. */
+  /** Data from usersResolver. */
   readonly users = input.required<ManagedUser[]>();
 
-  /** Тимчасовий пароль після скидання — показується один раз. */
+  /** Temporary password after a reset — shown once. */
   protected readonly issuedPassword = signal<{ user: string; password: string } | null>(null);
   protected readonly now = signal(Date.now());
   protected readonly lockedIds = computed(() => {

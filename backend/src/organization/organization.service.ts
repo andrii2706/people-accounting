@@ -49,7 +49,7 @@ export class OrganizationService {
     await this.personRepo.delete(id);
   }
 
-  /** Відповідальна особа, чий період охоплює дату (логіка OCL!Q20:S28). */
+  /** Responsible person whose period covers the date (logic of OCL!Q20:S28). */
   async responsibleAt(date: IsoDate): Promise<ResponsiblePerson | null> {
     const candidates = await this.personRepo.find({
       where: [

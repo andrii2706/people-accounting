@@ -21,6 +21,7 @@ const base: MilitaryRecord = {
   dismissalDate: null,
   reserveTeamNumber: null,
   mobilizationOrderDate: null,
+  reserved: false,
   reservationBasis: null,
   reservationUntil: null,
   specialAccountingCertificate: null,
@@ -66,17 +67,25 @@ describe('military logic', () => {
   });
 
   it('бронювання має пріоритет над моброзпорядженням', () => {
-    const r = { ...base, reserveTeamNumber: '7', reservationBasis: 'п. 1', reservationUntil: '2027-01-01' };
+    const r = { ...base, reserveTeamNumber: '7', reserved: true, reservationBasis: 'п. 1', reservationUntil: '2027-01-01' };
     expect(isReservedAt(r, '2026-10-01')).toBe(true);
     expect(hasMobilizationOrder(r, '2026-10-01')).toBe(false);
   });
 
   it('попереджає про граничний вік і строк бронювання', () => {
     const codes = recordWarnings(
-      { ...base, birthDate: '1960-01-01', reservationBasis: 'x', reservationUntil: '2026-10-20' },
+      { ...base, birthDate: '1960-01-01', reserved: true, reservationBasis: 'x', reservationUntil: '2026-10-20' },
       '2026-10-10',
     ).map((w) => w.code);
     expect(codes).toContain('AGE_LIMIT');
     expect(codes).toContain('RESERVATION_EXPIRING');
+  });
+
+  it('treats an employee as reserved only when it is chosen explicitly', () => {
+    const data = { reservationBasis: 'Перелік №1', reservationUntil: '2027-01-01' };
+    expect(isReservedAt({ ...base, ...data }, '2026-10-27')).toBe(false);
+    expect(isReservedAt({ ...base, ...data, reserved: true }, '2026-10-27')).toBe(true);
+    expect(isReservedAt({ ...base, ...data, reserved: true }, '2027-01-02')).toBe(false);
+    expect(recordWarnings({ ...base, ...data, reservationUntil: '2026-10-01' }, '2026-10-27').some((w) => w.code === 'RESERVATION_EXPIRED')).toBe(false);
   });
 });

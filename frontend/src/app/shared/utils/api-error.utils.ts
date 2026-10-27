@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 
-/** Людяне повідомлення з помилки API (NestJS повертає message: string | string[]). */
+/** Human-friendly message from an API error (NestJS returns message: string | string[]). */
 export function apiErrorMessage(
   error: unknown,
   fallback = 'Сталася помилка. Спробуйте ще раз.',
@@ -11,7 +11,7 @@ export function apiErrorMessage(
       message?: string | string[];
       errors?: { field: string; message: string }[];
     } | null;
-    // структуровані помилки валідації — лише тексти, без технічних назв полів
+    // structured validation errors — texts only, without technical field names
     if (body?.errors?.length) return [...new Set(body.errors.map((e) => e.message))].join('; ');
     const message = body?.message;
     if (Array.isArray(message)) return message.join('; ');

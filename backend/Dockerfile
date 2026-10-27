@@ -11,9 +11,9 @@ ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
-RUN mkdir -p storage/outbox storage/files && chown -R node:node storage
+RUN mkdir -p storage/files && chown -R node:node storage
 USER node
 EXPOSE 3000
-# Міграції: локально/docker-compose — під час старту (DB_MIGRATIONS_RUN=true);
-# у продакшні — окремим Cloud Run Job перед деплоєм: node dist/database/migrate.js
+# Migrations: locally/docker-compose — at startup (DB_MIGRATIONS_RUN=true);
+# in production — a separate Cloud Run Job before deployment: node dist/database/migrate.js
 CMD ["node", "dist/main.js"]

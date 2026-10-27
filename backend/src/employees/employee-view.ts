@@ -27,6 +27,7 @@ export function toMilitaryRecord(e: Employee): MilitaryRecord {
     dismissalDate: e.dismissalDate,
     reserveTeamNumber: s(e.reserveTeamNumber),
     mobilizationOrderDate: e.mobilizationOrderDate,
+    reserved: e.reserved,
     reservationBasis: s(e.reservationBasis),
     reservationUntil: e.reservationUntil,
     specialAccountingCertificate: s(e.specialAccountingCertificate),

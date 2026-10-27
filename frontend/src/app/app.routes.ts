@@ -4,8 +4,8 @@ import { authGuard, guestGuard, passwordChangeGuard } from './shared/guards/auth
 import { dictionariesResolver } from './shared/resolvers/dictionaries.resolver';
 
 /**
- * Кореневі маршрути. Кожен розділ — окремий lazy-чанк зі своїм файлом маршрутів (loadChildren);
- * у головному бандлі лише каркас (Shell) і гарди. Дані сторінок підвантажують резолвери до відкриття сторінки.
+ * Root routes. Each section is a separate lazy chunk with its own routes file (loadChildren);
+ * the main bundle contains only the shell and guards. Page data is loaded by resolvers before the page opens.
  */
 export const routes: Routes = [
   {

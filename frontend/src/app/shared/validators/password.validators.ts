@@ -1,4 +1,4 @@
-/** Політика паролів — та сама, що на бекенді (backend/src/common/password-policy.ts). */
+/** Password policy — the same as on the backend (backend/src/common/password-policy.ts). */
 export const PASSWORD_MIN_LENGTH = 12;
 
 export function passwordProblems(password: string, email?: string): string[] {

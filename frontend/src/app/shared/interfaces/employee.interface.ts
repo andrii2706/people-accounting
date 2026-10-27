@@ -114,6 +114,7 @@ export interface Employee {
   fitness: string;
   fitnessBasis: string;
   fitnessDate: string | null;
+  reserved: boolean;
   reservationBasis: string;
   specialAccountingCertificate: string;
   reservationUntil: string | null;

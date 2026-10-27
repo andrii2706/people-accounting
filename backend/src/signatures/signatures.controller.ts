@@ -21,7 +21,7 @@ export class SignaturesController {
     private readonly audit: AuditService,
   ) {}
 
-  /** Налаштування підписання для фронтенду (віджет ІІТ, сервіс перевірки). */
+  /** Signing settings for the frontend (IIT widget, verification service). */
   @Get('signatures/config')
   config() {
     return this.signatures.config();
@@ -32,7 +32,7 @@ export class SignaturesController {
     return this.signatures.state(id);
   }
 
-  /** Зафіксувати документ: далі підписується і надсилається саме цей файл. */
+  /** Freeze the document: from now on exactly this file is signed and sent. */
   @Post('letters/:id/freeze')
   @HttpCode(200)
   freeze(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
@@ -44,7 +44,7 @@ export class SignaturesController {
     return this.signatures.unfreeze(id, user);
   }
 
-  /** Байти документа для підписання (саме їх треба підписати). */
+  /** Document bytes to sign (exactly these must be signed). */
   @Get('letters/:id/signing-file')
   async signingFile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     const { buffer, filename } = await this.signatures.frozenDocument(id);
@@ -66,7 +66,7 @@ export class SignaturesController {
     return file(buffer, filename, P7S_MIME);
   }
 
-  /** ZIP із документом і всіма підписами. */
+  /** ZIP with the document and all signatures. */
   @Get('letters/:id/signed-package')
   async signedPackage(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     const { buffer, filename } = await this.signatures.signedPackage(id);

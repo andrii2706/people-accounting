@@ -5,8 +5,8 @@ import type { Employee, EmployeePayload } from '../../../shared/interfaces/emplo
 export type FormTab = 'personal' | 'work' | 'military' | 'documents' | 'family' | 'notes';
 
 /**
- * Модель форми: усі значення — рядки/булеві (так з ними нативно працюють інпути Signal Forms),
- * перетворення в DTO — у toPayload().
+ * Form model: all values are strings/booleans (that is how Signal Forms inputs work natively),
+ * conversion to the DTO happens in toPayload().
  */
 export interface FamilyMemberForm {
   relation: FamilyRelation;
@@ -73,6 +73,7 @@ export interface EmployeeFormModel {
   fitness: string;
   fitnessBasis: string;
   fitnessDate: string;
+  reserved: boolean;
   reservationBasis: string;
   specialAccountingCertificate: string;
   reservationUntil: string;
@@ -88,7 +89,7 @@ export interface EmployeeFormModel {
   readmissionOrder: string;
   notes: string;
 
-  /** Підстава змін для повідомлення ТЦК. */
+  /** Grounds of the changes for the TCK notice. */
   changeEffectiveDate: string;
   changeBasis: string;
 }
@@ -166,6 +167,7 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     fitness: '',
     fitnessBasis: '',
     fitnessDate: '',
+    reserved: false,
     reservationBasis: '',
     specialAccountingCertificate: '',
     reservationUntil: '',
@@ -219,7 +221,7 @@ export function formToPayload(
     ...rest
   } = model;
   const payload: Record<string, unknown> = { ...rest };
-  // нормалізація: серії — великими літерами, у ID-картки серії немає
+  // normalization: series in upper case, an ID card has no series
   payload['passportSeries'] =
     model.passportType === 'ID_CARD' ? '' : model.passportSeries.trim().toUpperCase();
   payload['foreignPassportSeries'] = model.foreignPassportSeries.trim().toUpperCase();
@@ -228,13 +230,23 @@ export function formToPayload(
   payload['rankCode'] = rankCode === '' ? null : Number(rankCode);
   payload['tckId'] = tckId || null;
   payload['maritalStatus'] = maritalStatus || null;
+  // reservation data is sent only when "Заброньований" is chosen (never for conscripts)
+  if (!model.reserved || rankCode === '0') {
+    payload['reserved'] = false;
+    payload['reservationBasis'] = '';
+    payload['specialAccountingCertificate'] = '';
+    payload['reservationUntil'] = null;
+  }
   payload['familyMembers'] = familyMembers.map((m) => ({ ...m, birthDate: m.birthDate || null }));
   if (includeChangeMeta)
     payload['changeMeta'] = { effectiveDate: changeEffectiveDate || undefined, basis: changeBasis };
   return payload as EmployeePayload;
 }
 
-/** Поля, зміна яких породжує повідомлення ТЦК (дзеркало CHANGE_RULES на бекенді). */
+/**
+ * Fields whose change produces a TCK notice (mirror of CHANGE_RULES on the backend).
+ * Foreign passport, education and marital status are no longer reported (Resolution No. 812).
+ */
 export const REPORTABLE_FIELDS: { label: string; fields: (keyof EmployeeFormModel)[] }[] = [
   { label: 'прізвище', fields: ['lastName'] },
   { label: 'ім’я', fields: ['firstName'] },
@@ -243,9 +255,6 @@ export const REPORTABLE_FIELDS: { label: string; fields: (keyof EmployeeFormMode
   { label: 'зареєстроване місце проживання', fields: ['registeredAddress'] },
   { label: 'фактичне місце проживання', fields: ['actualAddress'] },
   { label: 'паспорт', fields: ['passportType', 'passportSeries', 'passportNumber'] },
-  { label: 'закордонний паспорт', fields: ['foreignPassportSeries', 'foreignPassportNumber'] },
-  { label: 'освіта', fields: ['educationLevel', 'educationDocument'] },
-  { label: 'сімейний стан', fields: ['maritalStatus'] },
 ];
 
 export function reportableChanges(
@@ -253,18 +262,14 @@ export function reportableChanges(
   current: EmployeeFormModel,
 ): string[] {
   if (!original) return [];
-  const changed = REPORTABLE_FIELDS.filter((r) =>
-    r.fields.some((f) => original[f] !== current[f]),
-  ).map((r) => r.label);
-  const familyChanged =
-    JSON.stringify(original.familyMembers) !== JSON.stringify(current.familyMembers);
-  if (familyChanged && !changed.includes('сімейний стан')) changed.push('склад сім’ї');
-  return changed;
+  return REPORTABLE_FIELDS.filter((r) => r.fields.some((f) => original[f] !== current[f])).map(
+    (r) => r.label,
+  );
 }
 
 /**
- * Де живе кожне поле (вкладка) і як воно називається — для навігації до помилки
- * та зрозумілого списку помилок. Порядок = порядок перевірки при збереженні.
+ * Where each field lives (tab) and what it is called — for navigating to an error
+ * and a readable list of errors. The order = validation order on save.
  */
 export const FIELD_META: Partial<
   Record<keyof EmployeeFormModel | 'familyMembers', { tab: FormTab | 'sidebar'; label: string }>
@@ -308,6 +313,7 @@ export const FIELD_META: Partial<
   fitnessDate: { tab: 'military', label: 'Дата ВЛК' },
   fitnessBasis: { tab: 'military', label: 'Графа, пункт наказу' },
   deferralConscriptionBasis: { tab: 'military', label: 'Відстрочка від строкової служби' },
+  reserved: { tab: 'military', label: 'Заброньований' },
   reservationBasis: { tab: 'military', label: 'Бронювання' },
   reservationUntil: { tab: 'military', label: 'Заброньовано до' },
   specialAccountingCertificate: { tab: 'military', label: '№ посвідчення' },
@@ -345,7 +351,7 @@ export const FIELD_META: Partial<
   changeBasis: { tab: 'sidebar', label: 'Підстава змін' },
 };
 
-/** Шлях помилки з API (напр. "familyMembers.0.lastName", "changeMeta.basis") → поле форми. */
+/** API error path (e.g. "familyMembers.0.lastName", "changeMeta.basis") → form field. */
 export function apiPathToFormPath(path: string): string[] {
   if (path === 'changeMeta.effectiveDate') return ['changeEffectiveDate'];
   if (path === 'changeMeta.basis') return ['changeBasis'];

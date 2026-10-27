@@ -1,18 +1,19 @@
 /**
- * Доменна логіка військового обліку.
- * Чисті функції без залежностей від БД — перенесення формул з картки працівника
- * (аркуші 01–21, колонки FD–GT) та аркушів G1…G4R, OCL файлу new_military_list v8.6.
+ * Military registration domain logic.
+ * Pure functions without DB dependencies — ports of the formulas of the employee card
+ * (sheets 01–21, columns FD–GT) and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
-import { addDays, daysBetween, fullYears, type IsoDate, yearOf } from '../common/utils/dates.js';
+import { addDays, daysBetween, fifthOfNextMonth, fullYears, type IsoDate, yearOf } from '../common/utils/dates.js';
 import {
+  type ChangeType,
   type DutyCategory,
   type ListGroup,
 } from './dictionaries.js';
 import { COMPOSITION_LABELS, findRank, OFFICER_MIN_CODE, type RankDef } from './ranks.js';
 
-/** Мінімальний набір полів, потрібний для розрахунків. */
+/** Minimal set of fields needed for the calculations. */
 export interface MilitaryRecord {
-  /** Перебуває на військовому обліку (false — знятий/виключений або не підлягає обліку). */
+  /** Is on military registration (false — removed/excluded or not subject to registration). */
   militaryRegistered: boolean;
   gender: 'M' | 'F';
   birthDate: IsoDate | null;
@@ -22,6 +23,7 @@ export interface MilitaryRecord {
   dismissalDate: IsoDate | null;
   reserveTeamNumber: string | null;
   mobilizationOrderDate: IsoDate | null;
+  reserved: boolean;
   reservationBasis: string | null;
   reservationUntil: IsoDate | null;
   specialAccountingCertificate: string | null;
@@ -46,22 +48,22 @@ export function isReservist(r: Pick<MilitaryRecord, 'reserveTeamNumber'>): boole
   return !!r.reserveTeamNumber?.trim();
 }
 
-/** Перебуває на військовій службі за мобілізацією на дату (колонки EV/EY). */
+/** Is in military service through mobilization on the date (columns EV/EY). */
 export function isMobilizedAt(r: MilitaryRecord, date: IsoDate): boolean {
   if (!r.mobilizedAt || r.mobilizedAt > date) return false;
   return !r.demobilizedAt || r.demobilizedAt < r.mobilizedAt || r.demobilizedAt >= date;
 }
 
-/** Працює на підприємстві на дату. */
+/** Is employed by the company on the date. */
 export function isEmployedAt(r: MilitaryRecord, date: IsoDate): boolean {
   if (!r.hireDate || r.hireDate > date) return false;
   return !r.dismissalDate || r.dismissalDate >= date;
 }
 
 /**
- * Чи потрапляє працівник у списки на дату.
- * Звільнені протягом року залишаються у списках до кінця року звільнення (з реквізитами звільнення) —
- * умова `Date!C2 < DATE(YEAR(Z2)+1,1,1)` у формулах FD2…FK2.
+ * Whether the employee is included in the operational lists on the date.
+ * Employees dismissed during the year stay in the lists until the end of that year (with dismissal details) —
+ * the condition `Date!C2 < DATE(YEAR(Z2)+1,1,1)` in formulas FD2…FK2.
  */
 export function isOnListsAt(r: MilitaryRecord, date: IsoDate): boolean {
   if (!r.militaryRegistered) return false;
@@ -71,7 +73,26 @@ export function isOnListsAt(r: MilitaryRecord, date: IsoDate): boolean {
   return r.rankCode !== null || r.gender === 'F';
 }
 
-/** Категорія військового обов’язку (колонка GH). */
+/**
+ * Whether the employee appears in the personal military registration lists (Annex 5, ed. 2025).
+ * Unlike the operational report, employees released from work because they were called up
+ * stay in the lists with the mark "Військовослужбовець з …" (column 18).
+ */
+export function isOnPersonalListsAt(r: MilitaryRecord, date: IsoDate): boolean {
+  if (!r.militaryRegistered) return false;
+  if (!r.hireDate || r.hireDate > date) return false;
+  if (r.dismissalDate && yearOf(date) > yearOf(r.dismissalDate)) return false;
+  return r.rankCode !== null || r.gender === 'F';
+}
+
+/** Has reached the age limit for staying in the reserve for their rank. */
+export function hasReachedAgeLimit(r: MilitaryRecord, date: IsoDate): boolean {
+  const rank = findRank(r.rankCode);
+  const age = fullYears(r.birthDate, date);
+  return !!rank && age !== null && age >= rank.ageLimit;
+}
+
+/** Military duty category (column GH). */
 export function dutyCategory(r: MilitaryRecord): DutyCategory | null {
   if (r.rankCode === null && r.gender === 'M') return null;
   if (isReservist(r)) return 'RESERVIST';
@@ -79,7 +100,7 @@ export function dutyCategory(r: MilitaryRecord): DutyCategory | null {
   return 'LIABLE';
 }
 
-/** Група списку (аркуші G1…G4R). */
+/** List group (sheets G1…G4R). */
 export function listGroup(r: MilitaryRecord): ListGroup | null {
   const reservist = isReservist(r);
   if (r.gender === 'F') return reservist ? 'G3R' : 'G3';
@@ -89,7 +110,7 @@ export function listGroup(r: MilitaryRecord): ListGroup | null {
   return reservist ? 'G2R' : 'G2';
 }
 
-/** Рядок відомості оперативного обліку (Додаток 12): 1.1 / 1.2 / 1.3 / 2. */
+/** Row of the operational report (Annex 12): 1.1 / 1.2 / 1.3 / 2. */
 export type OperationalRow = '1.1' | '1.2' | '1.3' | '2';
 
 export function operationalRow(group: ListGroup): OperationalRow {
@@ -108,19 +129,18 @@ export function operationalRow(group: ListGroup): OperationalRow {
   }
 }
 
-/** Заброньований на дату (колонка GQ: бронювання до дати ≥ дата і є спецоблік). */
+/** Reserved on the date: chosen explicitly in the form and the reservation term has not expired. */
 export function isReservedAt(r: MilitaryRecord, date: IsoDate): boolean {
-  const hasSpecial = !!(r.reservationBasis?.trim() || r.specialAccountingCertificate?.trim());
-  return hasSpecial && !!r.reservationUntil && r.reservationUntil >= date;
+  return r.reserved && !!r.reservationUntil && r.reservationUntil >= date;
 }
 
-/** Має мобілізаційне розпорядження (колонка GP). */
+/** Has a mobilization order (column GP). */
 export function hasMobilizationOrder(r: MilitaryRecord, date: IsoDate): boolean {
   if (isReservedAt(r, date)) return false;
   return isReservist(r) || (!!r.mobilizationOrderDate && r.mobilizationOrderDate <= date);
 }
 
-/** Склад для колонки 7 списку: для офіцерів — профіль підготовки. */
+/** Composition for column 7: training profile for officers. */
 export function compositionText(r: MilitaryRecord): string {
   const rank = findRank(r.rankCode);
   if (!rank || rank.composition === 'CONSCRIPT') return '';
@@ -141,7 +161,7 @@ export interface RecordWarning {
   message: string;
 }
 
-/** Автоматичні перевірки, яких у Excel не було, але які напрошуються з його логіки. */
+/** Automatic checks the Excel file did not have, but which follow naturally from its logic. */
 export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAlertDays = 30): RecordWarning[] {
   const warnings: RecordWarning[] = [];
   if (r.dismissalDate && r.dismissalDate < date) return warnings;
@@ -169,7 +189,7 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
       message: `Досяг граничного віку (${rank.ageLimit}) — підлягає зняттю з військового обліку`,
     });
   }
-  if (r.reservationUntil) {
+  if (r.reserved && r.reservationUntil) {
     const left = daysBetween(date, r.reservationUntil);
     if (left < 0) {
       warnings.push({ code: 'RESERVATION_EXPIRED', level: 'danger', message: 'Строк бронювання минув' });
@@ -188,7 +208,20 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
   return warnings;
 }
 
-/** Кінцева дата, до якої ТЦК треба повідомити про зміну (7 днів). */
-export function notificationDeadline(effectiveDate: IsoDate, days = 7): IsoDate {
-  return addDays(effectiveDate, days);
+/**
+ * Deadline for notifying the TCK about a change (Procedure No. 1487, p. 34, as amended by Resolution No. 812):
+ *  • hiring and dismissal — within `days` (7) days from the date of the order;
+ *  • other registration data (name, passport, address, position) — monthly, by the 5th of the next month.
+ */
+export function notificationDeadline(
+  type: ChangeType,
+  effectiveDate: IsoDate,
+  orders?: { hireOrderDate: IsoDate | null; dismissalOrderDate: IsoDate | null } | null,
+  days = 7,
+): IsoDate {
+  if (type === 'HIRE' || type === 'DISMISSAL') {
+    const order = type === 'HIRE' ? orders?.hireOrderDate : orders?.dismissalOrderDate;
+    return addDays(order || effectiveDate, days);
+  }
+  return fifthOfNextMonth(effectiveDate);
 }

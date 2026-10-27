@@ -15,9 +15,9 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding(), withViewTransitions()),
     provideHttpClient(withFetch(), withInterceptors([apiInterceptor])),
-    // GET-запити, виконані під час SSR, вбудовуються в HTML і не повторюються в браузері.
-    // Відповіді API мають Cache-Control: no-store (проти кешування проксі) — для передачі стану
-    // це не перешкода: HTML-сторінка сама no-store/private і віддається лише цьому користувачу.
+    // GET requests made during SSR are embedded into the HTML and not repeated in the browser.
+    // API responses carry Cache-Control: no-store (against proxy caching) — for state transfer
+    // this is not a problem: the HTML page itself is no-store/private and served only to this user.
     provideClientHydration(
       withEventReplay(),
       withHttpTransferCacheOptions({
@@ -25,7 +25,7 @@ export const appConfig: ApplicationConfig = {
         includeNonCacheableRequests: true,
       }),
     ),
-    // Єдине підсвічування полів з помилкою в усіх формах (Signal Forms)
+    // Single highlighting of invalid fields across all forms (Signal Forms)
     provideSignalFormsConfig({
       classes: {
         'is-invalid': (field) => field.state().invalid() && field.state().touched(),

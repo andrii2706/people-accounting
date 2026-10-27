@@ -9,7 +9,7 @@ import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { User } from './user.entity.js';
 
 const BCRYPT_ROUNDS = 12;
-/** Хеш для вирівнювання часу відповіді, коли email не існує (захист від перебору email-ів). */
+/** Hash used to equalize response time when the email does not exist (protection against email enumeration). */
 const DUMMY_HASH = bcrypt.hashSync('timing-equalizer-not-a-password', BCRYPT_ROUNDS);
 
 export type CredentialsResult =
@@ -46,7 +46,7 @@ export class UsersService {
     return qb.getOne();
   }
 
-  /** Перевірка логіна з лічильником невдалих спроб і тимчасовим блокуванням. */
+  /** Credential check with a failed-attempt counter and temporary lockout. */
   async verifyCredentials(email: string, password: string): Promise<CredentialsResult> {
     const user = await this.findWithSecrets({ email });
     if (!user || !user.isActive) {
@@ -80,7 +80,7 @@ export class UsersService {
         fullName: dto.fullName,
         role: dto.role ?? 'HR',
         passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
-        // пароль, який задав адміністратор, — тимчасовий
+        // a password set by an administrator is temporary
         mustChangePassword: opts.mustChangePassword ?? true,
         passwordChangedAt: new Date(),
       }),
@@ -102,13 +102,13 @@ export class UsersService {
     }
     if (dto.isActive !== undefined && dto.isActive !== user.isActive) {
       changes.isActive = dto.isActive;
-      changes.tokenVersion = user.tokenVersion + 1; // блокування — миттєвий вихід з усіх сесій
+      changes.tokenVersion = user.tokenVersion + 1; // lockout — instant sign-out from all sessions
     }
     if (Object.keys(changes).length) await this.repo.update(id, changes);
     return this.findById(id);
   }
 
-  /** Адміністратор скидає пароль: генерується тимчасовий, показується один раз, сесії користувача завершуються. */
+  /** Administrator resets a password: a temporary one is generated, shown once, the user's sessions are terminated. */
   async resetPassword(id: string) {
     const user = await this.findWithSecrets({ id });
     if (!user) throw new NotFoundException('Користувача не знайдено');
@@ -145,7 +145,7 @@ export class UsersService {
     return (await this.findForSession(id))!;
   }
 
-  /** Перший адміністратор із змінних середовища. У продакшні пароль — тимчасовий. */
+  /** First administrator from environment variables. In production the password is temporary. */
   async ensureAdmin(email: string, password: string, fullName: string) {
     const existing = await this.repo.findOneBy({ email: email.toLowerCase() });
     if (existing) return existing;

@@ -1,7 +1,7 @@
 import type { Routes } from '@angular/router';
 import { listsReportResolver, operationalReportResolver } from './resolvers/report.resolvers';
 
-/** Фіче-модуль «Звіти»: списки (Дод. 13) та відомість (Дод. 12). */
+/** Feature module "Reports": lists (Annex 5) and operational report (Annex 12). */
 export const REPORTS_ROUTES: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'lists' },
   {

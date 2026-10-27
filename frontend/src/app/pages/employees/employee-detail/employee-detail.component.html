@@ -135,7 +135,7 @@
     </section>
   }
 
-  <div class="grid gap-6 lg:grid-cols-3">
+  <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
     @for (s of sections(); track s.title) {
       <section class="card p-5">
         <h2 class="mb-3 font-semibold">{{ s.title }}</h2>
@@ -206,6 +206,53 @@
         } @empty {
           <tr>
             <td colspan="5" class="py-8 text-center text-sm text-muted">Змін ще не було</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card mt-6 overflow-x-auto">
+    <h2 class="px-5 pt-5 pb-3 font-semibold">Повідомлення до ТЦК</h2>
+    <table class="table-base">
+      <thead>
+        <tr>
+          <th>№ повідомлення</th>
+          <th>Зміна</th>
+          <th>Діє з</th>
+          <th>Лист</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (n of notices(); track n.id) {
+          <tr>
+            <td class="font-mono font-semibold whitespace-nowrap">{{ n.number }}</td>
+            <td class="font-medium">{{ n.typeLabel }}</td>
+            <td class="whitespace-nowrap tabular-nums">{{ n.effectiveDate | uaDate }}</td>
+            <td class="whitespace-nowrap">
+              <a
+                [routerLink]="['/letters', n.letter.id]"
+                class="mr-2 text-brand-600 hover:underline"
+                >вих. № {{ n.letter.number }} від {{ n.letter.date | uaDate }}</a
+              >
+              <app-letter-status [status]="n.letter.status" />
+            </td>
+            <td class="text-right">
+              <a
+                class="btn btn-ghost px-2"
+                [href]="lettersService.noticeDocxUrl(n.id)"
+                download
+                title="Повідомлення (Додаток 4) .docx"
+                ><app-icon name="download"
+              /></a>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="py-8 text-center text-sm text-muted">
+              Повідомлень до ТЦК ще не формували
+            </td>
           </tr>
         }
       </tbody>

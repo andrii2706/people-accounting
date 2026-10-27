@@ -8,13 +8,13 @@ import type {
   SigningState,
 } from '../interfaces/signature.interface';
 
-/** Підписання листів КЕП: фіксація документа, завантаження підписів, пакет для ТЦК. */
+/** Qualified e-signing of letters: freezing the document, uploading signatures, package for the TCK. */
 @Injectable({ providedIn: 'root' })
 export class SignaturesService {
   private readonly http = inject(HttpClient);
   private config$?: Observable<SigningConfig>;
 
-  /** Налаштування не змінюються під час роботи — кешуємо на всю сесію. */
+  /** Settings do not change at runtime — cached for the whole session. */
   config() {
     this.config$ ??= this.http
       .get<SigningConfig>('/api/signatures/config')
@@ -34,7 +34,7 @@ export class SignaturesService {
     return firstValueFrom(this.http.delete<SigningState>(`/api/letters/${letterId}/freeze`));
   }
 
-  /** Байти зафіксованого документа — саме їх підписує віджет. */
+  /** Bytes of the frozen document — exactly what the widget signs. */
   signingFile(letterId: string) {
     return firstValueFrom(
       this.http.get(`/api/letters/${letterId}/signing-file`, { responseType: 'arraybuffer' }),

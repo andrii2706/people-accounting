@@ -4,7 +4,7 @@ import { catchError, of } from 'rxjs';
 import type { Dashboard } from '../../shared/interfaces/report.interface';
 import { ReportsService } from '../../shared/services/reports.service';
 
-/** Огляд — не блокуємо вхід, якщо зведення не завантажилось (сторінка покаже помилку). */
+/** Dashboard — do not block sign-in if the summary failed to load (the page shows an error). */
 export const dashboardResolver: ResolveFn<Dashboard | null> = () =>
   inject(ReportsService)
     .dashboard()

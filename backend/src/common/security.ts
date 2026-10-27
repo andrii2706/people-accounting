@@ -4,10 +4,10 @@ import type { NextFunction, Request, Response } from 'express';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
- * Захист від CSRF для змінюючих запитів (на додачу до SameSite=Lax cookie):
- *  • сучасні браузери надсилають Sec-Fetch-Site — приймаємо лише same-origin;
- *  • якщо є Origin — він має бути в APP_ORIGIN (або збігатися з хостом запиту).
- * Запити без цих заголовків (curl, server-to-server) не є браузерними й cookie-атаці не підлягають.
+ * CSRF protection for state-changing requests (in addition to the SameSite=Lax cookie):
+ *  • modern browsers send Sec-Fetch-Site — only same-origin is accepted;
+ *  • if Origin is present it must be in APP_ORIGIN (or match the request host).
+ * Requests without these headers (curl, server-to-server) are not from a browser and cannot carry a cookie attack.
  */
 export function csrfGuard(allowedOrigins: string[]) {
   const allowed = new Set(allowedOrigins.map((o) => o.replace(/\/$/, '')));
@@ -29,7 +29,7 @@ export function csrfGuard(allowedOrigins: string[]) {
   };
 }
 
-/** Відповіді API містять персональні дані — їх не можна кешувати ні браузеру, ні проксі. */
+/** API responses contain personal data — neither the browser nor proxies may cache them. */
 export function noStore(_req: Request, res: Response, next: NextFunction) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Pragma', 'no-cache');

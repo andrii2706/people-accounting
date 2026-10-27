@@ -43,16 +43,16 @@ function summary(s: ParsedSigner): SignerSummary {
 }
 
 /**
- * Підписання листів КЕП.
+ * Qualified e-signing of letters.
  *
- * Потік:
- *  1. «Зафіксувати документ» — .docx генерується один раз і зберігається (write-once) разом із SHA-256.
- *     Далі лист не редагується, а завантажується саме цей файл.
- *  2. Документ підписують будь-яким засобом КЕП: віджетом ІІТ прямо в застосунку або зовнішньою
- *     програмою (Дія.Підпис на id.gov.ua, czo.gov.ua/sign, «ІІТ Користувач ЦСК», Вчасно, M.E.Doc…)
- *     у форматі CAdES з окремим підписом (.p7s).
- *  3. Сервер перевіряє, що .p7s стосується саме цього документа, і зберігає його незмінним.
- *  4. До ТЦК надсилається пакет: документ + усі .p7s.
+ * Flow:
+ *  1. "Freeze the document" — the .docx is generated once and stored (write-once) together with its SHA-256.
+ *     From then on the letter is not editable and exactly this file is downloaded.
+ *  2. The document is signed with any qualified e-signature tool: the IIT widget right in the app or an external
+ *     program (Diia.Pidpys at id.gov.ua, czo.gov.ua/sign, «ІІТ Користувач ЦСК», Vchasno, M.E.Doc…)
+ *     in CAdES format with a detached signature (.p7s).
+ *  3. The server checks that the .p7s belongs to exactly this document and stores it unchanged.
+ *  4. The package handed to the TCK: document + all .p7s files.
  */
 @Injectable()
 export class SignaturesService {
@@ -83,7 +83,7 @@ export class SignaturesService {
     return letter;
   }
 
-  // ---------------------------------------------------------------- фіксація документа
+  // ---------------------------------------------------------------- freezing the document
 
   async freeze(id: string, user: AuthUser) {
     const letter = await this.letter(id);
@@ -101,7 +101,7 @@ export class SignaturesService {
         .setLock('pessimistic_write')
         .where('l.id = :id', { id })
         .getOne();
-      if (!locked || locked.documentKey) return; // хтось уже зафіксував паралельно
+      if (!locked || locked.documentKey) return; // someone else froze it concurrently
       await m.getRepository(OutgoingLetter).update(id, {
         documentKey: key,
         documentSha256: hash,
@@ -113,7 +113,7 @@ export class SignaturesService {
     return this.state(id);
   }
 
-  /** Скасувати фіксацію (щоб виправити дані й перегенерувати), поки немає жодного підпису. */
+  /** Unfreeze (to fix data and regenerate) while there are no signatures yet. */
   async unfreeze(id: string, user: AuthUser) {
     const letter = await this.letter(id);
     if (!letter.documentKey) return this.state(id);
@@ -130,7 +130,7 @@ export class SignaturesService {
     return this.lettersService.frozenDocument(id);
   }
 
-  // ---------------------------------------------------------------- підписи
+  // ---------------------------------------------------------------- signatures
 
   async state(id: string) {
     const letter = await this.letter(id);
@@ -210,7 +210,7 @@ export class SignaturesService {
     return this.lettersService.signedAttachments(letterId);
   }
 
-  /** ZIP: документ + підписи + опис — для передачі в ТЦК будь-яким каналом. */
+  /** ZIP: document + signatures + description — to hand over to the TCK by any channel. */
   async signedPackage(letterId: string) {
     const attachments = await this.signedAttachments(letterId);
     if (!attachments) throw new BadRequestException('Документ ще не підписано');

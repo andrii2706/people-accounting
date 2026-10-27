@@ -5,11 +5,11 @@ export interface AuthUser {
   email: string;
   fullName: string;
   role: UserRole;
-  /** Тимчасовий пароль від адміністратора — потрібно змінити перед роботою. */
+  /** Temporary password from an administrator — must be changed before working. */
   mustChangePassword: boolean;
 }
 
-/** Обліковий запис у списку користувачів (адміністрування). */
+/** Account in the user list (administration). */
 export interface ManagedUser {
   id: string;
   email: string;

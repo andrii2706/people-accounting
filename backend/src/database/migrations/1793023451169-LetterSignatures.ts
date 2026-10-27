@@ -12,7 +12,7 @@ export class LetterSignatures1793023451169 implements MigrationInterface {
         await queryRunner.query(`ALTER TABLE "outgoing_letters" ADD "documentFilename" character varying(300)`);
         await queryRunner.query(`ALTER TABLE "outgoing_letters" ADD "documentFrozenAt" TIMESTAMP WITH TIME ZONE`);
         await queryRunner.query(`ALTER TABLE "letter_signatures" ADD CONSTRAINT "FK_7f55da164e3526502944a644485" FOREIGN KEY ("letterId") REFERENCES "outgoing_letters"("id") ON DELETE RESTRICT ON UPDATE NO ACTION`);
-        // Підписи лише додаються: заборона UPDATE/DELETE на рівні БД (навіть з обходом застосунку)
+        // Signatures are append-only: UPDATE/DELETE are forbidden at the DB level (even bypassing the app)
         await queryRunner.query(`CREATE FUNCTION letter_signatures_append_only() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'letter_signatures: записи підписів незмінні'; END $$ LANGUAGE plpgsql`);
         await queryRunner.query(`CREATE TRIGGER letter_signatures_append_only BEFORE UPDATE OR DELETE ON "letter_signatures" FOR EACH ROW EXECUTE FUNCTION letter_signatures_append_only()`);
     }

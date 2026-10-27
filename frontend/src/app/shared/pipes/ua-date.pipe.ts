@@ -1,6 +1,6 @@
 import { Pipe, type PipeTransform } from '@angular/core';
 
-/** ISO `YYYY-MM-DD` (або дата-час) → `dd.mm.yyyy`. Без Intl, щоб SSR і браузер давали однаковий результат. */
+/** ISO `YYYY-MM-DD` (or date-time) → `dd.mm.yyyy`. No Intl, so SSR and the browser produce the same result. */
 @Pipe({ name: 'uaDate' })
 export class UaDatePipe implements PipeTransform {
   transform(value: string | null | undefined, empty = '—'): string {

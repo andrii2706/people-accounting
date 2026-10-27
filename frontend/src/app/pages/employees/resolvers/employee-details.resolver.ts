@@ -4,6 +4,6 @@ import type { EmployeeDetails } from '../../../shared/interfaces/employee.interf
 import { EmployeesService } from '../../../shared/services/employees.service';
 import { resolveOr } from '../../../shared/utils/router.utils';
 
-/** Повна картка працівника — для перегляду й редагування. */
+/** Full employee card — for viewing and editing. */
 export const employeeDetailsResolver: ResolveFn<EmployeeDetails> = (route) =>
   resolveOr(inject(EmployeesService).details(route.paramMap.get('id')!), '/employees') as never;

@@ -1,4 +1,4 @@
-/** Сьогоднішня дата за Києвом (YYYY-MM-DD) — не залежить від часового поясу SSR-сервера. */
+/** Today's date in Kyiv (YYYY-MM-DD) — independent of the SSR server time zone. */
 export function todayIso(): string {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Kyiv',

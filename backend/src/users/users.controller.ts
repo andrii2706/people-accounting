@@ -33,7 +33,7 @@ export class UsersController {
     return user;
   }
 
-  /** Тимчасовий пароль повертається один раз — передайте його користувачу захищеним каналом. */
+  /** The temporary password is returned once — hand it to the user over a secure channel. */
   @Post(':id/reset-password')
   @HttpCode(200)
   async resetPassword(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser) {

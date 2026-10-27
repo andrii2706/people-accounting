@@ -1,6 +1,6 @@
 /**
- * Текстові представлення полів працівника для документів і списків.
- * Відтворюють формули CONCATENATE з картки працівника (колонки FM–GE) та аркуша «список».
+ * Text representations of employee fields for documents and lists.
+ * They reproduce the CONCATENATE formulas of the employee card (columns FM–GE) and sheet «список».
  */
 import { formatUa } from '../common/utils/dates.js';
 import type { Employee } from '../employees/entities/employee.entity.js';
@@ -25,7 +25,7 @@ export function rankText(e: Pick<E, 'rankCode' | 'navy'>): string {
   return rankTitle(e.rankCode, e.navy);
 }
 
-/** Колонка 5: реєстраційний номер ЄДР / РНОКПП. */
+/** Column 5: register number / RNOKPP. */
 export function registryText(e: E): string {
   return join([e.registryNumber, e.rnokpp], ' / ');
 }
@@ -47,7 +47,7 @@ export function militaryDocText(e: E, withIssuer = true): string {
   ) + generated;
 }
 
-/** Колонка 8: категорія обліку (для офіцерів розряд), військово-обліковий документ. */
+/** Column 8: reserve category (grade for officers), military registration document. */
 export function categoryAndDocText(e: E): string {
   const doc = join(
     [
@@ -82,12 +82,12 @@ export function foreignPassportText(e: E): string {
   ]);
 }
 
-/** Колонка 10: обидва паспорти. */
+/** Column 10: both passports. */
 export function passportsText(e: E): string {
   return join([passportText(e), foreignPassportText(e)], '; ');
 }
 
-/** Колонка 9: освіта. */
+/** Column 9: education. */
 export function educationText(e: E): string {
   return join([
     e.educationLevel,
@@ -101,12 +101,12 @@ export function actualAddressText(e: E): string {
   return e.actualAddress || e.registeredAddress;
 }
 
-/** Колонка 13: ТЦК. */
+/** Column 13: TCK. */
 export function tckText(e: E): string {
   return e.tck?.name ?? '';
 }
 
-/** Колонка 14: спецоблік / номер команди / служба в резерві (формула GA2). */
+/** Column 14: special registration / team number / service in the reserve (formula GA2). */
 export function specialAccountingText(e: E): string {
   if (isReservist(e)) return `${e.reserveTeamNumber} Р`;
   if (isConscript(e)) return e.deferralConscriptionBasis;
@@ -119,13 +119,13 @@ export function specialAccountingText(e: E): string {
   return join([reservation, deferral], '; ');
 }
 
-/** Колонка 15: придатність (для офіцерів та призовників не заповнюється). */
+/** Column 15: fitness (not filled for officers and conscripts). */
 export function fitnessText(e: E): string {
   if (isOfficer(e) || isConscript(e)) return '';
   return join([e.fitness, e.fitnessBasis], ' ');
 }
 
-/** Колонка 16: сімейний стан і члени сім’ї з роком народження (формула BM6). */
+/** Column 16: marital status and family members with birth year (formula BM6). */
 export function familyText(e: E): string {
   const status = maritalStatusLabel(e.maritalStatus, e.gender);
   const members = (e.familyMembers ?? []).map((m) => {
@@ -135,7 +135,7 @@ export function familyText(e: E): string {
   return join([status, ...members], '; ');
 }
 
-/** Колонка 17: посада, реквізити акта про призначення / звільнення. */
+/** Column 17: position, details of the appointment / dismissal order. */
 export function positionText(e: E): string {
   const appointed = join([
     capitalize(e.position),
@@ -151,7 +151,7 @@ export function positionText(e: E): string {
   return join([appointed, dismissed], '; ');
 }
 
-/** Колонка 7: склад (профіль підготовки — для офіцера). */
+/** Column 7: composition (training profile for an officer). */
 export function compositionColumnText(e: E): string {
   return compositionText(e);
 }

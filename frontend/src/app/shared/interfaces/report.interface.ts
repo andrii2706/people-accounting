@@ -11,9 +11,18 @@ export interface Dashboard {
   organizationConfigured: boolean;
 }
 
+/** One record of the personal military registration lists (Annex 5): 18 cells, columns 1–18. */
+export interface ListRow {
+  employeeId: string;
+  group: ListGroup;
+  category: DutyCategory | null;
+  cells: string[];
+}
+
 export interface ListsReport {
   date: string;
-  groups: { group: ListGroup; title: string; rows: { employeeId: string; cells: string[] }[] }[];
+  rows: ListRow[];
+  counts: Record<DutyCategory, number>;
 }
 
 export interface OperationalRow {

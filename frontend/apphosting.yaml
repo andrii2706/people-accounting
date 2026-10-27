@@ -1,46 +1,48 @@
-# Firebase App Hosting — Angular SSR (фронтенд).
-# Значення з позначкою REPLACE заповнюються після infra/bootstrap.sh (див. docs/DEPLOYMENT.md).
-# Секретів тут немає: фронтенд не має доступу ні до БД, ні до ключів — лише до приватного API.
+# Firebase App Hosting — Angular SSR (frontend).
+# Values marked REPLACE are filled in after infra/bootstrap.sh (see docs/DEPLOYMENT.md).
+# No secrets here: the frontend has no access to the DB or keys — only to the private API.
 
 runConfig:
   cpu: 1
   memoryMiB: 1024
   concurrency: 80
-  minInstances: 0 # 1 — без «холодного старту» вранці (платно)
+  minInstances: 0 # 1 — no cold start in the morning (paid)
   maxInstances: 4
 
 env:
-  # Приватний Cloud Run з NestJS API (gcloud run services describe military-registry-api --format='value(status.url)')
+  # Private Cloud Run with the NestJS API (gcloud run services describe military-registry-api --format='value(status.url)')
   - variable: API_INTERNAL_URL
     value: https://military-registry-api-REPLACE.europe-west4.run.app
     availability: [RUNTIME]
 
-  # Виклики API з ID-токеном сервісного акаунта App Hosting (API без публічного доступу)
+  # API calls carry the ID token of the App Hosting service account (the API has no public access)
   - variable: API_AUTH
     value: google-id-token
     availability: [RUNTIME]
 
-  # SSR звертається до API через власний проксі (він додає IAM-токен); App Hosting слухає порт 8080
+  # SSR calls the API through our own proxy (it adds the IAM token); App Hosting listens on port 8080
   - variable: SSR_API_BASE
     value: http://127.0.0.1:8080
     availability: [RUNTIME]
 
-  # Хости, для яких дозволено SSR (захист від SSRF): домен App Hosting і власний домен
-  - variable: NG_ALLOWED_HOSTS
-    value: military-registry-web--accouting-project.europe-west4.hosted.app
-    availability: [RUNTIME]
+  # Hosts allowed for SSR (SSRF protection). App Hosting sets NG_ALLOWED_HOSTS itself
+  # (its *.hosted.app and *.run.app domains). Only when a custom domain is connected, uncomment
+  # and list ALL hosts — this value replaces the automatic one:
+  # - variable: NG_ALLOWED_HOSTS
+  #   value: people-accounting--accounting-project-1aecf.europe-west4.hosted.app,hr.company.ua
+  #   availability: [RUNTIME]
 
-  # Кількість проксі Google перед контейнером — для коректного IP клієнта (див. docs/SECURITY.md)
+  # Number of Google proxies in front of the container — for the correct client IP (see docs/SECURITY.md)
   - variable: TRUST_PROXY_HOPS
     value: "2"
     availability: [RUNTIME]
 
-  # Віджет підпису ІІТ дозволено вбудовувати фреймом
+  # The IIT signing widget may be embedded in a frame
   - variable: CSP_FRAME_SRC
     value: https://eu.iit.com.ua
     availability: [RUNTIME]
 
-  # Необов'язково: доступ лише з мереж компанії (офіс, VPN). Порожньо — з будь-якої адреси.
+  # Optional: access only from company networks (office, VPN). Empty — from any address.
   # - variable: ALLOWED_CLIENT_CIDRS
   #   value: 203.0.113.0/24
   #   availability: [RUNTIME]

@@ -1,15 +1,15 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 /**
- * Особа, відповідальна за ведення військового обліку (аркуш Authorized).
- * На документи підставляється та, чий період дії охоплює дату документа.
+ * Person responsible for military registration (sheet Authorized).
+ * Documents use the one whose period covers the document date.
  */
 @Entity('responsible_persons')
 export class ResponsiblePerson {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  /** Ініціали та прізвище. */
+  /** Initials and surname. */
   @Column({ type: 'varchar', length: 200 })
   fullName: string;
 
@@ -19,7 +19,7 @@ export class ResponsiblePerson {
   @Column({ type: 'varchar', length: 100, default: '' })
   phone: string;
 
-  /** Номер наказу про призначення. */
+  /** Number of the appointment order. */
   @Column({ type: 'varchar', length: 50, default: '' })
   orderNumber: string;
 

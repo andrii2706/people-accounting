@@ -6,27 +6,27 @@ import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 /**
- * Усі запити йдуть на відносний `/api` того ж origin (dev-proxy або Express-проксі в server.ts),
- * тож httpOnly cookie надсилається браузером автоматично. Під час SSR адресу і cookie підставляє
- * SsrApiBackend. Тут — реакція на завершення сесії та тимчасовий пароль.
+ * All requests go to the relative `/api` of the same origin (dev proxy or the Express proxy in server.ts),
+ * so the browser sends the httpOnly cookie automatically. During SSR the address and cookie are set by
+ * SsrApiBackend. Here — reactions to an ended session and a temporary password.
  */
 export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   if (!req.url.startsWith('/api')) return next(req);
   const isServer = isPlatformServer(inject(PLATFORM_ID));
 
   const router = inject(Router);
-  // AuthService залежить від HttpClient — беремо його ліниво, щоб не було циклу DI
+  // AuthService depends on HttpClient — get it lazily to avoid a DI cycle
   const injector = inject(Injector);
   return next(req).pipe(
     catchError((error: unknown) => {
       if (!(error instanceof HttpErrorResponse) || isServer) return throwError(() => error);
       const isAuthCall = req.url.startsWith('/api/auth/');
-      // сесія завершилась (тайм-аут бездіяльності, блокування, зміна пароля на іншому пристрої)
+      // session ended (idle timeout, lockout, password changed on another device)
       if (error.status === 401 && !isAuthCall) {
         injector.get(AuthService).markSignedOut();
         void router.navigate(['/login'], { queryParams: { returnUrl: router.url, expired: 1 } });
       }
-      // тимчасовий пароль ще не змінено
+      // temporary password not changed yet
       if (
         error.status === 403 &&
         (error.error as { code?: string } | null)?.code === 'PASSWORD_CHANGE_REQUIRED'

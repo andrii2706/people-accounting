@@ -1,22 +1,19 @@
 /**
- * Побудова документів. Тексти та структура — з картки працівника (рядки 30–100, 116–147)
- * та аркушів G1…G4R, OCL файлу new_military_list v8.6.
+ * Document builders. Texts and structure follow the employee card (rows 30–100, 116–147)
+ * and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
-import type { Paragraph, Table } from 'docx';
+import { BorderStyle, HeightRule, type Paragraph, Table, TableCell, TableLayoutType, TableRow, WidthType } from 'docx';
 import { formatUa, formatUaLong, type IsoDate } from '../common/utils/dates.js';
 import type { Tck } from '../dictionaries/tck.entity.js';
-import type { EmployeeChange } from '../employees/entities/employee-change.entity.js';
-import type { Employee } from '../employees/entities/employee.entity.js';
-import { CHANGE_TYPE_LABELS, type ListGroup, LIST_GROUP_TITLES } from '../military/dictionaries.js';
+import { CHANGE_TYPE_LABELS, type ChangeType, LIST_GROUP_TITLES, type ListGroup } from '../military/dictionaries.js';
 import {
-  actualAddressText,
-  fullName,
-  militaryDocText,
-  rankText,
-} from '../military/employee-format.js';
+  LIST_TITLES,
+  LIST_WIDTHS,
+} from '../military/personal-list.js';
 import type { Organization } from '../organization/organization.entity.js';
 import type { ResponsiblePerson } from '../organization/responsible-person.entity.js';
 import {
+  A4,
   type CellSpec,
   CONTENT_WIDTH,
   empty,
@@ -31,6 +28,7 @@ import {
   twoColumns,
 } from './docx-kit.js';
 import { inGenitive } from './name-declension.js';
+import type { NoticeSnapshot } from './notice-snapshot.js';
 
 const blank = (v: string | null | undefined, filler = '________________') => (v && v.trim() ? v : filler);
 
@@ -50,64 +48,40 @@ function executor(person: ResponsiblePerson | null): Paragraph[] {
   return [...empty(2), p(`Виконавець: ${person.fullName}${person.phone ? `, тел. ${person.phone}` : ''}`, { size: 9 })];
 }
 
-// ================================================================ Повідомлення про зміну облікових даних
+// ================================================================ Change notices (Annex 4) with a cover letter
+
+export interface NoticeItem extends NoticeSnapshot {
+  sequence: number;
+  changeType: ChangeType;
+}
 
 export interface ChangeNoticeInput {
   letter: { number: string; date: IsoDate };
-  employee: Employee;
-  changes: EmployeeChange[];
+  /** Addressee of the cover letter. */
+  tck: Tck | null;
+  notices: NoticeItem[];
   org: Organization;
   responsible: ResponsiblePerson | null;
 }
 
-function changeDescription(c: EmployeeChange, e: Employee): string {
-  const ending = e.gender === 'F' ? 'а' : 'ий';
-  switch (c.type) {
-    case 'LAST_NAME':
-      return `Зміна прізвища на ${c.newValue}`;
-    case 'FIRST_NAME':
-      return `Зміна власного імені на ${c.newValue}`;
-    case 'MIDDLE_NAME':
-      return `Зміна по батькові на ${c.newValue}`;
-    case 'POSITION':
-      return `Зміна посади. Переведен${ending} на посаду ${c.newValue}`;
-    case 'REGISTERED_ADDRESS':
-      return `Зміна зареєстрованого місця проживання: ${c.newValue}`;
-    case 'ACTUAL_ADDRESS':
-      return `Зміна фактичного місця проживання: ${c.newValue}`;
-    case 'PASSPORT':
-      return `Заміна внутрішнього паспорта: ${c.newValue}`;
-    case 'FOREIGN_PASSPORT':
-      return `Отримано закордонний паспорт: ${c.newValue}`;
-    case 'EDUCATION':
-      return `Здобуто освіту - ${c.newValue}`;
-    case 'MARITAL_STATUS':
-      return `Зміна сімейного стану. ${c.newValue}`;
-    case 'HIRE':
-      return `Прийняття на роботу. Прийнят${ending} на посаду ${c.newValue}`;
-    case 'DISMISSAL':
-      return 'Звільнення з роботи';
-  }
+export function noticeNumber(letterNumber: string, sequence: number, total: number) {
+  return total > 1 ? `${letterNumber}/${sequence}` : letterNumber;
 }
 
-function noticeNumber(letterNumber: string, index: number, total: number) {
-  return total > 1 ? `${letterNumber}/${index + 1}` : letterNumber;
-}
+const snapshotName = (n: NoticeSnapshot) => [n.lastName, n.firstName, n.middleName].filter(Boolean).join(' ');
 
-function noticePage(input: ChangeNoticeInput, change: EmployeeChange, index: number): (Paragraph | Table)[] {
-  const { employee: e, org, letter } = input;
+function noticePage(n: NoticeItem, ctx: { letter: ChangeNoticeInput['letter']; org: Organization; total: number; tckGenitiveName: string }): (Paragraph | Table)[] {
   const w = CONTENT_WIDTH.portrait;
   const row = (label: string, value: string): (string | CellSpec)[] => [
     { text: label, size: 11 },
     { text: value, size: 11, bold: true },
   ];
-
   return [
     twoColumns([p('')], [p('Додаток 4', { size: 10 }), p('до Порядку', { size: 10 })], [w - 2600, 2600]),
     ...empty(1),
     twoColumns(
-      [p(`вих. № ${noticeNumber(letter.number, index, input.changes.length)}`), p(`від ${formatUa(letter.date)} р.`)],
-      [p(tckGenitive(e.tck).replace(/^./, (c) => c.toUpperCase()), { underline: true }),
+      [p(`вих. № ${noticeNumber(ctx.letter.number, n.sequence, ctx.total)}`), p(`від ${formatUa(ctx.letter.date)} р.`)],
+      [p(ctx.tckGenitiveName.replace(/^./, (c) => c.toUpperCase()), { underline: true }),
         hint('(найменування районного (міського) територіального центру комплектування та соціальної підтримки, органу СБУ, підрозділу Служби зовнішньої розвідки)')],
       [w / 2, w / 2],
     ),
@@ -115,73 +89,108 @@ function noticePage(input: ChangeNoticeInput, change: EmployeeChange, index: num
     p('ПОВІДОМЛЕННЯ', { bold: true, align: 'center', size: 14 }),
     p('про зміну облікових даних', { bold: true, align: 'center', size: 14, spacingAfter: 200 }),
     table([], [
-      row('1. Прізвище, власне ім’я та по батькові (за наявності)', fullName(e)),
-      row('2. Реєстраційний номер облікового запису Єдиного державного реєстру призовників, військовозобов’язаних та резервістів', blank(e.registryNumber)),
-      row('3. Військово-обліковий документ', blank(militaryDocText(e))),
-      row('4. Номер військово-облікової спеціальності', blank(e.vos)),
-      row('5. Військове звання', blank(rankText(e), e.rankCode === 0 ? 'призовник' : '________________')),
-      row('6. Дата народження', formatUa(e.birthDate)),
-      row('7. Зміна облікових даних', changeDescription(change, e)),
-      row('8. Підстава для зміни облікових даних (найменування документа, номер та дата видачі)', blank(change.basis)),
-      row('9. Перебування на військовому обліку', blank(e.tck?.name)),
-      row('10. Адреса задекларованого/зареєстрованого місця проживання', blank(e.registeredAddress)),
-      row('11. Адреса фактичного місця проживання', blank(actualAddressText(e))),
+      row('1. Прізвище, власне ім’я та по батькові (за наявності)', snapshotName(n)),
+      row('2. Реєстраційний номер облікового запису Єдиного державного реєстру призовників, військовозобов’язаних та резервістів', blank(n.registryNumber)),
+      row('3. Військово-обліковий документ', blank(n.militaryDoc)),
+      row('4. Номер військово-облікової спеціальності', blank(n.vos)),
+      row('5. Військове звання', blank(n.rank, n.conscript ? 'призовник' : '________________')),
+      row('6. Дата народження', formatUa(n.birthDate)),
+      row('7. Зміна облікових даних', n.change),
+      row('8. Підстава для зміни облікових даних (найменування документа, номер та дата видачі)', blank(n.basis)),
+      row('9. Перебування на військовому обліку', blank(n.tckName)),
+      row('10. Адреса задекларованого/зареєстрованого місця проживання', blank(n.registeredAddress)),
+      row('11. Адреса фактичного місця проживання', blank(n.actualAddress)),
     ], [Math.round(w * 0.45), Math.round(w * 0.55)], { borders: false }),
     ...empty(2),
-    signature(`${org.headPosition} ${org.shortName}`.trim(), org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
+    signature(`${ctx.org.headPosition} ${ctx.org.shortName}`.trim(), ctx.org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
     hint('(найменування посади керівника державного органу, органу місцевого самоврядування, підприємства, установи, організації)', 'left'),
   ];
 }
 
+/** A single notice (Annex 4) without the cover letter — e.g. to re-print it from the employee card. */
+export async function buildSingleNotice(input: Omit<ChangeNoticeInput, 'notices'> & { notice: NoticeItem; total: number }): Promise<Buffer> {
+  const page = noticePage(input.notice, { letter: input.letter, org: input.org, total: input.total, tckGenitiveName: tckGenitive(input.tck) });
+  return render([section(page)], `Повідомлення ${noticeNumber(input.letter.number, input.notice.sequence, input.total)}`);
+}
+
+/** Cover letter + notices (one page per change) + inventory form 107. Supports several employees in one letter. */
 export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffer> {
-  const { employee: e, org, letter, changes, responsible } = input;
+  const { org, letter, notices, responsible, tck } = input;
   const w = CONTENT_WIDTH.portrait;
-  const declined = await inGenitive({ ...e, middleName: e.middleName });
-  const [family, given, patronymic] = declined.split(' ');
-  const who = e.gender === 'F' ? 'працівниці' : 'працівника';
-  const which = e.gender === 'F' ? 'яка' : 'який';
-  const attachments = changes.map(
-    (c, i) => `${i + 1}. Повідомлення про зміну облікових даних від ${formatUa(letter.date)} р. № ${noticeNumber(letter.number, i, changes.length)} (${CHANGE_TYPE_LABELS[c.type]}) на 1 арк.`,
+  const total = notices.length;
+
+  // distinct employees, in the order they appear in the letter
+  const people = [...new Map(notices.map((n) => [`${snapshotName(n)}|${n.birthDate}`, n])).values()];
+  const single = people.length === 1;
+  const attachments = notices.map(
+    (n) => `${n.sequence}. Повідомлення про зміну облікових даних від ${formatUa(letter.date)} р. № ${noticeNumber(letter.number, n.sequence, total)} (${CHANGE_TYPE_LABELS[n.changeType]}${single ? '' : `, ${snapshotName(n)}`}) на 1 арк.`,
   );
 
+  let body: Paragraph[];
+  if (single) {
+    const n = people[0];
+    const declined = await inGenitive(n);
+    const [family, given, patronymic] = declined.split(' ');
+    const who = n.gender === 'F' ? 'працівниці' : 'працівника';
+    const which = n.gender === 'F' ? 'яка' : 'який';
+    body = [
+      p(`Щодо повідомлення про зміну облікових даних ${who}`, { bold: true, italics: true }),
+      ...empty(1),
+      p(
+        `У відповідності до п. 34 Порядку організації та ведення військового обліку призовників, військовозобов’язаних та резервістів, ` +
+        `затвердженого постановою Кабінету Міністрів України від 30 грудня 2022 р. № 1487, надсилаємо повідомлення про зміну облікових даних ` +
+        `${who} ${org.shortName} ${[given, patronymic].filter(Boolean).join(' ')} ${(family ?? n.lastName).toUpperCase()}, ` +
+        `дата народження - ${formatUa(n.birthDate)} р., ${which} перебуває на обліку в ${blank(n.tckName)}.`,
+        { align: 'justify', indent: 567 },
+      ),
+    ];
+  } else {
+    body = [
+      p('Щодо повідомлення про зміну облікових даних працівників', { bold: true, italics: true }),
+      ...empty(1),
+      p(
+        `У відповідності до п. 34 Порядку організації та ведення військового обліку призовників, військовозобов’язаних та резервістів, ` +
+        `затвердженого постановою Кабінету Міністрів України від 30 грудня 2022 р. № 1487, надсилаємо повідомлення про зміну облікових даних ` +
+        `працівників ${org.shortName}:`,
+        { align: 'justify', indent: 567 },
+      ),
+      ...people.map((n, i) =>
+        p(
+          `${i + 1}. ${n.lastName.toUpperCase()} ${[n.firstName, n.middleName].filter(Boolean).join(' ')}, дата народження - ${formatUa(n.birthDate)} р., ` +
+          `перебуває на обліку в ${blank(n.tckName)}.`,
+          { align: 'justify', indent: 567 },
+        ),
+      ),
+    ];
+  }
+
   const cover: (Paragraph | Table)[] = [
-    twoColumns(orgHeader(org), [
-      p(`Керівнику ${tckGenitive(e.tck)}`, { bold: true }),
-      p(e.tck?.address ?? ''),
-    ], [w / 2, w / 2]),
+    twoColumns(orgHeader(org), [p(`Керівнику ${tckGenitive(tck)}`, { bold: true }), p(tck?.address ?? '')], [w / 2, w / 2]),
     ...empty(1),
     p(`Вих. № ${letter.number}`),
     p(`від ${formatUa(letter.date)} р.`),
     ...empty(1),
-    p(`Щодо повідомлення про зміну облікових даних ${who}`, { bold: true, italics: true }),
+    ...body,
     ...empty(1),
-    p(
-      `У відповідності до п. 34 Порядку організації та ведення військового обліку призовників, військовозобов’язаних та резервістів, ` +
-      `затвердженого постановою Кабінету Міністрів України від 30 грудня 2022 р. № 1487, надсилаємо повідомлення про зміну облікових даних ` +
-      `${who} ${org.shortName} ${[given, patronymic].filter(Boolean).join(' ')} ${(family ?? e.lastName).toUpperCase()}, ` +
-      `дата народження - ${formatUa(e.birthDate)} р., ${which} перебуває на обліку в ${blank(e.tck?.name)}.`,
-      { align: 'justify', indent: 567 },
-    ),
-    ...empty(1),
-    p(changes.length === 1 ? 'Додаток:' : 'Додатки:', { bold: true }),
+    p(total === 1 ? 'Додаток:' : 'Додатки:', { bold: true }),
     ...attachments.map((a) => p(a, { indent: 567 })),
     ...empty(2),
     signature(org.headPosition, org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
     ...executor(responsible),
   ];
 
-  const notices = changes.flatMap((c, i) => [pageBreak(), ...noticePage(input, c, i)]);
-
+  const ctx = { letter, org, total, tckGenitiveName: tckGenitive(tck) };
+  const pages = notices.flatMap((n) => [pageBreak(), ...noticePage(n, ctx)]);
   const inventory = inventoryPage({
     org,
-    tck: e.tck,
-    items: [`Лист щодо повідомлення про зміну облікових даних працівника від ${formatUa(letter.date)} року № ${letter.number} з додатками (аркушів - ${1 + changes.length})`],
+    tck,
+    items: [`Лист щодо повідомлення про зміну облікових даних ${single ? 'працівника' : 'працівників'} від ${formatUa(letter.date)} року № ${letter.number} з додатками (аркушів - ${1 + total})`],
   });
 
-  return render([section([...cover, ...notices, pageBreak(), ...inventory])], `Повідомлення ${letter.number}`);
+  return render([section([...cover, ...pages, pageBreak(), ...inventory])], `Повідомлення ${letter.number}`);
 }
 
-// ================================================================ Опис вкладення ф.107
+// ================================================================ Inventory of contents, form 107
 
 function inventoryPage(input: { org: Organization; tck: Tck | null | undefined; items: string[] }): (Paragraph | Table)[] {
   const w = CONTENT_WIDTH.portrait;
@@ -225,70 +234,66 @@ function inventoryPage(input: { org: Organization; tck: Tck | null | undefined; 
   ];
 }
 
-// ================================================================ Списки персонального військового обліку (Додаток 13)
-
-export const LIST_COLUMNS = [
-  'Порядковий номер',
-  'Військове звання',
-  'Прізвище, власне ім’я та по батькові (за наявності)',
-  'Число, місяць, рік народження',
-  'Реєстраційний номер облікового запису в Єдиному державному реєстрі призовників, військовозобов’язаних та резервістів / реєстраційний номер облікової картки платника податків',
-  'Військово-облікова спеціальність',
-  'Склад (профіль підготовки - для офіцера)',
-  'Категорія обліку (для офіцерів розряд), військово-обліковий документ (серія, номер)',
-  'Відомості про освіту та спеціальність (серія та номер диплома, свідоцтва, сертифіката тощо)',
-  'Реквізити паспорта громадянина України та паспорта громадянина України для виїзду за кордон (серія (за наявності), номер, ким та коли видано)',
-  'Адреса задекларованого (зареєстрованого) місця проживання',
-  'Адреса місця проживання',
-  'Найменування ТЦК та СП, органу СБУ, підрозділу Служби зовнішньої розвідки, де перебуває на військовому обліку',
-  'Перебування на спеціальному обліку або номер команди/служба у військовому резерві',
-  'Придатність до військової служби',
-  'Сімейний стан, прізвище, власне ім’я та по батькові (за наявності) членів сім’ї та рік їх народження',
-  'Посада, реквізити акта про призначення/ звільнення на посаду/з посади',
-  'Реквізити повідомлення про призначення/ звільнення на посаду/з посади',
-] as const;
-
-/** Відносні ширини колонок у списку. */
-const LIST_WEIGHTS = [3, 6, 9, 6, 8, 5, 6, 8, 8, 10, 8, 8, 8, 7, 6, 9, 9, 7];
+// ================================================================ Personal military registration lists (Annex 5, ed. 2025)
 
 export interface ListsInput {
   date: IsoDate;
   extract: boolean;
+  /** Lists by group (sheets GN1…GN4R); every row has 18 cells (see military/personal-list.ts). */
   groups: { group: ListGroup; rows: string[][] }[];
   org: Organization;
-  responsible: ResponsiblePerson | null;
   letter?: { number: string; date: IsoDate } | null;
 }
 
-export async function buildLists(input: ListsInput): Promise<Buffer> {
-  const w = CONTENT_WIDTH.landscape;
-  const total = LIST_WEIGHTS.reduce((a, b) => a + b, 0);
-  const widths = LIST_WEIGHTS.map((x) => Math.floor((w * x) / total));
+/** Page margins of sheets GN* (landscape, 0.7" left/right, 0.75" top/bottom). */
+const LIST_MARGINS = { top: 1080, bottom: 1080, left: 1008, right: 1008 };
 
-  const sections = input.groups.map(({ group, rows }) =>
-    section([
-      p(`Вихідний номер: ${input.letter?.number ?? '__________'}`, { size: 10 }),
-      p(`Дата: ${input.letter ? `${formatUa(input.letter.date)} р.` : '__________'}`, { size: 10 }),
-      ...empty(1),
-      p(input.extract ? 'ВИТЯГ із СПИСКІВ' : 'СПИСКИ', { bold: true, align: 'center', size: 13 }),
-      p(`персонального військового обліку ${LIST_GROUP_TITLES[group]} які працюють в ${blank(input.org.nameLocative || input.org.fullName)}`, { bold: true, align: 'center', size: 12 }),
-      p(`станом на ${formatUa(input.date)} року`, { align: 'center', spacingAfter: 120 }),
-      table(
-        [LIST_COLUMNS.map((c) => c), LIST_COLUMNS.map((_, i) => String(i + 1))],
-        rows.length ? rows : [[{ text: 'Особи відсутні', colSpan: LIST_COLUMNS.length, align: 'center' }]],
-        widths,
-        { size: 8, headerSize: 7 },
-      ),
-      ...empty(2),
-      signature(input.org.headPosition, input.org.headName, [Math.round(w * 0.4), Math.round(w * 0.25), Math.round(w * 0.35)]),
-      ...empty(1),
-      signature('Особа, відповідальна за ведення військового обліку', input.responsible?.fullName ?? '', [Math.round(w * 0.4), Math.round(w * 0.25), Math.round(w * 0.35)]),
-    ], true),
+/**
+ * Personal military registration lists laid out like sheets GN1…GN4R of the Excel file:
+ * a separate list per group on its own landscape page(s), one row per record, columns 1–18.
+ */
+export async function buildLists(input: ListsInput): Promise<Buffer> {
+  const contentWidth = A4.height - LIST_MARGINS.left - LIST_MARGINS.right;
+  const total = LIST_WIDTHS.reduce((a, b) => a + b, 0);
+  const widths = LIST_WIDTHS.map((w) => Math.floor((contentWidth * w) / total));
+  const size = 8;
+  const header = [
+    LIST_TITLES.map((text) => ({ text, size: 7, align: 'center' as const })),
+    LIST_TITLES.map((_, i) => ({ text: String(i + 1), align: 'center' as const })),
+  ];
+  const sign = [Math.round(contentWidth * 0.3), Math.round(contentWidth * 0.2), Math.round(contentWidth * 0.3)] as [number, number, number];
+  const orgText = input.org.nameLocative || input.org.fullName;
+
+  const groupSection = (group: ListGroup | null, rows: string[][]) => {
+    const body = rows.length
+      ? rows.map((row) => row.map((text, i) => ({ text, size, align: i === 0 || i === 4 ? ('center' as const) : undefined })))
+      : [[{ text: 'Особи відсутні', colSpan: LIST_TITLES.length, align: 'center' as const, size }]];
+    const whom = group ? LIST_GROUP_TITLES[group].replace(/,$/, '') : 'призовників, військовозобов’язаних та резервістів';
+    return section(
+      [
+        p(`Вихідний номер   ${input.letter?.number ?? '__________'}`, { size: 10 }),
+        p(`Дата   ${input.letter ? `${formatUa(input.letter.date)} р.` : '__________'}`, { size: 10 }),
+        ...empty(1),
+        p(input.extract ? 'ВИТЯГ ІЗ СПИСКІВ' : 'СПИСКИ', { bold: true, align: 'center' }),
+        p(`персонального військового обліку ${whom}, які працюють в ${blank(orgText)}`, { align: 'center' }),
+        p(`станом на ${formatUa(input.date)} року`, { align: 'center', spacingAfter: 160 }),
+        table(header, body, widths, { size, headerSize: 7 }),
+        ...empty(2),
+        signature(input.org.headPosition, input.org.headName, sign),
+      ],
+      true,
+      LIST_MARGINS,
+    );
+  };
+
+  const groups = input.groups.filter((g) => g.rows.length);
+  return render(
+    groups.length ? groups.map((g) => groupSection(g.group, g.rows)) : [groupSection(null, [])],
+    input.extract ? 'Витяг зі списків' : 'Списки персонального військового обліку',
   );
-  return render(sections, input.extract ? 'Витяг зі списків' : 'Списки персонального військового обліку');
 }
 
-// ================================================================ Відомість оперативного обліку (Додаток 12)
+// ================================================================ Operational registration report (Annex 12)
 
 export interface OperationalRowData {
   code: string;
@@ -348,3 +353,67 @@ export async function buildOperationalReport(input: OperationalInput): Promise<B
     ], true),
   ], 'Відомість оперативного обліку');
 }
+
+// ================================================================ Envelope labels (sheet "03", rows 100–106 of the Excel file)
+
+export interface LabelParty {
+  name: string;
+  address: string;
+  postalCode: string;
+  phone: string;
+}
+
+export interface EnvelopeLabel {
+  sender: LabelParty;
+  recipient: LabelParty;
+}
+
+/** Postal code: explicit value, otherwise the first 5-digit number in the address. */
+export function postalCodeOf(postalCode: string | null | undefined, address: string | null | undefined): string {
+  if (postalCode?.trim()) return postalCode.trim();
+  return /(?:^|\D)(\d{5})(?:\D|$)/.exec(address ?? '')?.[1] ?? '';
+}
+
+function labelBlock(title: string, party: LabelParty): Paragraph[] {
+  return [
+    p(title, { bold: true, size: 11, spacingAfter: 60 }),
+    p(blank(party.name), { bold: true, size: 13 }),
+    p(blank(party.address), { size: 12 }),
+    p(party.postalCode ? `Індекс: ${party.postalCode}` : 'Індекс: ________', { bold: true, size: 14, spacingBefore: 60 }),
+    ...(party.phone ? [p(`тел. ${party.phone}`, { size: 11 })] : []),
+  ];
+}
+
+/**
+ * Envelope labels "Відправник / Отримувач" — several per A4 page, cut along the borders.
+ * One label per letter (sender — the organization, recipient — the TCK of the letter).
+ */
+export async function buildEnvelopeLabels(labels: EnvelopeLabel[]): Promise<Buffer> {
+  const w = CONTENT_WIDTH.portrait;
+  const half = Math.floor(w / 2);
+  const children = labels.flatMap((label) => [
+    new Table({
+      rows: [
+        new TableRow({
+          cantSplit: true,
+          height: { value: 3100, rule: HeightRule.ATLEAST },
+          children: [
+            new TableCell({ children: labelBlock('Відправник:', label.sender), width: { size: half, type: WidthType.DXA }, margins: { top: 120, bottom: 120, left: 160, right: 160 } }),
+            new TableCell({ children: labelBlock('Отримувач:', label.recipient), width: { size: w - half, type: WidthType.DXA }, margins: { top: 120, bottom: 120, left: 160, right: 160 } }),
+          ],
+        }),
+      ],
+      width: { size: w, type: WidthType.DXA },
+      columnWidths: [half, w - half],
+      layout: TableLayoutType.FIXED,
+      borders: {
+        top: DASHED, bottom: DASHED, left: DASHED, right: DASHED,
+        insideHorizontal: DASHED, insideVertical: { style: BorderStyle.SINGLE, size: 4, color: 'BBBBBB' },
+      },
+    }),
+    p('', { spacingAfter: 240 }),
+  ]);
+  return render([section(children)], 'Наклейки на конверти');
+}
+
+const DASHED = { style: BorderStyle.DASHED, size: 6, color: '777777' };

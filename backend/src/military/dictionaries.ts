@@ -1,4 +1,4 @@
-/** Статичні довідники, перенесені з аркуша EDU_TCK та картки працівника. */
+/** Static dictionaries taken from sheet EDU_TCK and the employee card. */
 
 export const EDUCATION_LEVELS = [
   'Повна вища освіта',
@@ -56,7 +56,7 @@ export const FAMILY_RELATION_LABELS: Record<FamilyRelation, string> = {
   DAUGHTER: 'донька',
 };
 
-/** Типи змін облікових даних, про які підприємство повідомляє ТЦК (картка працівника, рядки 102–114). */
+/** Types of registration data changes the company notifies the TCK about (employee card, rows 102–114). */
 export type ChangeType =
   | 'LAST_NAME'
   | 'FIRST_NAME'
@@ -86,7 +86,7 @@ export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
   DISMISSAL: 'Звільнення з роботи',
 };
 
-/** Групи списків персонального військового обліку (Додаток 13 до Порядку). */
+/** Groups used for the operational report and statistics (sheets G1…G4R of the Excel file). */
 export type ListGroup = 'G1' | 'G1R' | 'G2' | 'G2R' | 'G3' | 'G3R' | 'G4' | 'G4R';
 
 export const LIST_GROUP_TITLES: Record<ListGroup, string> = {

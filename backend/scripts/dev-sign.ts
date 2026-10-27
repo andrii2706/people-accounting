@@ -1,11 +1,11 @@
 /**
- * Тестовий підпис для розробки та QA — НЕ КЕП і не має юридичної сили.
- * Створює одноразовий ECDSA-ключ із самопідписаним сертифікатом вигаданої особи
- * і робить окремий підпис CAdES (.p7s) поруч із файлом:
+ * Test signature for development and QA — NOT a qualified e-signature and has no legal force.
+ * Creates a one-off ECDSA key with a self-signed certificate of a fictitious person
+ * and makes a detached CAdES signature (.p7s) next to the file:
  *
  *   npm run dev:sign -- "Повідомлення 12.docx"     →  "Повідомлення 12.docx.p7s"
  *
- * Отриманий .p7s можна завантажити на сторінці листа («Завантажити .p7s»).
+ * The resulting .p7s can be uploaded on the letter page ("Додати файл .p7s").
  */
 import * as asn1js from 'asn1js';
 import { readFileSync, writeFileSync } from 'node:fs';

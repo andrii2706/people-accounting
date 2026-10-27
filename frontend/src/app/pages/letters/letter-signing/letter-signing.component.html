@@ -11,17 +11,17 @@
   </div>
 
   @if (!state().frozen) {
-    <!-- крок 1: фіксація -->
+    <!-- step 1: freeze the document -->
     <p class="text-sm text-muted">
       Щоб підписати лист кваліфікованим електронним підписом, спершу зафіксуйте документ: він
-      збережеться без змін, і саме цей файл буде підписано та надіслано до ТЦК. Перевірте реквізити
-      та адресата — після першого підпису змінити їх не можна.
+      збережеться без змін, і саме цей файл буде підписано та передано в ТЦК. Перевірте реквізити та
+      адресата — після першого підпису змінити їх не можна.
     </p>
     <button type="button" class="btn btn-primary mt-4" [disabled]="busy()" (click)="freeze()">
       <app-icon name="lock" /> Зафіксувати документ для підпису
     </button>
   } @else {
-    <!-- зафіксований документ -->
+    <!-- frozen document -->
     <div class="rounded-lg bg-sunken/60 px-3 py-2 text-sm">
       <p class="flex flex-wrap items-center gap-x-2">
         <app-icon name="lock" [size]="16" />
@@ -52,7 +52,7 @@
       </div>
     </div>
 
-    <!-- зібрані підписи -->
+    <!-- collected signatures -->
     @if (hasSignatures()) {
       <ul class="mt-4 space-y-3">
         @for (sig of state().signatures; track sig.id) {
@@ -121,7 +121,7 @@
       </p>
     }
 
-    <!-- додати підпис -->
+    <!-- add a signature -->
     <div class="mt-5 border-t border-line pt-4">
       <h3 class="mb-3 text-sm font-semibold">
         {{ hasSignatures() ? 'Додати ще підпис' : 'Підписати' }}

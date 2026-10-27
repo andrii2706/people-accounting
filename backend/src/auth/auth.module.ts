@@ -18,7 +18,7 @@ import { SessionService } from './session.service.js';
     JwtModule.registerAsync({
       useFactory: () => ({ secret: loadEnv().jwtSecret, signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }),
     }),
-    // загальний ліміт запитів; для /auth/login — суворіший (див. @Throttle у контролері)
+    // global request limit; /auth/login has a stricter one (see @Throttle in the controller)
     ThrottlerModule.forRoot({
       throttlers: [{ name: 'default', ttl: 60_000, limit: 300 }],
       errorMessage: 'Забагато спроб. Зачекайте хвилину й спробуйте знову.',

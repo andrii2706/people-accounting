@@ -1,4 +1,4 @@
-/** Дати в API зберігаються як рядки ISO `YYYY-MM-DD` — без часових поясів. */
+/** Dates in the API are stored as ISO strings `YYYY-MM-DD` — without time zones. */
 export type IsoDate = string;
 
 export function todayIso(): IsoDate {
@@ -16,7 +16,7 @@ export function isIsoDate(value: unknown): value is IsoDate {
   return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
-/** Повних років на дату (формула список!AZ6). */
+/** Full years on a date (formula список!AZ6). */
 export function fullYears(birthDate: IsoDate | null | undefined, at: IsoDate): number | null {
   if (!birthDate) return null;
   const [by, bm, bd] = birthDate.split('-').map(Number);
@@ -26,7 +26,7 @@ export function fullYears(birthDate: IsoDate | null | undefined, at: IsoDate): n
   return years;
 }
 
-/** dd.mm.yyyy — як TEXT(x,"dd.mm.yyyy") у файлі. */
+/** dd.mm.yyyy — like TEXT(x,"dd.mm.yyyy") in the Excel file. */
 export function formatUa(date: IsoDate | null | undefined, empty = '__________'): string {
   if (!date) return empty;
   const [y, m, d] = date.slice(0, 10).split('-');
@@ -54,8 +54,20 @@ const MONTHS_GENITIVE = [
   'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня',
 ];
 
-/** «6 вересня 2026» — як у відомості оперативного обліку (OCL!L8). */
+/** "6 вересня 2026" — as in the operational report (OCL!L8). */
 export function formatUaLong(date: IsoDate): string {
   const [y, m, d] = date.split('-').map(Number);
   return `${d} ${MONTHS_GENITIVE[m - 1]} ${y}`;
+}
+
+/** "“14” серпня 2026 р." — the date style of the official forms. */
+export function formatUaQuoted(date: IsoDate): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return `“${String(d).padStart(2, '0')}” ${MONTHS_GENITIVE[m - 1]} ${y} р.`;
+}
+
+/** The 5th day of the month after `date`. */
+export function fifthOfNextMonth(date: IsoDate): IsoDate {
+  const [y, m] = date.split('-').map(Number);
+  return m === 12 ? `${y + 1}-01-05` : `${y}-${String(m + 1).padStart(2, '0')}-05`;
 }

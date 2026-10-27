@@ -2,23 +2,23 @@ import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { inject, Injectable, PLATFORM_ID } from '@angular/core';
 
 /**
- * Адаптер до віджета підпису ІІТ («Віджет підпису», бібліотека eusign.js).
+ * Adapter for the IIT signing widget («Віджет підпису», eusign.js library).
  *
- * Віджет відкривається у фреймі з сайту ІІТ і сам працює з ключем — застосунок
- * не бачить ні файлу ключа, ні пароля. Підтримує:
- *  • файлові ключі (Key-6.dat, *.pfx, *.jks) будь-якого кваліфікованого надавача;
- *  • апаратні носії («Алмаз-1К», «Кристал-1», SecureToken…) через агента ІІТ;
- *  • хмарні КЕП (Дія.Підпис, SmartID, Вчасно.КЕП, CloudKey тощо — перелік визначає ІІТ).
+ * The widget opens in a frame from the IIT site and works with the key itself — the app
+ * never sees the key file or the password. It supports:
+ *  • file keys (Key-6.dat, *.pfx, *.jks) of any qualified provider;
+ *  • hardware tokens («Алмаз-1К», «Кристал-1», SecureToken…) via the IIT agent;
+ *  • cloud e-signatures (Diia.Pidpys, SmartID, Vchasno.KEP, CloudKey etc. — the list is defined by IIT).
  *
- * Скрипт eusign.js розміщуємо у себе (public/iit/eusign.js) — його видає ІІТ разом із віджетом.
- * Адреси задаються на бекенді (SIGN_WIDGET_SCRIPT_URL, SIGN_WIDGET_FRAME_URL), тож оновлення
- * версії віджета не потребує перезбирання фронтенду.
+ * We host eusign.js ourselves (public/iit/eusign.js) — IIT ships it together with the widget.
+ * The URLs are configured on the backend (SIGN_WIDGET_SCRIPT_URL, SIGN_WIDGET_FRAME_URL), so updating
+ * the widget version does not require rebuilding the frontend.
  *
- * ⚠️ API віджета належить ІІТ і може змінюватися між версіями — при оновленні перевірте
- * назви констант (EndUser.FormType / SignAlgo / SignType) у документації до нової версії.
+ * ⚠️ The widget API belongs to IIT and may change between versions — when updating, check
+ * the constant names (EndUser.FormType / SignAlgo / SignType) in the documentation of the new version.
  */
 
-/** Мінімальний опис API EndUser з eusign.js, який ми використовуємо. */
+/** Minimal description of the EndUser API from eusign.js that we use. */
 interface EndUserCertificate {
   infoEx?: { publicKeyType?: number; keyUsageType?: number };
 }
@@ -48,9 +48,9 @@ interface EndUserConstructor {
   SignType?: Record<string, number>;
 }
 
-/** Типи відкритого ключа в сертифікаті (EU_CERT_KEY_TYPE_*). */
+/** Public key types in a certificate (EU_CERT_KEY_TYPE_*). */
 const KEY_TYPE = { DSTU4145: 1, RSA: 2, ECDSA: 4 } as const;
-/** EU_KEY_USAGE_DIGITAL_SIGNATURE — сертифікат для підпису (не для шифрування). */
+/** EU_KEY_USAGE_DIGITAL_SIGNATURE — a signing certificate (not an encryption one). */
 const KEY_USAGE_SIGNATURE = 1;
 
 @Injectable({ providedIn: 'root' })
@@ -83,8 +83,8 @@ export class IitSignWidgetService {
   }
 
   /**
-   * Показати віджет у контейнері `parentId` і дочекатися, поки користувач зчитає ключ.
-   * Повертає, коли ключ зчитано (пароль вводиться у фреймі ІІТ).
+   * Show the widget in the `parentId` container and wait until the user reads the key.
+   * Resolves once the key is read (the password is typed inside the IIT frame).
    */
   async readKey(parentId: string, scriptUrl: string, frameUrl: string): Promise<void> {
     const EndUser = await this.loadScript(scriptUrl);
@@ -94,7 +94,7 @@ export class IitSignWidgetService {
     this.certificates = (await this.instance.ReadPrivateKey()) ?? [];
   }
 
-  /** Окремий (detached) підпис CAdES у base64 для байтів документа. */
+  /** Detached CAdES signature in base64 for the document bytes. */
   async signDetached(data: Uint8Array): Promise<string> {
     if (!this.instance) throw new Error('Спершу зчитайте ключ');
     const EndUser = (this.document.defaultView as unknown as { EndUser: EndUserConstructor })
@@ -110,7 +110,7 @@ export class IitSignWidgetService {
         : keyType === KEY_TYPE.RSA
           ? (algo['RSAWithSHA'] ?? 2)
           : (algo['DSTU4145WithGOST34311'] ?? 1);
-    // CAdES-X Long: підпис + позначка часу + дані про статус сертифіката — придатний для архіву
+    // CAdES-X Long: signature + timestamp + certificate status data — suitable for archiving
     const signType = EndUser.SignType?.['CAdES_X_Long'];
     return this.instance.SignData(data, true, true, signAlgo, null, signType);
   }

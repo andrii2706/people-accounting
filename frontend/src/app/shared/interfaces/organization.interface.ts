@@ -4,6 +4,7 @@ export interface Organization {
   shortName: string;
   edrpou: string;
   address: string;
+  postalCode: string;
   phone: string;
   email: string;
   headPosition: string;

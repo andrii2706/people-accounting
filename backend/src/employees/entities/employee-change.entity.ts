@@ -13,8 +13,8 @@ import { OutgoingLetter } from '../../letters/entities/outgoing-letter.entity.js
 import { Employee } from './employee.entity.js';
 
 /**
- * Зміна облікових даних, про яку треба повідомити ТЦК (Додаток 4 до Порядку).
- * Поки letterId порожній — зміна «очікує повідомлення».
+ * A change of registration data the TCK must be notified about (Annex 4 to the Procedure).
+ * While letterId is empty the change is "awaiting notice".
  */
 @Entity('employee_changes')
 @Index(['employeeId', 'effectiveDate'])
@@ -38,11 +38,11 @@ export class EmployeeChange {
   @Column({ type: 'text', default: '' })
   newValue: string;
 
-  /** Дата, з якої діє зміна. */
+  /** Date from which the change takes effect. */
   @Column({ type: 'date' })
   effectiveDate: string;
 
-  /** Підстава: найменування документа, номер та дата видачі. */
+  /** Grounds: name of the document, number and date of issue. */
   @Column({ type: 'text', default: '' })
   basis: string;
 
@@ -54,7 +54,7 @@ export class EmployeeChange {
   @Column({ type: 'uuid', nullable: true })
   letterId: string | null;
 
-  /** Позначка «не повідомляти» (наприклад, помилкове введення). */
+  /** Mark "do not notify" (e.g. a data entry mistake). */
   @Column({ type: 'boolean', default: false })
   skipped: boolean;
 

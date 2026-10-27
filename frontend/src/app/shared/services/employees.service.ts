@@ -10,9 +10,9 @@ import type {
 } from '../interfaces/employee.interface';
 
 /**
- * Працівники та зміни облікових даних.
- * Observable-методи — для резолверів (дані готові до відкриття сторінки, на SSR не дублюються);
- * *Resource — для фонових/реактивних даних (лічильник у меню, журнал дій на вимогу).
+ * Employees and registration data changes.
+ * Observable methods — for resolvers (data is ready before the page opens and not duplicated after SSR);
+ * *Resource — for background/reactive data (menu counter, audit log on demand).
  */
 @Injectable({ providedIn: 'root' })
 export class EmployeesService {
@@ -30,7 +30,7 @@ export class EmployeesService {
     return this.http.get<PendingChange[]>('/api/employees/changes/pending');
   }
 
-  /** `trigger` повертає undefined — запит не виконується (наприклад, до зміни тимчасового пароля). */
+  /** When `trigger` returns undefined the request is not made (e.g. before the temporary password is changed). */
   pendingChangesResource(trigger: () => unknown = () => 0) {
     return httpResource<PendingChange[]>(
       () => (trigger() === undefined ? undefined : '/api/employees/changes/pending'),

@@ -9,13 +9,13 @@ import { API_INTERNAL_URL } from './shared/tokens/api.tokens';
 const serverConfig: ApplicationConfig = {
   providers: [
     provideServerRendering(withRoutes(serverRoutes)),
-    // запити SSR до API — через внутрішню адресу з cookie користувача (див. SsrApiBackend)
+    // SSR requests to the API go to the internal address with the user's cookie (see SsrApiBackend)
     { provide: HttpBackend, useClass: SsrApiBackend },
     {
       provide: API_INTERNAL_URL,
       /**
-       * Куди SSR надсилає запити до API. У продакшні — власний Express-проксі (SSR_API_BASE=http://127.0.0.1:8080),
-       * який додає службовий IAM-токен для приватного Cloud Run; локально — напряму в NestJS.
+       * Where SSR sends API requests. In production — our own Express proxy (SSR_API_BASE=http://127.0.0.1:8080)
+       * that adds the IAM service token for the private Cloud Run; locally — straight to NestJS.
        */
       useFactory: () =>
         process.env['SSR_API_BASE'] ?? process.env['API_INTERNAL_URL'] ?? 'http://localhost:3000',

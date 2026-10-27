@@ -3,7 +3,7 @@ import { letterDetailsResolver } from './resolvers/letter-details.resolver';
 import { letterListResolver } from './resolvers/letter-list.resolver';
 import { letterSigningResolver, signingConfigResolver } from './resolvers/letter-signing.resolver';
 
-/** Фіче-модуль «Вихідні листи». */
+/** Feature module "Outgoing letters". */
 export const LETTERS_ROUTES: Routes = [
   {
     path: '',
@@ -16,7 +16,7 @@ export const LETTERS_ROUTES: Routes = [
   {
     path: ':id',
     title: 'Лист · Військовий облік',
-    // три незалежні запити виконуються паралельно ще до відкриття сторінки
+    // three independent requests run in parallel before the page opens
     resolve: {
       letter: letterDetailsResolver,
       signing: letterSigningResolver,

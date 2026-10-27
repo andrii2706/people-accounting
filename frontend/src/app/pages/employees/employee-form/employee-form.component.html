@@ -14,7 +14,7 @@
 
 <form class="grid gap-6 xl:grid-cols-[1fr_320px]" (submit)="save($event)" novalidate>
   <div class="card min-w-0">
-    <!-- вкладки -->
+    <!-- tabs -->
     <div class="flex gap-1 overflow-x-auto border-b border-line px-3 pt-3" role="tablist">
       @for (t of tabs; track t.id) {
         <button
@@ -284,26 +284,41 @@
                 <input class="input" [formField]="f.deferralConscriptionBasis" />
               </app-form-field>
             } @else {
-              <app-form-field
-                class="sm:col-span-2"
-                label="Бронювання: пункт, розділ, номер переліку"
-                [field]="f.reservationBasis"
+              <label
+                class="flex items-center gap-2.5 self-end rounded-lg border border-line px-3 py-2.5 text-sm sm:col-span-2 lg:col-span-3"
               >
-                <input class="input" [formField]="f.reservationBasis" />
-              </app-form-field>
-              <app-form-field
-                label="Заброньовано до"
-                [field]="f.reservationUntil"
-                [required]="!!model().reservationBasis"
-              >
-                <input class="input" type="date" [formField]="f.reservationUntil" />
-              </app-form-field>
-              <app-form-field
-                label="№ посвідчення (спецоблік)"
-                [field]="f.specialAccountingCertificate"
-              >
-                <input class="input" [formField]="f.specialAccountingCertificate" />
-              </app-form-field>
+                <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.reserved" />
+                <span>
+                  <span class="font-medium">Працівник заброньований</span>
+                  <span class="block text-xs text-muted"
+                    >Відмітьте, лише якщо є рішення про бронювання — тоді воно потрапить у графу 14
+                    списків, відомість і статус працівника</span
+                  >
+                </span>
+              </label>
+              @if (model().reserved) {
+                <app-form-field
+                  class="sm:col-span-2"
+                  label="Бронювання: пункт, розділ, номер переліку"
+                  [field]="f.reservationBasis"
+                  [required]="true"
+                >
+                  <input class="input" [formField]="f.reservationBasis" />
+                </app-form-field>
+                <app-form-field
+                  label="Заброньовано до"
+                  [field]="f.reservationUntil"
+                  [required]="true"
+                >
+                  <input class="input" type="date" [formField]="f.reservationUntil" />
+                </app-form-field>
+                <app-form-field
+                  label="№ посвідчення (спецоблік)"
+                  [field]="f.specialAccountingCertificate"
+                >
+                  <input class="input" [formField]="f.specialAccountingCertificate" />
+                </app-form-field>
+              }
               <app-form-field
                 label="Відстрочка від мобілізації (норма закону)"
                 [field]="f.deferralMobilizationBasis"
@@ -543,7 +558,7 @@
     </div>
   </div>
 
-  <!-- бічна панель -->
+  <!-- side panel -->
   <aside class="space-y-4 xl:sticky xl:top-6 xl:self-start">
     <section class="card p-4">
       <p class="label">Попередній розрахунок</p>

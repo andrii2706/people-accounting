@@ -1,4 +1,4 @@
-# Єдині закінчення рядків LF на всіх ОС (Prettier перевіряє endOfLine: lf; без цього на Windows git перетворює на CRLF)
+# LF line endings on every OS (Prettier checks endOfLine: lf; without this git on Windows converts to CRLF)
 * text=auto eol=lf
 *.png binary
 *.jpg binary

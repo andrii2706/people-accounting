@@ -4,7 +4,6 @@ import type { LetterStatus } from '../../interfaces/letter.interface';
 const STATUS: Record<LetterStatus, { label: string; cls: string }> = {
   DRAFT: { label: 'Чернетка', cls: 'bg-sunken text-muted' },
   SENT: { label: 'Надіслано', cls: 'bg-[#e3f1e5] text-ok' },
-  FAILED: { label: 'Помилка відправки', cls: 'bg-[#fbe9e7] text-danger' },
 };
 
 @Component({

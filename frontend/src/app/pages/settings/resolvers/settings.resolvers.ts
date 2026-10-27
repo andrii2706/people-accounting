@@ -15,7 +15,7 @@ export interface OrganizationSettingsData {
   responsiblePersons: ResponsiblePerson[];
 }
 
-/** Кілька запитів сторінки налаштувань — паралельно, одним резолвером. */
+/** Several requests of the settings page — in parallel, in one resolver. */
 export const organizationSettingsResolver: ResolveFn<OrganizationSettingsData> = () => {
   const service = inject(OrganizationService);
   return resolveOr(

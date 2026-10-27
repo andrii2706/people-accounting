@@ -1,15 +1,15 @@
 import type { MigrationInterface, QueryRunner } from 'typeorm';
 import { blindIndex, decryptField, encryptField } from '../../common/crypto/field-encryption.js';
 
-/** Колонки, що відтепер зберігаються зашифрованими. */
+/** Columns that are stored encrypted from now on. */
 const ENCRYPTED = ['rnokpp', 'passportNumber', 'foreignPassportNumber', 'registryNumber', 'militaryDocNumber'] as const;
-/** Поля, значення яких прибираємо зі старих записів журналу (там вони були відкритим текстом). */
+/** Fields removed from old audit entries (they were stored in plain text there). */
 const SENSITIVE_AUDIT_KEYS = ['rnokpp', 'passportSeries', 'passportNumber', 'foreignPassportSeries', 'foreignPassportNumber', 'militaryDocNumber', 'registryNumber'];
 
 /**
- * Безпека: поля сесій/блокування користувачів, шифрування чутливих полів працівника,
- * сліпий індекс для РНОКПП. Дані НЕ втрачаються: типи колонок змінюються на місці,
- * наявні значення шифруються ключем DATA_ENCRYPTION_KEY.
+ * Security: session/lockout fields for users, encryption of sensitive employee fields,
+ * blind index for RNOKPP. No data is lost: column types are changed in place,
+ * existing values are encrypted with DATA_ENCRYPTION_KEY.
  */
 export class SecurityHardening1793022144612 implements MigrationInterface {
   name = 'SecurityHardening1793022144612';
@@ -29,7 +29,7 @@ export class SecurityHardening1793022144612 implements MigrationInterface {
     await q.query(`ALTER TABLE "employees" ADD "rnokppHash" character varying(64)`);
     await q.query(`CREATE INDEX "IDX_296118db7e4c0727bff2ae9992" ON "employees" ("rnokppHash")`);
 
-    // шифруємо наявні дані (рядок за рядком — працівників на підприємстві небагато)
+    // encrypt existing data (row by row — a company has few employees)
     const rows: Record<string, string>[] = await q.query(`SELECT "id", ${ENCRYPTED.map((c) => `"${c}"`).join(', ')} FROM "employees"`);
     for (const row of rows) {
       const values = ENCRYPTED.map((c) => encryptField(row[c]) ?? '');
@@ -39,7 +39,7 @@ export class SecurityHardening1793022144612 implements MigrationInterface {
       );
     }
 
-    // журнал змін: прибираємо відкриті значення чутливих полів
+    // audit log: remove plain values of sensitive fields
     await q.query(
       `UPDATE "audit_log" SET "diff" = "diff" ${SENSITIVE_AUDIT_KEYS.map((k) => `- '${k}'`).join(' ')} WHERE "diff" ?| $1`,
       [SENSITIVE_AUDIT_KEYS],

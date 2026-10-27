@@ -24,7 +24,7 @@ interface NavItem {
 export class ShellComponent {
   protected readonly auth = inject(AuthService);
   protected readonly menuOpen = signal(false);
-  /** Індикатор, поки резолвери вантажать дані наступної сторінки. */
+  /** Indicator shown while resolvers load data of the next page. */
   protected readonly isNavigating = inject(NavigationStateService).isNavigating;
 
   private readonly navigationTick = toSignal(
@@ -38,7 +38,7 @@ export class ShellComponent {
     { initialValue: 0 },
   );
 
-  // перезапит лічильника після кожної навігації; до зміни тимчасового пароля — не запитуємо
+  // re-request the counter after every navigation; not requested before the temporary password is changed
   private readonly pending = inject(EmployeesService).pendingChangesResource(() =>
     this.auth.mustChangePassword() ? undefined : this.navigationTick(),
   );
@@ -51,7 +51,7 @@ export class ShellComponent {
     { path: '/employees', label: 'Працівники', icon: 'users' },
     { path: '/notifications', label: 'Повідомлення ТЦК', icon: 'bell' },
     { path: '/letters', label: 'Вихідні листи', icon: 'mail' },
-    { path: '/reports/lists', label: 'Списки (Дод. 13)', icon: 'table' },
+    { path: '/reports/lists', label: 'Списки (Дод. 5)', icon: 'table' },
     { path: '/reports/operational', label: 'Відомість (Дод. 12)', icon: 'file' },
     { path: '/settings', label: 'Налаштування', icon: 'settings' },
   ];

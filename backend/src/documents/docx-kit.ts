@@ -1,4 +1,4 @@
-/** Невеликий набір будівельних блоків поверх бібліотеки `docx` для офіційних документів. */
+/** A small set of building blocks on top of the `docx` library for official documents. */
 import {
   AlignmentType,
   BorderStyle,
@@ -19,7 +19,7 @@ import {
 } from 'docx';
 
 export const FONT = 'Times New Roman';
-/** Розмір шрифту в пунктах. */
+/** Font size in points. */
 const pt = (size: number) => size * 2;
 
 export interface TextOpts {
@@ -73,7 +73,7 @@ export function run(text: string, opts: Pick<TextOpts, 'bold' | 'italics' | 'und
   });
 }
 
-/** Підпис під полем дрібним шрифтом, як «(підпис)» у бланках. */
+/** Small caption under a field, like «(підпис)» in official forms. */
 export function hint(text: string, align: TextOpts['align'] = 'center'): Paragraph {
   return p(text, { size: 8, italics: true, align });
 }
@@ -95,9 +95,11 @@ export interface CellSpec {
   align?: TextOpts['align'];
   size?: number;
   colSpan?: number;
+  /** Keep this row on the same page as the next one (e.g. two-tier records). */
+  keepNext?: boolean;
 }
 
-/** Таблиця з рамками. widths — у twips (1 см ≈ 567). */
+/** Table with borders. widths — in twips (1 cm ≈ 567). */
 export function table(
   header: (string | CellSpec)[][],
   rows: (string | CellSpec)[][],
@@ -115,6 +117,7 @@ export function table(
         size: s.size ?? (isHeader ? opts.headerSize ?? 9 : opts.size ?? 9),
         bold: s.bold ?? false,
         align: s.align ?? (isHeader ? 'center' : 'left'),
+        keepNext: s.keepNext,
       })],
       width: { size: width, type: WidthType.DXA },
       columnSpan: s.colSpan,
@@ -146,7 +149,7 @@ export function table(
   });
 }
 
-/** Рядок без рамок з двома колонками — для «Відправник / Отримувач», підписів тощо. */
+/** Borderless row with two columns — for «Відправник / Отримувач», signatures etc. */
 export function twoColumns(left: Paragraph[], right: Paragraph[], widths: [number, number]): Table {
   return new Table({
     rows: [new TableRow({
@@ -162,7 +165,7 @@ export function twoColumns(left: Paragraph[], right: Paragraph[], widths: [numbe
   });
 }
 
-/** Блок підпису: посада — (підпис) — ініціали та прізвище. */
+/** Signature block: position — (signature) — initials and surname. */
 export function signature(position: string, name: string, widths: [number, number, number] = [4200, 2400, 3000]): Table {
   const cell = (children: Paragraph[], width: number) => new TableCell({ children, width: { size: width, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM });
   return new Table({
@@ -182,21 +185,28 @@ export function signature(position: string, name: string, widths: [number, numbe
 
 export const A4 = { width: 11906, height: 16838 };
 
-export function section(children: FileChild[], landscape = false): ISectionOptions {
+export interface PageMargins {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+export function section(children: FileChild[], landscape = false, margins?: PageMargins): ISectionOptions {
   return {
     properties: {
       page: {
         size: { width: A4.width, height: A4.height, orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT },
-        margin: landscape
+        margin: margins ?? (landscape
           ? { top: 850, bottom: 850, left: 850, right: 850 }
-          : { top: 1134, bottom: 1134, left: 1701, right: 850 },
+          : { top: 1134, bottom: 1134, left: 1701, right: 850 }),
       },
     },
     children,
   };
 }
 
-/** Ширина робочої області сторінки в twips. */
+/** Width of the page content area in twips. */
 export const CONTENT_WIDTH = { portrait: A4.width - 1701 - 850, landscape: A4.height - 850 - 850 };
 
 export async function render(sections: ISectionOptions[], title: string): Promise<Buffer> {

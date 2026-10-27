@@ -13,13 +13,13 @@ import { OutgoingLetter } from './outgoing-letter.entity.js';
 export type SignatureMethod = 'WIDGET' | 'UPLOAD';
 export type SignatureVerification = 'VALID' | 'DIGEST_MATCH' | 'UNVERIFIED';
 
-/** Підсумок по одному підписувачу у файлі .p7s (у файлі їх може бути кілька). */
+/** Summary for one signer in a .p7s file (a file may contain several). */
 export interface SignerSummary {
   name: string;
   title: string;
   organization: string;
   edrpou: string;
-  /** РНОКПП власника ключа — лише останні 4 цифри. */
+  /** RNOKPP of the key owner — last 4 digits only. */
   drfoMasked: string;
   issuer: string;
   certificateSerial: string;
@@ -34,8 +34,8 @@ export interface SignerSummary {
 }
 
 /**
- * Файл підпису КЕП (CAdES detached, .p7s) до зафіксованого документа листа.
- * Записи лише додаються: підпис не можна змінити чи видалити.
+ * Qualified e-signature file (CAdES detached, .p7s) for the frozen document of a letter.
+ * Records are append-only: a signature cannot be changed or deleted.
  */
 @Entity('letter_signatures')
 @Index(['letterId', 'fileSha256'], { unique: true })
@@ -51,15 +51,15 @@ export class LetterSignature {
   @JoinColumn({ name: 'letterId' })
   letter: Relation<OutgoingLetter>;
 
-  /** SHA-256 документа, під який зроблено підпис (= OutgoingLetter.documentSha256 на момент підпису). */
+  /** SHA-256 of the document that was signed (= OutgoingLetter.documentSha256 at signing time). */
   @Column({ type: 'varchar', length: 64 })
   documentSha256: string;
 
-  /** Ключ файлу .p7s у сховищі. */
+  /** Storage key of the .p7s file. */
   @Column({ type: 'varchar', length: 500 })
   fileKey: string;
 
-  /** SHA-256 самого файлу підпису — захист від дублю. */
+  /** SHA-256 of the signature file itself — protection against duplicates. */
   @Column({ type: 'varchar', length: 64 })
   fileSha256: string;
 
@@ -69,7 +69,7 @@ export class LetterSignature {
   @Column({ type: 'varchar', length: 20 })
   method: SignatureMethod;
 
-  /** Найслабший статус серед підписувачів у файлі. */
+  /** The weakest status among the signers in the file. */
   @Column({ type: 'varchar', length: 20 })
   verification: SignatureVerification;
 

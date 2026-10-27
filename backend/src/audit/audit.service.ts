@@ -4,7 +4,7 @@ import type { EntityManager, Repository } from 'typeorm';
 import type { AuthUser } from '../common/auth.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
 
-/** Поля, значення яких не потрапляють у журнал відкрито. */
+/** Fields whose values are never written to the audit log in plain text. */
 const SENSITIVE = new Set([
   'rnokpp', 'passportSeries', 'passportNumber', 'foreignPassportSeries', 'foreignPassportNumber',
   'militaryDocNumber', 'registryNumber', 'passwordHash', 'password',
@@ -28,7 +28,7 @@ export type AuditAction =
   | 'CREATE' | 'UPDATE' | 'DELETE' | 'DISMISS' | 'VIEW' | 'EXPORT' | 'SEND' | 'SIGN'
   | 'LOGIN' | 'LOGIN_FAILED' | 'LOCKED' | 'LOGOUT' | 'PASSWORD_CHANGED' | 'PASSWORD_RESET' | 'USER_UPDATED';
 
-/** Журнал дій з персональними даними: хто, коли, що переглянув/змінив/вивантажив. */
+/** Audit log of actions with personal data: who viewed / changed / exported what and when. */
 @Injectable()
 export class AuditService {
   constructor(@InjectRepository(AuditLog) private readonly repo: Repository<AuditLog>) {}

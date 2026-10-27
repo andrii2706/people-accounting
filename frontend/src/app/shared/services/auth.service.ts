@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import type { AuthUser } from '../interfaces/auth.interface';
 
-/** Стан автентифікації на сигналах. Сесія живе в httpOnly cookie — у JavaScript її немає. */
+/** Authentication state on signals. The session lives in an httpOnly cookie — JavaScript cannot see it. */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
@@ -26,7 +26,7 @@ export class AuthService {
       .join(''),
   );
 
-  /** Один запит /auth/session на застосунок (і на SSR-рендер; результат передається в браузер через TransferState). */
+  /** One /auth/session request per app (and per SSR render; the result reaches the browser via TransferState). */
   ensureLoaded(): Promise<AuthUser | null> {
     if (this._checked()) return Promise.resolve(this._user());
     this.pending ??= firstValueFrom(this.http.get<{ user: AuthUser | null }>('/api/auth/session'))
@@ -54,7 +54,7 @@ export class AuthService {
     return user;
   }
 
-  /** Зміна власного пароля. Інші сесії користувача завершуються на сервері. */
+  /** Change own password. Other sessions of the user are terminated on the server. */
   async changePassword(currentPassword: string, newPassword: string): Promise<AuthUser> {
     const user = await firstValueFrom(
       this.http.post<AuthUser>('/api/auth/change-password', { currentPassword, newPassword }),
@@ -63,7 +63,7 @@ export class AuthService {
     return user;
   }
 
-  /** Сесія завершилась на сервері (тайм-аут бездіяльності) — скидаємо стан без запиту. */
+  /** The session ended on the server (idle timeout) — reset the state without a request. */
   markSignedOut() {
     this._user.set(null);
   }

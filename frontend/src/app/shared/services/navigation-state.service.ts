@@ -9,7 +9,7 @@ import {
 } from '@angular/router';
 import { filter, map } from 'rxjs';
 
-/** Стан навігації як сигнал — для індикатора завантаження, поки працюють резолвери. */
+/** Navigation state as a signal — for the loading indicator while resolvers run. */
 @Injectable({ providedIn: 'root' })
 export class NavigationStateService {
   readonly isNavigating = toSignal(

@@ -1,7 +1,7 @@
 import { RenderMode, type ServerRoute } from '@angular/ssr';
 
 /**
- * Усі сторінки рендеряться на сервері під час запиту (а не пререндеряться):
- * вони за авторизацією і містять персональні дані конкретного користувача.
+ * All pages are rendered on the server per request (not prerendered):
+ * they are behind authentication and contain personal data of a specific user.
  */
 export const serverRoutes: ServerRoute[] = [{ path: '**', renderMode: RenderMode.Server }];

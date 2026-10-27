@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
-/** Реквізити підприємства (аркуш G). Один запис з id = 1. */
+/** Company details (sheet G). A single row with id = 1. */
 @Entity('organization')
 export class Organization {
   @PrimaryColumn({ type: 'int', default: 1 })
@@ -10,7 +10,7 @@ export class Organization {
   @Column({ type: 'varchar', length: 500, default: '' })
   fullName: string;
 
-  /** Місцевий відмінок: «Товаристві з обмеженою відповідальністю «…»» — для «які працюють в …». */
+  /** Locative case: «Товаристві з обмеженою відповідальністю «…»» — for «які працюють в …». */
   @Column({ type: 'varchar', length: 500, default: '' })
   nameLocative: string;
 
@@ -24,29 +24,33 @@ export class Organization {
   @Column({ type: 'varchar', length: 500, default: '' })
   address: string;
 
+  /** Postal code for envelope labels. */
+  @Column({ type: 'varchar', length: 10, default: '' })
+  postalCode: string;
+
   @Column({ type: 'varchar', length: 100, default: '' })
   phone: string;
 
   @Column({ type: 'varchar', length: 200, default: '' })
   email: string;
 
-  /** Посада керівника для підпису («Директор»). */
+  /** Position of the head for signatures («Директор»). */
   @Column({ type: 'varchar', length: 200, default: 'Директор' })
   headPosition: string;
 
-  /** Ініціали та прізвище керівника («І. ПРІЗВИЩЕ»). */
+  /** Initials and surname of the head («І. ПРІЗВИЩЕ»). */
   @Column({ type: 'varchar', length: 200, default: '' })
   headName: string;
 
-  /** Префікс вихідного номера листа, напр. «ВО-». */
+  /** Prefix of the outgoing letter number, e.g. «ВО-». */
   @Column({ type: 'varchar', length: 30, default: '' })
   letterNumberPrefix: string;
 
-  /** За скільки днів попереджати про завершення бронювання/відстрочки. */
+  /** How many days in advance to warn about the end of a reservation/deferral. */
   @Column({ type: 'int', default: 30 })
   alertDays: number;
 
-  /** Строк повідомлення ТЦК про зміни, днів. */
+  /** Deadline for notifying the TCK about changes, in days. */
   @Column({ type: 'int', default: 7 })
   notifyDeadlineDays: number;
 

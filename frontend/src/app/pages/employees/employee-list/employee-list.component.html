@@ -85,17 +85,17 @@
       <tr>
         <th>Працівник</th>
         <th>Категорія</th>
-        <th>Група</th>
+        <th class="hidden xl:table-cell">Група</th>
         <th>Звання / ВОС</th>
         <th>ТЦК та СП</th>
         <th>Увага</th>
-        <th class="text-right">Прийнятий</th>
+        <th class="hidden text-right xl:table-cell">Прийнятий</th>
       </tr>
     </thead>
     <tbody [class.opacity-50]="isLoading()">
       @for (e of items(); track e.id) {
         <tr>
-          <td class="min-w-[240px]">
+          <td class="min-w-[200px]">
             <a
               [routerLink]="['/employees', e.id]"
               class="font-medium text-ink hover:text-brand-600"
@@ -118,7 +118,9 @@
             }
           </td>
           <td><app-category-badge [category]="e.dutyCategory" /></td>
-          <td><app-group-badge [group]="e.listGroup" [title]="dict.groupTitle(e.listGroup)" /></td>
+          <td class="hidden xl:table-cell">
+            <app-group-badge [group]="e.listGroup" [title]="dict.groupTitle(e.listGroup)" />
+          </td>
           <td class="text-sm">
             {{ e.rankTitle || (e.rankCode === 0 ? 'призовник' : '—') }}
             @if (e.vos) {
@@ -126,7 +128,7 @@
             }
           </td>
           <td class="max-w-[220px] text-sm text-muted">{{ e.tckName || '—' }}</td>
-          <td class="min-w-[200px]">
+          <td class="min-w-[160px]">
             @if (e.pendingChanges) {
               <a
                 routerLink="/notifications"
@@ -137,7 +139,7 @@
             }
             <app-warnings [warnings]="e.warnings" />
           </td>
-          <td class="text-right text-sm whitespace-nowrap tabular-nums">
+          <td class="hidden text-right text-sm whitespace-nowrap tabular-nums xl:table-cell">
             {{ e.hireDate | uaDate }}
           </td>
         </tr>

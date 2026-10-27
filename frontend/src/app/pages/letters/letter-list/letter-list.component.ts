@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  linkedSignal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { LetterStatusBadgeComponent } from '../../../shared/components/letter-status-badge/letter-status-badge.component';
@@ -19,15 +26,42 @@ export class LetterListComponent {
   protected readonly lettersService = inject(LettersService);
   private readonly updateQuery = injectQueryParamsUpdate();
 
-  /** Дані з letterListResolver. */
+  /** Data from letterListResolver. */
   readonly letters = input.required<Letter[]>();
-  /** Фільтри з query-параметрів (?type=…&status=…). */
-  readonly type = input<LetterType | ''>('');
-  readonly status = input<LetterStatus | ''>('');
+  /** Filters from query parameters (?type=…&status=…). */
+  readonly type = input<LetterType | '', LetterType | '' | undefined>('', {
+    transform: (v) => v ?? '',
+  });
+  readonly status = input<LetterStatus | '', LetterStatus | '' | undefined>('', {
+    transform: (v) => v ?? '',
+  });
 
   protected readonly typeOptions = (Object.keys(LETTER_TYPE_LABELS) as LetterType[]).map(
     (value) => ({ value, label: LETTER_TYPE_LABELS[value] }),
   );
+
+  /** Letters selected for envelope labels; reset whenever the list is reloaded. */
+  protected readonly selected = linkedSignal<Letter[], ReadonlySet<string>>({
+    source: this.letters,
+    computation: () => new Set(),
+  });
+  protected readonly selectedIds = computed(() => [...this.selected()]);
+  protected readonly allSelected = computed(
+    () => this.letters().length > 0 && this.selected().size === this.letters().length,
+  );
+
+  protected toggle(id: string, checked: boolean) {
+    this.selected.update((set) => {
+      const next = new Set(set);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
+
+  protected toggleAll(checked: boolean) {
+    this.selected.set(checked ? new Set(this.letters().map((l) => l.id)) : new Set());
+  }
 
   protected setType(type: string) {
     void this.updateQuery({ type });

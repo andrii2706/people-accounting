@@ -89,9 +89,9 @@
 * новий ендпоінт — спершу API (окремий PR), потім фронтенд, що його викликає.
 
 **Б. Керований порядок.** Вимкнути автоматичні rollouts: Firebase Console → App Hosting →
-`military-registry-web` → Settings → Deployment → *Automatic rollouts: off*. Тоді після успішного Deploy API:
+`people-accounting` → Settings → Deployment → *Automatic rollouts: off*. Тоді після успішного Deploy API:
 ```bash
-firebase apphosting:rollouts:create military-registry-web --git-branch main --project <PROJECT_ID>
+firebase apphosting:rollouts:create people-accounting --git-branch main --project <PROJECT_ID>
 ```
 
 ---
@@ -133,8 +133,8 @@ npm run migration:run && npm run migration:revert && npm run migration:run   # �
 
 | Що змінюємо | Де | Як застосувати |
 |---|---|---|
-| Змінні API (SMTP, `APP_ORIGIN`, віджет КЕП…) | GitHub → Settings → Variables | Actions → Deploy API → *Run workflow* (повторний деплой) |
-| Секрети API (`SMTP_PASS`, `JWT_SECRET`…) | Secret Manager: `printf '%s' 'нове' \| gcloud secrets versions add SMTP_PASS --data-file=-` | повторний деплой API (`:latest` читається під час старту ревізії) |
+| Змінні API (`APP_ORIGIN`, `ADMIN_EMAIL`, віджет КЕП…) | GitHub → Settings → Variables | Actions → Deploy API → *Run workflow* (повторний деплой) |
+| Секрети API (`JWT_SECRET`, `ADMIN_PASSWORD`…) | Secret Manager: `printf '%s' 'нове' \| gcloud secrets versions add JWT_SECRET --data-file=-` | повторний деплой API (`:latest` читається під час старту ревізії) |
 | Змінні фронтенду (`API_INTERNAL_URL`, хости, `ALLOWED_CLIENT_CIDRS`) | `frontend/apphosting.yaml` | PR → merge (App Hosting перезбирає) |
 
 Особливі випадки:
@@ -188,7 +188,7 @@ npm run migration:revert
 Перед цим — бекап на вимогу: `gcloud sql backups create --instance military-registry-db`.
 
 ### Фронтенд
-Firebase Console → App Hosting → `military-registry-web` → *Rollouts* → попередній → *Roll back*.
+Firebase Console → App Hosting → `people-accounting` → *Rollouts* → попередній → *Roll back*.
 
 ### Дані (найгірший випадок)
 Cloud SQL → *Point-in-time recovery* відновлює дані **в нову інстанцію** на момент до інциденту (до 7 днів).

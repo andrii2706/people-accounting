@@ -1,5 +1,5 @@
-# Локальний запуск усього стеку: docker compose up --build
-# Відкрити: http://localhost:4000  (вхід — ADMIN_EMAIL / ADMIN_PASSWORD нижче)
+# Run the whole stack locally: docker compose up --build
+# Open: http://localhost:4000  (sign in with ADMIN_EMAIL / ADMIN_PASSWORD below)
 services:
   db:
     image: postgres:16-alpine
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
-    # лише для локальної розробки (npm run start:dev): docker compose up db
+    # for local development only (npm run start:dev): docker compose up db
     ports:
       - '127.0.0.1:5432:5432'
     healthcheck:
@@ -23,8 +23,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      # локальний стек: dev-режим (ключі шифрування похідні від JWT_SECRET, Swagger увімкнено).
-      # Продакшн-налаштування — docs/DEPLOYMENT.md
+      # local stack: dev mode (encryption keys derived from JWT_SECRET, Swagger enabled).
+      # Production settings — docs/DEPLOYMENT.md
       NODE_ENV: development
       DATABASE_URL: postgres://postgres:postgres@db:5432/military
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-0123456789}
@@ -34,14 +34,8 @@ services:
       STORAGE_DRIVER: local
       SIGN_WIDGET_SCRIPT_URL: ${SIGN_WIDGET_SCRIPT_URL:-}
       SIGN_WIDGET_FRAME_URL: ${SIGN_WIDGET_FRAME_URL:-}
-      SMTP_HOST: ${SMTP_HOST:-}
-      SMTP_PORT: ${SMTP_PORT:-587}
-      SMTP_USER: ${SMTP_USER:-}
-      SMTP_PASS: ${SMTP_PASS:-}
-      SMTP_FROM: ${SMTP_FROM:-}
     volumes:
-      - outbox:/app/storage/outbox
-      - files:/app/storage/files # зафіксовані документи і підписи КЕП
+      - files:/app/storage/files # frozen documents and e-signatures
 
   web:
     build: ./frontend
@@ -55,5 +49,4 @@ services:
 
 volumes:
   pgdata:
-  outbox:
   files:

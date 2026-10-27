@@ -2,7 +2,7 @@ import type { Routes } from '@angular/router';
 import { organizationSettingsResolver, usersResolver } from './resolvers/settings.resolvers';
 import { adminGuard } from '../../shared/guards/auth.guard';
 
-/** Фіче-модуль «Налаштування». */
+/** Feature module "Settings". */
 export const SETTINGS_ROUTES: Routes = [
   {
     path: '',

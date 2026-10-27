@@ -1,7 +1,7 @@
 /**
- * Довідник військових звань.
- * Перенесено з аркуша EDU_TCK (колонки M/N/O/Q) файлу new_military_list v8.6.
- * code 0 — призовник (звання немає).
+ * Dictionary of military ranks.
+ * Taken from sheet EDU_TCK (columns M/N/O/Q) of the file new_military_list v8.6.
+ * code 0 — conscript (no rank).
  */
 export type CompositionKey =
   | 'CONSCRIPT'
@@ -17,7 +17,7 @@ export interface RankDef {
   code: number;
   army: string;
   navy: string;
-  /** Граничний вік перебування на військовому обліку (EDU_TCK!Q). */
+  /** Age limit for staying on military registration (EDU_TCK!Q). */
   ageLimit: number;
   composition: CompositionKey;
 }

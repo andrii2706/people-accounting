@@ -26,6 +26,7 @@ export interface Tck {
   name: string;
   nameGenitive: string;
   address: string;
+  postalCode: string;
   phone: string;
   email: string;
   isActive: boolean;

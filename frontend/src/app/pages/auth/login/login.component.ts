@@ -24,7 +24,7 @@ export class LoginComponent {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
 
-  /** ?returnUrl=… з адреси (withComponentInputBinding). */
+  /** ?returnUrl=… from the URL (withComponentInputBinding). */
   readonly returnUrl = input<string>('/');
 
   protected readonly error = signal('');
@@ -36,8 +36,8 @@ export class LoginComponent {
   });
 
   /**
-   * Сторінка входу приходить з SSR: менеджер паролів (або швидкий користувач) може заповнити поля
-   * ще до гідратації — тоді прив'язка форми затерла б введене. Підхоплюємо значення з DOM.
+   * The login page comes from SSR: a password manager (or a fast user) may fill the fields
+   * before hydration — the form binding would then wipe the input. Pick the values up from the DOM.
    */
   private prefilledBeforeHydration() {
     if (!isPlatformBrowser(inject(PLATFORM_ID))) return { email: '', password: '' };

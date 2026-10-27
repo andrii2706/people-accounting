@@ -21,7 +21,7 @@ export class DashboardComponent {
   private readonly auth = inject(AuthService);
   private readonly dict = inject(DictionariesService);
 
-  /** Дані з dashboardResolver (null — зведення не завантажилось). */
+  /** Data from dashboardResolver (null — the summary failed to load). */
   readonly dashboard = input<Dashboard | null>(null);
   protected readonly data = computed(() => this.dashboard());
 

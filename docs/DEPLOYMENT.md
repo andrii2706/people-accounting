@@ -53,7 +53,7 @@ APP_DOMAIN=oblik.company.ua \
 | Ресурс | Налаштування безпеки |
 |---|---|
 | Cloud SQL `military-registry-db` | `ENCRYPTED_ONLY` TLS, без authorized networks, бекапи 30 днів, PITR 7 днів, deletion protection |
-| Секрети `DATABASE_URL`, `JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `BLIND_INDEX_KEY`, `ADMIN_PASSWORD`, `SMTP_PASS` | генеруються випадково, регіональна реплікація, доступ лише в API-акаунта |
+| Секрети `DATABASE_URL`, `JWT_SECRET`, `DATA_ENCRYPTION_KEY`, `BLIND_INDEX_KEY`, `ADMIN_PASSWORD` | генеруються випадково, регіональна реплікація, доступ лише в API-акаунта |
 | Бакет `<project>-mr-signed-docs` | без публічного доступу, uniform access, retention 5 років |
 | SA `mr-api` (runtime API) | `cloudsql.client`, читання конкретних секретів, у бакеті — лише створення й читання (без видалення) |
 | SA `mr-github-deployer` | `run.admin`, запис в Artifact Registry, `actAs` лише на `mr-api` |
@@ -69,8 +69,7 @@ APP_DOMAIN=oblik.company.ua \
 2. **Settings → Secrets and variables → Actions → Variables** — значення з виводу скрипта:
    `GCP_PROJECT_ID`, `GCP_REGION`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA`, `GCP_API_SA`, `GCP_SQL_INSTANCE`,
    `GCP_BUCKET`, `GCP_WEB_SA`, `APP_ORIGIN`, `ADMIN_EMAIL`.
-   Необов'язково: `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_FROM`,
-   `SIGN_WIDGET_SCRIPT_URL`, `SIGN_WIDGET_FRAME_URL` (див. [KEP.md](KEP.md)).
+   Необов'язково: `SIGN_WIDGET_SCRIPT_URL`, `SIGN_WIDGET_FRAME_URL` (див. [KEP.md](KEP.md)).
 3. **Settings → Branches**: захист `main` (PR + зелений CI).
 
 Workflows:
@@ -91,14 +90,20 @@ Workflows:
 ```bash
 firebase projects:addfirebase $PROJECT_ID          # якщо проєкт ще не Firebase
 firebase apphosting:backends:create \
-  --project $PROJECT_ID --location europe-west4 --backend military-registry-web
+  --project $PROJECT_ID --location europe-west4 --backend people-accounting
 #   → підключіть GitHub-репозиторій, root directory: frontend, live branch: main
 ```
+
+> ⚠️ **Root directory = `frontend`**, регіон — **europe-west4**. Якщо вказати корінь репозиторію (`/`),
+> збірка падає з `package.json not found` / `No buildpack groups passed detection`. Регіон бекенда
+> App Hosting змінити не можна — лише видалити й створити заново. Бекенд (`backend/`) в App Hosting
+> не додається — він розгортається в Cloud Run (крок 4).
 
 Заповніть у `frontend/apphosting.yaml`:
 
 * `API_INTERNAL_URL` — URL API з кроку 4;
-* `NG_ALLOWED_HOSTS` — `military-registry-web--<project>.europe-west4.hosted.app` і ваш домен;
+* `NG_ALLOWED_HOSTS` не потрібен — App Hosting задає його сам; розкоментуйте лише для власного домену
+  (і перелічіть там також `people-accounting--<project>.europe-west4.hosted.app`);
 * за потреби `ALLOWED_CLIENT_CIDRS` — доступ лише з офісу/VPN.
 
 Push у `main` → App Hosting збере й розгорне SSR. Власний домен: Firebase Console → App Hosting →
@@ -110,7 +115,6 @@ Push у `main` → App Hosting збере й розгорне SSR. Власни�
 1. Увійдіть як `ADMIN_EMAIL` з тимчасовим паролем → система попросить змінити пароль.
 2. *Налаштування → Організація*: реквізити, відповідальні особи, ТЦК.
 3. *Налаштування → Користувачі*: створіть облікові записи працівників кадрів (кожен отримає тимчасовий пароль).
-4. SMTP: `gcloud secrets versions add SMTP_PASS --data-file=-` + змінні `SMTP_*` у GitHub → перезапустіть Deploy API.
 
 ## 7. Експлуатація
 

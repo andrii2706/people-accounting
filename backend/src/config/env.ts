@@ -1,6 +1,6 @@
 /**
- * Конфігурація з перевіркою на старті. Якщо чогось бракує — застосунок не стартує
- * і пише зрозуміло, що саме виправити (замість стектрейсу з глибини DI).
+ * Configuration validated at startup. If something is missing the app does not start
+ * and says clearly what to fix (instead of a stack trace from deep inside DI).
  */
 import { createHash, hkdfSync } from 'node:crypto';
 
@@ -15,35 +15,35 @@ export interface AppEnv {
   jwtSecret: string;
   cookieName: string;
   cookieSecure: boolean;
-  /** Сесія закінчується після N хвилин бездіяльності. */
+  /** The session ends after N minutes of inactivity. */
   sessionIdleMinutes: number;
-  /** Абсолютна тривалість сесії, навіть якщо користувач активний. */
+  /** Absolute session lifetime, even if the user is active. */
   sessionMaxHours: number;
   maxFailedLogins: number;
   lockoutMinutes: number;
 
-  /** Дозволені Origin для змінюючих запитів (захист від CSRF). Порожньо — лише same-origin. */
+  /** Allowed Origins for state-changing requests (CSRF protection). Empty — same-origin only. */
   appOrigins: string[];
-  /** CORS вмикається лише для локальної розробки; у продакшні фронт і API — один origin через проксі. */
+  /** CORS is enabled only for local development; in production the frontend and API share one origin via the proxy. */
   corsOrigins: string[];
-  /** Скільки проксі перед API довіряти при визначенні IP клієнта. */
+  /** How many proxies in front of the API to trust when determining the client IP. */
   trustProxyHops: number;
   swagger: boolean;
 
-  /** 32 байти для AES-256-GCM (шифрування чутливих полів). */
+  /** 32 bytes for AES-256-GCM (encryption of sensitive fields). */
   dataKey: Buffer;
-  /** Окремий ключ для «сліпого індексу» (пошук за РНОКПП без розшифрування). */
+  /** Separate key for the "blind index" (search by RNOKPP without decryption). */
   blindIndexKey: Buffer;
 
   storageDriver: 'local' | 'gcs';
   storageLocalDir: string;
   storageBucket: string;
 
-  /** КЕП: скрипт бібліотеки ІІТ eusign.js (власна копія, напр. /iit/eusign.js). Порожньо — лише завантаження .p7s. */
+  /** Qualified e-signature: IIT eusign.js library script (own copy, e.g. /iit/eusign.js). Empty — .p7s upload only. */
   signWidgetScriptUrl: string;
-  /** КЕП: адреса віджета ІІТ, що відкривається у фреймі (напр. https://eu.iit.com.ua/sign-widget/v20240301/). */
+  /** Qualified e-signature: URL of the IIT widget opened in a frame (e.g. https://eu.iit.com.ua/sign-widget/v20240301/). */
   signWidgetFrameUrl: string;
-  /** Сервіс офіційної перевірки підпису для користувача. */
+  /** Official signature verification service shown to the user. */
   signVerifyUrl: string;
 
   adminEmail?: string;
@@ -93,7 +93,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
   const jwtSecret = env.JWT_SECRET ?? '';
   if (jwtSecret.length < 32) problems.push('JWT_SECRET — випадковий рядок щонайменше 32 символи');
 
-  // Ключі шифрування: у продакшні — лише явно задані; у розробці — похідні від JWT_SECRET (з попередженням)
+  // Encryption keys: in production — only explicitly set; in development — derived from JWT_SECRET (with a warning)
   let dataKey: Buffer | null = null;
   let blindIndexKey: Buffer | null = null;
   if (env.DATA_ENCRYPTION_KEY) dataKey = decodeKey('DATA_ENCRYPTION_KEY', env.DATA_ENCRYPTION_KEY, problems);
@@ -172,7 +172,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
   return result;
 }
 
-/** Для ConfigModule.forRoot({ validate }) — падає зі зрозумілим повідомленням. */
+/** For ConfigModule.forRoot({ validate }) — fails with a clear message. */
 export function validateEnv(raw: Record<string, unknown>) {
   loadEnv(raw as NodeJS.ProcessEnv);
   return raw;

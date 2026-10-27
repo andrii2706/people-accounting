@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-/** Структурний тип поля Signal Forms, щоб не залежати від типу значення. */
+/** Structural type of a Signal Forms field, so it does not depend on the value type. */
 export type FieldLike = () => {
   touched: () => boolean;
   errors: () => readonly { message?: string }[];
 };
 
 /**
- * Обгортка поля Signal Forms: підпис, підказка та помилки валідації.
- * Сам контрол передається через ng-content з директивою [formField].
+ * Signal Forms field wrapper: label, hint and validation errors.
+ * The control itself is projected via ng-content with the [formField] directive.
  */
 @Component({
   selector: 'app-form-field',
@@ -19,10 +19,10 @@ export type FieldLike = () => {
 export class FormFieldComponent {
   readonly label = input.required<string>();
   readonly hint = input('');
-  /** Попередження, яке не блокує збереження (напр. розбіжність РНОКПП і дати народження). */
+  /** Warning that does not block saving (e.g. RNOKPP does not match the date of birth). */
   readonly warning = input('');
   readonly required = input(false);
-  /** Будь-яке поле FieldTree — потрібні лише touched() та errors(). */
+  /** Any FieldTree field — only touched() and errors() are needed. */
   readonly field = input<FieldLike | null>(null);
 
   protected readonly errors = computed(() => {

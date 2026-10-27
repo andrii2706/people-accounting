@@ -1,6 +1,6 @@
 import { applyDecorators } from '@nestjs/common';
 import { PartialType } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { IsIsoDate, Rule } from '../common/validators.js';
 import { MESSAGE, PATTERN } from '../military/employee-rules.js';
 
@@ -12,6 +12,7 @@ export class UpdateOrganizationDto {
   @Str(300) shortName?: string;
   @Str(20) @Rule((v: string) => /^\d{8,10}$/.test(v), '8 цифр (ЄДРПОУ) або 10 (РНОКПП ФОП)') edrpou?: string;
   @Str(500) address?: string;
+  @IsOptional() @Matches(/^(\d{5})?$/, { message: 'Поштовий індекс — 5 цифр' }) postalCode?: string;
   @Str(100) phone?: string;
   @Str(200) @Rule((v: string) => PATTERN.email.test(v), MESSAGE.email) email?: string;
   @Str(200) headPosition?: string;

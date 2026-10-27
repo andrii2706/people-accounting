@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
-/** Журнал дій з персональними даними: хто, коли і що змінив. */
+/** Audit log of actions with personal data: who changed what and when. */
 @Entity('audit_log')
 @Index(['entity', 'entityId'])
 export class AuditLog {

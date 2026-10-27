@@ -4,7 +4,7 @@ import { isIsoDate, todayIso } from './utils/dates.js';
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '';
 
-/** Рядок дати `YYYY-MM-DD` (порожній рядок / null дозволені при nullable). */
+/** Date string `YYYY-MM-DD` (empty string / null allowed when nullable). */
 export function IsIsoDate(opts: { nullable?: boolean } = {}, validationOptions?: ValidationOptions): PropertyDecorator {
   return (object: object, key: string | symbol) => {
     const propertyName = String(key);
@@ -27,9 +27,9 @@ export function IsIsoDate(opts: { nullable?: boolean } = {}, validationOptions?:
 let ruleSeq = 0;
 
 /**
- * Довільне правило з українським повідомленням. Порожні значення пропускаються
- * (обов’язковість перевіряється окремо). check отримує значення і весь об’єкт DTO —
- * для правил, що залежать від інших полів (напр. тип паспорта).
+ * Custom rule with a Ukrainian message. Empty values are skipped
+ * (required-ness is checked separately). `check` receives the value and the whole DTO —
+ * for rules that depend on other fields (e.g. passport type).
  */
 export function Rule<T = string>(check: (value: T, dto: Record<string, unknown>) => boolean, message: string): PropertyDecorator {
   const name = `rule${++ruleSeq}`;
@@ -51,9 +51,9 @@ export function Rule<T = string>(check: (value: T, dto: Record<string, unknown>)
 
 export const NotFuture = () => Rule((v: string) => v <= todayIso(), 'Дата не може бути в майбутньому');
 
-// ---------------------------------------------------------------- відповідь з помилками
+// ---------------------------------------------------------------- error response
 
-/** Переклад стандартних повідомлень class-validator, якщо декоратор не задав свого. */
+/** Translation of the standard class-validator messages when a decorator has none of its own. */
 const DEFAULT_MESSAGES: Record<string, string> = {
   whitelistValidation: 'Невідоме поле',
   isEmail: 'Некоректний email',
@@ -75,7 +75,7 @@ const DEFAULT_MESSAGES: Record<string, string> = {
 const hasCyrillic = (s: string) => /[а-яіїєґ]/i.test(s);
 
 export interface FieldError {
-  /** Шлях до поля: "passportSeries", "familyMembers.0.lastName", "changeMeta.basis". */
+  /** Field path: "passportSeries", "familyMembers.0.lastName", "changeMeta.basis". */
   field: string;
   message: string;
 }
@@ -92,9 +92,19 @@ export function flattenValidationErrors(errors: ValidationError[], parent = ''):
   return out;
 }
 
+/** The same 400 as the ValidationPipe — for rules checked in services on the merged entity. */
+export function fieldErrors(list: FieldError[]) {
+  return new BadRequestException({
+    statusCode: 400,
+    error: 'Bad Request',
+    message: list.map((e) => `${e.field}: ${e.message}`),
+    errors: list,
+  });
+}
+
 /**
- * Для ValidationPipe: 400 з `message` (рядки для показу) та `errors` (прив’язка до полів —
- * фронтенд показує помилку під потрібним полем і перемикає вкладку).
+ * For ValidationPipe: 400 with `message` (strings to display) and `errors` (bound to fields —
+ * the frontend shows the error under the right field and switches to its tab).
  */
 export function validationExceptionFactory(errors: ValidationError[]) {
   const list = flattenValidationErrors(errors);

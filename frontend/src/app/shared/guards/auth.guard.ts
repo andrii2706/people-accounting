@@ -2,7 +2,7 @@ import { inject } from '@angular/core';
 import { type CanActivateChildFn, type CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 
-/** Лише для автентифікованих; інакше — на вхід з поверненням назад. */
+/** Authenticated users only; otherwise — to sign-in with a return URL. */
 export const authGuard: CanActivateFn = async (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -10,7 +10,7 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   return user ? true : router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };
 
-/** Лише для адміністратора. */
+/** Administrators only. */
 export const adminGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -18,7 +18,7 @@ export const adminGuard: CanActivateFn = async () => {
   return user?.role === 'ADMIN' ? true : router.createUrlTree(['/']);
 };
 
-/** Сторінка входу — лише для тих, хто ще не увійшов. */
+/** Sign-in page — only for users who are not signed in. */
 export const guestGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
@@ -26,7 +26,7 @@ export const guestGuard: CanActivateFn = async () => {
   return user ? router.createUrlTree(['/']) : true;
 };
 
-/** Поки тимчасовий пароль не змінено — доступний лише профіль (зміна пароля). */
+/** Until the temporary password is changed only the profile (password change) is available. */
 export const passwordChangeGuard: CanActivateChildFn = async (_route, state) => {
   const auth = inject(AuthService);
   const router = inject(Router);

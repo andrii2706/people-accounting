@@ -53,13 +53,14 @@ function toBase64(buffer: ArrayBuffer) {
 }
 
 /**
- * Панель підписання листа КЕП.
- * 1) фіксація документа → 2) підпис віджетом ІІТ або завантаження .p7s з будь-якої програми → 3) пакет для ТЦК.
+ * Qualified e-signature panel of a letter.
+ * 1) freeze the document → 2) sign with the IIT widget or upload a .p7s from any program → 3) package for the TCK.
  */
 @Component({
   selector: 'app-letter-signing',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [IconComponent, UaDateTimePipe],
+  host: { class: 'block' },
   templateUrl: './letter-signing.component.html',
 })
 export class LetterSigningComponent implements OnDestroy {
@@ -71,7 +72,7 @@ export class LetterSigningComponent implements OnDestroy {
   readonly letterStatus = input.required<LetterStatus>();
   readonly state = input.required<SigningState>();
   readonly config = input.required<SigningConfig>();
-  /** Стан змінився — батьківська сторінка перезапускає резолвери. */
+  /** State changed — the parent page re-runs its resolvers. */
   readonly changed = output<void>();
 
   protected readonly verification = VERIFICATION;
@@ -114,7 +115,7 @@ export class LetterSigningComponent implements OnDestroy {
     await this.run(() => this.signatures.unfreeze(this.letterId()), 'Фіксацію скасовано');
   }
 
-  // ---------------------------------------------------------------- віджет ІІТ
+  // ---------------------------------------------------------------- IIT widget
 
   protected async readKey() {
     const { scriptUrl, frameUrl } = this.config().widget;
@@ -154,7 +155,7 @@ export class LetterSigningComponent implements OnDestroy {
     this.widgetStage.set('idle');
   }
 
-  // ---------------------------------------------------------------- завантаження .p7s
+  // ---------------------------------------------------------------- .p7s upload
 
   protected async upload(event: Event) {
     const input = event.target as HTMLInputElement;

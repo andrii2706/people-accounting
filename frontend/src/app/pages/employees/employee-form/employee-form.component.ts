@@ -81,13 +81,13 @@ const DATE_FIELDS = [
   'changeEffectiveDate',
 ] as const;
 
-/** Захист від «0002-05-12» з ручного введення року в date-інпуті. */
+/** Protection against «0002-05-12» from typing the year by hand in a date input. */
 const sensibleDate = (v: string) =>
   !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= '1900-01-01' && v <= '2100-12-31');
 
 const SPOUSES: FamilyRelation[] = ['WIFE', 'HUSBAND'];
 
-/** Мінімальний інтерфейс стану поля, потрібний для навігації до помилок. */
+/** Minimal field state interface needed to navigate to errors. */
 interface FieldStateLike {
   invalid: () => boolean;
   touched: () => boolean;
@@ -117,22 +117,22 @@ export class EmployeeFormComponent {
   private readonly injector = inject(Injector);
   protected readonly dict = inject(DictionariesService);
 
-  /** :id з маршруту; для /employees/new — undefined. */
+  /** :id from the route; undefined for /employees/new. */
   readonly id = input<string>();
 
   protected readonly tabs = TABS;
   protected readonly tab = signal<FormTab>('personal');
   protected readonly saveError = signal('');
-  /** Помилки з сервера, які не вдалося прив’язати до конкретного поля. */
+  /** Server errors that could not be bound to a specific field. */
   protected readonly serverErrors = signal<string[]>([]);
   protected readonly submitAttempted = signal(false);
   private readonly today = todayIso();
 
-  /** Для редагування — дані з employeeDetailsResolver; для нового працівника — відсутні. */
+  /** For editing — data from employeeDetailsResolver; absent for a new employee. */
   readonly employee = input<EmployeeDetails>();
   protected readonly isEdit = computed(() => !!this.id());
 
-  /** Вихідний стан (для порівняння змін) і редагована модель — обидва похідні від завантаженого працівника. */
+  /** Original state (to detect changes) and the edited model — both derived from the loaded employee. */
   private readonly original = computed(() => {
     const e = this.employee();
     return e ? employeeToForm(e, this.today) : null;
@@ -145,7 +145,7 @@ export class EmployeeFormComponent {
     reportableChanges(this.original(), this.model()),
   );
 
-  // ---- похідні значення
+  // ---- derived values
   protected readonly rank = computed(() => {
     const code = this.model().rankCode;
     return code === '' ? undefined : this.dict.rank(Number(code));
@@ -154,7 +154,7 @@ export class EmployeeFormComponent {
   protected readonly isConscript = computed(() => this.rank()?.code === 0);
   protected readonly isReservist = computed(() => !!this.model().reserveTeamNumber.trim());
   protected readonly isIdCard = computed(() => this.model().passportType === 'ID_CARD');
-  /** Попередній розрахунок категорії та групи — та сама логіка, що й на сервері. */
+  /** Preliminary calculation of category and group — the same logic as on the server. */
   protected readonly preview = computed(() => {
     const m = this.model();
     if (!m.militaryRegistered) return { category: 'Не перебуває на обліку', group: '—' };
@@ -179,18 +179,19 @@ export class EmployeeFormComponent {
     return rnokppMismatch(m.rnokpp, m.birthDate, m.gender);
   });
 
-  // ================================================================ схема валідації
+  // ================================================================ validation schema
   protected readonly f = form(this.model, (p) => {
     const at = (key: string) => (p as unknown as Record<string, SchemaPath<string>>)[key];
     const isOfficer = (rank: string) => rank !== '' && Number(rank) >= 12;
     const isRankWithVos = (rank: string) => rank !== '' && rank !== '0';
+    const isConscriptRank = (rank: string) => rank === '0';
 
-    // довжини — ті самі, що й колонки в БД (інпут не дасть ввести більше)
+    // lengths match the DB columns (the input will not accept more)
     for (const [key, max] of Object.entries(MAX_LENGTH)) {
       maxLength(at(key), max, { message: MESSAGE.tooLong(max) });
     }
 
-    // --- особисті дані
+    // --- personal data
     required(p.lastName, { message: 'Вкажіть прізвище' });
     required(p.firstName, { message: 'Вкажіть ім’я' });
     pattern(p.lastName, PATTERN.name, { message: MESSAGE.name });
@@ -200,7 +201,7 @@ export class EmployeeFormComponent {
     pattern(p.phone, PATTERN.phone, { message: MESSAGE.phone });
     pattern(p.email, PATTERN.email, { message: MESSAGE.email });
 
-    // --- паспорт: правила залежать від типу документа
+    // --- passport: rules depend on the document type
     disabled(p.passportSeries, ({ valueOf }) =>
       valueOf(p.passportType) === 'ID_CARD' ? 'У ID-картки серії немає' : false,
     );
@@ -225,7 +226,7 @@ export class EmployeeFormComponent {
       when: ({ valueOf }) => valueOf(p.passportType) === 'ID_CARD',
     });
 
-    // --- закордонний паспорт
+    // --- foreign passport
     pattern(p.foreignPassportSeries, PATTERN.foreignSeries, { message: MESSAGE.foreignSeries });
     pattern(p.foreignPassportNumber, PATTERN.foreignNumber, { message: MESSAGE.foreignNumber });
     required(p.foreignPassportSeries, {
@@ -243,7 +244,7 @@ export class EmployeeFormComponent {
         : undefined;
     });
 
-    // --- робота
+    // --- employment
     validate(p.positionSince, ({ value, valueOf }) => {
       const hire = valueOf(p.hireDate);
       return value() && hire && value() < hire
@@ -251,7 +252,7 @@ export class EmployeeFormComponent {
         : undefined;
     });
 
-    // --- військовий облік
+    // --- military registration
     pattern(p.vos, PATTERN.vosOfficer, {
       message: MESSAGE.vosOfficer,
       when: ({ valueOf }) => isOfficer(valueOf(p.rankCode)),
@@ -273,13 +274,14 @@ export class EmployeeFormComponent {
       message: 'Оберіть ТЦК — без нього не сформується повідомлення',
       when: ({ valueOf }) => valueOf(p.militaryRegistered) && valueOf(p.rankCode) !== '',
     });
-    required(p.reservationUntil, {
-      message: 'Вкажіть строк бронювання',
-      when: ({ valueOf }) => !!valueOf(p.reservationBasis),
-    });
+    // same rule as applyReservation() on the backend
     required(p.reservationBasis, {
       message: 'Вкажіть підставу бронювання',
-      when: ({ valueOf }) => !!valueOf(p.reservationUntil),
+      when: ({ valueOf }) => valueOf(p.reserved) && !isConscriptRank(valueOf(p.rankCode)),
+    });
+    required(p.reservationUntil, {
+      message: 'Вкажіть строк бронювання',
+      when: ({ valueOf }) => valueOf(p.reserved) && !isConscriptRank(valueOf(p.rankCode)),
     });
     validate(p.demobilizedAt, ({ value, valueOf }) => {
       const mob = valueOf(p.mobilizedAt);
@@ -288,7 +290,7 @@ export class EmployeeFormComponent {
         : undefined;
     });
 
-    // --- дати: коректний рік, не в майбутньому, не раніше народження
+    // --- dates: valid year, not in the future, not before birth
     for (const key of DATE_FIELDS) {
       validate(at(key), ({ value }) =>
         sensibleDate(value()) ? undefined : { kind: 'date', message: MESSAGE.invalidDate },
@@ -310,13 +312,13 @@ export class EmployeeFormComponent {
       });
     }
 
-    // --- підстава змін для ТЦК
+    // --- grounds of the changes for the TCK
     required(p.changeEffectiveDate, {
       message: 'Вкажіть дату, з якої діють зміни',
       when: () => this.changedLabels().length > 0,
     });
 
-    // --- сім’я
+    // --- family
     applyEach(p.familyMembers, (m) => {
       required(m.lastName, { message: 'Вкажіть прізвище' });
       required(m.firstName, { message: 'Вкажіть ім’я' });
@@ -340,7 +342,7 @@ export class EmployeeFormComponent {
     );
   });
 
-  // ================================================================ помилки та навігація
+  // ================================================================ errors and navigation
 
   private field(key: string): FieldLike | undefined {
     return (this.f as unknown as Record<string, FieldLike | undefined>)[key];
@@ -353,7 +355,7 @@ export class EmployeeFormComponent {
     return member?.[key];
   }
 
-  /** Усі помилки форми в порядку вкладок — для списку «Що виправити». */
+  /** All form errors in tab order — for the "what to fix" list. */
   protected readonly errorList = computed<FormErrorItem[]>(() => {
     const items: FormErrorItem[] = [];
     for (const [key, meta] of Object.entries(FIELD_META)) {
@@ -386,7 +388,7 @@ export class EmployeeFormComponent {
     return items;
   });
 
-  /** Червона крапка на вкладці, де є помилка (після спроби збереження або дотику до поля). */
+  /** Red dot on a tab with an error (after a save attempt or touching the field). */
   protected readonly tabErrors = computed(() => {
     const result: Record<FormTab, boolean> = {
       personal: false,
@@ -407,7 +409,7 @@ export class EmployeeFormComponent {
     return result;
   });
 
-  /** Перейти на вкладку з полем і поставити в нього курсор. */
+  /** Switch to the tab with the field and focus it. */
   protected goTo(item: Pick<FormErrorItem, 'key' | 'tab' | 'index'>) {
     if (item.tab !== 'sidebar') this.tab.set(item.tab);
     afterNextRender(
@@ -431,7 +433,7 @@ export class EmployeeFormComponent {
     if (first) this.goTo(first);
   }
 
-  // ================================================================ дії
+  // ================================================================ actions
 
   protected addFamilyMember(relation: FamilyRelation) {
     this.model.update((m) => ({
@@ -492,7 +494,7 @@ export class EmployeeFormComponent {
     }
   }
 
-  /** Помилки валідації з API → помилки конкретних полів форми (з’являються під полем). */
+  /** API validation errors → errors of specific form fields (shown under the field). */
   private mapServerErrors(err: unknown) {
     const body =
       err instanceof HttpErrorResponse

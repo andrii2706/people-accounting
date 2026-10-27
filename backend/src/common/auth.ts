@@ -26,25 +26,25 @@ const IS_PUBLIC = 'isPublic';
 const ROLES = 'roles';
 const ALLOW_PENDING_PASSWORD = 'allowPendingPassword';
 
-/** Маршрут доступний без авторизації. */
+/** Route available without authentication. */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
-/** Обмежити маршрут ролями. */
+/** Restrict the route to roles. */
 export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES, roles);
 
-/** Маршрут доступний навіть якщо користувач ще не змінив тимчасовий пароль. */
+/** Route available even before the user has changed a temporary password. */
 export const AllowPendingPasswordChange = () => SetMetadata(ALLOW_PENDING_PASSWORD, true);
 
 export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionContext): AuthUser => {
   return ctx.switchToHttp().getRequest<Request & { user: AuthUser }>().user;
 });
 
-/** Код помилки, за яким фронтенд відкриває сторінку зміни пароля. */
+/** Error code that makes the frontend open the change-password page. */
 export const PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED';
 
 /**
- * Глобальний guard. Сесія — лише httpOnly cookie (Bearer-токени свідомо не приймаються).
- * На кожен запит перевіряє користувача в БД: заблокований / змінений пароль ⇒ сесія недійсна одразу.
+ * Global guard. The session is an httpOnly cookie only (Bearer tokens are deliberately not accepted).
+ * Checks the user in the DB on every request: locked / password changed ⇒ the session is invalid immediately.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -89,7 +89,7 @@ export class AuthGuard implements CanActivate {
     const roles = this.reflector.getAllAndOverride<UserRole[] | undefined>(ROLES, targets);
     if (roles?.length && !roles.includes(user.role)) throw new ForbiddenException('Недостатньо прав');
 
-    // ковзний тайм-аут бездіяльності
+    // sliding idle timeout
     if (this.sessions.shouldRefresh(payload)) await this.sessions.issue(res, user, payload.sst);
     return true;
   }

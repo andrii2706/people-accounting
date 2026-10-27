@@ -1,7 +1,7 @@
 /**
- * Початкове наповнення:
- *   npm run seed          — довідник ТЦК Львівщини (з аркуша EDU_TCK) + реквізити-заглушки підприємства
- *   npm run seed -- --demo — додатково вигадані працівники для демонстрації (НЕ реальні люди)
+ * Initial data:
+ *   npm run seed          — Lviv region TCK directory (from sheet EDU_TCK) + placeholder company details
+ *   npm run seed -- --demo — additionally fictitious employees for a demo (NOT real people)
  */
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
@@ -92,7 +92,7 @@ async function seed() {
       return;
     }
 
-    // Усі особи нижче — вигадані, збіги випадкові.
+    // All people below are fictitious; any resemblance is coincidental.
     const people: CreateEmployeeDto[] = [
       {
         personnelNumber: '001', gender: 'M', lastName: 'Демченко', firstName: 'Андрій', middleName: 'Петрович',
@@ -101,7 +101,7 @@ async function seed() {
         rankCode: 14, vos: '021101', trainingProfile: 'загальновійськовий', accountingCategory: '1',
         militaryDocType: 'військовий квиток', militaryDocSeries: 'АА', militaryDocNumber: '000001', militaryDocIssuedAt: '2009-07-01',
         militaryDocIssuedBy: 'Шевченківський РВК м. Львова', tckId: tck('Шевченківський'), registryNumber: '0000000001',
-        reservationBasis: 'Перелік №1, розділ 2, п. 5', specialAccountingCertificate: '12345', reservationUntil: '2026-11-15',
+        reserved: true, reservationBasis: 'Перелік №1, розділ 2, п. 5', specialAccountingCertificate: '12345', reservationUntil: '2026-11-15',
         educationLevel: 'Повна вища освіта', educationSpecialty: 'Електроенергетика', maritalStatus: 'MARRIED',
         familyMembers: [
           { relation: 'WIFE', lastName: 'Демченко', firstName: 'Олена', middleName: 'Ігорівна', birthDate: '1989-06-02' },
@@ -156,7 +156,7 @@ async function seed() {
     const created = [];
     for (const person of people) created.push(await employees.create(person, actor));
 
-    // Звільнення в поточному році і зміна адреси — щоб було що надсилати в ТЦК.
+    // A dismissal in the current year and an address change — so there is something to notify the TCK about.
     await employees.dismiss(created[2].id, { dismissalDate: '2026-09-30', dismissalOrderNumber: '88-к', dismissalOrderDate: '2026-09-29' }, actor);
     await employees.update(created[1].id, { actualAddress: 'м. Львів, вул. Нова, 21, кв. 3', changeMeta: { effectiveDate: '2026-10-20', basis: 'заява працівника від 20.10.2026' } }, actor);
     console.log(`Демо-працівників: ${created.length}`);

@@ -6,9 +6,9 @@ import type { UserRole } from '../users/user.entity.js';
 
 export interface SessionPayload {
   sub: string;
-  /** Версія облікових даних користувача — після зміни пароля/блокування старі сесії недійсні. */
+  /** Credentials version — after a password change / lockout old sessions become invalid. */
   ver: number;
-  /** Початок сесії (сек) — для абсолютного ліміту тривалості. */
+  /** Session start (seconds) — for the absolute session lifetime limit. */
   sst: number;
   role: UserRole;
   iat?: number;
@@ -16,9 +16,9 @@ export interface SessionPayload {
 }
 
 /**
- * Видача та продовження сесії в httpOnly cookie.
- * Ковзний тайм-аут: токен живе SESSION_IDLE_MINUTES і перевидається при активності,
- * але не довше SESSION_MAX_HOURS від входу.
+ * Issues and extends the session in an httpOnly cookie.
+ * Sliding timeout: the token lives SESSION_IDLE_MINUTES and is re-issued on activity,
+ * but never longer than SESSION_MAX_HOURS since sign-in.
  */
 @Injectable()
 export class SessionService {
@@ -59,12 +59,12 @@ export class SessionService {
     return this.jwt.verifyAsync<SessionPayload>(token);
   }
 
-  /** Сесія вичерпала абсолютний ліміт? */
+  /** Has the session reached its absolute limit? */
   isExpiredAbsolutely(payload: SessionPayload) {
     return Date.now() / 1000 - payload.sst > this.env.sessionMaxHours * 3600;
   }
 
-  /** Перевидати, якщо минуло понад 5 хв з видачі (щоб не писати cookie на кожен запит). */
+  /** Re-issue when more than 5 minutes have passed (so the cookie is not rewritten on every request). */
   shouldRefresh(payload: SessionPayload) {
     return !!payload.iat && Date.now() / 1000 - payload.iat > 5 * 60;
   }

@@ -1,17 +1,17 @@
 /**
- * Розбір і перевірка файлів підпису КЕП (CMS / CAdES, .p7s).
+ * Parsing and verification of qualified e-signature files (CMS / CAdES, .p7s).
  *
- * Українські кваліфіковані підписи бувають двох родин:
- *  • ДСТУ 4145 + ГОСТ 34.311 (класичні ключі АЦСК, Дія.Підпис, токени «Алмаз», «Кристал»);
- *  • ECDSA/RSA + SHA-2 («міжнародні алгоритми», дозволені з 2022 р.).
+ * Ukrainian qualified signatures come in two families:
+ *  • DSTU 4145 + GOST 34.311 (classic keys of qualified providers, Diia.Pidpys, «Алмаз», «Кристал» tokens);
+ *  • ECDSA/RSA + SHA-2 ("international algorithms", allowed since 2022).
  *
- * Що робимо на сервері:
- *  1) розбираємо структуру CMS і сертифікат підписувача (ПІБ, посада, організація, ЄДРПОУ, строк дії);
- *  2) перевіряємо, що підпис зроблено саме під наш документ — порівнюємо messageDigest з хешем
- *     зафіксованого файлу (SHA-2 — Node crypto, ГОСТ 34.311 — бібліотека gost89);
- *  3) для ECDSA/RSA — ще й криптографічно перевіряємо сам підпис (pkijs + WebCrypto).
- * Ланцюжок до кваліфікованого надавача (ЦЗО) і статус відкликання тут не перевіряються —
- * для юридично значущої перевірки є czo.gov.ua/verify, і її ж виконує отримувач (ТЦК).
+ * What the server does:
+ *  1) parses the CMS structure and the signer certificate (name, title, organization, EDRPOU, validity);
+ *  2) checks that the signature was made for our document — compares messageDigest with the hash
+ *     of the frozen file (SHA-2 — Node crypto, GOST 34.311 — the gost89 library);
+ *  3) for ECDSA/RSA — also verifies the signature cryptographically (pkijs + WebCrypto).
+ * The chain to the qualified provider (CZO) and revocation status are not checked here —
+ * legally significant verification is done at czo.gov.ua/verify, and by the recipient (TCK).
  */
 import * as asn1js from 'asn1js';
 import gost89 from 'gost89';
@@ -21,7 +21,7 @@ import * as pkijs from 'pkijs';
 pkijs.setEngine('node', new pkijs.CryptoEngine({ name: 'node', crypto: webcrypto as unknown as Crypto }));
 
 export type SignatureVerification =
-  /** Документ збігається, підпис криптографічно коректний (ECDSA/RSA). */
+  /** The document matches, the signature is cryptographically valid (ECDSA/RSA). */
   | 'VALID'
   /** Документ збігається з підписаним (хеш), сам підпис ДСТУ 4145 перевіряється на czo.gov.ua. */
   | 'DIGEST_MATCH'
@@ -35,9 +35,9 @@ export interface SignerCertificate {
   title: string;
   organization: string;
   organizationUnit: string;
-  /** ЄДРПОУ організації (з organizationIdentifier або SubjectDirectoryAttributes). */
+  /** EDRPOU of the organization (from organizationIdentifier or SubjectDirectoryAttributes). */
   edrpou: string;
-  /** РНОКПП власника ключа — лише замаскований, повністю не зберігаємо. */
+  /** RNOKPP of the key owner — masked only, never stored in full. */
   drfoMasked: string;
   locality: string;
   issuer: string;
@@ -54,12 +54,12 @@ export interface ParsedSigner {
   hasTimestamp: boolean;
   certificate: SignerCertificate | null;
   verification: SignatureVerification;
-  /** Пояснення для користувача, якщо щось не так або перевірка часткова. */
+  /** Explanations for the user when something is wrong or the check is partial. */
   notes: string[];
 }
 
 export interface ParsedSignatureFile {
-  /** DER-байти підпису (нормалізовані, навіть якщо завантажено base64/PEM). */
+  /** DER bytes of the signature (normalized even if base64/PEM was uploaded). */
   der: Buffer;
   detached: boolean;
   signers: ParsedSigner[];
@@ -98,7 +98,7 @@ const DIGESTS: Record<string, { name: string; hash: (d: Buffer) => Buffer }> = {
   '1.2.804.2.1.1.1.1.2.1': { name: 'ГОСТ 34.311-95', hash: (d) => Buffer.from(gost89.gosthash(d)) },
 };
 
-/** Відомі, але не обчислювані на сервері геш-функції (ДСТУ 7564 «Купина»). */
+/** Known hash functions the server cannot compute (DSTU 7564 «Купина»). */
 const KNOWN_UNSUPPORTED_DIGESTS: Record<string, string> = {
   '1.2.804.2.1.1.1.1.2.2.1': 'ДСТУ 7564 (256)',
   '1.2.804.2.1.1.1.1.2.2.2': 'ДСТУ 7564 (384)',
@@ -117,7 +117,7 @@ const isInternational = (oid: string) => oid.startsWith('1.2.840.10045') || oid.
 
 // ---------------------------------------------------------------- decoding
 
-/** Приймає DER (.p7s), base64 або PEM — різні програми зберігають по-різному. */
+/** Accepts DER (.p7s), base64 or PEM — different programs save it differently. */
 export function normalizeSignatureFile(input: Buffer): Buffer {
   if (input.length && input[0] === 0x30) return input;
   const text = input
@@ -180,14 +180,14 @@ function certificateInfo(cert: pkijs.Certificate): SignerCertificate {
       const m = /(\d{8,10})/.exec(text(tv.value));
       if (m) info.edrpou = m[1];
     }
-    // 2.5.4.5 serialNumber: «TINUA-1234567890» — РНОКПП власника
+    // 2.5.4.5 serialNumber: «TINUA-1234567890» — RNOKPP of the owner
     if (tv.type === '2.5.4.5') {
       const v = text(tv.value);
       if (/^TINUA-/i.test(v)) info.drfoMasked = maskDrfo(v);
     }
   }
 
-  // Старі сертифікати АЦСК: ЄДРПОУ/ДРФО — у SubjectDirectoryAttributes
+  // Old provider certificates: EDRPOU/DRFO live in SubjectDirectoryAttributes
   const sda = cert.extensions?.find((e) => e.extnID === OID.subjectDirectoryAttributes);
   if (sda) {
     try {
@@ -232,8 +232,8 @@ function attributeTime(value: unknown): Date | null {
 // ---------------------------------------------------------------- public API
 
 /**
- * Розбирає файл підпису і перевіряє, що він стосується саме `document`.
- * Кидає SignatureFileError, якщо підпис не стосується документа або пошкоджений.
+ * Parses a signature file and checks that it belongs to exactly `document`.
+ * Throws SignatureFileError when the signature is for another document or is corrupted.
  */
 export async function parseAndVerifySignature(file: Buffer, document: Buffer): Promise<ParsedSignatureFile> {
   const der = normalizeSignatureFile(file);
@@ -271,7 +271,7 @@ export async function parseAndVerifySignature(file: Buffer, document: Buffer): P
       attrs.some((a) => a.type === OID.contentTimestamp) ||
       (si.unsignedAttrs?.attributes ?? []).some((a) => a.type === OID.signatureTimestamp);
 
-    // --- 1) підпис зроблено під наш документ?
+    // --- 1) was the signature made for our document?
     const mdAttr = attrs.find((a) => a.type === OID.messageDigest)?.values[0] as asn1js.OctetString | undefined;
     const digest = DIGESTS[digestOid];
     let digestMatches: boolean | null = null;
@@ -283,14 +283,14 @@ export async function parseAndVerifySignature(file: Buffer, document: Buffer): P
         );
       }
     } else if (!mdAttr) {
-      // без підписаних атрибутів підписується сам вміст; для вкладеного документа він уже звірений вище
+      // without signed attributes the content itself is signed; an attached document was already compared above
       if (attached?.length) digestMatches = true;
       else notes.push('Підпис без підписаних атрибутів — перевірка відповідності документу на сервері неможлива');
     } else {
       notes.push(`Геш-функція ${KNOWN_UNSUPPORTED_DIGESTS[digestOid] ?? digestOid} не підтримується сервером`);
     }
 
-    // --- 2) криптографічна перевірка (лише міжнародні алгоритми)
+    // --- 2) cryptographic verification (international algorithms only)
     let cryptoValid: boolean | null = null;
     if (cert && isInternational(signatureOid) && digestMatches !== null) {
       try {

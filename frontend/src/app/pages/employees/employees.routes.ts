@@ -1,8 +1,9 @@
 import type { Routes } from '@angular/router';
 import { employeeDetailsResolver } from './resolvers/employee-details.resolver';
 import { employeeListResolver } from './resolvers/employee-list.resolver';
+import { employeeNoticesResolver } from './resolvers/employee-notices.resolver';
 
-/** Фіче-модуль «Працівники»: окремий lazy-чанк з власними резолверами. */
+/** Feature module "Employees": a separate lazy chunk with its own resolvers. */
 export const EMPLOYEES_ROUTES: Routes = [
   {
     path: '',
@@ -21,7 +22,8 @@ export const EMPLOYEES_ROUTES: Routes = [
   {
     path: ':id',
     title: 'Картка працівника · Військовий облік',
-    resolve: { employee: employeeDetailsResolver },
+    // the card and the notice history are independent requests — resolved in parallel
+    resolve: { employee: employeeDetailsResolver, notices: employeeNoticesResolver },
     runGuardsAndResolvers: 'always',
     loadComponent: () =>
       import('./employee-detail/employee-detail.component').then((m) => m.EmployeeDetailComponent),

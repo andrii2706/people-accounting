@@ -8,7 +8,7 @@ import { ToastService } from '../../shared/services/toast.service';
 import { apiErrorMessage } from '../../shared/utils/api-error.utils';
 import { passwordProblems } from '../../shared/validators/password.validators';
 
-/** Профіль: зміна власного пароля (обов’язкова, якщо пароль тимчасовий). */
+/** Profile: change own password (mandatory while the password is temporary). */
 @Component({
   selector: 'app-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,

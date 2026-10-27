@@ -28,7 +28,7 @@
     </div>
   </header>
 
-  <div class="grid gap-6 lg:grid-cols-[1fr_400px]">
+  <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_380px]">
     <div class="space-y-6">
       <section class="card p-5">
         <h2 class="mb-3 font-semibold">Склад листа</h2>
@@ -61,20 +61,39 @@
           }
         </dl>
 
-        @if (l.changes.length) {
+        @if (l.notices.length) {
           <h3 class="mt-5 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
-            Повідомлення у додатках
+            Повідомлення у додатках ({{ l.notices.length }})
           </h3>
-          <ol class="list-decimal space-y-1 pl-5 text-sm">
-            @for (c of l.changes; track c.id) {
-              <li>
-                {{ changeLabel(c.type) }} з {{ c.effectiveDate | uaDate }}
-                @if (c.newValue) {
-                  — {{ c.newValue }}
-                }
+          <ul class="divide-y divide-line rounded-lg border border-line text-sm">
+            @for (n of l.notices; track n.id) {
+              <li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                <div class="min-w-0">
+                  <p>
+                    <span class="font-mono font-semibold">№ {{ n.number }}</span>
+                    · {{ n.typeLabel }}
+                    <span class="text-muted">з {{ n.effectiveDate | uaDate }}</span>
+                  </p>
+                  @if (n.employeeId) {
+                    <a
+                      [routerLink]="['/employees', n.employeeId]"
+                      class="text-xs text-brand-600 hover:underline"
+                      >{{ n.employeeName }}</a
+                    >
+                  } @else {
+                    <p class="text-xs text-muted">{{ n.employeeName }}</p>
+                  }
+                </div>
+                <a
+                  class="btn btn-ghost px-2 py-1 text-xs"
+                  [href]="lettersService.noticeDocxUrl(n.id)"
+                  download
+                  title="Лише це повідомлення (Додаток 4)"
+                  ><app-icon name="download" [size]="14" /> .docx</a
+                >
               </li>
             }
-          </ol>
+          </ul>
         }
         <p class="mt-4 text-xs text-muted">
           У документі: супровідний лист, повідомлення про зміну облікових даних (Додаток 4) та опис
@@ -122,68 +141,25 @@
           </label>
         </section>
       }
-
-      @if (l.emails.length) {
-        <section class="card p-5">
-          <h2 class="mb-3 font-semibold">Історія відправки</h2>
-          <ul class="space-y-2 text-sm">
-            @for (m of l.emails; track m.id) {
-              <li class="rounded-lg bg-sunken/60 px-3 py-2">
-                <p>
-                  <span
-                    class="font-medium"
-                    [class]="m.status === 'SENT' ? 'text-ok' : 'text-danger'"
-                    >{{ m.status === 'SENT' ? 'Надіслано' : 'Помилка' }}</span
-                  >
-                  → {{ m.to }} <span class="text-muted">· {{ m.createdAt | uaDateTime }}</span>
-                </p>
-                @if (m.error) {
-                  <p class="mt-1 text-xs text-muted">{{ m.error }}</p>
-                }
-              </li>
-            }
-          </ul>
-        </section>
-      }
     </div>
 
     <aside class="space-y-4">
-      <form class="card space-y-4 p-5" (submit)="send($event)" novalidate>
+      <section class="card space-y-3 p-5">
         <h2 class="flex items-center gap-2 font-semibold">
-          <app-icon name="send" /> Надіслати електронною поштою
+          <app-icon name="send" /> Передача в ТЦК
         </h2>
-        @if (!l.mailConfigured) {
-          <p class="rounded-lg bg-[#fdf6ec] px-3 py-2 text-xs text-warning">
-            SMTP не налаштовано — лист буде збережено на сервері (.eml) замість відправки.
-            Налаштуйте SMTP_* у .env бекенду.
-          </p>
-        }
-        <app-form-field label="Кому" [required]="true" [field]="sendForm.to">
-          <input class="input" type="email" [formField]="sendForm.to" />
-        </app-form-field>
-        <app-form-field label="Копія" [field]="sendForm.cc">
-          <input class="input" type="email" [formField]="sendForm.cc" />
-        </app-form-field>
-        <app-form-field label="Текст листа">
-          <textarea class="input min-h-32" [formField]="sendForm.message"></textarea>
-        </app-form-field>
-        <button type="submit" class="btn btn-primary w-full" [disabled]="sendForm().submitting()">
-          {{
-            sendForm().submitting()
-              ? 'Надсилаємо…'
-              : l.status === 'SENT'
-                ? 'Надіслати ще раз'
-                : signed()
-                  ? 'Надіслати з документом і підписом'
-                  : 'Надіслати з документом'
-          }}
-        </button>
-      </form>
-
-      <div class="card space-y-2 p-5">
+        <p class="text-sm text-muted">
+          Застосунок не надсилає листи сам. Завантажте документ (кнопка вгорі) або, якщо його
+          підписано, «Пакет для ТЦК (.zip)» у блоці «Підпис КЕП». Передайте його в ТЦК звичним
+          способом — Укрпоштою, нарочно, через СЕД чи електронний кабінет, — і позначте лист як
+          переданий.
+        </p>
+        <a class="btn btn-secondary w-full" [href]="lettersService.labelsUrl([l.id])" download
+          ><app-icon name="mail" /> Наклейка на конверт .docx</a
+        >
         @if (l.status !== 'SENT') {
-          <button type="button" class="btn btn-secondary w-full" (click)="markSent()">
-            Позначити як відправлений поштою
+          <button type="button" class="btn btn-primary w-full" (click)="markSent()">
+            Позначити як переданий у ТЦК
           </button>
           @if (!signed()) {
             <button type="button" class="btn btn-danger w-full" (click)="remove()">
@@ -195,10 +171,10 @@
           }
         } @else {
           <p class="text-sm text-muted">
-            Відправлено {{ l.sentAt | uaDateTime }}. Надісланий лист не редагується.
+            Передано в ТЦК {{ l.sentAt | uaDateTime }}. Переданий лист не редагується.
           </p>
         }
-      </div>
+      </section>
     </aside>
   </div>
 }

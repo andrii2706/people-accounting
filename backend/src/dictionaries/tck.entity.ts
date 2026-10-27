@@ -1,6 +1,6 @@
 import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-/** Територіальний центр комплектування та соціальної підтримки (EDU_TCK!A24:C49). */
+/** Territorial recruitment and social support centre (EDU_TCK!A24:C49). */
 @Entity('tck')
 export class Tck {
   @PrimaryGeneratedColumn('uuid')
@@ -9,17 +9,21 @@ export class Tck {
   @Column({ type: 'varchar', length: 300, unique: true })
   name: string;
 
-  /** Назва в родовому відмінку для «Керівнику …» (напр. «Шевченківського РТЦК та СП»). Якщо порожньо — береться name. */
+  /** Name in the genitive case for «Керівнику …» (e.g. «Шевченківського РТЦК та СП»). Falls back to name when empty. */
   @Column({ type: 'varchar', length: 300, default: '' })
   nameGenitive: string;
 
   @Column({ type: 'varchar', length: 300, default: '' })
   address: string;
 
+  /** Postal code for envelope labels. */
+  @Column({ type: 'varchar', length: 10, default: '' })
+  postalCode: string;
+
   @Column({ type: 'varchar', length: 200, default: '' })
   phone: string;
 
-  /** Пошта для надсилання повідомлень. */
+  /** Contact e-mail of the TCK (reference only — the app does not send e-mails). */
   @Column({ type: 'varchar', length: 200, default: '' })
   email: string;
 

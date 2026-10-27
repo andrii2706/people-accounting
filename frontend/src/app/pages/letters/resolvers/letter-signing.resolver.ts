@@ -4,10 +4,10 @@ import type { SigningConfig, SigningState } from '../../../shared/interfaces/sig
 import { SignaturesService } from '../../../shared/services/signatures.service';
 import { resolveOr } from '../../../shared/utils/router.utils';
 
-/** Стан підписання листа (зафіксований документ + підписи) — паралельно з даними листа. */
+/** E-signing state of the letter (frozen document + signatures) — in parallel with the letter data. */
 export const letterSigningResolver: ResolveFn<SigningState> = (route) =>
   resolveOr(inject(SignaturesService).state(route.paramMap.get('id')!), '/letters') as never;
 
-/** Налаштування КЕП (віджет ІІТ) — кешуються сервісом, запит лише один раз за сесію. */
+/** E-signature settings (IIT widget) — cached by the service, requested once per session. */
 export const signingConfigResolver: ResolveFn<SigningConfig> = () =>
   resolveOr(inject(SignaturesService).config(), '/letters') as never;

@@ -4,14 +4,14 @@ import { dirname, join, normalize, resolve, sep } from 'node:path';
 import { loadEnv } from '../config/env.js';
 
 /**
- * Сховище файлів, які мають жити довше за запит: зафіксовані (підписані) документи і файли підписів.
+ * Storage for files that must outlive a request: frozen (signed) documents and signature files.
  *
- *  • local — тека на диску (розробка, docker-compose);
- *  • gcs   — бакет Cloud Storage. Рекомендовано: uniform bucket-level access, public access prevention,
- *            retention policy (наприклад 5 років) — тоді навіть адміністратор проєкту не зможе
- *            видалити чи підмінити підписаний документ до кінця строку зберігання.
+ *  • local — a folder on disk (development, docker-compose);
+ *  • gcs   — a Cloud Storage bucket. Recommended: uniform bucket-level access, public access prevention,
+ *            a retention policy (e.g. 5 years) — then even a project administrator cannot
+ *            delete or replace a signed document before the retention period ends.
  *
- * Файли лише додаються (write-once): перезапис існуючого ключа заборонено.
+ * Files are write-once: overwriting an existing key is forbidden.
  */
 export interface StoredObject {
   key: string;
@@ -37,7 +37,7 @@ class LocalDriver implements Driver {
   async put(key: string, data: Buffer) {
     const p = this.path(key);
     await mkdir(dirname(p), { recursive: true });
-    // flag 'wx' — не перезаписувати існуючий файл
+    // flag 'wx' — never overwrite an existing file
     await writeFile(p, data, { flag: 'wx', mode: 0o600 });
   }
   async get(key: string) {
@@ -58,12 +58,12 @@ class LocalDriver implements Driver {
 class GcsDriver implements Driver {
   private bucketPromise: Promise<import('@google-cloud/storage').Bucket>;
   constructor(bucketName: string) {
-    // ліниве завантаження: локально пакет не потрібен
+    // lazy loading: the package is not needed locally
     this.bucketPromise = import('@google-cloud/storage').then(({ Storage }) => new Storage().bucket(bucketName));
   }
   async put(key: string, data: Buffer, contentType: string) {
     const bucket = await this.bucketPromise;
-    // ifGenerationMatch: 0 — запис лише якщо об'єкта ще немає (write-once)
+    // ifGenerationMatch: 0 — write only if the object does not exist yet (write-once)
     await bucket.file(key).save(data, {
       contentType,
       resumable: false,

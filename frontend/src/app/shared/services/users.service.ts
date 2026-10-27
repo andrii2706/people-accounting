@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { ManagedUser, UserRole } from '../interfaces/auth.interface';
 
-/** Керування обліковими записами (лише для адміністратора). */
+/** Account management (administrators only). */
 @Injectable({ providedIn: 'root' })
 export class UsersService {
   private readonly http = inject(HttpClient);
@@ -20,7 +20,7 @@ export class UsersService {
     return firstValueFrom(this.http.patch<ManagedUser>(`/api/users/${id}`, body));
   }
 
-  /** Тимчасовий пароль повертається один раз. */
+  /** The temporary password is returned once. */
   resetPassword(id: string) {
     return firstValueFrom(
       this.http.post<{ temporaryPassword: string }>(`/api/users/${id}/reset-password`, {}),

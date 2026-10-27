@@ -15,9 +15,10 @@ import { EmployeeChange } from '../../employees/entities/employee-change.entity.
 import { Employee } from '../../employees/entities/employee.entity.js';
 
 export type LetterType = 'CHANGE_NOTICE' | 'LISTS' | 'OPERATIONAL_REPORT' | 'OTHER';
-export type LetterStatus = 'DRAFT' | 'SENT' | 'FAILED';
+/** DRAFT — in preparation; SENT — handed over to the TCK (Ukrposhta, by hand, document management system etc.). */
+export type LetterStatus = 'DRAFT' | 'SENT';
 
-/** Журнал вихідної кореспонденції з військового обліку. */
+/** Register of outgoing military-registration correspondence. */
 @Entity('outgoing_letters')
 @Index(['year', 'sequence'], { unique: true })
 export class OutgoingLetter {
@@ -30,7 +31,7 @@ export class OutgoingLetter {
   @Column({ type: 'int' })
   sequence: number;
 
-  /** Вихідний номер як друкується в документі. */
+  /** Outgoing number as printed in the document. */
   @Column({ type: 'varchar', length: 50 })
   number: string;
 
@@ -60,22 +61,20 @@ export class OutgoingLetter {
   @OneToMany(() => EmployeeChange, (c) => c.letter)
   changes: Relation<EmployeeChange[]>;
 
-  /** Параметри для звітних листів (дата списків, групи). */
+  /** Parameters of report letters (lists date, groups). */
   @Column({ type: 'jsonb', default: {} })
   params: Record<string, unknown>;
 
   @Column({ type: 'varchar', length: 20, default: 'DRAFT' })
   status: LetterStatus;
 
-  @Column({ type: 'varchar', length: 200, default: '' })
-  recipientEmail: string;
 
   @Column({ type: 'timestamptz', nullable: true })
   sentAt: Date | null;
 
   /**
-   * Зафіксований документ (.docx), під який збирають підписи КЕП.
-   * Після фіксації документ більше не перегенеровується — завантажується саме цей файл.
+   * Frozen document (.docx) that collects qualified e-signatures.
+   * Once frozen, the document is never regenerated — exactly this file is downloaded.
    */
   @Column({ type: 'varchar', length: 500, nullable: true })
   documentKey: string | null;

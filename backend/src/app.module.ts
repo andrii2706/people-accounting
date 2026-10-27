@@ -9,7 +9,6 @@ import { buildDataSourceOptions } from './database/data-source.js';
 import { DictionariesModule } from './dictionaries/dictionaries.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
 import { LettersModule } from './letters/letters.module.js';
-import { MailModule } from './mail/mail.module.js';
 import { OrganizationModule } from './organization/organization.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { SignaturesModule } from './signatures/signatures.module.js';
@@ -31,7 +30,7 @@ class HealthController {
     TypeOrmModule.forRootAsync({
       useFactory: () => ({
         ...buildDataSourceOptions(process.env),
-        // у продакшні міграції запускає окреме завдання (Cloud Run Job) перед деплоєм
+        // in production migrations are run by a separate Cloud Run Job before deployment
         migrationsRun: loadEnv().dbMigrationsRun,
       }),
     }),
@@ -41,7 +40,6 @@ class HealthController {
     UsersModule,
     OrganizationModule,
     DictionariesModule,
-    MailModule,
     EmployeesModule,
     ReportsModule,
     LettersModule,

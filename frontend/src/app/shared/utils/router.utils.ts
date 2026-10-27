@@ -5,8 +5,8 @@ import { catchError, EMPTY, type Observable, of } from 'rxjs';
 import { ToastService } from '../services/toast.service';
 
 /**
- * Обгортка для резолверів: 404 → перенаправлення на fallback з повідомленням,
- * 401 обробляє інтерсептор (скасовуємо навігацію), інше — повідомлення й скасування.
+ * Wrapper for resolvers: 404 → redirect to the fallback with a message,
+ * 401 is handled by the interceptor (navigation is cancelled), anything else — a message and cancellation.
  */
 export function resolveOr<T>(
   source: Observable<T>,
@@ -27,7 +27,7 @@ export function resolveOr<T>(
   );
 }
 
-/** Повторно запустити резолвери поточного маршруту (після збереження змін). Маршрут має runGuardsAndResolvers: 'always'. */
+/** Re-run the resolvers of the current route (after saving changes). The route needs runGuardsAndResolvers: 'always'. */
 export function injectRouteRefresh() {
   const router = inject(Router);
   const route = inject(ActivatedRoute);
@@ -40,7 +40,7 @@ export function injectRouteRefresh() {
     });
 }
 
-/** Оновити query-параметри (фільтри) — це перезапускає резолвер списку. Порожні значення прибираються з URL. */
+/** Update query parameters (filters) — this re-runs the list resolver. Empty values are removed from the URL. */
 export function injectQueryParamsUpdate() {
   const router = inject(Router);
   const route = inject(ActivatedRoute);
@@ -55,4 +55,12 @@ export function injectQueryParamsUpdate() {
       replaceUrl: true,
     });
   };
+}
+
+/**
+ * Input transform for query-parameter inputs: with `withComponentInputBinding` a missing
+ * parameter arrives as `undefined`, which would otherwise end up as the text "undefined".
+ */
+export function orEmpty(value: string | null | undefined): string {
+  return value ?? '';
 }

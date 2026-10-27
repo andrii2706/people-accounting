@@ -13,7 +13,7 @@ import { loadEnv } from './config/env.js';
 import { UsersService } from './users/users.service.js';
 
 async function bootstrap() {
-  // спершу конфігурація — якщо чогось бракує, падаємо зі зрозумілим повідомленням
+  // configuration first — if something is missing, exit with a clear message
   let env;
   try {
     env = loadEnv();
@@ -40,7 +40,7 @@ async function bootstrap() {
   );
   app.useGlobalFilters(new DbExceptionFilter());
 
-  // CORS лише для локальної розробки; у продакшні фронт працює через проксі з того ж origin
+  // CORS only for local development; in production the frontend goes through the proxy on the same origin
   if (env.corsOrigins.length) app.enableCors({ origin: env.corsOrigins, credentials: true });
 
   if (env.swagger) {
@@ -53,7 +53,7 @@ async function bootstrap() {
     SwaggerModule.setup('api/docs', app, () => SwaggerModule.createDocument(app, config));
   }
 
-  // Перший адміністратор із середовища — щоб було з ким увійти після розгортання.
+  // First administrator from the environment — so there is someone to sign in after deployment.
   if (env.adminEmail && env.adminPassword) {
     await app.get(UsersService).ensureAdmin(env.adminEmail, env.adminPassword, env.adminName);
   }

@@ -7,7 +7,7 @@ export interface PersonName {
   gender: 'M' | 'F';
 }
 
-/** ПІБ у родовому відмінку («працівника Шевченка Тараса Григоровича»). Без падіння, якщо бібліотека не впоралась. */
+/** Full name in the genitive case («працівника Шевченка Тараса Григоровича»). Does not fail if the library cannot decline it. */
 export async function inGenitive(name: PersonName): Promise<string> {
   try {
     const r = await shevchenko.inGenitive({

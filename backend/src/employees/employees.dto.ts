@@ -21,7 +21,7 @@ import { IsIsoDate, NotFuture, Rule } from '../common/validators.js';
 import type { ChangeType, FamilyRelation, MaritalStatus } from '../military/dictionaries.js';
 import { MAX_LENGTH, type MaxLengthField, MESSAGE, PATTERN } from '../military/employee-rules.js';
 
-/** Необов’язковий рядок з обмеженням довжини, як у колонці БД. */
+/** Optional string with a length limit, as in the DB column. */
 const Str = (field: MaxLengthField) =>
   applyDecorators(IsOptional(), IsString({ message: 'Очікується текст' }), MaxLength(MAX_LENGTH[field], { message: MESSAGE.tooLong(MAX_LENGTH[field]) }));
 const DateField = () => applyDecorators(IsOptional(), IsIsoDate({ nullable: true }));
@@ -45,7 +45,7 @@ export class FamilyMemberDto {
   @PastDate() birthDate?: string | null;
 }
 
-/** Мета-дані змін для повідомлення ТЦК: з якої дати і на якій підставі. */
+/** Change metadata for the TCK notice: effective date and grounds. */
 export class ChangeMetaDto {
   @IsOptional() @IsIsoDate() effectiveDate?: string;
   @Str('changeBasis') basis?: string;
@@ -71,7 +71,7 @@ export class CreateEmployeeDto {
   @Str('registeredAddress') registeredAddress?: string;
   @Str('actualAddress') actualAddress?: string;
 
-  // ---- паспорт: формат залежить від типу
+  // ---- passport: the format depends on the type
   @IsOptional() @IsIn(['ID_CARD', 'BOOK'], { message: 'Тип паспорта: ID_CARD або BOOK' }) passportType?: 'ID_CARD' | 'BOOK';
   @Str('passportSeries')
   @Rule((_v: string, dto) => passportType(dto) === 'BOOK', 'У ID-картки серії немає')
@@ -145,6 +145,8 @@ export class CreateEmployeeDto {
   @Str('fitness') fitness?: string;
   @Str('fitnessBasis') fitnessBasis?: string;
   @PastDate() fitnessDate?: string | null;
+  @IsOptional() @IsBoolean({ message: 'Вкажіть, чи заброньований працівник' })
+  reserved?: boolean;
   @Str('reservationBasis') reservationBasis?: string;
   @Str('specialAccountingCertificate') specialAccountingCertificate?: string;
   @DateField()
@@ -181,7 +183,7 @@ export class DismissEmployeeDto {
 export class EmployeeQueryDto {
   @IsOptional() @IsString() @MaxLength(200) search?: string;
 
-  /** active — працюють на дату; dismissed — звільнені; all — усі. */
+  /** active — employed on the date; dismissed — dismissed; all — everyone. */
   @IsOptional() @IsIn(['active', 'dismissed', 'all']) status?: 'active' | 'dismissed' | 'all';
 
   @IsOptional() @IsIn(['G1', 'G1R', 'G2', 'G2R', 'G3', 'G3R', 'G4', 'G4R', 'NONE']) group?: string;

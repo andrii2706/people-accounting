@@ -20,13 +20,13 @@ import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
-import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
+import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
 
 type StatusFilter = 'active' | 'dismissed' | 'all';
 
 /**
- * Список працівників. Дані — з employeeListResolver, фільтри — у query-параметрах URL:
- * зміна фільтра = навігація, яка перезапускає резолвер (посилання на відфільтрований список можна зберегти).
+ * Employee list. Data comes from employeeListResolver, filters live in URL query parameters:
+ * changing a filter = a navigation that re-runs the resolver (a filtered list can be bookmarked).
  */
 @Component({
   selector: 'app-employee-list',
@@ -48,15 +48,17 @@ export class EmployeeListComponent {
   private readonly updateQuery = injectQueryParamsUpdate();
   protected readonly isLoading = inject(NavigationStateService).isNavigating;
 
-  /** Дані з резолвера. */
+  /** Data from the resolver. */
   readonly list = input.required<EmployeeList>();
 
-  /** Фільтри з query-параметрів. */
-  readonly search = input('');
-  readonly status = input<StatusFilter | ''>('');
-  readonly group = input('');
-  readonly category = input('');
-  readonly warnings = input('');
+  /** Filters from query parameters. */
+  readonly search = input<string, string | undefined>('', { transform: orEmpty });
+  readonly status = input<StatusFilter | '', StatusFilter | '' | undefined>('', {
+    transform: (v) => v ?? '',
+  });
+  readonly group = input<string, string | undefined>('', { transform: orEmpty });
+  readonly category = input<string, string | undefined>('', { transform: orEmpty });
+  readonly warnings = input<string, string | undefined>('', { transform: orEmpty });
 
   protected readonly statusOptions: { value: StatusFilter; label: string }[] = [
     { value: 'active', label: 'Працюють' },
@@ -67,17 +69,13 @@ export class EmployeeListComponent {
   protected readonly currentStatus = computed<StatusFilter>(() => this.status() || 'active');
   protected readonly onlyWarnings = computed(() => this.warnings() === '1');
 
-  /** Текст у полі пошуку — локальний, у URL потрапляє з затримкою. */
+  /** Search box text — local; it reaches the URL with a debounce. */
   protected readonly searchText = linkedSignal(() => this.search());
 
   protected readonly items = computed(() => this.list().items);
   protected readonly subtitle = computed(() => `Знайдено: ${this.list().total}`);
-  protected readonly exportUrl = computed(() =>
-    this.reportsService.listsDocxUrl(
-      undefined,
-      this.group() && this.group() !== 'NONE' ? this.group() : null,
-    ),
-  );
+  /** Annex 5 lists for today (one combined list for all categories). */
+  protected readonly exportUrl = computed(() => this.reportsService.listsDocxUrl());
 
   constructor() {
     toObservable(this.searchText)

@@ -11,7 +11,7 @@ export class CreateUserDto {
   @MaxLength(200)
   email: string;
 
-  /** Тимчасовий пароль — користувач змінить його при першому вході. */
+  /** Temporary password — the user changes it on first sign-in. */
   @IsString()
   @MaxLength(200)
   @Rule((v: string) => passwordProblems(v).length === 0, 'Пароль: щонайменше 12 символів, літери й цифри')

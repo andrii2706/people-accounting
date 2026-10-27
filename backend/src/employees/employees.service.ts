@@ -4,10 +4,11 @@ import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'ty
 import { type AuditAction, AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../common/auth.js';
 import { blindIndex } from '../common/crypto/field-encryption.js';
+import { type FieldError, fieldErrors } from '../common/validators.js';
 import { formatUa, todayIso } from '../common/utils/dates.js';
-import { CHANGE_TYPE_LABELS, type ChangeType, maritalStatusLabel } from '../military/dictionaries.js';
-import { educationText, familyText, foreignPassportText, passportText } from '../military/employee-format.js';
-import { notificationDeadline } from '../military/military-logic.js';
+import { CHANGE_TYPE_LABELS, type ChangeType } from '../military/dictionaries.js';
+import { familyText, passportText } from '../military/employee-format.js';
+import { isConscript, notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { deriveEmployee } from './employee-view.js';
 import type {
@@ -29,12 +30,12 @@ const NULLABLE_DATES = new Set<keyof Employee>([
   'demobilizedAt',
 ]);
 
-/** Поля, зміна яких породжує повідомлення ТЦК, і як їх описати. */
+/** Fields whose change produces a TCK notice, and how to describe them. */
 interface ChangeRule {
   type: ChangeType;
   fields: (keyof Employee)[];
   describe: (e: Employee) => string;
-  /** Не створювати зміну, якщо нове значення порожнє. */
+  /** Do not create a change if the new value is empty. */
   requireValue?: boolean;
 }
 
@@ -46,10 +47,28 @@ const CHANGE_RULES: ChangeRule[] = [
   { type: 'REGISTERED_ADDRESS', fields: ['registeredAddress'], describe: (e) => e.registeredAddress, requireValue: true },
   { type: 'ACTUAL_ADDRESS', fields: ['actualAddress'], describe: (e) => e.actualAddress, requireValue: true },
   { type: 'PASSPORT', fields: ['passportType', 'passportSeries', 'passportNumber'], describe: passportText, requireValue: true },
-  { type: 'FOREIGN_PASSPORT', fields: ['foreignPassportSeries', 'foreignPassportNumber'], describe: foreignPassportText, requireValue: true },
-  { type: 'EDUCATION', fields: ['educationLevel', 'educationDocument'], describe: educationText, requireValue: true },
-  { type: 'MARITAL_STATUS', fields: ['maritalStatus'], describe: (e) => familyText(e) || maritalStatusLabel(e.maritalStatus, e.gender), requireValue: true },
+  // Foreign passport, education and marital status are no longer reported (Resolution No. 812 of 10.06.2026);
+  // the types stay in ChangeType for the history of earlier notices.
 ];
+
+/**
+ * Reservation is used only when "Заброньований" is chosen explicitly: then its basis and term are
+ * required (same rule as on the frontend), otherwise the reservation data is cleared.
+ */
+function applyReservation(e: Employee) {
+  if (e.reserved && isConscript(e)) e.reserved = false;
+  if (!e.reserved) {
+    e.reserved = false;
+    e.reservationBasis = '';
+    e.reservationUntil = null;
+    e.specialAccountingCertificate = '';
+    return;
+  }
+  const errors: FieldError[] = [];
+  if (!e.reservationBasis?.trim()) errors.push({ field: 'reservationBasis', message: 'Вкажіть підставу бронювання' });
+  if (!e.reservationUntil) errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
+  if (errors.length) throw fieldErrors(errors);
+}
 
 @Injectable()
 export class EmployeesService {
@@ -75,7 +94,7 @@ export class EmployeesService {
     if (query.search?.trim()) {
       const raw = query.search.trim();
       const term = `%${raw.toLowerCase()}%`;
-      // РНОКПП зашифрований — шукаємо лише за точним значенням через сліпий індекс
+      // RNOKPP is encrypted — search only by exact value via the blind index
       const rnokppHash = /^\d{10}$/.test(raw) ? blindIndex(raw) : null;
       qb.andWhere(
         new Brackets((w) => {
@@ -111,7 +130,7 @@ export class EmployeesService {
       rankCode: e.rankCode,
       vos: e.vos,
       tckName: e.tck?.name ?? '',
-      reservationUntil: e.reservationUntil,
+      reservationUntil: e.reserved ? e.reservationUntil : null,
       pendingChanges: pendingCounts.get(e.id) ?? 0,
       ...deriveEmployee(e, date, org.alertDays),
     }));
@@ -142,7 +161,7 @@ export class EmployeesService {
     return {
       ...employee,
       derived: deriveEmployee(employee, todayIso(), org.alertDays),
-      changes: changes.map((c) => this.changeView(c, org.notifyDeadlineDays)),
+      changes: changes.map((c) => this.changeView(c, org.notifyDeadlineDays, employee)),
     };
   }
 
@@ -156,6 +175,7 @@ export class EmployeesService {
     const { changeMeta, familyMembers, ...data } = dto;
     return this.dataSource.transaction(async (m) => {
       const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
+      applyReservation(employee);
       employee.familyMembers = (familyMembers ?? []).map((f) => m.getRepository(FamilyMember).create({ ...f, middleName: f.middleName ?? '', birthDate: f.birthDate || null }));
       const saved = await m.getRepository(Employee).save(employee);
 
@@ -175,29 +195,29 @@ export class EmployeesService {
       const beforeFamily = familyText(employee);
 
       Object.assign(employee, this.normalize(data));
+      applyReservation(employee);
       if (familyMembers) {
         await m.getRepository(FamilyMember).delete({ employeeId: id });
         employee.familyMembers = familyMembers.map((f) =>
           m.getRepository(FamilyMember).create({ ...f, employeeId: id, middleName: f.middleName ?? '', birthDate: f.birthDate || null }),
         );
       }
-      // інакше TypeORM візьме FK зі старого завантаженого relation, а не з tckId
+      // otherwise TypeORM takes the FK from the previously loaded relation instead of tckId
       if (data.tckId !== undefined) delete (employee as Partial<Employee>).tck;
       const saved = await m.getRepository(Employee).save(employee);
       const after = await this.findEntity(id, m);
 
-      // аудит усіх змінених полів
+      // audit every changed field
       const diff: Record<string, [unknown, unknown]> = {};
       for (const key of Object.keys(data) as (keyof Employee)[]) {
         if (before[key] !== saved[key]) diff[key] = [before[key], saved[key]];
       }
       if (familyMembers && beforeFamily !== familyText(after)) diff.familyMembers = [beforeFamily, familyText(after)];
 
-      // зміни, про які треба повідомити ТЦК
+      // changes the TCK must be notified about
       const effectiveDate = changeMeta?.effectiveDate ?? todayIso();
       for (const rule of CHANGE_RULES) {
-        const changed = rule.fields.some((f) => before[f] !== after[f]) ||
-          (rule.type === 'MARITAL_STATUS' && familyMembers !== undefined && beforeFamily !== familyText(after));
+        const changed = rule.fields.some((f) => before[f] !== after[f]);
         if (!changed) continue;
         const newValue = rule.describe(after);
         if (rule.requireValue && !newValue) continue;
@@ -243,7 +263,7 @@ export class EmployeesService {
 
   // ---------------------------------------------------------------- changes
 
-  /** Усі зміни, про які ще не повідомлено ТЦК. */
+  /** All changes the TCK has not been notified about yet. */
   async pendingChanges() {
     const org = await this.org.get();
     const changes = await this.changeRepo.find({
@@ -252,7 +272,7 @@ export class EmployeesService {
       order: { effectiveDate: 'ASC' },
     });
     return changes.map((c) => ({
-      ...this.changeView(c, org.notifyDeadlineDays),
+      ...this.changeView(c, org.notifyDeadlineDays, c.employee),
       employee: {
         id: c.employee.id,
         fullName: `${c.employee.lastName} ${c.employee.firstName} ${c.employee.middleName}`.trim(),
@@ -273,8 +293,8 @@ export class EmployeesService {
 
   // ---------------------------------------------------------------- helpers
 
-  private changeView(c: EmployeeChange, deadlineDays: number) {
-    const deadline = notificationDeadline(c.effectiveDate, deadlineDays);
+  private changeView(c: EmployeeChange, deadlineDays: number, e?: Employee | null) {
+    const deadline = notificationDeadline(c.type, c.effectiveDate, e, deadlineDays);
     return {
       id: c.id,
       type: c.type,
@@ -291,7 +311,7 @@ export class EmployeesService {
     };
   }
 
-  /** Якщо зміна того ж типу ще не повідомлена — оновлюємо її, а не дублюємо. */
+  /** If a change of the same type has not been notified yet — update it instead of duplicating. */
   private async addChange(
     m: EntityManager,
     e: Employee,
@@ -309,7 +329,7 @@ export class EmployeesService {
       pending.effectiveDate = effectiveDate;
       if (basis) pending.basis = basis;
       if (pending.oldValue === newValue) {
-        await repo.delete(pending.id); // повернули як було — повідомляти нічого
+        await repo.delete(pending.id); // reverted to the original value — nothing to notify
         return;
       }
       await repo.save(pending);
@@ -358,7 +378,7 @@ export class EmployeesService {
   }
 }
 
-/** «шевченко-ковальська» → «Шевченко-Ковальська» (як UPPER(MID(...,1,1)) у формулах). */
+/** «шевченко-ковальська» → «Шевченко-Ковальська» (like UPPER(MID(...,1,1)) in the formulas). */
 function capitalizeName(value: string) {
   return value
     .split(/([-\s’'])/)

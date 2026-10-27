@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
 
-/** Мінімальний набір іконок (stroke 1.75, 24×24) — без зовнішніх залежностей. */
+/** Minimal icon set (stroke 1.75, 24×24) — no external dependencies. */
 const PATHS = {
   dashboard: 'M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 4v4h6V4z',
   users:

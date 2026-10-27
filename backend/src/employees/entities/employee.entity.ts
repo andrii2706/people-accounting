@@ -18,8 +18,8 @@ import type { MaritalStatus } from '../../military/dictionaries.js';
 import { FamilyMember } from './family-member.entity.js';
 
 /**
- * Картка працівника. Відповідає одному аркушу 01–21 файлу Excel,
- * але зберігає поточний стан; історія змін — у employee_changes та audit_log.
+ * Employee card. Corresponds to one sheet 01–21 of the Excel file,
+ * but stores the current state; the history of changes lives in employee_changes and audit_log.
  */
 @Entity('employees')
 @Index(['lastName', 'firstName'])
@@ -27,7 +27,7 @@ export class Employee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // ---------- Особисті дані ----------
+  // ---------- Personal data ----------
   @Column({ type: 'varchar', length: 30, default: '' })
   personnelNumber: string;
 
@@ -43,11 +43,11 @@ export class Employee {
   @Column({ type: 'varchar', length: 100, default: '' })
   middleName: string;
 
-  /** РНОКПП (ІПН). Зберігається зашифрованим (AES-256-GCM). */
+  /** RNOKPP (taxpayer number). Stored encrypted (AES-256-GCM). */
   @Column({ type: 'text', default: '', transformer: encrypted })
   rnokpp: string;
 
-  /** HMAC від РНОКПП — для точного пошуку без розшифрування. */
+  /** HMAC of RNOKPP — for exact search without decryption. */
   @Index()
   @Column({ type: 'varchar', length: 64, nullable: true, select: false })
   rnokppHash: string | null;
@@ -61,15 +61,15 @@ export class Employee {
   @Column({ type: 'varchar', length: 200, default: '' })
   email: string;
 
-  /** Адреса задекларованого (зареєстрованого) місця проживання. */
+  /** Declared (registered) place of residence. */
   @Column({ type: 'varchar', length: 500, default: '' })
   registeredAddress: string;
 
-  /** Адреса фактичного місця проживання (якщо порожньо — як зареєстрована). */
+  /** Actual place of residence (same as registered when empty). */
   @Column({ type: 'varchar', length: 500, default: '' })
   actualAddress: string;
 
-  // ---------- Паспорти ----------
+  // ---------- Passports ----------
   /** ID_CARD | BOOK */
   @Column({ type: 'varchar', length: 10, default: 'ID_CARD' })
   passportType: 'ID_CARD' | 'BOOK';
@@ -101,35 +101,35 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   foreignPassportValidUntil: string | null;
 
-  // ---------- Освіта ----------
+  // ---------- Education ----------
   @Column({ type: 'varchar', length: 100, default: '' })
   educationLevel: string;
 
   @Column({ type: 'varchar', length: 300, default: '' })
   educationSpecialty: string;
 
-  /** Назва, серія, номер документа про освіту. */
+  /** Name, series and number of the education document. */
   @Column({ type: 'varchar', length: 300, default: '' })
   educationDocument: string;
 
   @Column({ type: 'date', nullable: true })
   educationDocumentDate: string | null;
 
-  // ---------- Сім'я ----------
+  // ---------- Family ----------
   @Column({ type: 'varchar', length: 20, nullable: true })
   maritalStatus: MaritalStatus | null;
 
   @OneToMany(() => FamilyMember, (m) => m.employee, { cascade: true })
   familyMembers: Relation<FamilyMember[]>;
 
-  // ---------- Робота ----------
+  // ---------- Employment ----------
   @Column({ type: 'varchar', length: 300, default: '' })
   position: string;
 
   @Column({ type: 'varchar', length: 200, default: '' })
   department: string;
 
-  /** Реквізити акта про призначення на поточну посаду (наказ № від). */
+  /** Details of the order appointing to the current position (order No., date). */
   @Column({ type: 'varchar', length: 300, default: '' })
   positionOrder: string;
 
@@ -155,31 +155,31 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   dismissalOrderDate: string | null;
 
-  // ---------- Військовий облік ----------
+  // ---------- Military registration ----------
   @Column({ type: 'boolean', default: true })
   militaryRegistered: boolean;
 
-  /** Реєстраційний номер облікового запису в ЄДР призовників, військовозобов’язаних та резервістів. */
+  /** Record number in the Unified State Register of conscripts, persons liable for military service and reservists. */
   @Column({ type: 'text', default: '', transformer: encrypted })
   registryNumber: string;
 
-  /** Код звання 0–22 (0 — призовник). */
+  /** Rank code 0–22 (0 — conscript). */
   @Column({ type: 'int', nullable: true })
   rankCode: number | null;
 
-  /** Корабельні звання. */
+  /** Navy ranks. */
   @Column({ type: 'boolean', default: false })
   navy: boolean;
 
-  /** ВОС (офіцери — 6 символів, інші — 3). */
+  /** Military occupational specialty (officers — 6 characters, others — 3). */
   @Column({ type: 'varchar', length: 20, default: '' })
   vos: string;
 
-  /** Профіль підготовки (для офіцерів). */
+  /** Training profile (for officers). */
   @Column({ type: 'varchar', length: 200, default: '' })
   trainingProfile: string;
 
-  /** Категорія обліку (1/2) або розряд для офіцерів. */
+  /** Reserve category (1/2) or grade for officers. */
   @Column({ type: 'varchar', length: 20, default: '' })
   accountingCategory: string;
 
@@ -198,7 +198,7 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   militaryDocIssuedAt: string | null;
 
-  /** Час та дата формування електронного ВОД (Резерв+). */
+  /** Time and date the electronic military registration document was generated (Reserve+). */
   @Column({ type: 'varchar', length: 30, default: '' })
   militaryDocGeneratedAt: string;
 
@@ -212,47 +212,54 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   tckRegisteredAt: string | null;
 
-  /** Придатність до військової служби. */
+  /** Fitness for military service. */
   @Column({ type: 'varchar', length: 300, default: '' })
   fitness: string;
 
-  /** Графа, пункт наказу (рішення ВЛК). */
+  /** Column and item of the order (military medical commission decision). */
   @Column({ type: 'varchar', length: 200, default: '' })
   fitnessBasis: string;
 
   @Column({ type: 'date', nullable: true })
   fitnessDate: string | null;
 
-  /** Бронювання: пункт, розділ та номер переліку. */
+  /**
+   * Reserved («заброньований») — chosen explicitly in the form. The reservation data below
+   * is kept and shown only when this is true.
+   */
+  @Column({ type: 'boolean', default: false })
+  reserved: boolean;
+
+  /** Reservation: item, section and number of the list. */
   @Column({ type: 'varchar', length: 500, default: '' })
   reservationBasis: string;
 
-  /** Номер посвідчення спецобліку. */
+  /** Special registration certificate number. */
   @Column({ type: 'varchar', length: 100, default: '' })
   specialAccountingCertificate: string;
 
   @Column({ type: 'date', nullable: true })
   reservationUntil: string | null;
 
-  /** Відстрочка від строкової служби (норма ЗУ «Про військовий обов’язок і військову службу»). */
+  /** Deferral from conscript service (provision of the Law «Про військовий обов’язок і військову службу»). */
   @Column({ type: 'varchar', length: 500, default: '' })
   deferralConscriptionBasis: string;
 
-  /** Відстрочка від мобілізації (норма ЗУ «Про мобілізаційну підготовку та мобілізацію»). */
+  /** Deferral from mobilization (provision of the Law «Про мобілізаційну підготовку та мобілізацію»). */
   @Column({ type: 'varchar', length: 500, default: '' })
   deferralMobilizationBasis: string;
 
   @Column({ type: 'date', nullable: true })
   deferralUntil: string | null;
 
-  /** Служба в резерві — номер команди. Наявність ⇒ резервіст. */
+  /** Service in the reserve — team number. Present ⇒ reservist. */
   @Column({ type: 'varchar', length: 100, default: '' })
   reserveTeamNumber: string;
 
   @Column({ type: 'date', nullable: true })
   mobilizationOrderDate: string | null;
 
-  /** Відомості про проходження військової служби. */
+  /** Information on military service. */
   @Column({ type: 'text', default: '' })
   militaryServiceInfo: string;
 

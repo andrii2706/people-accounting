@@ -15,17 +15,44 @@
     <option value="">Усі статуси</option>
     <option value="DRAFT" [selected]="status() === 'DRAFT'">Чернетки</option>
     <option value="SENT" [selected]="status() === 'SENT'">Надіслані</option>
-    <option value="FAILED" [selected]="status() === 'FAILED'">З помилкою</option>
   </select>
+  <div class="ml-auto flex items-center gap-2">
+    @if (selected().size) {
+      <span class="text-sm text-muted">Вибрано: {{ selected().size }}</span>
+    }
+    @if (selected().size) {
+      <a class="btn btn-secondary" [href]="lettersService.labelsUrl(selectedIds())" download
+        ><app-icon name="mail" /> Наклейки на конверти</a
+      >
+    } @else {
+      <button
+        type="button"
+        class="btn btn-secondary"
+        disabled
+        title="Позначте листи, для яких потрібні наклейки"
+      >
+        <app-icon name="mail" /> Наклейки на конверти
+      </button>
+    }
+  </div>
 </div>
 
 <div class="card overflow-x-auto">
   <table class="table-base">
     <thead>
       <tr>
+        <th class="w-10">
+          <input
+            type="checkbox"
+            class="size-4 accent-brand-600"
+            aria-label="Вибрати всі листи"
+            [checked]="allSelected()"
+            (change)="toggleAll($any($event.target).checked)"
+          />
+        </th>
         <th>Вих. №</th>
         <th>Дата</th>
-        <th>Тип</th>
+        <th class="hidden xl:table-cell">Тип</th>
         <th>Зміст</th>
         <th>Адресат</th>
         <th>Статус</th>
@@ -35,14 +62,23 @@
     <tbody>
       @for (l of letters(); track l.id) {
         <tr>
+          <td>
+            <input
+              type="checkbox"
+              class="size-4 accent-brand-600"
+              [attr.aria-label]="'Вибрати лист № ' + l.number"
+              [checked]="selected().has(l.id)"
+              (change)="toggle(l.id, $any($event.target).checked)"
+            />
+          </td>
           <td class="font-mono font-semibold whitespace-nowrap">
             <a [routerLink]="['/letters', l.id]" class="hover:text-brand-600">{{ l.number }}</a>
           </td>
           <td class="whitespace-nowrap tabular-nums">{{ l.date | uaDate }}</td>
-          <td class="text-sm whitespace-nowrap">{{ typeLabel(l.type) }}</td>
+          <td class="hidden text-sm whitespace-nowrap xl:table-cell">{{ typeLabel(l.type) }}</td>
           <td class="max-w-[360px] text-sm">{{ l.subject }}</td>
           <td class="max-w-[220px] text-sm text-muted">
-            {{ l.tck?.name || l.recipientEmail || '—' }}
+            {{ l.tck?.name || '—' }}
           </td>
           <td><app-letter-status [status]="l.status" /></td>
           <td class="text-right">
@@ -57,7 +93,7 @@
         </tr>
       } @empty {
         <tr>
-          <td colspan="7" class="py-12 text-center text-sm text-muted">Листів ще немає</td>
+          <td colspan="8" class="py-12 text-center text-sm text-muted">Листів ще немає</td>
         </tr>
       }
     </tbody>

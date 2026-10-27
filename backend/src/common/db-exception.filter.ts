@@ -3,8 +3,8 @@ import type { Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 
 /**
- * Помилки PostgreSQL, які є помилками даних, а не сервера, — у зрозумілі 400/409 замість 500.
- * Остання лінія захисту: зазвичай такі дані відсіює валідація DTO.
+ * PostgreSQL errors that are data errors, not server errors — mapped to clear 400/409 instead of 500.
+ * Last line of defence: such data is normally rejected by DTO validation.
  */
 @Catch(QueryFailedError)
 export class DbExceptionFilter implements ExceptionFilter {

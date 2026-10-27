@@ -40,6 +40,7 @@ const EMPTY_ORG: Organization = {
   shortName: '',
   edrpou: '',
   address: '',
+  postalCode: '',
   phone: '',
   email: '',
   headPosition: 'Директор',
@@ -70,11 +71,11 @@ export class OrganizationSettingsComponent {
 
   private readonly refresh = injectRouteRefresh();
 
-  /** Реквізити й відповідальні особи — з organizationSettingsResolver (паралельні запити). */
+  /** Company details and responsible persons — from organizationSettingsResolver (parallel requests). */
   readonly settings = input.required<OrganizationSettingsData>();
   protected readonly persons = computed(() => this.settings().responsiblePersons);
 
-  // ---------- реквізити підприємства
+  // ---------- company details
   protected readonly orgModel = linkedSignal<Organization>(() => ({
     ...EMPTY_ORG,
     ...this.settings().organization,
@@ -90,6 +91,11 @@ export class OrganizationSettingsComponent {
     len(p.shortName, 300);
     len(p.edrpou, 10);
     len(p.address, 500);
+    validate(p.postalCode, ({ value }) =>
+      value() && !/^\d{5}$/.test(value())
+        ? { kind: 'postalCode', message: 'Поштовий індекс — 5 цифр' }
+        : undefined,
+    );
     len(p.phone, 100);
     len(p.email, 200);
     len(p.headPosition, 200);
@@ -124,7 +130,7 @@ export class OrganizationSettingsComponent {
     });
   }
 
-  // ---------- відповідальні особи
+  // ---------- responsible persons
   protected readonly personModel = signal({
     fullName: '',
     position: '',
@@ -180,7 +186,7 @@ export class OrganizationSettingsComponent {
     }
   }
 
-  // ---------- довідник ТЦК
+  // ---------- TCK directory
   protected readonly tckFilter = signal('');
   protected readonly tcks = computed(() => {
     const q = this.tckFilter().toLowerCase();
@@ -188,13 +194,18 @@ export class OrganizationSettingsComponent {
   });
   protected readonly editingTck = signal<string | null>(null);
   protected readonly tckModel = signal<
-    Pick<Tck, 'name' | 'nameGenitive' | 'address' | 'phone' | 'email'>
-  >({ name: '', nameGenitive: '', address: '', phone: '', email: '' });
+    Pick<Tck, 'name' | 'nameGenitive' | 'address' | 'postalCode' | 'phone' | 'email'>
+  >({ name: '', nameGenitive: '', address: '', postalCode: '', phone: '', email: '' });
   protected readonly tckForm = form(this.tckModel, (p) => {
     required(p.name, { message: 'Вкажіть назву' });
     maxLength(p.name, 300, { message: MESSAGE.tooLong(300) });
     maxLength(p.nameGenitive, 300, { message: MESSAGE.tooLong(300) });
     maxLength(p.address, 300, { message: MESSAGE.tooLong(300) });
+    validate(p.postalCode, ({ value }) =>
+      value() && !/^\d{5}$/.test(value())
+        ? { kind: 'postalCode', message: 'Поштовий індекс — 5 цифр' }
+        : undefined,
+    );
     maxLength(p.phone, 200, { message: MESSAGE.tooLong(200) });
     maxLength(p.email, 200, { message: MESSAGE.tooLong(200) });
     validate(p.email, ({ value }) =>
@@ -212,10 +223,11 @@ export class OrganizationSettingsComponent {
             name: t.name,
             nameGenitive: t.nameGenitive,
             address: t.address,
+            postalCode: t.postalCode ?? '',
             phone: t.phone,
             email: t.email,
           }
-        : { name: '', nameGenitive: '', address: '', phone: '', email: '' },
+        : { name: '', nameGenitive: '', address: '', postalCode: '', phone: '', email: '' },
     );
     this.tckForm().reset();
   }

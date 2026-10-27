@@ -3,15 +3,15 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Tck } from '../dictionaries/tck.entity.js';
 import { EmployeesModule } from '../employees/employees.module.js';
 import { ReportsModule } from '../reports/reports.module.js';
-import { EmailLog } from './entities/email-log.entity.js';
+import { ChangeNotice } from './entities/change-notice.entity.js';
 import { LetterSignature } from './entities/letter-signature.entity.js';
 import { OutgoingLetter } from './entities/outgoing-letter.entity.js';
-import { LettersController } from './letters.controller.js';
+import { ChangeNoticesController, LettersController } from './letters.controller.js';
 import { LettersService } from './letters.service.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OutgoingLetter, EmailLog, LetterSignature, Tck]), EmployeesModule, ReportsModule],
-  controllers: [LettersController],
+  imports: [TypeOrmModule.forFeature([OutgoingLetter, LetterSignature, ChangeNotice, Tck]), EmployeesModule, ReportsModule],
+  controllers: [LettersController, ChangeNoticesController],
   providers: [LettersService],
   exports: [LettersService],
 })

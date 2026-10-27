@@ -6,27 +6,17 @@ import { buildLists, buildOperationalReport, type OperationalRowData } from '../
 import { deriveEmployee, toMilitaryRecord } from '../employees/employee-view.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
-import { type ListGroup, LIST_GROUPS, LIST_GROUP_TITLES } from '../military/dictionaries.js';
+import { type DutyCategory, type ListGroup, LIST_GROUPS } from '../military/dictionaries.js';
+import { personalListCells } from '../military/personal-list.js';
 import {
-  categoryAndDocText,
-  compositionColumnText,
-  educationText,
-  actualAddressText,
-  familyText,
-  fitnessText,
-  fullName,
-  passportsText,
-  positionText,
-  rankText,
-  registryText,
-  specialAccountingText,
-} from '../military/employee-format.js';
-import {
+  dutyCategory,
   hasMobilizationOrder,
   isEmployedAt,
   isOnListsAt,
+  isOnPersonalListsAt,
   isReservedAt,
   listGroup,
+  notificationDeadline,
   operationalRow,
 } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
@@ -43,6 +33,8 @@ const OPERATIONAL_TITLES: Record<string, string> = {
 
 export interface ListRowView {
   employeeId: string;
+  group: ListGroup;
+  category: DutyCategory | null;
   cells: string[];
 }
 
@@ -61,79 +53,69 @@ export class ReportsService {
     });
   }
 
-  /** Реквізити листів ТЦК про прийняття/звільнення (колонка 18). */
-  private async hireDismissalNotices(ids: string[]) {
+  /** Column 18: details of notices sent to the TCK about appointment / transfer / dismissal. */
+  private async positionNotices(ids: string[]) {
     if (!ids.length) return new Map<string, string>();
     const rows = await this.changes.find({
-      where: { employeeId: In(ids), type: In(['HIRE', 'DISMISSAL']) },
+      where: { employeeId: In(ids), type: In(['HIRE', 'POSITION', 'DISMISSAL']) },
       relations: { letter: true },
       order: { effectiveDate: 'ASC' },
     });
     const map = new Map<string, string[]>();
     for (const c of rows) {
       if (!c.letter) continue;
-      const text = `${c.type === 'HIRE' ? 'про прийняття' : 'про звільнення'}: вих. № ${c.letter.number} від ${formatUa(c.letter.date)} р.`;
+      const about = c.type === 'HIRE' ? 'про призначення' : c.type === 'POSITION' ? 'про переведення' : 'про звільнення';
+      const text = `${about}: вих. № ${c.letter.number} від ${formatUa(c.letter.date)} р.`;
       map.set(c.employeeId, [...(map.get(c.employeeId) ?? []), text]);
     }
     return new Map([...map].map(([k, v]) => [k, v.join('; ')]));
   }
 
-  /** Списки персонального військового обліку на дату, згруповані G1…G4R. */
+  /**
+   * Personal military registration lists (Annex 5) on a date — a separate list per group
+   * (sheets GN1…GN4R), records numbered within each group.
+   * `groups` / `onlyIds` narrow it down (extract for specific employees).
+   */
   async lists(date: IsoDate = todayIso(), groups: ListGroup[] = LIST_GROUPS, onlyIds?: string[]) {
-    const all = (await this.loadAll()).filter((e) => (!onlyIds?.length || onlyIds.includes(e.id)) && isOnListsAt(toMilitaryRecord(e), date));
-    const notices = await this.hireDismissalNotices(all.map((e) => e.id));
+    const all = (await this.loadAll()).filter(
+      (e) => (!onlyIds?.length || onlyIds.includes(e.id)) && isOnPersonalListsAt(toMilitaryRecord(e), date),
+    );
+    const notices = await this.positionNotices(all.map((e) => e.id));
 
-    const byGroup = new Map<ListGroup, ListRowView[]>();
+    const rows: ListRowView[] = [];
+    const counts: Record<DutyCategory, number> = { LIABLE: 0, RESERVIST: 0, CONSCRIPT: 0 };
     for (const e of all) {
-      const group = listGroup(toMilitaryRecord(e));
+      const record = toMilitaryRecord(e);
+      const group = listGroup(record);
       if (!group || !groups.includes(group)) continue;
-      const rows = byGroup.get(group) ?? [];
-      rows.push({
-        employeeId: e.id,
-        cells: [
-          String(rows.length + 1),
-          rankText(e),
-          fullName(e),
-          formatUa(e.birthDate, ''),
-          registryText(e),
-          e.vos,
-          compositionColumnText(e),
-          categoryAndDocText(e),
-          educationText(e),
-          passportsText(e),
-          e.registeredAddress,
-          actualAddressText(e),
-          e.tck?.name ?? '',
-          specialAccountingText(e),
-          fitnessText(e),
-          familyText(e),
-          positionText(e),
-          notices.get(e.id) ?? '',
-        ],
-      });
-      byGroup.set(group, rows);
+      const category = dutyCategory(record);
+      rows.push({ employeeId: e.id, group, category, cells: personalListCells(e, date, notices.get(e.id) ?? '') });
+      if (category) counts[category]++;
     }
-    return {
-      date,
-      groups: groups.map((group) => ({ group, title: LIST_GROUP_TITLES[group], rows: byGroup.get(group) ?? [] })),
-    };
+    // group order of the Excel file, alphabetical inside a group (loadAll is sorted by name)
+    rows.sort((a, b) => LIST_GROUPS.indexOf(a.group) - LIST_GROUPS.indexOf(b.group));
+    const numbers = new Map<ListGroup, number>();
+    for (const row of rows) {
+      const n = (numbers.get(row.group) ?? 0) + 1;
+      numbers.set(row.group, n);
+      row.cells[0] = String(n);
+    }
+    return { date, rows, counts };
   }
 
   async listsDocx(date: IsoDate, groups: ListGroup[], extractIds?: string[], letter?: { number: string; date: IsoDate } | null) {
     const data = await this.lists(date, groups, extractIds);
-    const [org, responsible] = await Promise.all([this.org.get(), this.org.responsibleAt(letter?.date ?? date)]);
-    const nonEmpty = data.groups.filter((g) => g.rows.length > 0);
+    const org = await this.org.get();
     return buildLists({
       date,
       extract: !!extractIds?.length,
-      groups: (nonEmpty.length ? nonEmpty : data.groups.slice(0, 1)).map((g) => ({ group: g.group, rows: g.rows.map((r) => r.cells) })),
+      groups: LIST_GROUPS.map((group) => ({ group, rows: data.rows.filter((r) => r.group === group).map((r) => r.cells) })),
       org,
-      responsible,
       letter,
     });
   }
 
-  /** Відомість оперативного обліку (Додаток 12) — формули OCL!D12:I16. */
+  /** Operational registration report (Annex 12) — formulas OCL!D12:I16. */
   async operational(date: IsoDate = todayIso()): Promise<{ date: IsoDate; rows: OperationalRowData[] }> {
     const all = await this.loadAll();
     const rows = new Map<string, OperationalRowData>(
@@ -176,12 +158,16 @@ export class ReportsService {
     return buildOperationalReport({ date, rows: data.rows, org, responsible, letter });
   }
 
-  /** Зведення для головної сторінки. */
+  /** Summary for the dashboard. */
   async dashboard(date: IsoDate = todayIso()) {
     const [all, org, pending] = await Promise.all([
       this.loadAll(),
       this.org.get(),
-      this.changes.find({ where: { letterId: IsNull(), skipped: false }, select: { id: true, effectiveDate: true } }),
+      this.changes.find({
+        where: { letterId: IsNull(), skipped: false },
+        relations: { employee: true },
+        select: { id: true, type: true, effectiveDate: true, employee: { id: true, hireOrderDate: true, dismissalOrderDate: true } },
+      }),
     ]);
     const derived = all.map((e) => ({ e, d: deriveEmployee(e, date, org.alertDays) }));
     const employed = derived.filter((x) => x.d.employed);
@@ -194,11 +180,6 @@ export class ReportsService {
       if (d.dutyCategory) byCategory[d.dutyCategory]++;
     }
 
-    const deadline = (eff: string) => {
-      const dt = new Date(`${eff}T00:00:00Z`);
-      dt.setUTCDate(dt.getUTCDate() + org.notifyDeadlineDays);
-      return dt.toISOString().slice(0, 10);
-    };
 
     const attention = derived
       .filter(({ d }) => d.employed && d.warnings.some((w) => w.level !== 'info'))
@@ -211,7 +192,7 @@ export class ReportsService {
       byGroup,
       byCategory,
       pendingChanges: pending.length,
-      overdueChanges: pending.filter((c) => deadline(c.effectiveDate) < date).length,
+      overdueChanges: pending.filter((c) => notificationDeadline(c.type, c.effectiveDate, c.employee, org.notifyDeadlineDays) < date).length,
       attention,
       organizationConfigured: !!(org.fullName && org.edrpou && org.headName),
     };

@@ -1,4 +1,4 @@
-/** VALID — криптографічно перевірено; DIGEST_MATCH — документ збігається (ДСТУ перевіряється на czo.gov.ua). */
+/** VALID — cryptographically verified; DIGEST_MATCH — the document matches (DSTU is verified at czo.gov.ua). */
 export type SignatureVerification = 'VALID' | 'DIGEST_MATCH' | 'UNVERIFIED';
 
 export type SignatureMethod = 'WIDGET' | 'UPLOAD';
@@ -34,7 +34,7 @@ export interface LetterSignature {
   createdAt: string;
 }
 
-/** Стан підписання листа: зафіксований документ і зібрані підписи. */
+/** E-signing state of a letter: frozen document and collected signatures. */
 export interface SigningState {
   frozen: boolean;
   documentSha256: string | null;

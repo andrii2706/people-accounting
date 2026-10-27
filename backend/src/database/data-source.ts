@@ -1,5 +1,5 @@
 /**
- * DataSource для TypeORM CLI (міграції).
+ * DataSource for the TypeORM CLI (migrations).
  *   npm run migration:generate -- src/database/migrations/Name
  *   npm run migration:run
  */
@@ -11,7 +11,7 @@ import { MIGRATIONS } from './migrations/index.js';
 export function buildDataSourceOptions(env: NodeJS.ProcessEnv = process.env): DataSourceOptions {
   return {
     type: 'postgres',
-    // Cloud SQL через сокет: postgres://user:pass@/military?host=/cloudsql/PROJECT:REGION:INSTANCE
+    // Cloud SQL via socket: postgres://user:pass@/military?host=/cloudsql/PROJECT:REGION:INSTANCE
     url: env.DATABASE_URL ?? 'postgres://postgres:postgres@localhost:5432/military',
     entities: ENTITIES,
     migrations: MIGRATIONS,

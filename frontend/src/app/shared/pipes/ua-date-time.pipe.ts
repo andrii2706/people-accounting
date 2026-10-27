@@ -9,7 +9,7 @@ const KYIV_DATETIME = new Intl.DateTimeFormat('uk-UA', {
   minute: '2-digit',
 });
 
-/** Мітка часу (ISO з сервера, UTC) → «26.10.2026, 13:15» за київським часом — однаково на SSR і в браузері. */
+/** Timestamp (ISO from the server, UTC) → «26.10.2026, 13:15» in Kyiv time — the same on SSR and in the browser. */
 @Pipe({ name: 'uaDateTime' })
 export class UaDateTimePipe implements PipeTransform {
   transform(value: string | null | undefined, empty = '—'): string {
