@@ -1,0 +1,413 @@
+<app-page-header
+  eyebrow="Працівники"
+  title="Імпорт з файлу"
+  subtitle="Завантажте звіт з 1С або таблицю Excel — перед збереженням ви побачите всіх працівників, помилки й дублікати."
+>
+  <a class="btn btn-secondary" [href]="templateUrl" download
+    ><app-icon name="download" /> Шаблон .xlsx</a
+  >
+  <a routerLink="/employees" class="btn btn-ghost">Скасувати</a>
+</app-page-header>
+
+@if (!preview()) {
+  <section class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <label
+      class="card flex min-h-64 cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed p-8 text-center transition-colors"
+      [class.border-brand-500]="dragOver()"
+      [class.bg-brand-50]="dragOver()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="dragOver.set(false)"
+      (drop)="onDrop($event)"
+    >
+      <app-icon name="upload" [size]="32" class="text-brand-600" />
+      @if (busy()) {
+        <span class="font-medium">Читаю файл і перевіряю рядки…</span>
+      } @else {
+        <span class="font-medium">Перетягніть файл сюди або натисніть, щоб вибрати</span>
+        <span class="text-sm text-muted">.xlsx або .csv, до 5 МБ, до 1000 рядків</span>
+      }
+      <input
+        type="file"
+        class="sr-only"
+        accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+        [disabled]="busy()"
+        (change)="onFile($event)"
+      />
+    </label>
+
+    <aside class="card space-y-3 p-5 text-sm">
+      <h2 class="font-semibold">Як підготувати файл</h2>
+      <ul class="list-disc space-y-2 pl-5 text-muted">
+        <li>
+          Найпростіше — заповнити
+          <a class="text-brand-600 underline" [href]="templateUrl" download>шаблон</a>: у ньому є
+          списки для статі, звань і ТЦК.
+        </li>
+        <li>
+          З 1С: сформуйте звіт зі списком співробітників і збережіть його як <b>.xlsx</b> або
+          <b>.csv</b>. Заголовок звіту над таблицею не заважає — рядок з назвами колонок знаходиться
+          автоматично.
+        </li>
+        <li>
+          Колонки розпізнаються за назвами: «ПІБ» або «Прізвище / Ім’я / По батькові», «Дата
+          народження», «РНОКПП» (ІПН), «Посада», «Дата прийому», «Звання», «ТЦК», «Паспорт»…
+        </li>
+        <li>
+          Працівники, які вже є в системі (за РНОКПП або ПІБ і датою народження), пропускаються.
+        </li>
+        <li>Файл не зберігається на сервері — лише читається для перевірки.</li>
+      </ul>
+    </aside>
+  </section>
+} @else {
+  <!-- summary and filters -->
+  <section class="card mb-4 flex flex-wrap items-center gap-3 p-4">
+    <div class="mr-auto min-w-0">
+      <p class="truncate font-medium">{{ preview()?.fileName }}</p>
+      <p class="text-sm text-muted">
+        Розпізнано колонок: {{ recognized().length }}
+        @if (ignored().length) {
+          · не розпізнано: {{ ignored().length }}
+        }
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2" role="tablist" aria-label="Фільтр рядків">
+      @for (
+        f of [
+          { value: 'all', label: 'Усі', count: counts().all },
+          { value: 'ready', label: 'Готові', count: counts().ready },
+          { value: 'error', label: 'З помилками', count: counts().error },
+          { value: 'duplicate', label: 'Вже в системі', count: counts().duplicate },
+        ];
+        track f.value
+      ) {
+        <button
+          type="button"
+          role="tab"
+          class="rounded-lg border px-3 py-1.5 text-sm"
+          [attr.aria-selected]="filter() === f.value"
+          [class]="
+            filter() === f.value
+              ? 'border-brand-600 bg-brand-600 text-white'
+              : 'border-line bg-surface hover:border-brand-500'
+          "
+          (click)="filter.set($any(f.value))"
+        >
+          {{ f.label }} <span class="ml-1 tabular-nums opacity-80">{{ f.count }}</span>
+        </button>
+      }
+    </div>
+    <button type="button" class="btn btn-ghost" (click)="reset()">Інший файл</button>
+  </section>
+
+  <details class="card mb-4 p-4 text-sm">
+    <summary class="cursor-pointer font-medium">Які колонки взято з файлу</summary>
+    <div class="mt-3 grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+      @for (m of recognized(); track m.header) {
+        <p>
+          <span class="text-muted">{{ m.header }}</span> → {{ m.label }}
+        </p>
+      }
+    </div>
+    @if (ignored().length) {
+      <p class="mt-3 text-muted">
+        Не розпізнано (не імпортуються):
+        @for (m of ignored(); track m.header; let last = $last) {
+          «{{ m.header }}»{{ last ? '' : ', ' }}
+        }
+      </p>
+    }
+  </details>
+
+  <!-- rows -->
+  <section class="card mb-24 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="table-base text-sm">
+        <thead>
+          <tr>
+            <th class="w-10">
+              <input
+                type="checkbox"
+                class="size-4 accent-brand-600"
+                aria-label="Вибрати всі готові"
+                [checked]="selectedCount() > 0 && selectedCount() === counts().ready"
+                (change)="toggleAll($any($event.target).checked)"
+              />
+            </th>
+            <th class="w-16">Рядок</th>
+            <th>Статус</th>
+            <th>ПІБ</th>
+            <th class="hidden xl:table-cell">Дата народж.</th>
+            <th class="hidden lg:table-cell">РНОКПП</th>
+            <th>Посада</th>
+            <th class="hidden lg:table-cell">Звання</th>
+            <th class="hidden xl:table-cell">ТЦК</th>
+            <th class="w-10"><span class="sr-only">Редагувати</span></th>
+          </tr>
+        </thead>
+        @for (row of visibleRows(); track row.rowNumber) {
+          <tbody class="border-t border-line">
+            <tr class="align-top" [class.bg-brand-50]="expanded() === row.rowNumber">
+              <td>
+                <input
+                  type="checkbox"
+                  class="size-4 accent-brand-600"
+                  [attr.aria-label]="'Імпортувати рядок ' + row.rowNumber"
+                  [disabled]="status(row) !== 'ready'"
+                  [checked]="status(row) === 'ready' && selected().has(row.rowNumber)"
+                  (change)="toggle(row, $any($event.target).checked)"
+                />
+              </td>
+              <td class="tabular-nums text-muted">{{ row.rowNumber }}</td>
+              <td>
+                @switch (status(row)) {
+                  @case ('ready') {
+                    <span class="rounded-md bg-[#e3f1e5] px-2 py-0.5 text-xs font-medium text-ok"
+                      >готовий</span
+                    >
+                  }
+                  @case ('error') {
+                    <span
+                      class="rounded-md bg-[#fbeceb] px-2 py-0.5 text-xs font-medium text-danger"
+                      >помилок: {{ row.errors.length }}</span
+                    >
+                  }
+                  @case ('duplicate') {
+                    <span class="rounded-md bg-sunken px-2 py-0.5 text-xs font-medium text-muted"
+                      >вже в системі</span
+                    >
+                  }
+                }
+              </td>
+              <td>
+                <span class="font-medium">{{ row.fullName || '—' }}</span>
+                @if (row.duplicate) {
+                  <a
+                    class="block text-xs text-brand-600 hover:underline"
+                    [routerLink]="['/employees', row.duplicate.id]"
+                    target="_blank"
+                    >{{
+                      row.duplicate.by === 'rnokpp'
+                        ? 'той самий РНОКПП'
+                        : 'той самий ПІБ і дата народження'
+                    }}: {{ row.duplicate.fullName }}</a
+                  >
+                }
+                @if (row.errors.length && expanded() !== row.rowNumber) {
+                  <span class="block text-xs text-danger">{{ row.errors[0].message }}</span>
+                }
+              </td>
+              <td class="hidden tabular-nums xl:table-cell">
+                {{ text(row, 'birthDate') ? (text(row, 'birthDate') | uaDate) : '—' }}
+              </td>
+              <td class="hidden tabular-nums lg:table-cell">{{ text(row, 'rnokpp') || '—' }}</td>
+              <td>{{ text(row, 'position') || '—' }}</td>
+              <td class="hidden lg:table-cell">
+                {{ rankLabel(row.values['rankCode'], row.values['navy']) || '—' }}
+              </td>
+              <td class="hidden max-w-56 xl:table-cell">
+                {{ tckLabel(row.values['tckId']) || '—' }}
+              </td>
+              <td>
+                <button
+                  type="button"
+                  class="btn btn-ghost px-2"
+                  [attr.aria-expanded]="expanded() === row.rowNumber"
+                  [attr.aria-label]="'Редагувати рядок ' + row.rowNumber"
+                  (click)="toggleExpanded(row)"
+                >
+                  <app-icon name="edit" [size]="16" />
+                </button>
+              </td>
+            </tr>
+            @if (expanded() === row.rowNumber) {
+              <tr class="bg-brand-50/60">
+                <td colspan="10" class="p-4">
+                  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    @for (f of fieldsOf(row); track f.key) {
+                      <label class="block">
+                        <span class="label">{{ f.label }}</span>
+                        @switch (f.kind) {
+                          @case ('date') {
+                            <input
+                              class="input"
+                              type="date"
+                              [value]="text(row, f.key)"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            />
+                          }
+                          @case ('gender') {
+                            <select
+                              class="input"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            >
+                              <option value="">—</option>
+                              <option value="M" [selected]="text(row, f.key) === 'M'">
+                                чоловіча
+                              </option>
+                              <option value="F" [selected]="text(row, f.key) === 'F'">
+                                жіноча
+                              </option>
+                            </select>
+                          }
+                          @case ('passportType') {
+                            <select
+                              class="input"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            >
+                              <option value="">—</option>
+                              <option value="ID_CARD" [selected]="text(row, f.key) === 'ID_CARD'">
+                                ID-картка
+                              </option>
+                              <option value="BOOK" [selected]="text(row, f.key) === 'BOOK'">
+                                книжечка
+                              </option>
+                            </select>
+                          }
+                          @case ('rank') {
+                            <select
+                              class="input"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            >
+                              <option value="">не на військовому обліку / немає</option>
+                              @for (r of dictionaries.ranks(); track r.code) {
+                                <option
+                                  [value]="'' + r.code"
+                                  [selected]="text(row, f.key) === '' + r.code"
+                                >
+                                  {{ row.values['navy'] ? r.navy : r.army }}
+                                </option>
+                              }
+                            </select>
+                          }
+                          @case ('tck') {
+                            <select
+                              class="input"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            >
+                              <option value="">—</option>
+                              @for (t of dictionaries.activeTcks(); track t.id) {
+                                <option [value]="t.id" [selected]="text(row, f.key) === t.id">
+                                  {{ t.name }}
+                                </option>
+                              }
+                            </select>
+                          }
+                          @case ('docType') {
+                            <select
+                              class="input"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            >
+                              <option value="">—</option>
+                              @for (
+                                d of dictionaries.dictionaries()?.militaryDocumentTypes ?? [];
+                                track d
+                              ) {
+                                <option [value]="d" [selected]="text(row, f.key) === d">
+                                  {{ d }}
+                                </option>
+                              }
+                            </select>
+                          }
+                          @case ('bool') {
+                            <select
+                              class="input"
+                              [value]="
+                                row.values[f.key] === true
+                                  ? 'true'
+                                  : row.values[f.key] === false
+                                    ? 'false'
+                                    : ''
+                              "
+                              (change)="
+                                setValue(
+                                  row,
+                                  f.key,
+                                  $any($event.target).value === ''
+                                    ? ''
+                                    : $any($event.target).value === 'true'
+                                )
+                              "
+                            >
+                              <option value="">—</option>
+                              <option value="true" [selected]="row.values[f.key] === true">
+                                так
+                              </option>
+                              <option value="false" [selected]="row.values[f.key] === false">
+                                ні
+                              </option>
+                            </select>
+                          }
+                          @default {
+                            <input
+                              class="input"
+                              [value]="text(row, f.key)"
+                              (change)="setValue(row, f.key, $any($event.target).value)"
+                            />
+                          }
+                        }
+                        @for (message of errorsOf(row, f.key); track message) {
+                          <span class="mt-1 block text-xs text-danger" role="alert">{{
+                            message
+                          }}</span>
+                        }
+                      </label>
+                    }
+                  </div>
+                  <p class="mt-3 text-xs text-muted">
+                    Решту даних (сім’я, освіта, закордонний паспорт…) можна доповнити в картці
+                    працівника після імпорту.
+                  </p>
+                </td>
+              </tr>
+            }
+          </tbody>
+        } @empty {
+          <tbody>
+            <tr>
+              <td colspan="10" class="py-10 text-center text-muted">
+                У цьому фільтрі рядків немає
+              </td>
+            </tr>
+          </tbody>
+        }
+      </table>
+    </div>
+  </section>
+
+  <!-- action bar -->
+  <div
+    class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur lg:pl-[88px] xl:pl-[272px]"
+  >
+    <div class="flex flex-wrap items-center gap-3">
+      <label class="mr-auto flex items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="mt-0.5 size-4 accent-brand-600"
+          [checked]="hireNotices()"
+          (change)="hireNotices.set($any($event.target).checked)"
+        />
+        <span>
+          Створити повідомлення ТЦК про прийняття на роботу
+          <span class="block text-xs text-muted"
+            >Лише для щойно прийнятих — для давніх працівників повідомлення вже надсилались</span
+          >
+        </span>
+      </label>
+      @if (dirty()) {
+        <span class="text-sm text-warning">Є зміни — перевірте ще раз</span>
+        <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="recheck()">
+          <app-icon name="check" /> Перевірити ще раз
+        </button>
+      }
+      <button
+        type="button"
+        class="btn btn-primary"
+        [disabled]="busy() || dirty() || selectedCount() === 0"
+        (click)="commit()"
+      >
+        <app-icon name="upload" /> Імпортувати {{ selectedCount() }}
+      </button>
+    </div>
+  </div>
+}

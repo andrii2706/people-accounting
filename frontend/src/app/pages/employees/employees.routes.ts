@@ -20,6 +20,12 @@ export const EMPLOYEES_ROUTES: Routes = [
       import('./employee-form/employee-form.component').then((m) => m.EmployeeFormComponent),
   },
   {
+    path: 'import',
+    title: 'Імпорт працівників · Військовий облік',
+    loadComponent: () =>
+      import('./employee-import/employee-import.component').then((m) => m.EmployeeImportComponent),
+  },
+  {
     path: ':id',
     title: 'Картка працівника · Військовий облік',
     // the card and the notice history are independent requests — resolved in parallel

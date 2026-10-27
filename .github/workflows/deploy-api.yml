@@ -27,8 +27,6 @@ env:
   # Shared by the service and the migration job
   SECRETS: >-
     DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,DATA_ENCRYPTION_KEY=DATA_ENCRYPTION_KEY:latest,BLIND_INDEX_KEY=BLIND_INDEX_KEY:latest
-  ENV_VARS: >-
-    NODE_ENV=production,COOKIE_SECURE=true,STORAGE_DRIVER=gcs,STORAGE_BUCKET=${{ vars.GCP_BUCKET }},SWAGGER=false,DB_MIGRATIONS_RUN=false
 
 jobs:
   deploy:
@@ -72,6 +70,28 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      # Environment variables go through a YAML/JSON file: values may contain ",", "@", "=" (e.g. an email)
+      - name: Змінні середовища для API
+        env:
+          GCP_BUCKET: ${{ vars.GCP_BUCKET }}
+          APP_ORIGIN: ${{ vars.APP_ORIGIN }}
+          ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
+          SIGN_WIDGET_SCRIPT_URL: ${{ vars.SIGN_WIDGET_SCRIPT_URL }}
+          SIGN_WIDGET_FRAME_URL: ${{ vars.SIGN_WIDGET_FRAME_URL }}
+        run: |
+          # shared by the migration job and the service
+          jq -n --arg bucket "$GCP_BUCKET" '{
+            NODE_ENV: "production", COOKIE_SECURE: "true", STORAGE_DRIVER: "gcs", STORAGE_BUCKET: $bucket,
+            SWAGGER: "false", DB_MIGRATIONS_RUN: "false"
+          }' > "$RUNNER_TEMP/env-common.json"
+          # the service additionally needs the frontend origin, the first admin and the signing widget
+          jq --arg origin "$APP_ORIGIN" --arg admin "$ADMIN_EMAIL" \
+             --arg script "$SIGN_WIDGET_SCRIPT_URL" --arg frame "$SIGN_WIDGET_FRAME_URL" \
+             '. + { APP_ORIGIN: $origin, TRUST_PROXY_HOPS: "2", ADMIN_EMAIL: $admin,
+                    SIGN_WIDGET_SCRIPT_URL: $script, SIGN_WIDGET_FRAME_URL: $frame }' \
+             "$RUNNER_TEMP/env-common.json" > "$RUNNER_TEMP/env-service.json"
+          jq 'keys' "$RUNNER_TEMP/env-service.json"
+
       - name: Збірка і публікація образу
         run: |
           gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
@@ -85,16 +105,12 @@ jobs:
             --service-account "${{ vars.GCP_API_SA }}" \
             --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
             --set-secrets "$SECRETS" \
-            --set-env-vars "$ENV_VARS" \
+            --env-vars-file "$RUNNER_TEMP/env-common.json" \
             --command node --args dist/database/migrate.js \
             --max-retries 0 --task-timeout 10m --quiet
           gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --wait
 
       - name: Деплой сервісу (без публічного доступу)
-        env:
-          # "@" as the delimiter instead of a comma — in case values contain commas
-          RUNTIME_ENV: >-
-            APP_ORIGIN=${{ vars.APP_ORIGIN }}@TRUST_PROXY_HOPS=2@ADMIN_EMAIL=${{ vars.ADMIN_EMAIL }}@SIGN_WIDGET_SCRIPT_URL=${{ vars.SIGN_WIDGET_SCRIPT_URL }}@SIGN_WIDGET_FRAME_URL=${{ vars.SIGN_WIDGET_FRAME_URL }}
         run: |
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" --region "$REGION" \
@@ -102,7 +118,7 @@ jobs:
             --no-allow-unauthenticated \
             --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
             --set-secrets "$SECRETS,ADMIN_PASSWORD=ADMIN_PASSWORD:latest" \
-            --set-env-vars "^@^${ENV_VARS//,/@}@${RUNTIME_ENV}" \
+            --env-vars-file "$RUNNER_TEMP/env-service.json" \
             --cpu 1 --memory 512Mi --concurrency 40 \
             --min-instances 0 --max-instances 4 --timeout 60 \
             --execution-environment gen2 --cpu-boost --quiet

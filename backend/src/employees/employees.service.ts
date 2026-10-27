@@ -172,19 +172,36 @@ export class EmployeesService {
   // ---------------------------------------------------------------- write
 
   async create(dto: CreateEmployeeDto, user: AuthUser) {
-    const { changeMeta, familyMembers, ...data } = dto;
-    return this.dataSource.transaction(async (m) => {
-      const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
-      applyReservation(employee);
-      employee.familyMembers = (familyMembers ?? []).map((f) => m.getRepository(FamilyMember).create({ ...f, middleName: f.middleName ?? '', birthDate: f.birthDate || null }));
-      const saved = await m.getRepository(Employee).save(employee);
+    const id = await this.dataSource.transaction((m) => this.createIn(m, dto, user));
+    return this.get(id);
+  }
 
-      if (saved.hireDate) {
-        await this.addChange(m, saved, 'HIRE', '', saved.position, saved.hireDate, changeMeta?.basis || this.hireBasis(saved), user);
-      }
-      await this.log(m, saved.id, 'CREATE', { fullName: [null, `${saved.lastName} ${saved.firstName}`] }, user);
-      return saved.id;
-    }).then((id) => this.get(id));
+  /**
+   * Bulk creation (import from a file) — all or nothing, in one transaction.
+   * `hireNotices: false` — do not queue "прийняття на роботу" notices (people hired long ago).
+   */
+  async createMany(dtos: CreateEmployeeDto[], user: AuthUser, opts: { hireNotices: boolean; source: string }) {
+    return this.dataSource.transaction(async (m) => {
+      const ids: string[] = [];
+      for (const dto of dtos) ids.push(await this.createIn(m, dto, user, opts));
+      return ids;
+    });
+  }
+
+  private async createIn(m: EntityManager, dto: CreateEmployeeDto, user: AuthUser, opts: { hireNotices?: boolean; source?: string } = {}) {
+    const { changeMeta, familyMembers, ...data } = dto;
+    const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
+    applyReservation(employee);
+    employee.familyMembers = (familyMembers ?? []).map((f) => m.getRepository(FamilyMember).create({ ...f, middleName: f.middleName ?? '', birthDate: f.birthDate || null }));
+    const saved = await m.getRepository(Employee).save(employee);
+
+    if (saved.hireDate && opts.hireNotices !== false) {
+      await this.addChange(m, saved, 'HIRE', '', saved.position, saved.hireDate, changeMeta?.basis || this.hireBasis(saved), user);
+    }
+    const diff: Record<string, [unknown, unknown]> = { fullName: [null, `${saved.lastName} ${saved.firstName}`] };
+    if (opts.source) diff.source = [null, opts.source];
+    await this.log(m, saved.id, 'CREATE', diff, user);
+    return saved.id;
   }
 
   async update(id: string, dto: UpdateEmployeeDto, user: AuthUser) {
