@@ -12,7 +12,7 @@ runConfig:
 env:
   # Private Cloud Run with the NestJS API (gcloud run services describe military-registry-api --format='value(status.url)')
   - variable: API_INTERNAL_URL
-    value: https://military-registry-api-REPLACE.europe-west4.run.app
+    value: https://military-registry-api-219926218904.us-east4.run.app
     availability: [RUNTIME]
 
   # API calls carry the ID token of the App Hosting service account (the API has no public access)
@@ -34,7 +34,7 @@ env:
 
   # Number of Google proxies in front of the container — for the correct client IP (see docs/SECURITY.md)
   - variable: TRUST_PROXY_HOPS
-    value: "2"
+    value: '2'
     availability: [RUNTIME]
 
   # The IIT signing widget may be embedded in a frame
