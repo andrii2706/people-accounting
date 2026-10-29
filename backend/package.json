@@ -1,6 +1,6 @@
 {
   "name": "military-registry-backend",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "API військового обліку на підприємстві (NestJS + TypeORM + PostgreSQL)",
   "author": "",
   "private": true,
