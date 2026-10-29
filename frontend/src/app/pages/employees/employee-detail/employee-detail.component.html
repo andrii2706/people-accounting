@@ -43,46 +43,11 @@
           ><app-icon name="download" /> Витяг зі списків</a
         >
       }
-      @if (!e.dismissalDate) {
-        <button type="button" class="btn btn-secondary" (click)="showDismiss.set(!showDismiss())">
-          Звільнити
-        </button>
-      }
       <a [routerLink]="['/employees', e.id, 'edit']" class="btn btn-primary"
         ><app-icon name="edit" /> Редагувати</a
       >
     </div>
   </header>
-
-  @if (showDismiss()) {
-    <form
-      class="card mb-6 grid gap-4 p-5 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end"
-      (submit)="dismiss($event)"
-      novalidate
-    >
-      <app-form-field label="Дата звільнення" [required]="true" [field]="dismissForm.dismissalDate">
-        <input class="input" type="date" [formField]="dismissForm.dismissalDate" />
-      </app-form-field>
-      <app-form-field label="Наказ №">
-        <input class="input" [formField]="dismissForm.dismissalOrderNumber" />
-      </app-form-field>
-      <app-form-field label="Дата наказу">
-        <input class="input" type="date" [formField]="dismissForm.dismissalOrderDate" />
-      </app-form-field>
-      <div class="flex gap-2">
-        <button type="button" class="btn btn-ghost" (click)="showDismiss.set(false)">
-          Скасувати
-        </button>
-        <button type="submit" class="btn btn-primary" [disabled]="dismissForm().submitting()">
-          Підтвердити
-        </button>
-      </div>
-      <p class="text-xs text-muted sm:col-span-4">
-        Працівник залишиться у списках до кінця року звільнення (як у файлі обліку), а для ТЦК буде
-        підготовлено повідомлення.
-      </p>
-    </form>
-  }
 
   @if (pendingChanges().length) {
     <section class="mb-6 rounded-xl border border-warning/40 bg-[#fdf9f2] p-5">
@@ -136,20 +101,20 @@
   }
 
   <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-    @for (s of sections(); track s.title) {
-      <section class="card p-5">
+    @for (s of sections(); track s.title; let first = $first) {
+      <section [class]="first ? 'card p-5 md:row-span-2' : 'card p-5'">
         <h2 class="mb-3 font-semibold">{{ s.title }}</h2>
         <dl class="space-y-2.5 text-sm">
           @for (row of s.rows; track row.label) {
-            @if (row.value) {
-              <div>
-                <dt class="text-xs text-muted">{{ row.label }}</dt>
-                <dd>{{ row.value }}</dd>
-              </div>
-            }
+            <div>
+              <dt class="text-xs text-muted">{{ row.label }}</dt>
+              <dd class="break-words whitespace-pre-line" [class.text-muted]="!row.value">
+                {{ row.value || '—' }}
+              </dd>
+            </div>
           }
         </dl>
-        @if (s.title === 'Робота і сім’я' && e.familyMembers.length) {
+        @if (s.title === 'Особиста інформація' && e.familyMembers.length) {
           <h3 class="mt-4 mb-2 text-xs font-semibold tracking-wide text-muted uppercase">
             Члени сім’ї
           </h3>
@@ -261,7 +226,8 @@
 
   <section class="mt-6">
     <button type="button" class="btn btn-ghost px-0" (click)="showAudit.set(!showAudit())">
-      <app-icon name="clock" /> {{ showAudit() ? 'Сховати журнал дій' : 'Журнал дій з карткою' }}
+      <app-icon name="clock" />
+      {{ showAudit() ? 'Сховати історію змін' : 'Історія змін картки (хто, коли, що змінив)' }}
     </button>
     @if (showAudit()) {
       <div class="card mt-2 divide-y divide-line">
@@ -269,16 +235,27 @@
           <div class="px-5 py-3 text-sm">
             <p>
               <span class="font-medium">{{ a.userName || 'система' }}</span>
-              <span class="text-muted">· {{ a.action }} · {{ a.createdAt | uaDateTime }}</span>
+              <span class="ml-1 text-muted"
+                >· {{ a.actionLabel }} · {{ a.createdAt | uaDateTime }}</span
+              >
             </p>
-            <ul class="mt-1 text-xs text-muted">
-              @for (d of diffEntries(a.diff); track d.field) {
-                <li>
-                  <span class="font-mono">{{ d.field }}</span
-                  >: {{ d.from }} → {{ d.to }}
-                </li>
-              }
-            </ul>
+            @if (a.changes.length) {
+              <ul class="mt-1.5 space-y-0.5 text-xs">
+                @for (d of a.changes; track d.field) {
+                  <li>
+                    <span class="mr-1 text-muted">{{ d.label }}:</span>
+                    @if (a.action === 'CREATE') {
+                      {{ d.to }}
+                    } @else {
+                      <span class="mr-1 text-muted line-through decoration-muted/50">{{
+                        d.from
+                      }}</span>
+                      → <span class="font-medium">{{ d.to }}</span>
+                    }
+                  </li>
+                }
+              </ul>
+            }
           </div>
         } @empty {
           <p class="px-5 py-4 text-sm text-muted">

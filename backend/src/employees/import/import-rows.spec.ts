@@ -52,7 +52,7 @@ describe('employee import — reading values', () => {
   it('validates with the rules of the employee form', async () => {
     const errors = await validateValues({ lastName: 'Тест', firstName: 'Олена', gender: 'F', rnokpp: '123', rankCode: 2, reserved: true });
     const fields = errors.map((e) => e.field).sort();
-    expect(fields).toEqual(['reservationBasis', 'reservationUntil', 'rnokpp', 'tckId']);
+    expect(fields).toEqual(['reservationUntil', 'rnokpp', 'tckId']);
     expect(await validateValues({ lastName: 'Тест', firstName: 'Олена', gender: 'F' })).toEqual([]);
   });
 

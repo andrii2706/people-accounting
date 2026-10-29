@@ -12,6 +12,12 @@
   >
 </app-page-header>
 
+<datalist id="orderDocNames">
+  @for (d of orderDocNames; track d) {
+    <option [value]="d"></option>
+  }
+</datalist>
+
 <form class="grid gap-6 xl:grid-cols-[1fr_320px]" (submit)="save($event)" novalidate>
   <div class="card min-w-0">
     <!-- tabs -->
@@ -39,6 +45,7 @@
 
     <div class="p-5 sm:p-6">
       @switch (tab()) {
+        <!-- ============================================================ personal -->
         @case ('personal') {
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <app-form-field label="Прізвище" [required]="true" [field]="f.lastName">
@@ -51,13 +58,15 @@
               <input class="input" [formField]="f.middleName" autocomplete="off" />
             </app-form-field>
             <app-form-field label="Стать">
-              <select class="input" [formField]="f.gender">
-                <option value="M">чоловіча</option>
-                <option value="F">жіноча</option>
-              </select>
+              <app-select
+                [formField]="$any(f.gender)"
+                [options]="genderOptions"
+                [clearable]="false"
+                ariaLabel="Стать"
+              />
             </app-form-field>
             <app-form-field label="Дата народження" [field]="f.birthDate">
-              <input class="input" type="date" [formField]="f.birthDate" />
+              <app-date-input [formField]="f.birthDate" ariaLabel="Дата народження" />
             </app-form-field>
             <app-form-field
               label="РНОКПП (ІПН)"
@@ -94,288 +103,17 @@
           </div>
         }
 
-        @case ('work') {
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <app-form-field class="sm:col-span-2" label="Посада" [field]="f.position">
-              <input class="input" [formField]="f.position" />
-            </app-form-field>
-            <app-form-field label="Підрозділ" [field]="f.department">
-              <input class="input" [formField]="f.department" />
-            </app-form-field>
-            <app-form-field label="Дата прийняття на роботу" [field]="f.hireDate">
-              <input class="input" type="date" [formField]="f.hireDate" />
-            </app-form-field>
-            <app-form-field label="Наказ про прийняття №" [field]="f.hireOrderNumber">
-              <input class="input" [formField]="f.hireOrderNumber" />
-            </app-form-field>
-            <app-form-field label="Дата наказу" [field]="f.hireOrderDate">
-              <input class="input" type="date" [formField]="f.hireOrderDate" />
-            </app-form-field>
-            <app-form-field
-              label="Посада з дати"
-              hint="Якщо переведено на іншу посаду"
-              [field]="f.positionSince"
-            >
-              <input class="input" type="date" [formField]="f.positionSince" />
-            </app-form-field>
-            <app-form-field
-              class="sm:col-span-2"
-              label="Реквізити акта про призначення на посаду"
-              hint="напр. наказ № 15-к від 01.03.2026"
-              [field]="f.positionOrder"
-            >
-              <input class="input" [formField]="f.positionOrder" />
-            </app-form-field>
-          </div>
-          @if (isEdit() && employee()?.dismissalDate) {
-            <p class="mt-6 rounded-lg bg-sunken px-4 py-3 text-sm text-muted">
-              Працівника звільнено. Реквізити звільнення змінюються з картки працівника.
-            </p>
-          }
-        }
-
-        @case ('military') {
-          <div class="mb-5 flex flex-wrap items-center gap-6 rounded-lg bg-sunken/60 px-4 py-3">
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                class="size-4 accent-brand-600"
-                [formField]="f.militaryRegistered"
-              />
-              Перебуває на військовому обліку
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.navy" />
-              Корабельні звання (ВМС)
-            </label>
-          </div>
-
-          <h3 class="mb-3 text-sm font-semibold">Облікові дані</h3>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <app-form-field label="Військове звання" [hint]="rank()?.compositionLabel ?? ''">
-              <select class="input" [formField]="f.rankCode">
-                <option value="">— не вказано —</option>
-                @for (r of dict.ranks(); track r.code) {
-                  <option [value]="'' + r.code">
-                    {{ r.code === 0 ? 'призовник (без звання)' : model().navy ? r.navy : r.army }}
-                  </option>
-                }
-              </select>
-            </app-form-field>
-            <app-form-field
-              label="ВОС"
-              [hint]="isOfficer() ? '6 символів для офіцерів' : '3 символи'"
-              [field]="f.vos"
-            >
-              <input class="input font-mono" [formField]="f.vos" />
-            </app-form-field>
-            <app-form-field
-              [label]="isOfficer() ? 'Розряд' : 'Категорія обліку'"
-              hint="1 або 2"
-              [field]="f.accountingCategory"
-            >
-              <input class="input" [formField]="f.accountingCategory" />
-            </app-form-field>
-            @if (isOfficer()) {
-              <app-form-field label="Профіль підготовки" [field]="f.trainingProfile">
-                <input class="input" [formField]="f.trainingProfile" />
-              </app-form-field>
-            }
-            <app-form-field
-              class="sm:col-span-2"
-              label="Реєстраційний номер облікового запису в ЄДР призовників"
-              [field]="f.registryNumber"
-            >
-              <input class="input font-mono" [formField]="f.registryNumber" />
-            </app-form-field>
-            <app-form-field
-              class="sm:col-span-2"
-              label="ТЦК та СП, де перебуває на обліку"
-              [field]="f.tckId"
-              [required]="model().militaryRegistered && model().rankCode !== ''"
-            >
-              <select class="input" [formField]="f.tckId">
-                <option value="">— оберіть —</option>
-                @for (t of dict.activeTcks(); track t.id) {
-                  <option [value]="t.id">{{ t.name }}</option>
-                }
-              </select>
-            </app-form-field>
-            <app-form-field label="На обліку з" [field]="f.tckRegisteredAt">
-              <input class="input" type="date" [formField]="f.tckRegisteredAt" />
-            </app-form-field>
-          </div>
-
-          <h3 class="mt-7 mb-3 text-sm font-semibold">Військово-обліковий документ</h3>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <app-form-field
-              class="sm:col-span-2 lg:col-span-3"
-              label="Тип документа"
-              [field]="f.militaryDocType"
-            >
-              <input class="input" list="milDocTypes" [formField]="f.militaryDocType" />
-              <datalist id="milDocTypes">
-                @for (d of dict.dictionaries()?.militaryDocumentTypes ?? []; track d) {
-                  <option [value]="d"></option>
-                }
-              </datalist>
-            </app-form-field>
-            <app-form-field label="Серія" [field]="f.militaryDocSeries">
-              <input class="input font-mono uppercase" [formField]="f.militaryDocSeries" />
-            </app-form-field>
-            <app-form-field label="Номер" [field]="f.militaryDocNumber">
-              <input class="input font-mono" [formField]="f.militaryDocNumber" />
-            </app-form-field>
-            <app-form-field label="Дата видачі" [field]="f.militaryDocIssuedAt">
-              <input class="input" type="date" [formField]="f.militaryDocIssuedAt" />
-            </app-form-field>
-            <app-form-field
-              class="sm:col-span-2"
-              label="Ким виданий"
-              [field]="f.militaryDocIssuedBy"
-            >
-              <input class="input" [formField]="f.militaryDocIssuedBy" />
-            </app-form-field>
-            <app-form-field
-              label="Час і дата формування (е-документ)"
-              hint="напр. 10:15 12.06.2025"
-              [field]="f.militaryDocGeneratedAt"
-            >
-              <input class="input" [formField]="f.militaryDocGeneratedAt" />
-            </app-form-field>
-          </div>
-
-          @if (!isOfficer() && !isConscript()) {
-            <h3 class="mt-7 mb-3 text-sm font-semibold">Придатність</h3>
-            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <app-form-field
-                class="sm:col-span-2"
-                label="Придатність до військової служби"
-                [field]="f.fitness"
-              >
-                <input class="input" list="fitness" [formField]="f.fitness" />
-                <datalist id="fitness">
-                  @for (d of dict.dictionaries()?.fitnessStatuses ?? []; track d) {
-                    <option [value]="d"></option>
-                  }
-                </datalist>
-              </app-form-field>
-              <app-form-field label="Дата ВЛК" [field]="f.fitnessDate">
-                <input class="input" type="date" [formField]="f.fitnessDate" />
-              </app-form-field>
-              <app-form-field
-                class="sm:col-span-2"
-                label="Графа, пункт наказу"
-                [field]="f.fitnessBasis"
-              >
-                <input class="input" [formField]="f.fitnessBasis" />
-              </app-form-field>
-            </div>
-          }
-
-          <h3 class="mt-7 mb-3 text-sm font-semibold">Бронювання, відстрочка, резерв</h3>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @if (isConscript()) {
-              <app-form-field
-                class="sm:col-span-2 lg:col-span-3"
-                label="Відстрочка від строкової служби (норма закону)"
-                [field]="f.deferralConscriptionBasis"
-              >
-                <input class="input" [formField]="f.deferralConscriptionBasis" />
-              </app-form-field>
-            } @else {
-              <label
-                class="flex items-center gap-2.5 self-end rounded-lg border border-line px-3 py-2.5 text-sm sm:col-span-2 lg:col-span-3"
-              >
-                <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.reserved" />
-                <span>
-                  <span class="font-medium">Працівник заброньований</span>
-                  <span class="block text-xs text-muted"
-                    >Відмітьте, лише якщо є рішення про бронювання — тоді воно потрапить у графу 14
-                    списків, відомість і статус працівника</span
-                  >
-                </span>
-              </label>
-              @if (model().reserved) {
-                <app-form-field
-                  class="sm:col-span-2"
-                  label="Бронювання: пункт, розділ, номер переліку"
-                  [field]="f.reservationBasis"
-                  [required]="true"
-                >
-                  <input class="input" [formField]="f.reservationBasis" />
-                </app-form-field>
-                <app-form-field
-                  label="Заброньовано до"
-                  [field]="f.reservationUntil"
-                  [required]="true"
-                >
-                  <input class="input" type="date" [formField]="f.reservationUntil" />
-                </app-form-field>
-                <app-form-field
-                  label="№ посвідчення (спецоблік)"
-                  [field]="f.specialAccountingCertificate"
-                >
-                  <input class="input" [formField]="f.specialAccountingCertificate" />
-                </app-form-field>
-              }
-              <app-form-field
-                label="Відстрочка від мобілізації (норма закону)"
-                [field]="f.deferralMobilizationBasis"
-              >
-                <input class="input" [formField]="f.deferralMobilizationBasis" />
-              </app-form-field>
-            }
-            <app-form-field label="Відстрочка до" [field]="f.deferralUntil">
-              <input class="input" type="date" [formField]="f.deferralUntil" />
-            </app-form-field>
-            <app-form-field
-              label="Служба в резерві — № команди"
-              hint="Заповнено ⇒ резервіст"
-              [field]="f.reserveTeamNumber"
-            >
-              <input class="input font-mono" [formField]="f.reserveTeamNumber" />
-            </app-form-field>
-            <app-form-field
-              label="Мобілізаційне розпорядження від"
-              [field]="f.mobilizationOrderDate"
-            >
-              <input class="input" type="date" [formField]="f.mobilizationOrderDate" />
-            </app-form-field>
-          </div>
-
-          <h3 class="mt-7 mb-3 text-sm font-semibold">Мобілізація</h3>
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <app-form-field label="Дата мобілізації" [field]="f.mobilizedAt">
-              <input class="input" type="date" [formField]="f.mobilizedAt" />
-            </app-form-field>
-            <app-form-field label="Наказ про увільнення №" [field]="f.mobilizationReleaseOrder">
-              <input class="input" [formField]="f.mobilizationReleaseOrder" />
-            </app-form-field>
-            <app-form-field label="Дата демобілізації" [field]="f.demobilizedAt">
-              <input class="input" type="date" [formField]="f.demobilizedAt" />
-            </app-form-field>
-            <app-form-field label="Наказ про допуск №" [field]="f.readmissionOrder">
-              <input class="input" [formField]="f.readmissionOrder" />
-            </app-form-field>
-            <app-form-field
-              class="sm:col-span-2 lg:col-span-4"
-              label="Відомості про проходження військової служби"
-              [field]="f.militaryServiceInfo"
-            >
-              <textarea class="input min-h-20" [formField]="f.militaryServiceInfo"></textarea>
-            </app-form-field>
-          </div>
-        }
-
-        @case ('documents') {
+        <!-- ============================================================ passports -->
+        @case ('passport') {
           <h3 class="mb-3 text-sm font-semibold">Паспорт громадянина України</h3>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <app-form-field label="Тип">
-              <select class="input" [formField]="f.passportType">
-                <option value="ID_CARD">ID-картка</option>
-                <option value="BOOK">паспорт-книжечка</option>
-              </select>
+              <app-select
+                [formField]="$any(f.passportType)"
+                [options]="passportTypeOptions"
+                [clearable]="false"
+                ariaLabel="Тип паспорта"
+              />
             </app-form-field>
             <app-form-field
               label="Серія"
@@ -392,7 +130,7 @@
               <input class="input font-mono" inputmode="numeric" [formField]="f.passportNumber" />
             </app-form-field>
             <app-form-field label="Дата видачі" [field]="f.passportIssuedAt">
-              <input class="input" type="date" [formField]="f.passportIssuedAt" />
+              <app-date-input [formField]="f.passportIssuedAt" ariaLabel="Дата видачі паспорта" />
             </app-form-field>
             <app-form-field
               class="sm:col-span-2 lg:col-span-4"
@@ -421,10 +159,16 @@
               />
             </app-form-field>
             <app-form-field label="Дата видачі" [field]="f.foreignPassportIssuedAt">
-              <input class="input" type="date" [formField]="f.foreignPassportIssuedAt" />
+              <app-date-input
+                [formField]="f.foreignPassportIssuedAt"
+                ariaLabel="Дата видачі закордонного паспорта"
+              />
             </app-form-field>
             <app-form-field label="Дійсний до" [field]="f.foreignPassportValidUntil">
-              <input class="input" type="date" [formField]="f.foreignPassportValidUntil" />
+              <app-date-input
+                [formField]="f.foreignPassportValidUntil"
+                ariaLabel="Закордонний паспорт дійсний до"
+              />
             </app-form-field>
             <app-form-field
               class="sm:col-span-2 lg:col-span-4"
@@ -434,16 +178,18 @@
               <input class="input" [formField]="f.foreignPassportIssuedBy" />
             </app-form-field>
           </div>
+        }
 
-          <h3 class="mt-7 mb-3 text-sm font-semibold">Освіта</h3>
+        <!-- ============================================================ education -->
+        @case ('education') {
           <div class="grid gap-4 sm:grid-cols-2">
             <app-form-field label="Рівень освіти">
-              <select class="input" [formField]="f.educationLevel">
-                <option value="">— не вказано —</option>
-                @for (lvl of dict.dictionaries()?.educationLevels ?? []; track lvl) {
-                  <option [value]="lvl">{{ lvl }}</option>
-                }
-              </select>
+              <app-select
+                [formField]="f.educationLevel"
+                [options]="educationOptions()"
+                placeholder="— не вказано —"
+                ariaLabel="Рівень освіти"
+              />
             </app-form-field>
             <app-form-field label="Спеціальність" [field]="f.educationSpecialty">
               <input class="input" [formField]="f.educationSpecialty" />
@@ -455,22 +201,24 @@
               <input class="input" [formField]="f.educationDocument" />
             </app-form-field>
             <app-form-field label="Дата видачі" [field]="f.educationDocumentDate">
-              <input class="input" type="date" [formField]="f.educationDocumentDate" />
+              <app-date-input
+                [formField]="f.educationDocumentDate"
+                ariaLabel="Дата видачі документа про освіту"
+              />
             </app-form-field>
           </div>
         }
 
+        <!-- ============================================================ marital status -->
         @case ('family') {
           <div class="mb-5 grid gap-4 sm:grid-cols-2">
             <app-form-field label="Сімейний стан">
-              <select class="input" [formField]="f.maritalStatus">
-                <option value="">— не вказано —</option>
-                @for (s of dict.dictionaries()?.maritalStatuses ?? []; track s.value) {
-                  <option [value]="s.value">
-                    {{ model().gender === 'F' ? s.labelF : s.labelM }}
-                  </option>
-                }
-              </select>
+              <app-select
+                [formField]="f.maritalStatus"
+                [options]="maritalOptions()"
+                placeholder="— не вказано —"
+                ariaLabel="Сімейний стан"
+              />
             </app-form-field>
           </div>
 
@@ -510,7 +258,7 @@
           <div class="space-y-3">
             @for (member of f.familyMembers; track $index; let i = $index) {
               <div
-                class="grid items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-[110px_1fr_1fr_1fr_150px_auto]"
+                class="grid items-end gap-3 rounded-lg border border-line p-3 sm:grid-cols-[110px_1fr_1fr_1fr_160px_auto]"
               >
                 <p class="pb-2 text-sm font-medium">
                   {{ relationLabel(model().familyMembers[i].relation) }}
@@ -525,7 +273,7 @@
                   <input class="input" [formField]="member.middleName" />
                 </app-form-field>
                 <app-form-field label="Дата народження" [field]="member.birthDate">
-                  <input class="input" type="date" [formField]="member.birthDate" />
+                  <app-date-input [formField]="member.birthDate" ariaLabel="Дата народження" />
                 </app-form-field>
                 <button
                   type="button"
@@ -543,6 +291,525 @@
                 Членів сім’ї не додано
               </p>
             }
+          </div>
+        }
+
+        <!-- ============================================================ work -->
+        @case ('work') {
+          <h3 class="mb-3 text-sm font-semibold">Прийняття на роботу</h3>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <app-form-field label="Дата прийняття" [field]="f.hireDate">
+              <app-date-input [formField]="f.hireDate" ariaLabel="Дата прийняття на роботу" />
+            </app-form-field>
+            <app-form-field
+              label="Назва документа про вступ на посаду"
+              hint="наказ, розпорядження…"
+              [field]="f.hireOrderDocName"
+            >
+              <input class="input" list="orderDocNames" [formField]="f.hireOrderDocName" />
+            </app-form-field>
+            <app-form-field label="Номер документа" [field]="f.hireOrderNumber">
+              <input class="input" [formField]="f.hireOrderNumber" />
+            </app-form-field>
+            <app-form-field label="Дата документа" [field]="f.hireOrderDate">
+              <app-date-input
+                [formField]="f.hireOrderDate"
+                ariaLabel="Дата документа про прийняття"
+              />
+            </app-form-field>
+          </div>
+
+          <div class="mt-7 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-semibold">Посади (місця роботи)</h3>
+              <p class="text-xs text-muted">
+                Перша — посада при прийнятті, далі — кожне переведення. Остання є поточною і
+                потрапляє в графу 17 списків.
+              </p>
+            </div>
+            <button type="button" class="btn btn-secondary py-1.5" (click)="addPosition()">
+              <app-icon name="plus" [size]="14" /> Додати переведення
+            </button>
+          </div>
+          <div class="space-y-3">
+            @for (pos of f.positions; track $index; let i = $index; let last = $last) {
+              <div
+                class="rounded-lg border p-3"
+                [class]="last ? 'border-brand-500/50 bg-brand-50/40' : 'border-line'"
+              >
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <p class="text-xs font-medium tracking-wide text-muted uppercase">
+                    {{ i === 0 ? 'Посада при прийнятті' : 'Переведення ' + i }}
+                    @if (last) {
+                      <span class="ml-1 rounded bg-brand-600 px-1.5 py-0.5 text-[10px] text-white"
+                        >поточна</span
+                      >
+                    }
+                  </p>
+                  @if (model().positions.length > 1) {
+                    <button
+                      type="button"
+                      class="btn btn-ghost px-2 py-1"
+                      (click)="removePosition(i)"
+                      aria-label="Видалити посаду"
+                    >
+                      <app-icon name="x" [size]="16" />
+                    </button>
+                  }
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                  <app-form-field
+                    class="lg:col-span-2"
+                    label="Посада"
+                    [required]="true"
+                    [field]="pos.position"
+                  >
+                    <input class="input" [formField]="pos.position" />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-2" label="Підрозділ" [field]="pos.department">
+                    <input class="input" [formField]="pos.department" />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-2" label="На посаді з" [field]="pos.since">
+                    <app-date-input [formField]="pos.since" ariaLabel="На посаді з" />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-2" label="Документ" [field]="pos.orderDocName">
+                    <input class="input" list="orderDocNames" [formField]="pos.orderDocName" />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-2" label="Номер" [field]="pos.orderNumber">
+                    <input class="input" [formField]="pos.orderNumber" />
+                  </app-form-field>
+                  <app-form-field
+                    class="lg:col-span-2"
+                    label="Дата документа"
+                    [field]="pos.orderDate"
+                  >
+                    <app-date-input [formField]="pos.orderDate" ariaLabel="Дата документа" />
+                  </app-form-field>
+                </div>
+              </div>
+            }
+          </div>
+
+          <h3 class="mt-7 mb-1 text-sm font-semibold">Звільнення</h3>
+          <p class="mb-3 text-xs text-muted">
+            Заповніть дату — після збереження в черзі для ТЦК з’явиться повідомлення про звільнення,
+            а у списках — відмітка «Звільнено з роботи».
+          </p>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <app-form-field label="Дата звільнення" [field]="f.dismissalDate">
+              <app-date-input [formField]="f.dismissalDate" ariaLabel="Дата звільнення" />
+            </app-form-field>
+            @if (model().dismissalDate) {
+              <app-form-field label="Документ" [field]="f.dismissalOrderDocName">
+                <input class="input" list="orderDocNames" [formField]="f.dismissalOrderDocName" />
+              </app-form-field>
+              <app-form-field label="Номер документа" [field]="f.dismissalOrderNumber">
+                <input class="input" [formField]="f.dismissalOrderNumber" />
+              </app-form-field>
+              <app-form-field label="Дата документа" [field]="f.dismissalOrderDate">
+                <app-date-input
+                  [formField]="f.dismissalOrderDate"
+                  ariaLabel="Дата документа про звільнення"
+                />
+              </app-form-field>
+            }
+          </div>
+        }
+
+        <!-- ============================================================ military -->
+        @case ('military') {
+          <div
+            class="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-sunken/60 px-4 py-3"
+          >
+            <label class="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                class="size-4 accent-brand-600"
+                [formField]="f.militaryRegistered"
+              />
+              Перебуває на військовому обліку
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.servedInArmy" />
+              Проходив(-ла) військову службу
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input type="checkbox" class="size-4 accent-brand-600" [formField]="f.navy" />
+              Корабельні звання (ВМС)
+            </label>
+          </div>
+
+          <h3 class="mb-3 text-sm font-semibold">Військово-облікові дані</h3>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <app-form-field label="Військове звання" [hint]="rank()?.compositionLabel ?? ''">
+              <app-select
+                [formField]="f.rankCode"
+                [options]="rankOptions()"
+                placeholder="— не вказано —"
+                ariaLabel="Військове звання"
+              />
+            </app-form-field>
+            <app-form-field label="ВОС" [hint]="vosHint()" [field]="f.vos">
+              <input class="input font-mono" [formField]="f.vos" />
+            </app-form-field>
+            @if (rank() && !isConscript()) {
+              <app-form-field
+                [label]="categoryLabel()"
+                hint="1 або 2"
+                [field]="f.accountingCategory"
+              >
+                <input class="input" inputmode="numeric" [formField]="f.accountingCategory" />
+              </app-form-field>
+            }
+            @if (isOfficer()) {
+              <app-form-field
+                class="sm:col-span-2"
+                label="Склад (профіль підготовки)"
+                hint="лише для офіцерів, напр. командний, медичний"
+                [field]="f.trainingProfile"
+              >
+                <input class="input" [formField]="f.trainingProfile" />
+              </app-form-field>
+            }
+            <app-form-field
+              class="sm:col-span-2"
+              label="Номер облікового запису в реєстрі «Оберіг»"
+              [field]="f.registryNumber"
+            >
+              <input class="input font-mono" [formField]="f.registryNumber" />
+            </app-form-field>
+            <app-form-field
+              class="sm:col-span-2"
+              label="ТЦК та СП, де перебуває на обліку"
+              [field]="f.tckId"
+              [required]="model().militaryRegistered && model().rankCode !== ''"
+            >
+              <app-select
+                [formField]="f.tckId"
+                [options]="tckOptions()"
+                placeholder="— оберіть —"
+                ariaLabel="ТЦК та СП"
+              />
+            </app-form-field>
+            <app-form-field label="На обліку з" [field]="f.tckRegisteredAt">
+              <app-date-input [formField]="f.tckRegisteredAt" ariaLabel="На обліку з" />
+            </app-form-field>
+          </div>
+
+          <div class="mt-7 mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold">Військово-облікові документи</h3>
+            <button type="button" class="btn btn-secondary py-1.5" (click)="addDocument()">
+              <app-icon name="plus" [size]="14" /> Додати документ
+            </button>
+          </div>
+          <div class="space-y-3">
+            @for (doc of f.militaryDocuments; track $index; let i = $index) {
+              <div class="rounded-lg border border-line p-3">
+                <div class="mb-2 flex items-center justify-between">
+                  <p class="text-xs font-medium tracking-wide text-muted uppercase">
+                    Документ {{ i + 1 }}
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-ghost px-2 py-1"
+                    (click)="removeDocument(i)"
+                    aria-label="Видалити документ"
+                  >
+                    <app-icon name="x" [size]="16" />
+                  </button>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                  <app-form-field
+                    class="sm:col-span-2 lg:col-span-6"
+                    label="Тип документа"
+                    [field]="doc.type"
+                  >
+                    <app-select
+                      [formField]="doc.type"
+                      [options]="docTypeOptions()"
+                      placeholder="— оберіть тип —"
+                      ariaLabel="Тип документа"
+                    />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-1" label="Серія" [field]="doc.series">
+                    <input class="input font-mono uppercase" [formField]="doc.series" />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-3" label="Номер" [field]="doc.number">
+                    <input class="input font-mono" [formField]="doc.number" />
+                  </app-form-field>
+                  <app-form-field class="lg:col-span-2" label="Дата видачі" [field]="doc.issuedAt">
+                    <app-date-input [formField]="doc.issuedAt" ariaLabel="Дата видачі документа" />
+                  </app-form-field>
+                  <app-form-field
+                    class="sm:col-span-2 lg:col-span-6"
+                    label="Ким виданий"
+                    [field]="doc.issuedBy"
+                  >
+                    <input class="input" [formField]="doc.issuedBy" />
+                  </app-form-field>
+                  @if (isElectronic(model().militaryDocuments[i].type)) {
+                    <app-form-field
+                      class="lg:col-span-2"
+                      label="Дата формування"
+                      [field]="doc.generatedDate"
+                    >
+                      <app-date-input [formField]="doc.generatedDate" ariaLabel="Дата формування" />
+                    </app-form-field>
+                    <app-form-field
+                      class="lg:col-span-2"
+                      label="Час формування"
+                      hint="24-годинний формат, ГГ:ХХ"
+                      [field]="doc.generatedTime"
+                    >
+                      <input
+                        class="input font-mono tabular-nums"
+                        inputmode="numeric"
+                        placeholder="14:30"
+                        autocomplete="off"
+                        [formField]="doc.generatedTime"
+                      />
+                    </app-form-field>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <p
+                class="rounded-lg border border-dashed border-line px-4 py-6 text-center text-sm text-muted"
+              >
+                Документів не додано
+              </p>
+            }
+          </div>
+
+          @if (!isOfficer() && !isConscript()) {
+            <h3 class="mt-7 mb-3 text-sm font-semibold">Придатність</h3>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <app-form-field
+                class="sm:col-span-2"
+                label="Придатність до військової служби"
+                [field]="f.fitness"
+              >
+                <app-select
+                  [formField]="f.fitness"
+                  [options]="fitnessOptions()"
+                  placeholder="— не вказано —"
+                  ariaLabel="Придатність"
+                />
+              </app-form-field>
+              <app-form-field label="Дата ВЛК" [field]="f.fitnessDate">
+                <app-date-input [formField]="f.fitnessDate" ariaLabel="Дата ВЛК" />
+              </app-form-field>
+              <app-form-field
+                class="sm:col-span-2"
+                label="Графа, пункт наказу"
+                [field]="f.fitnessBasis"
+              >
+                <input class="input" [formField]="f.fitnessBasis" />
+              </app-form-field>
+            </div>
+          }
+
+          <!-- three separate sub-forms: reservation, deferral, service in the reserve -->
+          <div class="mt-7 grid gap-4 lg:grid-cols-3">
+            <!-- reservation -->
+            <section class="rounded-xl border border-line p-4" aria-labelledby="sub-reservation">
+              <h3 id="sub-reservation" class="mb-3 text-sm font-semibold">Бронювання</h3>
+              @if (isConscript()) {
+                <p class="text-sm text-muted">Для призовників не застосовується.</p>
+              } @else {
+                <label class="mb-3 flex items-start gap-2.5 text-sm">
+                  <input
+                    type="checkbox"
+                    class="mt-0.5 size-4 accent-brand-600"
+                    [formField]="f.reserved"
+                  />
+                  <span>
+                    <span class="font-medium">Працівник заброньований</span>
+                    <span class="block text-xs text-muted"
+                      >Лише якщо є рішення про бронювання — тоді воно потрапить у графу 14 списків і
+                      квоту</span
+                    >
+                  </span>
+                </label>
+                @if (model().reserved) {
+                  <div class="space-y-3">
+                    <fieldset>
+                      <legend class="label">Ким заброньовано</legend>
+                      <div class="flex flex-col gap-1.5 text-sm">
+                        <label class="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="reservedBy"
+                            class="accent-brand-600"
+                            [checked]="model().reservedBy !== 'OTHER'"
+                            (change)="model.update((m) => ({ ...m, reservedBy: 'COMPANY' }))"
+                          />
+                          нашим підприємством (у межах квоти)
+                        </label>
+                        <label class="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="reservedBy"
+                            class="accent-brand-600"
+                            [checked]="model().reservedBy === 'OTHER'"
+                            (change)="model.update((m) => ({ ...m, reservedBy: 'OTHER' }))"
+                          />
+                          іншою юридичною особою
+                        </label>
+                      </div>
+                    </fieldset>
+                    @if (model().reservedBy === 'OTHER') {
+                      <app-form-field
+                        label="Юридична особа"
+                        [required]="true"
+                        [field]="f.reservedByName"
+                      >
+                        <input class="input" [formField]="f.reservedByName" />
+                      </app-form-field>
+                      <app-form-field label="ЄДРПОУ" hint="8 цифр" [field]="f.reservedByEdrpou">
+                        <input
+                          class="input font-mono"
+                          inputmode="numeric"
+                          [formField]="f.reservedByEdrpou"
+                        />
+                      </app-form-field>
+                    }
+                    <app-form-field
+                      label="Заброньовано до"
+                      [required]="true"
+                      [field]="f.reservationUntil"
+                    >
+                      <app-date-input
+                        [formField]="f.reservationUntil"
+                        ariaLabel="Заброньовано до"
+                      />
+                    </app-form-field>
+                    <app-form-field
+                      label="№ посвідчення (спецоблік)"
+                      [field]="f.specialAccountingCertificate"
+                    >
+                      <input class="input" [formField]="f.specialAccountingCertificate" />
+                    </app-form-field>
+                  </div>
+                }
+              }
+            </section>
+
+            <!-- deferral -->
+            <section class="rounded-xl border border-line p-4" aria-labelledby="sub-deferral">
+              <h3 id="sub-deferral" class="mb-3 text-sm font-semibold">Відстрочка</h3>
+              <div class="space-y-3">
+                <app-form-field
+                  label="Відстрочка від строкової військової служби"
+                  hint="норма закону (для призовників)"
+                  [field]="f.deferralConscriptionBasis"
+                >
+                  <input class="input" [formField]="f.deferralConscriptionBasis" />
+                </app-form-field>
+                @if (!isConscript()) {
+                  <app-form-field
+                    label="Відстрочка від призову під час мобілізації"
+                    hint="пункт, частина, стаття закону"
+                    [field]="f.deferralMobilizationBasis"
+                  >
+                    <input class="input" [formField]="f.deferralMobilizationBasis" />
+                  </app-form-field>
+                }
+                <fieldset>
+                  <legend class="label">Строк відстрочки</legend>
+                  <div class="flex flex-col gap-1.5 text-sm">
+                    <label class="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="deferralTerm"
+                        class="accent-brand-600"
+                        [checked]="!model().deferralUntilMobilizationEnd"
+                        (change)="
+                          model.update((m) => ({ ...m, deferralUntilMobilizationEnd: false }))
+                        "
+                      />
+                      до конкретної дати
+                    </label>
+                    <label class="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="deferralTerm"
+                        class="accent-brand-600"
+                        [checked]="model().deferralUntilMobilizationEnd"
+                        (change)="
+                          model.update((m) => ({ ...m, deferralUntilMobilizationEnd: true }))
+                        "
+                      />
+                      до завершення мобілізації
+                    </label>
+                  </div>
+                </fieldset>
+                @if (model().deferralUntilMobilizationEnd) {
+                  <p class="rounded-lg bg-sunken px-3 py-2 text-xs text-muted">
+                    @if (mobilization.value()?.mobilizationUntil; as until) {
+                      За останнім указом мобілізація триває до
+                      <b class="text-ink">{{ until.split('-').reverse().join('.') }}</b>
+                      @if (mobilization.value()?.mobilizationDecree) {
+                        ({{ mobilization.value()?.mobilizationDecree }})
+                      }
+                      — дата оновлюється автоматично після кожного продовження.
+                    } @else {
+                      Дата завершення мобілізації підтягується з указів Президента щодня.
+                    }
+                  </p>
+                } @else {
+                  <app-form-field label="Відстрочка до" [field]="f.deferralUntil">
+                    <app-date-input [formField]="f.deferralUntil" ariaLabel="Відстрочка до" />
+                  </app-form-field>
+                }
+              </div>
+            </section>
+
+            <!-- service in the reserve -->
+            <section class="rounded-xl border border-line p-4" aria-labelledby="sub-reserve">
+              <h3 id="sub-reserve" class="mb-3 text-sm font-semibold">Служба в резерві</h3>
+              <div class="space-y-3">
+                <app-form-field
+                  label="№ команди (військової частини)"
+                  hint="Заповнено ⇒ резервіст"
+                  [field]="f.reserveTeamNumber"
+                >
+                  <input class="input font-mono" [formField]="f.reserveTeamNumber" />
+                </app-form-field>
+                <app-form-field
+                  label="Мобілізаційне розпорядження від"
+                  [field]="f.mobilizationOrderDate"
+                >
+                  <app-date-input
+                    [formField]="f.mobilizationOrderDate"
+                    ariaLabel="Мобілізаційне розпорядження від"
+                  />
+                </app-form-field>
+              </div>
+            </section>
+          </div>
+
+          <h3 class="mt-7 mb-3 text-sm font-semibold">Мобілізація</h3>
+          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <app-form-field label="Дата мобілізації" [field]="f.mobilizedAt">
+              <app-date-input [formField]="f.mobilizedAt" ariaLabel="Дата мобілізації" />
+            </app-form-field>
+            <app-form-field label="Наказ про увільнення №" [field]="f.mobilizationReleaseOrder">
+              <input class="input" [formField]="f.mobilizationReleaseOrder" />
+            </app-form-field>
+            <app-form-field label="Дата демобілізації" [field]="f.demobilizedAt">
+              <app-date-input [formField]="f.demobilizedAt" ariaLabel="Дата демобілізації" />
+            </app-form-field>
+            <app-form-field label="Наказ про допуск №" [field]="f.readmissionOrder">
+              <input class="input" [formField]="f.readmissionOrder" />
+            </app-form-field>
+            <app-form-field
+              class="sm:col-span-2 lg:col-span-4"
+              label="Відомості про проходження військової служби"
+              [field]="f.militaryServiceInfo"
+            >
+              <textarea class="input min-h-20" [formField]="f.militaryServiceInfo"></textarea>
+            </app-form-field>
           </div>
         }
 
@@ -568,7 +835,7 @@
           <dd class="font-medium">{{ preview().category }}</dd>
         </div>
         <div>
-          <dt class="text-xs text-muted">Група списку</dt>
+          <dt class="text-xs text-muted">Список</dt>
           <dd class="font-medium">{{ preview().group }}</dd>
         </div>
         @if (rank(); as r) {
@@ -583,15 +850,16 @@
     @if (changedLabels().length) {
       <section class="card border-warning/40 bg-[#fdf9f2] p-4">
         <p class="mb-1 flex items-center gap-2 text-sm font-semibold text-warning">
-          <app-icon name="bell" [size]="16" /> Зміна піде в чергу для ТЦК
+          <app-icon name="bell" [size]="16" /> Зміна облікових даних — у чергу для ТЦК
         </p>
         <p class="mb-3 text-xs text-muted">
-          Змінено: {{ changedLabels().join(', ') }}. Автоматично нічого не надсилається —
-          повідомлення ви сформуєте й відправите самі в розділі «Повідомлення ТЦК».
+          Змінено: {{ changedLabels().join(', ') }}. Усі зміни підуть одним повідомленням.
+          Автоматично нічого не надсилається — повідомлення ви сформуєте самі в розділі
+          «Повідомлення ТЦК».
         </p>
         <div class="space-y-3">
           <app-form-field label="Зміни діють з" [required]="true" [field]="f.changeEffectiveDate">
-            <input class="input" type="date" [formField]="f.changeEffectiveDate" />
+            <app-date-input [formField]="f.changeEffectiveDate" ariaLabel="Зміни діють з" />
           </app-form-field>
           <app-form-field
             label="Підстава (документ, №, дата)"

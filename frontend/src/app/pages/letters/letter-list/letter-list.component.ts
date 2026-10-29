@@ -15,11 +15,22 @@ import type { Letter, LetterStatus, LetterType } from '../../../shared/interface
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { LettersService } from '../../../shared/services/letters.service';
 import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
+import {
+  type SelectOption,
+  SelectComponent,
+} from '../../../shared/components/select/select.component';
 
 @Component({
   selector: 'app-letter-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, RouterLink, LetterStatusBadgeComponent, UaDatePipe, IconComponent],
+  imports: [
+    SelectComponent,
+    PageHeaderComponent,
+    RouterLink,
+    LetterStatusBadgeComponent,
+    UaDatePipe,
+    IconComponent,
+  ],
   templateUrl: './letter-list.component.html',
 })
 export class LetterListComponent {
@@ -62,6 +73,11 @@ export class LetterListComponent {
   protected toggleAll(checked: boolean) {
     this.selected.set(checked ? new Set(this.letters().map((l) => l.id)) : new Set());
   }
+
+  protected readonly statusOptions: SelectOption[] = [
+    { value: 'DRAFT', label: 'Чернетки' },
+    { value: 'SENT', label: 'Надіслані' },
+  ];
 
   protected setType(type: string) {
     void this.updateQuery({ type });

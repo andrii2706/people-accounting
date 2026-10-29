@@ -13,7 +13,7 @@ import { EmployeesService } from '../employees.service.js';
 import { Employee } from '../entities/employee.entity.js';
 import { TEMPLATE_COLUMNS } from './import-columns.js';
 import { readTable } from './import-reader.js';
-import { type ColumnMapping, convertRows, fullNameOf, type ImportRow, type ImportValues, validateValues } from './import-rows.js';
+import { type ColumnMapping, convertRows, fullNameOf, type ImportRow, type ImportValues, toDtoValues, validateValues } from './import-rows.js';
 
 export interface CheckedRow extends ImportRow {
   fullName: string;
@@ -83,7 +83,7 @@ export class EmployeeImportService {
     }
     const source = `імпорт з файлу${opts.fileName ? ` «${opts.fileName}»` : ''}`;
     const ids = await this.employeesService.createMany(
-      checked.map((r) => r.values as unknown as CreateEmployeeDto),
+      checked.map((r) => toDtoValues(r.values) as unknown as CreateEmployeeDto),
       user,
       { hireNotices: opts.hireNotices, source },
     );
@@ -95,8 +95,8 @@ export class EmployeeImportService {
     const hashes = values.map((v) => blindIndex(String(v.rnokpp ?? ''))).filter((h): h is string => !!h);
     const lastNames = [...new Set(values.map((v) => String(v.lastName ?? '')).filter(Boolean))];
     const [byHash, byName] = await Promise.all([
-      hashes.length ? this.employees.find({ where: { rnokppHash: In(hashes) }, select: { id: true, lastName: true, firstName: true, middleName: true, rnokppHash: true } }) : [],
-      lastNames.length ? this.employees.find({ where: { lastName: In(lastNames) }, select: { id: true, lastName: true, firstName: true, middleName: true, birthDate: true } }) : [],
+      hashes.length ? this.employees.find({ loadEagerRelations: false, where: { rnokppHash: In(hashes) }, select: { id: true, lastName: true, firstName: true, middleName: true, rnokppHash: true } }) : [],
+      lastNames.length ? this.employees.find({ loadEagerRelations: false, where: { lastName: In(lastNames) }, select: { id: true, lastName: true, firstName: true, middleName: true, birthDate: true } }) : [],
     ]);
     const name = (e: Employee) => `${e.lastName} ${e.firstName} ${e.middleName}`.trim();
     const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
@@ -160,6 +160,7 @@ export class EmployeeImportService {
       gender: 'Стать',
       militaryRegistered: 'Так / ні',
       reserved: 'Так / ні',
+      servedInArmy: 'Так / ні',
       passportType: 'Тип паспорта',
       rankCode: 'Військове звання',
       militaryDocType: 'Військово-обліковий документ',
@@ -186,7 +187,7 @@ export class EmployeeImportService {
       birthDate: '15.04.1990', rnokpp: '1234567890', phone: '+380 67 000 00 00', registeredAddress: 'м. Львів, вул. Прикладна, 1',
       passportType: 'ID-картка', passportNumber: '000000001', passportIssuedBy: '4610', passportIssuedAt: '01.02.2020',
       position: 'інженер', department: 'Технічний відділ', hireDate: '01.03.2024', hireOrderNumber: '15-к', hireOrderDate: '28.02.2024',
-      militaryRegistered: 'так', rankCode: 'солдат', vos: '100', militaryDocType: 'військово-обліковий документ в електронній формі',
+      militaryRegistered: 'так', servedInArmy: 'ні', rankCode: 'солдат', vos: '100', militaryDocType: 'військово-обліковий документ в електронній формі',
       militaryDocNumber: '000000000', tckId: tcks[0]?.name ?? '', fitness: 'придатний до військової служби', reserved: 'ні',
     });
     return Buffer.from(await wb.xlsx.writeBuffer());

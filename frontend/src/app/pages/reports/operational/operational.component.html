@@ -5,11 +5,11 @@
 >
   <label class="flex items-center gap-2 text-sm">
     <span class="text-muted">Станом на</span>
-    <input
-      class="input w-auto"
-      type="date"
+    <app-date-input
+      class="w-40"
+      ariaLabel="Станом на дату"
       [value]="date()"
-      (change)="setDate($any($event.target).value)"
+      (valueChange)="setDate($event)"
     />
   </label>
   <a class="btn btn-secondary" [href]="reportsService.operationalDocxUrl(date())" download

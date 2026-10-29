@@ -12,12 +12,17 @@ import { UsersService } from '../../../shared/services/users.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { passwordProblems } from '../../../shared/validators/password.validators';
+import {
+  type SelectOption,
+  SelectComponent,
+} from '../../../shared/components/select/select.component';
 
 /** Account administration: roles, lockout, password reset. */
 @Component({
   selector: 'app-users',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SelectComponent,
     PageHeaderComponent,
     FormField,
     FormFieldComponent,
@@ -93,8 +98,20 @@ export class UsersComponent {
     );
   }
 
+  protected readonly roleOptions: SelectOption[] = [
+    { value: 'HR', label: 'Кадровик' },
+    { value: 'ADMIN', label: 'Адміністратор' },
+  ];
+
   protected setRole(u: ManagedUser, role: UserRole) {
     return this.run(() => this.usersService.update(u.id, { role }), 'Роль змінено');
+  }
+
+  protected setNotify(u: ManagedUser, notify: boolean) {
+    return this.run(
+      () => this.usersService.update(u.id, { notify }),
+      notify ? 'Сповіщення увімкнено' : 'Сповіщення вимкнено',
+    );
   }
 
   protected unlock(u: ManagedUser) {

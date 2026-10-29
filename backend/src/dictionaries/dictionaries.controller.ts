@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiTags, PartialType } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateIf } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
 import { Repository } from 'typeorm';
 import { AllowPendingPasswordChange, Roles } from '../common/auth.js';
 import {
@@ -11,6 +12,7 @@ import {
   FAMILY_RELATION_LABELS,
   FITNESS_STATUSES,
   LIST_GROUP_TITLES,
+  LIST_SECTION_TITLES,
   MARITAL_STATUSES,
   MILITARY_DOCUMENT_TYPES,
 } from '../military/dictionaries.js';
@@ -27,6 +29,12 @@ class CreateTckDto {
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 class UpdateTckDto extends PartialType(CreateTckDto) {}
+
+/** TCK directory moved from another database (npm run tck:export → Налаштування → ТЦК → Імпорт). */
+class ImportTckDto {
+  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(2000) @ValidateNested({ each: true }) @Type(() => CreateTckDto)
+  items: CreateTckDto[];
+}
 
 @ApiTags('dictionaries')
 @Controller()
@@ -49,6 +57,7 @@ export class DictionariesController {
       familyRelations: Object.entries(FAMILY_RELATION_LABELS).map(([value, label]) => ({ value, label })),
       changeTypes: Object.entries(CHANGE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
       listGroups: Object.entries(LIST_GROUP_TITLES).map(([value, label]) => ({ value, label })),
+      listSections: Object.entries(LIST_SECTION_TITLES).map(([value, label]) => ({ value, label })),
       dutyCategories: Object.entries(DUTY_CATEGORY_LABELS).map(([value, label]) => ({ value, label })),
     };
   }
@@ -66,6 +75,36 @@ export class DictionariesController {
   }
 
   @Roles('ADMIN')
+  /**
+   * Bulk import of the TCK directory: matched by name — existing ones are updated, new ones created.
+   * Nothing is deleted. Employees keep their links to TCKs.
+   */
+  @Roles('ADMIN')
+  @Post('tck/import')
+  @HttpCode(200)
+  async importTck(@Body() dto: ImportTckDto) {
+    const existing = await this.tckRepo.find();
+    const byName = new Map(existing.map((t) => [t.name.trim().toLowerCase(), t]));
+    let created = 0;
+    let updated = 0;
+    await this.tckRepo.manager.transaction(async (m) => {
+      for (const item of dto.items) {
+        const key = item.name.trim().toLowerCase();
+        const found = byName.get(key);
+        if (found) {
+          Object.assign(found, { ...item, name: found.name });
+          await m.save(found);
+          updated++;
+        } else {
+          const saved = await m.save(m.create(Tck, { ...item, name: item.name.trim() }));
+          byName.set(key, saved);
+          created++;
+        }
+      }
+    });
+    return { created, updated };
+  }
+
   @Patch('tck/:id')
   async updateTck(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTckDto) {
     const tck = await this.tckRepo.findOneBy({ id });

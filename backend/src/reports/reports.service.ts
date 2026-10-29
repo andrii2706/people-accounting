@@ -6,7 +6,7 @@ import { buildLists, buildOperationalReport, type OperationalRowData } from '../
 import { deriveEmployee, toMilitaryRecord } from '../employees/employee-view.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
-import { type DutyCategory, type ListGroup, LIST_GROUPS } from '../military/dictionaries.js';
+import { type DutyCategory, type ListGroup, LIST_GROUPS, LIST_SECTIONS, type ListSection, listSection } from '../military/dictionaries.js';
 import { personalListCells } from '../military/personal-list.js';
 import {
   dutyCategory,
@@ -34,6 +34,8 @@ const OPERATIONAL_TITLES: Record<string, string> = {
 export interface ListRowView {
   employeeId: string;
   group: ListGroup;
+  /** Which of the four lists the record belongs to. */
+  section: ListSection;
   category: DutyCategory | null;
   cells: string[];
 }
@@ -72,8 +74,9 @@ export class ReportsService {
   }
 
   /**
-   * Personal military registration lists (Annex 5) on a date — a separate list per group
-   * (sheets GN1…GN4R), records numbered within each group.
+   * Personal military registration lists (Annex 5) on a date — four separate lists: officers;
+   * rank-and-file, sergeants and petty officers; women; conscripts (reservists go into the list of their
+   * composition). Records are numbered within each list.
    * `groups` / `onlyIds` narrow it down (extract for specific employees).
    */
   async lists(date: IsoDate = todayIso(), groups: ListGroup[] = LIST_GROUPS, onlyIds?: string[]) {
@@ -89,15 +92,15 @@ export class ReportsService {
       const group = listGroup(record);
       if (!group || !groups.includes(group)) continue;
       const category = dutyCategory(record);
-      rows.push({ employeeId: e.id, group, category, cells: personalListCells(e, date, notices.get(e.id) ?? '') });
+      rows.push({ employeeId: e.id, group, section: listSection(group), category, cells: personalListCells(e, date, notices.get(e.id) ?? '') });
       if (category) counts[category]++;
     }
-    // group order of the Excel file, alphabetical inside a group (loadAll is sorted by name)
-    rows.sort((a, b) => LIST_GROUPS.indexOf(a.group) - LIST_GROUPS.indexOf(b.group));
-    const numbers = new Map<ListGroup, number>();
+    // list order: officers, soldiers, women, conscripts; alphabetical inside a list (loadAll is sorted by name)
+    rows.sort((a, b) => LIST_SECTIONS.indexOf(a.section) - LIST_SECTIONS.indexOf(b.section));
+    const numbers = new Map<ListSection, number>();
     for (const row of rows) {
-      const n = (numbers.get(row.group) ?? 0) + 1;
-      numbers.set(row.group, n);
+      const n = (numbers.get(row.section) ?? 0) + 1;
+      numbers.set(row.section, n);
       row.cells[0] = String(n);
     }
     return { date, rows, counts };
@@ -105,11 +108,11 @@ export class ReportsService {
 
   async listsDocx(date: IsoDate, groups: ListGroup[], extractIds?: string[], letter?: { number: string; date: IsoDate } | null) {
     const data = await this.lists(date, groups, extractIds);
-    const org = await this.org.get();
+    const org = await this.org.getAt(letter?.date ?? date);
     return buildLists({
       date,
       extract: !!extractIds?.length,
-      groups: LIST_GROUPS.map((group) => ({ group, rows: data.rows.filter((r) => r.group === group).map((r) => r.cells) })),
+      sections: LIST_SECTIONS.map((section) => ({ section, rows: data.rows.filter((r) => r.section === section).map((r) => r.cells) })),
       org,
       letter,
     });
@@ -154,7 +157,7 @@ export class ReportsService {
 
   async operationalDocx(date: IsoDate, letter?: { number: string; date: IsoDate } | null) {
     const data = await this.operational(date);
-    const [org, responsible] = await Promise.all([this.org.get(), this.org.responsibleAt(letter?.date ?? date)]);
+    const [org, responsible] = await Promise.all([this.org.getAt(letter?.date ?? date), this.org.responsibleAt(letter?.date ?? date)]);
     return buildOperationalReport({ date, rows: data.rows, org, responsible, letter });
   }
 
@@ -173,12 +176,28 @@ export class ReportsService {
     const employed = derived.filter((x) => x.d.employed);
 
     const byGroup = Object.fromEntries(LIST_GROUPS.map((g) => [g, 0])) as Record<ListGroup, number>;
+    const bySection = Object.fromEntries(LIST_SECTIONS.map((g) => [g, 0])) as Record<ListSection, number>;
     const byCategory: Record<string, number> = { LIABLE: 0, RESERVIST: 0, CONSCRIPT: 0 };
     for (const { d } of derived) {
       if (!d.onLists) continue;
-      if (d.listGroup) byGroup[d.listGroup]++;
+      if (d.listGroup) {
+        byGroup[d.listGroup]++;
+        bySection[listSection(d.listGroup)]++;
+      }
       if (d.dutyCategory) byCategory[d.dutyCategory]++;
     }
+
+    // deferrals in force on the date (a fixed date, or «до завершення мобілізації»)
+    const deferrals = employed.filter(({ e }) => {
+      if (e.deferralUntilMobilizationEnd) return !org.mobilizationUntil || org.mobilizationUntil >= date;
+      if (e.deferralUntil) return e.deferralUntil >= date;
+      return !!(e.deferralConscriptionBasis || e.deferralMobilizationBasis);
+    }).length;
+
+    // reservation quota: only the company's own reservations count towards it
+    const reserved = employed.filter((x) => x.d.reserved);
+    const reservedCompany = reserved.filter(({ e }) => e.reservedBy !== 'OTHER').length;
+    const quota = org.reservationQuota;
 
 
     const attention = derived
@@ -190,7 +209,18 @@ export class ReportsService {
       date,
       employees: { employed: employed.length, onLists: derived.filter((x) => x.d.onLists).length, mobilized: derived.filter((x) => x.d.mobilized).length, reserved: employed.filter((x) => x.d.reserved).length },
       byGroup,
+      bySection,
       byCategory,
+      deferrals,
+      reservation: {
+        quota,
+        quotaBasis: org.reservationQuotaBasis,
+        reservedCompany,
+        reservedOther: reserved.length - reservedCompany,
+        available: quota === null ? null : Math.max(quota - reservedCompany, 0),
+        exceeded: quota !== null && reservedCompany > quota,
+      },
+      mobilizationUntil: org.mobilizationUntil,
       pendingChanges: pending.length,
       overdueChanges: pending.filter((c) => notificationDeadline(c.type, c.effectiveDate, c.employee, org.notifyDeadlineDays) < date).length,
       attention,

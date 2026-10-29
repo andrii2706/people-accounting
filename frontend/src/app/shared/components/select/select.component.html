@@ -1,0 +1,81 @@
+<div #root class="relative" (keydown)="onKeydown($event)">
+  <button
+    #button
+    type="button"
+    class="input flex items-center justify-between gap-2 text-left"
+    role="combobox"
+    aria-haspopup="listbox"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-controls]="listId"
+    [attr.aria-invalid]="invalid() || null"
+    [disabled]="disabled()"
+    (click)="toggle()"
+  >
+    <span class="min-w-0 truncate" [class.text-muted]="!selected()">
+      {{ selected()?.label ?? placeholder() }}
+    </span>
+    <svg
+      viewBox="0 0 24 24"
+      class="size-4 shrink-0 text-muted transition-transform"
+      [class.rotate-180]="open()"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  </button>
+
+  @if (open()) {
+    <div
+      class="absolute inset-x-0 z-40 mt-1 overflow-hidden rounded-xl border border-line bg-surface shadow-lg"
+    >
+      @if (showSearch()) {
+        <div class="border-b border-line p-2">
+          <input
+            #search
+            class="input py-1.5 text-sm"
+            placeholder="Пошук…"
+            aria-label="Пошук у списку"
+            [value]="query()"
+            (input)="onQuery($any($event.target).value)"
+          />
+        </div>
+      }
+      <ul [id]="listId" role="listbox" class="max-h-64 overflow-y-auto py-1 text-sm">
+        @if (clearable() && !query()) {
+          <li
+            role="option"
+            class="cursor-pointer px-3 py-2 text-muted hover:bg-sunken"
+            [attr.aria-selected]="!value()"
+            (click)="pick('')"
+          >
+            —
+          </li>
+        }
+        @for (o of filtered(); track o.value; let i = $index) {
+          <li
+            role="option"
+            class="cursor-pointer px-3 py-2"
+            [attr.data-active]="i === active()"
+            [attr.aria-selected]="o.value === value()"
+            [class.bg-brand-50]="i === active()"
+            [class.font-semibold]="o.value === value()"
+            [class.text-brand-700]="o.value === value()"
+            (mouseenter)="active.set(i)"
+            (click)="pick(o.value)"
+          >
+            {{ o.label }}
+            @if (o.hint) {
+              <span class="block text-xs font-normal text-muted">{{ o.hint }}</span>
+            }
+          </li>
+        } @empty {
+          <li class="px-3 py-2 text-muted">Нічого не знайдено</li>
+        }
+      </ul>
+    </div>
+  }
+</div>

@@ -7,6 +7,9 @@ export type ListGroup = 'G1' | 'G1R' | 'G2' | 'G2R' | 'G3' | 'G3R' | 'G4' | 'G4R
 
 export type DutyCategory = 'LIABLE' | 'RESERVIST' | 'CONSCRIPT';
 
+/** The four personal registration lists (reservists go with their composition). */
+export type ListSection = 'OFFICERS' | 'SOLDIERS' | 'WOMEN' | 'CONSCRIPTS';
+
 export type ChangeType =
   | 'LAST_NAME'
   | 'FIRST_NAME'
@@ -18,6 +21,18 @@ export type ChangeType =
   | 'FOREIGN_PASSPORT'
   | 'EDUCATION'
   | 'MARITAL_STATUS'
+  | 'REGISTRY_NUMBER'
+  | 'RANK'
+  | 'VOS'
+  | 'MILITARY_DOC'
+  | 'TCK'
+  | 'FITNESS'
+  | 'MILITARY_SERVICE'
+  | 'DEFERRAL'
+  | 'RESERVATION'
+  | 'RESERVE_SERVICE'
+  | 'MOBILIZATION_ORDER'
+  | 'DATA'
   | 'HIRE'
   | 'DISMISSAL';
 
@@ -50,5 +65,6 @@ export interface Dictionaries {
   familyRelations: Option<FamilyRelation>[];
   changeTypes: Option<ChangeType>[];
   listGroups: Option<ListGroup>[];
+  listSections: Option<ListSection>[];
   dutyCategories: Option<DutyCategory>[];
 }

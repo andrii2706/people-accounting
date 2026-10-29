@@ -22,6 +22,10 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  /** Receive e-mail reminders (deferral / reservation ending, mobilization extended…). */
+  @Column({ type: 'boolean', default: true })
+  notify: boolean;
+
   /** Incremented on password change / lockout — all issued sessions become invalid. */
   @Column({ type: 'int', default: 0, select: false })
   tokenVersion: number;

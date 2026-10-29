@@ -189,6 +189,10 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
           break;
         }
         case 'date': {
+          if (field === 'deferralUntil' && /мобіліз/i.test(text)) {
+            values.deferralUntilMobilizationEnd = true;
+            break;
+          }
           const date = parseDate(cell);
           if (date === undefined) issue(field, `Не вдалося розпізнати дату «${text}» (очікується ДД.ММ.РРРР)`);
           else if (date) values[field] = date;
@@ -265,10 +269,37 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
 
 // ------------------------------------------------------------------ validation
 
+/** One military document from the file is kept as flat fields on the preview (easy to edit). */
+const DOC_FIELDS: Record<string, string> = {
+  militaryDocType: 'type',
+  militaryDocSeries: 'series',
+  militaryDocNumber: 'number',
+  militaryDocIssuedBy: 'issuedBy',
+  militaryDocIssuedAt: 'issuedAt',
+};
+const DOC_FIELD_BY_KEY = Object.fromEntries(Object.entries(DOC_FIELDS).map(([flat, key]) => [key, flat]));
+
+/** Row values → CreateEmployeeDto (the flat document fields become militaryDocuments[0]). */
+export function toDtoValues(values: ImportValues): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...values };
+  const doc: Record<string, unknown> = {};
+  for (const [flat, key] of Object.entries(DOC_FIELDS)) {
+    if (flat in out) {
+      doc[key] = out[flat];
+      delete out[flat];
+    }
+  }
+  if (Object.keys(doc).length) out.militaryDocuments = [doc];
+  return out;
+}
+
 /** The same checks as the employee form; returns errors bound to fields. */
 export async function validateValues(values: ImportValues): Promise<FieldError[]> {
-  const dto = plainToInstance(CreateEmployeeDto, values);
-  const errors = flattenValidationErrors(await validate(dto, { whitelist: true, forbidNonWhitelisted: true }));
+  const dto = plainToInstance(CreateEmployeeDto, toDtoValues(values));
+  const errors = flattenValidationErrors(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).map((e) => {
+    const m = /^militaryDocuments\.0\.(\w+)$/.exec(e.field);
+    return m && DOC_FIELD_BY_KEY[m[1]] ? { ...e, field: DOC_FIELD_BY_KEY[m[1]] } : e;
+  });
   if (!values.gender && !errors.some((e) => e.field === 'gender')) errors.push({ field: 'gender', message: 'Вкажіть стать' });
 
   const rank = values.rankCode;
@@ -276,9 +307,8 @@ export async function validateValues(values: ImportValues): Promise<FieldError[]
   if (values.militaryRegistered !== false && rank !== undefined && rank !== null && !values.tckId) {
     errors.push({ field: 'tckId', message: 'Оберіть ТЦК — без нього не сформується повідомлення' });
   }
-  if (values.reserved === true && rank !== 0) {
-    if (!values.reservationBasis) errors.push({ field: 'reservationBasis', message: 'Вкажіть підставу бронювання' });
-    if (!values.reservationUntil) errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
+  if (values.reserved === true && rank !== 0 && !values.reservationUntil) {
+    errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
   }
   const birth = values.birthDate as string | undefined;
   if (birth) {

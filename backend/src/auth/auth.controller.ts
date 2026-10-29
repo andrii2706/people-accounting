@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsString, MaxLength } from 'class-validator';
@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { AllowPendingPasswordChange, type AuthUser, CurrentUser, Public } from '../common/auth.js';
 import { passwordMessage, passwordProblems } from '../common/password-policy.js';
 import { Rule } from '../common/validators.js';
+import { UpdatePreferencesDto } from '../users/users.dto.js';
 import { UsersService } from '../users/users.service.js';
 import { SessionService } from './session.service.js';
 
@@ -100,5 +101,16 @@ export class AuthController {
     await this.sessions.issue(res, user);
     await this.audit.log('auth', user.id, 'PASSWORD_CHANGED', {}, current);
     return toAuthUser(user);
+  }
+
+  /** Own settings: e-mail reminders on / off. */
+  @Get('preferences')
+  preferences(@CurrentUser() user: AuthUser) {
+    return this.users.preferences(user.id);
+  }
+
+  @Patch('preferences')
+  updatePreferences(@CurrentUser() user: AuthUser, @Body() dto: UpdatePreferencesDto) {
+    return this.users.updatePreferences(user.id, dto.notify);
   }
 }

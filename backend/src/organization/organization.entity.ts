@@ -54,6 +54,33 @@ export class Organization {
   @Column({ type: 'int', default: 7 })
   notifyDeadlineDays: number;
 
+  /** Reservation quota: how many employees may be reserved (decision of the authority). Empty — not set. */
+  @Column({ type: 'int', nullable: true })
+  reservationQuota: number | null;
+
+  /** Grounds of the quota (decision / letter number and date). */
+  @Column({ type: 'varchar', length: 300, default: '' })
+  reservationQuotaBasis: string;
+
+  /** General mobilization lasts until (from the latest presidential decree; updated by the daily job). */
+  @Column({ type: 'date', nullable: true })
+  mobilizationUntil: string | null;
+
+  /** The decree the date comes from, e.g. «Указ № 1061/2026 від 26.10.2026». */
+  @Column({ type: 'varchar', length: 300, default: '' })
+  mobilizationDecree: string;
+
+  @Column({ type: 'varchar', length: 500, default: '' })
+  mobilizationSource: string;
+
+  /** When the decrees were last checked automatically. */
+  @Column({ type: 'timestamptz', nullable: true })
+  mobilizationCheckedAt: Date | null;
+
+  /** Extra addresses for e-mail reminders (comma-separated), besides the users. */
+  @Column({ type: 'varchar', length: 500, default: '' })
+  notifyEmails: string;
+
   @UpdateDateColumn({ type: 'timestamptz' })
   updatedAt: Date;
 }

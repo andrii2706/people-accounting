@@ -141,7 +141,7 @@ export function hasMobilizationOrder(r: MilitaryRecord, date: IsoDate): boolean 
 }
 
 /** Composition for column 7: training profile for officers. */
-export function compositionText(r: MilitaryRecord): string {
+export function compositionText(r: Pick<MilitaryRecord, 'rankCode' | 'trainingProfile' | 'navy'>): string {
   const rank = findRank(r.rankCode);
   if (!rank || rank.composition === 'CONSCRIPT') return '';
   if (isOfficer(r)) return r.trainingProfile ?? '';

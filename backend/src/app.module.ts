@@ -14,6 +14,7 @@ import { ReportsModule } from './reports/reports.module.js';
 import { SignaturesModule } from './signatures/signatures.module.js';
 import { StorageModule } from './storage/storage.service.js';
 import { UsersModule } from './users/users.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
 
 @Controller('health')
 class HealthController {
@@ -35,6 +36,7 @@ class HealthController {
       }),
     }),
     AuditModule,
+    NotificationsModule,
     StorageModule,
     AuthModule,
     UsersModule,

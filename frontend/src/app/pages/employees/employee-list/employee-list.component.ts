@@ -21,6 +21,10 @@ import { DictionariesService } from '../../../shared/services/dictionaries.servi
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
+import {
+  type SelectOption,
+  SelectComponent,
+} from '../../../shared/components/select/select.component';
 
 type StatusFilter = 'active' | 'dismissed' | 'all';
 
@@ -32,6 +36,7 @@ type StatusFilter = 'active' | 'dismissed' | 'all';
   selector: 'app-employee-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SelectComponent,
     PageHeaderComponent,
     RouterLink,
     IconComponent,
@@ -93,6 +98,20 @@ export class EmployeeListComponent {
   protected setStatus(status: StatusFilter) {
     void this.updateQuery({ status: status === 'active' ? '' : status });
   }
+
+  protected readonly groupOptions = computed<SelectOption[]>(() => [
+    ...(this.dict.dictionaries()?.listGroups ?? []).map((g) => ({
+      value: g.value,
+      label: `${g.value} — ${g.label}`,
+    })),
+    { value: 'NONE', label: 'Не на обліку / не заповнено' },
+  ]);
+  protected readonly categoryOptions = computed<SelectOption[]>(() =>
+    (this.dict.dictionaries()?.dutyCategories ?? []).map((c) => ({
+      value: c.value,
+      label: c.label,
+    })),
+  );
 
   protected setGroup(group: string) {
     void this.updateQuery({ group });

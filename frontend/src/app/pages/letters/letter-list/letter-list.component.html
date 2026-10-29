@@ -5,17 +5,22 @@
 />
 
 <div class="card mb-4 flex flex-wrap gap-3 p-3">
-  <select class="input w-auto" (change)="setType($any($event.target).value)" aria-label="Тип">
-    <option value="">Усі типи</option>
-    @for (t of typeOptions; track t.value) {
-      <option [value]="t.value" [selected]="t.value === type()">{{ t.label }}</option>
-    }
-  </select>
-  <select class="input w-auto" (change)="setStatus($any($event.target).value)" aria-label="Статус">
-    <option value="">Усі статуси</option>
-    <option value="DRAFT" [selected]="status() === 'DRAFT'">Чернетки</option>
-    <option value="SENT" [selected]="status() === 'SENT'">Надіслані</option>
-  </select>
+  <app-select
+    class="w-full sm:w-64"
+    ariaLabel="Тип"
+    placeholder="Усі типи"
+    [options]="typeOptions"
+    [value]="type()"
+    (valueChange)="setType($event)"
+  />
+  <app-select
+    class="w-full sm:w-48"
+    ariaLabel="Статус"
+    placeholder="Усі статуси"
+    [options]="statusOptions"
+    [value]="status()"
+    (valueChange)="setStatus($event)"
+  />
   <div class="ml-auto flex items-center gap-2">
     @if (selected().size) {
       <span class="text-sm text-muted">Вибрано: {{ selected().size }}</span>

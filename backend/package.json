@@ -23,7 +23,9 @@
     "migration:run": "tsx --env-file-if-exists=.env node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
     "migration:revert": "tsx --env-file-if-exists=.env node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
     "seed": "nest build && node --env-file-if-exists=.env dist/database/seed.js",
-    "dev:sign": "tsx scripts/dev-sign.ts"
+    "dev:sign": "tsx scripts/dev-sign.ts",
+    "job:daily": "nest build && node --env-file-if-exists=.env dist/jobs/daily.js",
+    "tck:export": "tsx --env-file-if-exists=.env scripts/tck-export.ts"
   },
   "dependencies": {
     "@google-cloud/storage": "^8.4.0",
@@ -45,6 +47,7 @@
     "gost89": "^0.1.12",
     "helmet": "^8.3.0",
     "jszip": "^3.10.2",
+    "nodemailer": "^10.2.1",
     "pg": "^8.23.1",
     "pkijs": "^4.0.0",
     "reflect-metadata": "^0.2.2",
@@ -60,6 +63,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
     "@types/node": "^24.0.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.0.0",
     "@vitest/coverage-v8": "^4.1.2",

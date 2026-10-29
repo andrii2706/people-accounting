@@ -10,7 +10,7 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import type { ListGroup } from '../../../shared/interfaces/dictionary.interface';
+import type { ListSection } from '../../../shared/interfaces/dictionary.interface';
 import type { ListsReport } from '../../../shared/interfaces/report.interface';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { LettersService } from '../../../shared/services/letters.service';
@@ -19,6 +19,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
 import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 
 /** Short column titles for the on-screen preview; the .docx uses the full titles of the form. */
 const COLUMNS = [
@@ -42,13 +43,13 @@ const COLUMNS = [
   'Повідомлення ТЦК, відмітки',
 ];
 
-/** Group order of the Excel file (sheets GN1…GN4R). */
-const GROUPS: ListGroup[] = ['G1', 'G1R', 'G2', 'G2R', 'G3', 'G3R', 'G4', 'G4R'];
+/** Four lists: officers; rank-and-file, sergeants, petty officers; women; conscripts. */
+const SECTIONS: ListSection[] = ['OFFICERS', 'SOLDIERS', 'WOMEN', 'CONSCRIPTS'];
 
 @Component({
   selector: 'app-lists',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, IconComponent, RouterLink],
+  imports: [DateInputComponent, PageHeaderComponent, IconComponent, RouterLink],
   templateUrl: './lists.component.html',
 })
 export class ListsComponent {
@@ -67,15 +68,25 @@ export class ListsComponent {
   protected readonly date = computed(() => this.report().date);
   protected readonly busy = signal(false);
   protected readonly total = computed(() => this.report().rows.length);
-  /** Non-empty groups — every one is a separate list in the document. */
+  /** Non-empty lists — every one is a separate list in the document. */
   protected readonly groups = computed(() =>
-    GROUPS.map((group) => ({
+    SECTIONS.map((group) => ({
       group,
-      rows: this.report().rows.filter((r) => r.group === group),
+      rows: this.report().rows.filter((r) => r.section === group),
     })).filter((g) => g.rows.length),
   );
+  private readonly titles = computed(
+    () =>
+      new Map(
+        (this.dictionaries.dictionaries()?.listSections ?? []).map((s) => [s.value, s.label]),
+      ),
+  );
+
+  protected title(section: ListSection) {
+    return this.titles().get(section) ?? section;
+  }
   /** Preview filter only — the document always contains all groups. Reset when the date changes. */
-  protected readonly filter = linkedSignal<ListsReport, ListGroup | 'ALL'>({
+  protected readonly filter = linkedSignal<ListsReport, ListSection | 'ALL'>({
     source: this.report,
     computation: () => 'ALL',
   });
@@ -85,6 +96,8 @@ export class ListsComponent {
   });
 
   protected setDate(date: string) {
+    // the field reports every keystroke — react only to a complete date or clearing
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
     void this.updateQuery({ date: date && date !== this.today ? date : '' });
   }
 

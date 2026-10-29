@@ -7,10 +7,12 @@ import { blindIndex } from '../common/crypto/field-encryption.js';
 import { type FieldError, fieldErrors } from '../common/validators.js';
 import { formatUa, todayIso } from '../common/utils/dates.js';
 import { CHANGE_TYPE_LABELS, type ChangeType } from '../military/dictionaries.js';
-import { familyText, passportText } from '../military/employee-format.js';
+import { familyText, militaryDocText, passportText, rankText } from '../military/employee-format.js';
 import { isConscript, notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
+import { Tck } from '../dictionaries/tck.entity.js';
 import { deriveEmployee } from './employee-view.js';
+import { historyEntries } from './history.js';
 import type {
   CreateEmployeeDto,
   DismissEmployeeDto,
@@ -21,54 +23,126 @@ import type {
 import { AuditLog } from './entities/audit-log.entity.js';
 import { EmployeeChange } from './entities/employee-change.entity.js';
 import { Employee } from './entities/employee.entity.js';
+import { EmployeePosition } from './entities/employee-position.entity.js';
 import { FamilyMember } from './entities/family-member.entity.js';
+import { MilitaryDocument } from './entities/military-document.entity.js';
 
 const NULLABLE_DATES = new Set<keyof Employee>([
   'birthDate', 'passportIssuedAt', 'foreignPassportIssuedAt', 'foreignPassportValidUntil', 'educationDocumentDate',
-  'positionSince', 'hireDate', 'hireOrderDate', 'dismissalDate', 'dismissalOrderDate', 'militaryDocIssuedAt',
+  'positionSince', 'hireDate', 'hireOrderDate', 'dismissalDate', 'dismissalOrderDate',
   'tckRegisteredAt', 'fitnessDate', 'reservationUntil', 'deferralUntil', 'mobilizationOrderDate', 'mobilizedAt',
   'demobilizedAt',
 ]);
 
-/** Fields whose change produces a TCK notice, and how to describe them. */
+/**
+ * Registration data whose change produces a TCK notice: the value as it goes into the notice,
+ * compared before / after saving. All data changes of a person go into one notice.
+ */
 interface ChangeRule {
   type: ChangeType;
-  fields: (keyof Employee)[];
-  describe: (e: Employee) => string;
-  /** Do not create a change if the new value is empty. */
+  value: (e: Employee) => string;
+  /** Do not create a change if the new value is empty (e.g. an address was cleared). */
   requireValue?: boolean;
 }
 
+const date = (d: string | null | undefined) => (d ? `${formatUa(d)} р.` : '');
+const join = (parts: (string | false | null | undefined)[], sep = ', ') => parts.filter(Boolean).join(sep);
+
+export function deferralText(e: Employee): string {
+  const until = e.deferralUntilMobilizationEnd ? 'до завершення мобілізації' : e.deferralUntil ? `до ${date(e.deferralUntil)}` : '';
+  return join([e.deferralConscriptionBasis, e.deferralMobilizationBasis, until]);
+}
+
+export function reservationText(e: Employee): string {
+  if (!e.reserved) return '';
+  return join([
+    e.reservationUntil ? `до ${date(e.reservationUntil)}` : '',
+    e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
+    e.reservedBy === 'OTHER' ? join([`за ${e.reservedByName}`, e.reservedByEdrpou ? `ЄДРПОУ ${e.reservedByEdrpou}` : ''], ' ') : '',
+  ]);
+}
+
 const CHANGE_RULES: ChangeRule[] = [
-  { type: 'LAST_NAME', fields: ['lastName'], describe: (e) => e.lastName },
-  { type: 'FIRST_NAME', fields: ['firstName'], describe: (e) => e.firstName },
-  { type: 'MIDDLE_NAME', fields: ['middleName'], describe: (e) => e.middleName },
-  { type: 'POSITION', fields: ['position'], describe: (e) => e.position, requireValue: true },
-  { type: 'REGISTERED_ADDRESS', fields: ['registeredAddress'], describe: (e) => e.registeredAddress, requireValue: true },
-  { type: 'ACTUAL_ADDRESS', fields: ['actualAddress'], describe: (e) => e.actualAddress, requireValue: true },
-  { type: 'PASSPORT', fields: ['passportType', 'passportSeries', 'passportNumber'], describe: passportText, requireValue: true },
+  { type: 'LAST_NAME', value: (e) => e.lastName },
+  { type: 'FIRST_NAME', value: (e) => e.firstName },
+  { type: 'MIDDLE_NAME', value: (e) => e.middleName },
+  { type: 'POSITION', value: (e) => e.position, requireValue: true },
+  { type: 'REGISTERED_ADDRESS', value: (e) => e.registeredAddress, requireValue: true },
+  { type: 'ACTUAL_ADDRESS', value: (e) => e.actualAddress, requireValue: true },
+  { type: 'PASSPORT', value: passportText, requireValue: true },
+  // military registration data
+  { type: 'REGISTRY_NUMBER', value: (e) => e.registryNumber ?? '', requireValue: true },
+  { type: 'RANK', value: (e) => rankText(e) },
+  { type: 'VOS', value: (e) => e.vos ?? '' },
+  { type: 'MILITARY_DOC', value: (e) => militaryDocText(e) },
+  { type: 'TCK', value: (e) => e.tck?.name ?? '', requireValue: true },
+  { type: 'FITNESS', value: (e) => join([e.fitness, e.fitnessBasis], ' ') },
+  {
+    type: 'MILITARY_SERVICE',
+    value: (e) => join([e.servedInArmy ? 'проходив(-ла) військову службу' : '', e.mobilizedAt ? `призван${e.gender === 'F' ? 'а' : 'ий'} на військову службу з ${date(e.mobilizedAt)}` : '']),
+  },
+  { type: 'DEFERRAL', value: deferralText },
+  { type: 'RESERVATION', value: reservationText },
+  { type: 'RESERVE_SERVICE', value: (e) => (e.reserveTeamNumber ? `команда № ${e.reserveTeamNumber}` : '') },
+  { type: 'MOBILIZATION_ORDER', value: (e) => (e.mobilizationOrderDate ? `від ${date(e.mobilizationOrderDate)}` : '') },
   // Foreign passport, education and marital status are no longer reported (Resolution No. 812 of 10.06.2026);
   // the types stay in ChangeType for the history of earlier notices.
 ];
 
 /**
- * Reservation is used only when "Заброньований" is chosen explicitly: then its basis and term are
- * required (same rule as on the frontend), otherwise the reservation data is cleared.
+ * Reservation is used only when "Заброньований" is chosen explicitly: then its term is required
+ * (same rule as on the frontend), otherwise the reservation data is cleared.
  */
 function applyReservation(e: Employee) {
+  // «пункт, розділ, номер переліку» is no longer kept (feedback 28.10.2026)
+  e.reservationBasis = '';
   if (e.reserved && isConscript(e)) e.reserved = false;
   if (!e.reserved) {
     e.reserved = false;
     e.reservationBasis = '';
     e.reservationUntil = null;
     e.specialAccountingCertificate = '';
+    e.reservedBy = 'COMPANY';
+    e.reservedByName = '';
+    e.reservedByEdrpou = '';
     return;
   }
   const errors: FieldError[] = [];
-  if (!e.reservationBasis?.trim()) errors.push({ field: 'reservationBasis', message: 'Вкажіть підставу бронювання' });
   if (!e.reservationUntil) errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
+  if (e.reservedBy === 'OTHER' && !e.reservedByName?.trim()) errors.push({ field: 'reservedByName', message: 'Вкажіть юридичну особу, за якою заброньовано' });
+  if (e.reservedBy !== 'OTHER') {
+    e.reservedBy = 'COMPANY';
+    e.reservedByName = '';
+    e.reservedByEdrpou = '';
+  }
   if (errors.length) throw fieldErrors(errors);
 }
+
+/** A deferral «до завершення мобілізації» has no fixed date. */
+function applyDeferral(e: Employee) {
+  if (e.deferralUntilMobilizationEnd) e.deferralUntil = null;
+}
+
+/** The latest position (by date) is the current one; its data is mirrored into the employee card. */
+function applyPositions(e: Employee) {
+  const positions = [...(e.positions ?? [])].sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''));
+  const current = positions.at(-1);
+  if (!current) return;
+  e.position = current.position;
+  e.department = current.department ?? '';
+  e.positionSince = current.since ?? null;
+  e.positionOrder = join([
+    current.orderDocName || current.orderNumber || current.orderDate ? current.orderDocName || 'наказ' : '',
+    current.orderNumber ? `№ ${current.orderNumber}` : '',
+    current.orderDate ? `від ${date(current.orderDate)}` : '',
+  ], ' ');
+}
+
+const positionsText = (e: Employee) =>
+  [...(e.positions ?? [])]
+    .sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''))
+    .map((p) => join([p.position, p.department, p.since ? `з ${date(p.since)}` : '', p.orderNumber ? `№ ${p.orderNumber}` : '']))
+    .join('; ');
 
 @Injectable()
 export class EmployeesService {
@@ -88,6 +162,7 @@ export class EmployeesService {
     const qb = this.repo
       .createQueryBuilder('e')
       .leftJoinAndSelect('e.tck', 'tck')
+      .leftJoinAndSelect('e.militaryDocuments', 'md')
       .orderBy('e.lastName', 'ASC')
       .addOrderBy('e.firstName', 'ASC');
 
@@ -147,6 +222,8 @@ export class EmployeesService {
     const employee = await repo.findOne({ where: { id }, relations: { tck: true, familyMembers: true } });
     if (!employee) throw new NotFoundException('Працівника не знайдено');
     employee.familyMembers?.sort((a, b) => (a.birthDate ?? '').localeCompare(b.birthDate ?? ''));
+    employee.militaryDocuments?.sort((a, b) => a.sortOrder - b.sortOrder);
+    employee.positions?.sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''));
     return employee;
   }
 
@@ -165,8 +242,14 @@ export class EmployeesService {
     };
   }
 
-  auditTrail(id: string) {
-    return this.auditRepo.find({ where: { entity: 'employee', entityId: id }, order: { createdAt: 'DESC' }, take: 200 });
+  /** History of the card in human-readable form (who, when, which field from → to). */
+  async auditTrail(id: string) {
+    const [rows, employee, tcks] = await Promise.all([
+      this.auditRepo.find({ where: { entity: 'employee', entityId: id }, order: { createdAt: 'DESC' }, take: 300 }),
+      this.repo.findOne({ where: { id }, loadEagerRelations: false, select: { id: true, gender: true } }),
+      this.dataSource.getRepository(Tck).find({ select: { id: true, name: true } }),
+    ]);
+    return historyEntries(rows, new Map(tcks.map((t) => [t.id, t.name])), employee?.gender ?? 'M');
   }
 
   // ---------------------------------------------------------------- write
@@ -189,14 +272,27 @@ export class EmployeesService {
   }
 
   private async createIn(m: EntityManager, dto: CreateEmployeeDto, user: AuthUser, opts: { hireNotices?: boolean; source?: string } = {}) {
-    const { changeMeta, familyMembers, ...data } = dto;
+    const { changeMeta, familyMembers, militaryDocuments, positions, ...data } = dto;
     const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
     applyReservation(employee);
+    applyDeferral(employee);
     employee.familyMembers = (familyMembers ?? []).map((f) => m.getRepository(FamilyMember).create({ ...f, middleName: f.middleName ?? '', birthDate: f.birthDate || null }));
+    employee.militaryDocuments = this.documents(m, militaryDocuments ?? []);
+    // without a positions list (e.g. import) the position from the card becomes the first entry
+    const list = positions?.length
+      ? positions
+      : employee.position
+        ? [{ position: employee.position, department: employee.department, since: employee.hireDate, orderDocName: employee.hireOrderDocName, orderNumber: employee.hireOrderNumber, orderDate: employee.hireOrderDate }]
+        : [];
+    employee.positions = this.positionRows(m, list);
+    applyPositions(employee);
     const saved = await m.getRepository(Employee).save(employee);
 
     if (saved.hireDate && opts.hireNotices !== false) {
       await this.addChange(m, saved, 'HIRE', '', saved.position, saved.hireDate, changeMeta?.basis || this.hireBasis(saved), user);
+    }
+    if (saved.dismissalDate && opts.hireNotices !== false) {
+      await this.addChange(m, saved, 'DISMISSAL', saved.position, '', saved.dismissalDate, this.dismissalBasis(saved), user);
     }
     const diff: Record<string, [unknown, unknown]> = { fullName: [null, `${saved.lastName} ${saved.firstName}`] };
     if (opts.source) diff.source = [null, opts.source];
@@ -205,14 +301,29 @@ export class EmployeesService {
   }
 
   async update(id: string, dto: UpdateEmployeeDto, user: AuthUser) {
-    const { changeMeta, familyMembers, ...data } = dto;
+    const { changeMeta, familyMembers, militaryDocuments, positions, ...data } = dto;
     await this.dataSource.transaction(async (m) => {
       const employee = await this.findEntity(id, m);
       const before = structuredClone(employee);
       const beforeFamily = familyText(employee);
+      const beforeDocs = militaryDocText(employee);
+      const beforePositions = positionsText(employee);
 
       Object.assign(employee, this.normalize(data));
       applyReservation(employee);
+      applyDeferral(employee);
+      if (employee.hireDate && employee.dismissalDate && employee.dismissalDate < employee.hireDate) {
+        throw fieldErrors([{ field: 'dismissalDate', message: 'Раніше за дату прийняття' }]);
+      }
+      if (militaryDocuments) {
+        await m.getRepository(MilitaryDocument).delete({ employeeId: id });
+        employee.militaryDocuments = this.documents(m, militaryDocuments, id);
+      }
+      if (positions) {
+        await m.getRepository(EmployeePosition).delete({ employeeId: id });
+        employee.positions = this.positionRows(m, positions, id);
+        applyPositions(employee);
+      }
       if (familyMembers) {
         await m.getRepository(FamilyMember).delete({ employeeId: id });
         employee.familyMembers = familyMembers.map((f) =>
@@ -230,16 +341,22 @@ export class EmployeesService {
         if (before[key] !== saved[key]) diff[key] = [before[key], saved[key]];
       }
       if (familyMembers && beforeFamily !== familyText(after)) diff.familyMembers = [beforeFamily, familyText(after)];
+      if (militaryDocuments && beforeDocs !== militaryDocText(after)) diff.militaryDocuments = [beforeDocs, militaryDocText(after)];
+      if (positions && beforePositions !== positionsText(after)) diff.positions = [beforePositions, positionsText(after)];
+      for (const key of ['position', 'department', 'positionSince', 'positionOrder'] as const) {
+        if (before[key] !== after[key] && !diff[key]) diff[key] = [before[key], after[key]];
+      }
 
       // changes the TCK must be notified about
       const effectiveDate = changeMeta?.effectiveDate ?? todayIso();
       for (const rule of CHANGE_RULES) {
-        const changed = rule.fields.some((f) => before[f] !== after[f]);
-        if (!changed) continue;
-        const newValue = rule.describe(after);
+        const oldValue = rule.value(before);
+        const newValue = rule.value(after);
+        if (oldValue === newValue) continue;
         if (rule.requireValue && !newValue) continue;
         const basis = changeMeta?.basis || (rule.type === 'POSITION' ? after.positionOrder : '');
-        await this.addChange(m, after, rule.type, rule.describe(before), newValue, effectiveDate, basis, user);
+        const changeDate = rule.type === 'POSITION' && after.positionSince ? after.positionSince : effectiveDate;
+        await this.addChange(m, after, rule.type, oldValue, newValue, changeDate, basis, user);
       }
       if (!before.hireDate && after.hireDate) {
         await this.addChange(m, after, 'HIRE', '', after.position, after.hireDate, this.hireBasis(after), user);
@@ -262,6 +379,7 @@ export class EmployeesService {
       }
       employee.dismissalDate = dto.dismissalDate;
       employee.dismissalOrderNumber = dto.dismissalOrderNumber ?? '';
+      employee.dismissalOrderDocName = dto.dismissalOrderDocName ?? '';
       employee.dismissalOrderDate = dto.dismissalOrderDate || null;
       await m.getRepository(Employee).save(employee);
       await this.addChange(m, employee, 'DISMISSAL', employee.position, '', dto.dismissalDate, dto.basis || this.dismissalBasis(employee), user);
@@ -357,12 +475,46 @@ export class EmployeesService {
 
   private hireBasis(e: Employee) {
     if (!e.hireOrderNumber && !e.hireOrderDate) return '';
-    return `наказ про прийняття на роботу${e.hireOrderNumber ? ` № ${e.hireOrderNumber}` : ''}${e.hireOrderDate ? ` від ${formatUa(e.hireOrderDate)} р.` : ''}`;
+    return `${e.hireOrderDocName || 'наказ'} про прийняття на роботу${e.hireOrderNumber ? ` № ${e.hireOrderNumber}` : ''}${e.hireOrderDate ? ` від ${formatUa(e.hireOrderDate)} р.` : ''}`;
   }
 
   private dismissalBasis(e: Employee) {
     if (!e.dismissalOrderNumber && !e.dismissalOrderDate) return '';
-    return `наказ про звільнення${e.dismissalOrderNumber ? ` № ${e.dismissalOrderNumber}` : ''}${e.dismissalOrderDate ? ` від ${formatUa(e.dismissalOrderDate)} р.` : ''}`;
+    return `${e.dismissalOrderDocName || 'наказ'} про звільнення${e.dismissalOrderNumber ? ` № ${e.dismissalOrderNumber}` : ''}${e.dismissalOrderDate ? ` від ${formatUa(e.dismissalOrderDate)} р.` : ''}`;
+  }
+
+  private documents(m: EntityManager, list: NonNullable<CreateEmployeeDto['militaryDocuments']>, employeeId?: string) {
+    return list
+      .filter((d) => d.type || d.number || d.series)
+      .map((d, i) =>
+        m.getRepository(MilitaryDocument).create({
+          ...(employeeId ? { employeeId } : {}),
+          sortOrder: i,
+          type: d.type?.trim() ?? '',
+          series: d.series?.trim().toUpperCase() ?? '',
+          number: d.number?.trim() ?? '',
+          issuedBy: d.issuedBy?.trim() ?? '',
+          issuedAt: d.issuedAt || null,
+          generatedDate: d.generatedDate || null,
+          generatedTime: d.generatedTime?.trim() ?? '',
+        }),
+      );
+  }
+
+  private positionRows(m: EntityManager, list: NonNullable<CreateEmployeeDto['positions']>, employeeId?: string) {
+    return list
+      .filter((p) => p.position?.trim())
+      .map((p) =>
+        m.getRepository(EmployeePosition).create({
+          ...(employeeId ? { employeeId } : {}),
+          position: p.position.trim(),
+          department: p.department?.trim() ?? '',
+          since: p.since || null,
+          orderDocName: p.orderDocName?.trim() ?? '',
+          orderNumber: p.orderNumber?.trim() ?? '',
+          orderDate: p.orderDate || null,
+        }),
+      );
   }
 
   private normalize(data: Partial<Record<keyof Employee, unknown>>) {

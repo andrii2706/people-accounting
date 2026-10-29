@@ -16,6 +16,8 @@ export interface ManagedUser {
   fullName: string;
   role: UserRole;
   isActive: boolean;
+  /** Receives e-mail reminders. */
+  notify?: boolean;
   mustChangePassword: boolean;
   lockedUntil: string | null;
   lastLoginAt: string | null;

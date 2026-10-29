@@ -15,7 +15,9 @@ import {
 import { blindIndex, encrypted } from '../../common/crypto/field-encryption.js';
 import { Tck } from '../../dictionaries/tck.entity.js';
 import type { MaritalStatus } from '../../military/dictionaries.js';
+import { EmployeePosition } from './employee-position.entity.js';
 import { FamilyMember } from './family-member.entity.js';
+import { MilitaryDocument } from './military-document.entity.js';
 
 /**
  * Employee card. Corresponds to one sheet 01–21 of the Excel file,
@@ -123,6 +125,10 @@ export class Employee {
   familyMembers: Relation<FamilyMember[]>;
 
   // ---------- Employment ----------
+  /** Positions in the company (appointment and transfers); the latest one is mirrored in position / department / positionSince / positionOrder. */
+  @OneToMany(() => EmployeePosition, (p) => p.employee, { cascade: true, eager: true })
+  positions: Relation<EmployeePosition[]>;
+
   @Column({ type: 'varchar', length: 300, default: '' })
   position: string;
 
@@ -139,6 +145,10 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   hireDate: string | null;
 
+  /** Name of the document on taking the position: «наказ», «розпорядження» … */
+  @Column({ type: 'varchar', length: 100, default: '' })
+  hireOrderDocName: string;
+
   @Column({ type: 'varchar', length: 50, default: '' })
   hireOrderNumber: string;
 
@@ -148,6 +158,9 @@ export class Employee {
   @Index()
   @Column({ type: 'date', nullable: true })
   dismissalDate: string | null;
+
+  @Column({ type: 'varchar', length: 100, default: '' })
+  dismissalOrderDocName: string;
 
   @Column({ type: 'varchar', length: 50, default: '' })
   dismissalOrderNumber: string;
@@ -183,24 +196,13 @@ export class Employee {
   @Column({ type: 'varchar', length: 20, default: '' })
   accountingCategory: string;
 
-  @Column({ type: 'varchar', length: 150, default: '' })
-  militaryDocType: string;
+  /** Military registration documents — there may be several. */
+  @OneToMany(() => MilitaryDocument, (d) => d.employee, { cascade: true, eager: true })
+  militaryDocuments: Relation<MilitaryDocument[]>;
 
-  @Column({ type: 'varchar', length: 20, default: '' })
-  militaryDocSeries: string;
-
-  @Column({ type: 'text', default: '', transformer: encrypted })
-  militaryDocNumber: string;
-
-  @Column({ type: 'varchar', length: 300, default: '' })
-  militaryDocIssuedBy: string;
-
-  @Column({ type: 'date', nullable: true })
-  militaryDocIssuedAt: string | null;
-
-  /** Time and date the electronic military registration document was generated (Reserve+). */
-  @Column({ type: 'varchar', length: 30, default: '' })
-  militaryDocGeneratedAt: string;
+  /** Has served in the armed forces (column 15 «Відомості про проходження військової служби»). */
+  @Column({ type: 'boolean', default: false })
+  servedInArmy: boolean;
 
   @ManyToOne(() => Tck, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'tckId' })
@@ -241,6 +243,16 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   reservationUntil: string | null;
 
+  /** Who reserved the employee: this company (counts towards its quota) or another legal entity. */
+  @Column({ type: 'varchar', length: 10, default: 'COMPANY' })
+  reservedBy: 'COMPANY' | 'OTHER';
+
+  @Column({ type: 'varchar', length: 300, default: '' })
+  reservedByName: string;
+
+  @Column({ type: 'varchar', length: 10, default: '' })
+  reservedByEdrpou: string;
+
   /** Deferral from conscript service (provision of the Law «Про військовий обов’язок і військову службу»). */
   @Column({ type: 'varchar', length: 500, default: '' })
   deferralConscriptionBasis: string;
@@ -251,6 +263,10 @@ export class Employee {
 
   @Column({ type: 'date', nullable: true })
   deferralUntil: string | null;
+
+  /** Deferral «до завершення мобілізації» (instead of a fixed date; the end comes from the latest decree). */
+  @Column({ type: 'boolean', default: false })
+  deferralUntilMobilizationEnd: boolean;
 
   /** Service in the reserve — team number. Present ⇒ reservist. */
   @Column({ type: 'varchar', length: 100, default: '' })

@@ -16,7 +16,10 @@ export class UsersService {
     return firstValueFrom(this.http.post<ManagedUser>('/api/users', body));
   }
 
-  update(id: string, body: { isActive?: boolean; role?: UserRole; fullName?: string }) {
+  update(
+    id: string,
+    body: { isActive?: boolean; role?: UserRole; fullName?: string; notify?: boolean },
+  ) {
     return firstValueFrom(this.http.patch<ManagedUser>(`/api/users/${id}`, body));
   }
 

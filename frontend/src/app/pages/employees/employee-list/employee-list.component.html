@@ -9,21 +9,26 @@
 </app-page-header>
 
 <div class="card mb-4 flex flex-wrap items-end gap-3 p-3">
-  <label class="relative min-w-[240px] flex-1">
-    <span class="sr-only">Пошук</span>
-    <app-icon
-      name="search"
-      class="absolute top-1/2 left-3 -translate-y-1/2 text-muted"
-      [size]="16"
-    />
-    <input
-      class="input pl-9"
-      type="search"
-      placeholder="ПІБ, РНОКПП (повністю), табельний №, посада"
-      [value]="searchText()"
-      (input)="searchText.set($any($event.target).value)"
-    />
-  </label>
+  <div class="min-w-[240px] flex-1">
+    <label class="relative block">
+      <span class="sr-only">Пошук працівника</span>
+      <app-icon
+        name="search"
+        class="absolute top-1/2 left-3 -translate-y-1/2 text-muted"
+        [size]="16"
+      />
+      <input
+        class="input pl-9"
+        type="search"
+        aria-describedby="search-hint"
+        [value]="searchText()"
+        (input)="searchText.set($any($event.target).value)"
+      />
+    </label>
+    <p id="search-hint" class="mt-1 text-xs text-muted">
+      Шукає за прізвищем, ім’ям, по батькові, табельним номером, посадою або РНОКПП (усі 10 цифр)
+    </p>
+  </div>
 
   <div
     class="flex rounded-lg border border-line bg-sunken p-0.5 text-sm"
@@ -46,30 +51,22 @@
     }
   </div>
 
-  <select
-    class="input w-full sm:w-auto sm:max-w-xs"
-    (change)="setGroup($any($event.target).value)"
-    aria-label="Група списку"
-  >
-    <option value="">Усі групи</option>
-    @for (g of dict.dictionaries()?.listGroups ?? []; track g.value) {
-      <option [value]="g.value" [selected]="g.value === group()">
-        {{ g.value }} — {{ g.label }}
-      </option>
-    }
-    <option value="NONE" [selected]="group() === 'NONE'">Не на обліку / не заповнено</option>
-  </select>
-
-  <select
-    class="input w-full sm:w-auto"
-    (change)="setCategory($any($event.target).value)"
-    aria-label="Категорія"
-  >
-    <option value="">Усі категорії</option>
-    @for (c of dict.dictionaries()?.dutyCategories ?? []; track c.value) {
-      <option [value]="c.value" [selected]="c.value === category()">{{ c.label }}</option>
-    }
-  </select>
+  <app-select
+    class="w-full sm:w-72"
+    ariaLabel="Група списку"
+    placeholder="Усі групи"
+    [options]="groupOptions()"
+    [value]="group()"
+    (valueChange)="setGroup($event)"
+  />
+  <app-select
+    class="w-full sm:w-56"
+    ariaLabel="Категорія"
+    placeholder="Усі категорії"
+    [options]="categoryOptions()"
+    [value]="category()"
+    (valueChange)="setCategory($event)"
+  />
 
   <label class="flex items-center gap-2 px-1 py-2 text-sm text-muted">
     <input

@@ -49,6 +49,15 @@ export interface AppEnv {
   adminEmail?: string;
   adminPassword?: string;
   adminName: string;
+
+  /** SMTP for e-mail reminders, e.g. smtps://user:app-password@smtp.gmail.com:465. Empty — e-mail is off. */
+  smtpUrl: string;
+  /** Sender: «Військовий облік <hr@company.ua>». */
+  mailFrom: string;
+  /** Public address of the app for links in e-mails. */
+  appUrl: string;
+  /** Where the daily job looks for the presidential decrees on mobilization. */
+  decreeSourceUrl: string;
 }
 
 const DEFAULT_DEV_ADMIN_PASSWORD = 'ChangeMe123!';
@@ -167,6 +176,10 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     adminEmail: env.ADMIN_EMAIL || undefined,
     adminPassword: env.ADMIN_PASSWORD || undefined,
     adminName: env.ADMIN_NAME ?? 'Адміністратор',
+    smtpUrl: env.SMTP_URL ?? '',
+    mailFrom: env.MAIL_FROM ?? '',
+    appUrl: env.APP_URL || list(env.APP_ORIGIN)[0] || 'http://localhost:4200',
+    decreeSourceUrl: env.DECREE_SOURCE_URL || 'https://zakon.rada.gov.ua/laws/show/65/2022',
   };
   if (env === process.env) cached = result;
   return result;

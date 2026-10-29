@@ -35,6 +35,7 @@
           <th>Роль</th>
           <th>Останній вхід</th>
           <th>Стан</th>
+          <th title="Нагадування на пошту">Листи</th>
           <th class="text-right">Дії</th>
         </tr>
       </thead>
@@ -46,14 +47,15 @@
               <p class="text-xs text-muted">{{ u.email }}</p>
             </td>
             <td>
-              <select
-                class="input w-auto py-1"
-                (change)="setRole(u, $any($event.target).value)"
+              <app-select
+                class="w-44"
+                ariaLabel="Роль"
+                [clearable]="false"
+                [options]="roleOptions"
+                [value]="u.role"
                 [disabled]="u.id === auth.user()?.id"
-              >
-                <option value="HR" [selected]="u.role === 'HR'">Кадровик</option>
-                <option value="ADMIN" [selected]="u.role === 'ADMIN'">Адміністратор</option>
-              </select>
+                (valueChange)="setRole(u, $any($event))"
+              />
             </td>
             <td class="text-sm whitespace-nowrap text-muted">
               {{ u.lastLoginAt | uaDateTime: 'ще не входив' }}
@@ -78,6 +80,16 @@
               @if (u.mustChangePassword) {
                 <p class="text-xs text-muted">тимчасовий пароль</p>
               }
+            </td>
+            <td>
+              <input
+                type="checkbox"
+                class="size-4 accent-brand-600"
+                [attr.aria-label]="'Нагадування на пошту для ' + u.fullName"
+                [checked]="u.notify ?? true"
+                [disabled]="!u.isActive"
+                (change)="setNotify(u, $any($event.target).checked)"
+              />
             </td>
             <td class="text-right whitespace-nowrap">
               @if (lockedIds().has(u.id)) {
@@ -127,10 +139,12 @@
       />
     </app-form-field>
     <app-form-field label="Роль">
-      <select class="input" [formField]="userForm.role">
-        <option value="HR">Кадровик</option>
-        <option value="ADMIN">Адміністратор</option>
-      </select>
+      <app-select
+        ariaLabel="Роль"
+        [clearable]="false"
+        [options]="roleOptions"
+        [formField]="$any(userForm.role)"
+      />
     </app-form-field>
     <button type="submit" class="btn btn-primary w-full" [disabled]="userForm().submitting()">
       Створити

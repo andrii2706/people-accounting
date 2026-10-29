@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { form, FormField, required, submit, validate } from '@angular/forms/signals';
+import { httpResource } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { CategoryBadgeComponent } from '../../../shared/components/category-badge/category-badge.component';
-import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { GroupBadgeComponent } from '../../../shared/components/group-badge/group-badge.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { LetterStatusBadgeComponent } from '../../../shared/components/letter-status-badge/letter-status-badge.component';
@@ -18,7 +17,6 @@ import type { EmployeeNotice } from '../../../shared/interfaces/letter.interface
 import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
-import { todayIso } from '../../../shared/utils/date.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 
 interface InfoRow {
@@ -38,8 +36,6 @@ interface InfoRow {
     WarningsListComponent,
     UaDatePipe,
     UaDateTimePipe,
-    FormField,
-    FormFieldComponent,
   ],
   templateUrl: './employee-detail.component.html',
 })
@@ -70,81 +66,99 @@ export class EmployeeDetailComponent {
   );
   protected readonly busy = signal(false);
 
-  // ---- dismissal (Signal Form)
-  protected readonly showDismiss = signal(false);
-  protected readonly dismissModel = signal({
-    dismissalDate: todayIso(),
-    dismissalOrderNumber: '',
-    dismissalOrderDate: '',
-  });
-  protected readonly dismissForm = form(this.dismissModel, (p) => {
-    required(p.dismissalDate, { message: 'Вкажіть дату звільнення' });
-    validate(p.dismissalDate, ({ value }) => {
-      const hire = this.e()?.hireDate;
-      return hire && value() && value() < hire
-        ? { kind: 'beforeHire', message: 'Раніше за дату прийняття' }
-        : undefined;
-    });
-  });
-
   protected readonly extractUrl = computed(() => {
     const e = this.e();
     return e?.derived.listGroup ? this.reportsService.listsDocxUrl(undefined, [e.id]) : null;
   });
 
+  /** Mobilization term — for deferrals «до завершення мобілізації». */
+  protected readonly mobilization = httpResource<{ mobilizationUntil: string | null }>(
+    () => '/api/notifications/status',
+  );
+
   protected readonly sections = computed<{ title: string; rows: InfoRow[] }[]>(() => {
     const e = this.e();
     if (!e) return [];
-    const d = (v: string | null) => (v ? v.split('-').reverse().join('.') : '');
-    const join = (...parts: (string | null | undefined)[]) =>
-      parts.filter((p) => p && p.trim()).join(', ');
-    const military: InfoRow[] = [
-      { label: 'Звання', value: e.derived.rankTitle || (e.rankCode === 0 ? 'призовник' : '') },
-      { label: 'Склад', value: e.derived.compositionLabel },
-      { label: 'ВОС', value: e.vos },
-      {
-        label: e.rankCode !== null && e.rankCode >= 12 ? 'Розряд' : 'Категорія обліку',
-        value: e.accountingCategory,
-      },
-      { label: 'Профіль підготовки', value: e.trainingProfile },
-      { label: 'Реєстр. номер ЄДР', value: e.registryNumber },
-      { label: 'ТЦК та СП', value: e.tck?.name ?? '' },
-      {
-        label: 'Військовий документ',
-        value: join(
-          e.militaryDocType,
-          e.militaryDocSeries && `серія ${e.militaryDocSeries}`,
-          e.militaryDocNumber && `№ ${e.militaryDocNumber}`,
-          d(e.militaryDocIssuedAt),
-          e.militaryDocGeneratedAt && `сформовано ${e.militaryDocGeneratedAt}`,
+    const d = (v: string | null | undefined) => (v ? v.split('-').reverse().join('.') : '');
+    const join = (...parts: (string | null | undefined | false)[]) =>
+      parts.filter((p): p is string => !!p && !!p.trim()).join(', ');
+    const officer = e.rankCode !== null && e.rankCode >= 12;
+    const conscript = e.rankCode === 0;
+    const mobilizationUntil = this.mobilization.value()?.mobilizationUntil;
+    const documents = (e.militaryDocuments ?? [])
+      .map((doc) =>
+        join(
+          doc.type,
+          doc.series && `серія ${doc.series}`,
+          doc.number && `№ ${doc.number}`,
+          doc.issuedAt && `виданий ${d(doc.issuedAt)}`,
+          doc.issuedBy,
+          (doc.generatedDate || doc.generatedTime) &&
+            `сформовано ${join(doc.generatedTime, d(doc.generatedDate)).replace(', ', ' ')}`,
         ),
+      )
+      .join('\n');
+    const military: InfoRow[] = [
+      { label: 'Перебуває на військовому обліку', value: e.militaryRegistered ? 'так' : 'ні' },
+      { label: 'Військове звання', value: e.derived.rankTitle || (conscript ? 'призовник' : '') },
+      { label: 'Склад', value: e.derived.compositionLabel },
+      { label: 'ВОС', value: conscript ? 'не заповнюється' : e.vos },
+      {
+        label: officer ? 'Розряд' : 'Категорія обліку',
+        value: conscript ? '' : e.accountingCategory,
       },
-      { label: 'Придатність', value: join(e.fitness, e.fitnessBasis) },
+      ...(officer ? [{ label: 'Склад (профіль підготовки)', value: e.trainingProfile }] : []),
+      { label: 'Проходив військову службу', value: e.servedInArmy ? 'так' : 'ні' },
+      { label: 'Номер у реєстрі «Оберіг»', value: e.registryNumber },
+      {
+        label: 'ТЦК та СП',
+        value: join(e.tck?.name, e.tckRegisteredAt && `з ${d(e.tckRegisteredAt)}`),
+      },
+      { label: 'Військово-облікові документи', value: documents },
+      {
+        label: 'Придатність',
+        value: join(e.fitness, e.fitnessBasis, e.fitnessDate && `ВЛК ${d(e.fitnessDate)}`),
+      },
       {
         label: 'Бронювання',
-        value: join(
-          e.reservationBasis,
-          e.specialAccountingCertificate && `посв. № ${e.specialAccountingCertificate}`,
-          e.reservationUntil && `до ${d(e.reservationUntil)}`,
-        ),
+        value: e.reserved
+          ? join(
+              e.reservationUntil && `до ${d(e.reservationUntil)}`,
+              e.specialAccountingCertificate && `посв. № ${e.specialAccountingCertificate}`,
+              e.reservedBy === 'OTHER'
+                ? `за ${e.reservedByName}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}`
+                : 'за нашим підприємством',
+            )
+          : 'ні',
       },
+      { label: 'Відстрочка від строкової служби', value: e.deferralConscriptionBasis },
       {
-        label: 'Відстрочка',
+        label: 'Відстрочка від мобілізації',
         value: join(
-          e.deferralMobilizationBasis || e.deferralConscriptionBasis,
-          e.deferralUntil && `до ${d(e.deferralUntil)}`,
+          e.deferralMobilizationBasis,
+          e.deferralUntilMobilizationEnd
+            ? `до завершення мобілізації${mobilizationUntil ? ` (зараз — ${d(mobilizationUntil)})` : ''}`
+            : e.deferralUntil && `до ${d(e.deferralUntil)}`,
         ),
       },
-      { label: 'Резерв (№ команди)', value: e.reserveTeamNumber },
+      { label: 'Служба в резерві (№ команди)', value: e.reserveTeamNumber },
+      {
+        label: 'Мобілізаційне розпорядження',
+        value: e.mobilizationOrderDate ? `від ${d(e.mobilizationOrderDate)}` : '',
+      },
       {
         label: 'Мобілізація',
         value: join(
           e.mobilizedAt && `з ${d(e.mobilizedAt)}`,
+          e.mobilizationReleaseOrder && `наказ про увільнення № ${e.mobilizationReleaseOrder}`,
           e.demobilizedAt && `демобілізований ${d(e.demobilizedAt)}`,
+          e.readmissionOrder && `наказ про допуск № ${e.readmissionOrder}`,
         ),
       },
+      { label: 'Відомості про військову службу', value: e.militaryServiceInfo },
     ];
     const personal: InfoRow[] = [
+      { label: 'Стать', value: e.gender === 'F' ? 'жіноча' : 'чоловіча' },
       {
         label: 'Дата народження',
         value: join(d(e.birthDate), e.derived.age !== null ? `${e.derived.age} р.` : ''),
@@ -153,15 +167,15 @@ export class EmployeeDetailComponent {
       { label: 'Табельний №', value: e.personnelNumber },
       { label: 'Телефон', value: e.phone },
       { label: 'Email', value: e.email },
-      { label: 'Зареєстроване місце', value: e.registeredAddress },
-      { label: 'Фактичне місце', value: e.actualAddress },
+      { label: 'Зареєстроване місце проживання', value: e.registeredAddress },
+      { label: 'Фактичне місце проживання', value: e.actualAddress },
       {
         label: 'Паспорт',
         value: join(
-          e.passportType === 'ID_CARD' ? 'ID-картка' : 'книжечка',
+          e.passportNumber && (e.passportType === 'ID_CARD' ? 'ID-картка' : 'книжечка'),
           e.passportSeries,
           e.passportNumber && `№ ${e.passportNumber}`,
-          d(e.passportIssuedAt),
+          e.passportIssuedAt && `виданий ${d(e.passportIssuedAt)}`,
           e.passportIssuedBy,
         ),
       },
@@ -170,38 +184,59 @@ export class EmployeeDetailComponent {
         value: join(
           e.foreignPassportSeries,
           e.foreignPassportNumber && `№ ${e.foreignPassportNumber}`,
-          e.foreignPassportValidUntil && `до ${d(e.foreignPassportValidUntil)}`,
-        ),
-      },
-      { label: 'Освіта', value: join(e.educationLevel, e.educationSpecialty, e.educationDocument) },
-    ];
-    const work: InfoRow[] = [
-      { label: 'Посада', value: join(e.position, e.department) },
-      {
-        label: 'Прийнятий',
-        value: join(
-          d(e.hireDate),
-          e.hireOrderNumber && `наказ № ${e.hireOrderNumber}`,
-          d(e.hireOrderDate),
+          e.foreignPassportIssuedAt && `виданий ${d(e.foreignPassportIssuedAt)}`,
+          e.foreignPassportValidUntil && `дійсний до ${d(e.foreignPassportValidUntil)}`,
+          e.foreignPassportIssuedBy,
         ),
       },
       {
-        label: 'Призначення на посаду',
-        value: join(e.positionOrder, e.positionSince && `з ${d(e.positionSince)}`),
-      },
-      {
-        label: 'Звільнений',
+        label: 'Освіта',
         value: join(
-          d(e.dismissalDate),
-          e.dismissalOrderNumber && `наказ № ${e.dismissalOrderNumber}`,
+          e.educationLevel,
+          e.educationSpecialty,
+          e.educationDocument,
+          d(e.educationDocumentDate),
         ),
       },
       { label: 'Сімейний стан', value: this.dict.maritalLabel(e.maritalStatus, e.gender) },
     ];
+    const positions = [...(e.positions ?? [])]
+      .sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''))
+      .map((p, i, all) =>
+        join(
+          `${p.position}${i === all.length - 1 ? ' (поточна)' : ''}`,
+          p.department,
+          p.since && `з ${d(p.since)}`,
+          (p.orderNumber || p.orderDate) &&
+            `${p.orderDocName || 'наказ'}${p.orderNumber ? ` № ${p.orderNumber}` : ''}${p.orderDate ? ` від ${d(p.orderDate)}` : ''}`,
+        ),
+      )
+      .join('\n');
+    const work: InfoRow[] = [
+      {
+        label: 'Прийнятий на роботу',
+        value: join(
+          d(e.hireDate),
+          (e.hireOrderNumber || e.hireOrderDate) &&
+            `${e.hireOrderDocName || 'наказ'}${e.hireOrderNumber ? ` № ${e.hireOrderNumber}` : ''}${e.hireOrderDate ? ` від ${d(e.hireOrderDate)}` : ''}`,
+        ),
+      },
+      { label: 'Посади', value: positions || join(e.position, e.department) },
+      {
+        label: 'Звільнений',
+        value: e.dismissalDate
+          ? join(
+              d(e.dismissalDate),
+              (e.dismissalOrderNumber || e.dismissalOrderDate) &&
+                `${e.dismissalOrderDocName || 'наказ'}${e.dismissalOrderNumber ? ` № ${e.dismissalOrderNumber}` : ''}${e.dismissalOrderDate ? ` від ${d(e.dismissalOrderDate)}` : ''}`,
+            )
+          : 'ні',
+      },
+    ];
     return [
-      { title: 'Військовий облік', rows: military },
-      { title: 'Особисті дані', rows: personal },
-      { title: 'Робота і сім’я', rows: work },
+      { title: 'Військово-облікові дані', rows: military },
+      { title: 'Особиста інформація', rows: personal },
+      { title: 'Робота', rows: work },
     ];
   });
 
@@ -239,26 +274,6 @@ export class EmployeeDetailComponent {
     }
   }
 
-  protected async dismiss(event: Event) {
-    event.preventDefault();
-    await submit(this.dismissForm, async () => {
-      try {
-        const m = this.dismissModel();
-        await this.employeesService.dismiss(this.id(), {
-          dismissalDate: m.dismissalDate,
-          dismissalOrderNumber: m.dismissalOrderNumber,
-          dismissalOrderDate: m.dismissalOrderDate || null,
-        });
-        this.showDismiss.set(false);
-        this.toast.success('Звільнення зафіксовано. Додано повідомлення для ТЦК.');
-        await this.refresh();
-      } catch (err) {
-        this.toast.error(apiErrorMessage(err));
-      }
-      return undefined;
-    });
-  }
-
   protected async remove() {
     const e = this.e();
     if (!e || typeof window === 'undefined') return;
@@ -275,18 +290,5 @@ export class EmployeeDetailComponent {
     } catch (err) {
       this.toast.error(apiErrorMessage(err));
     }
-  }
-
-  protected diffEntries(diff: Record<string, [unknown, unknown]>) {
-    return Object.entries(diff).map(([field, [from, to]]) => ({
-      field,
-      from: this.show(from),
-      to: this.show(to),
-    }));
-  }
-
-  private show(v: unknown) {
-    if (v === null || v === undefined || v === '') return '∅';
-    return String(v);
   }
 }

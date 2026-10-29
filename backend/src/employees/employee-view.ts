@@ -36,7 +36,7 @@ export function toMilitaryRecord(e: Employee): MilitaryRecord {
     demobilizedAt: e.demobilizedAt,
     registryNumber: s(e.registryNumber),
     tckId: e.tckId,
-    militaryDocNumber: s(e.militaryDocNumber),
+    militaryDocNumber: s((e.militaryDocuments ?? []).find((d) => d.number?.trim())?.number),
     trainingProfile: s(e.trainingProfile),
   };
 }

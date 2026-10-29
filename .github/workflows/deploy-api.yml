@@ -23,6 +23,7 @@ env:
   REGION: ${{ vars.GCP_REGION }}
   SERVICE: military-registry-api
   MIGRATE_JOB: military-registry-migrate
+  DAILY_JOB: military-registry-daily
   IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/military-registry/api:${{ github.sha }}
   # Shared by the service and the migration job
   SECRETS: >-
@@ -78,6 +79,7 @@ jobs:
           ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
           SIGN_WIDGET_SCRIPT_URL: ${{ vars.SIGN_WIDGET_SCRIPT_URL }}
           SIGN_WIDGET_FRAME_URL: ${{ vars.SIGN_WIDGET_FRAME_URL }}
+          MAIL_FROM: ${{ vars.MAIL_FROM }}
         run: |
           # shared by the migration job and the service
           jq -n --arg bucket "$GCP_BUCKET" '{
@@ -89,8 +91,17 @@ jobs:
              --arg script "$SIGN_WIDGET_SCRIPT_URL" --arg frame "$SIGN_WIDGET_FRAME_URL" \
              '. + { APP_ORIGIN: $origin, TRUST_PROXY_HOPS: "2", ADMIN_EMAIL: $admin,
                     SIGN_WIDGET_SCRIPT_URL: $script, SIGN_WIDGET_FRAME_URL: $frame }' \
-             "$RUNNER_TEMP/env-common.json" > "$RUNNER_TEMP/env-service.json"
+             "$RUNNER_TEMP/env-common.json" > "$RUNNER_TEMP/env-service.json.tmp"
+          # e-mail sender (GitHub variable MAIL_FROM); the SMTP password lives in the secret SMTP_URL
+          jq --arg from "$MAIL_FROM" '. + { MAIL_FROM: $from }' "$RUNNER_TEMP/env-service.json.tmp" > "$RUNNER_TEMP/env-service.json"
           jq 'keys' "$RUNNER_TEMP/env-service.json"
+          # SMTP is optional: the secret is attached only if it was created (see docs/DEPLOYMENT.md)
+          if gcloud secrets describe SMTP_URL >/dev/null 2>&1; then
+            echo "SMTP_SECRET=,SMTP_URL=SMTP_URL:latest" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Секрет SMTP_URL не створено — листи-нагадування вимкнені"
+            echo "SMTP_SECRET=" >> "$GITHUB_ENV"
+          fi
 
       - name: Збірка і публікація образу
         run: |
@@ -117,7 +128,7 @@ jobs:
             --service-account "${{ vars.GCP_API_SA }}" \
             --no-allow-unauthenticated \
             --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
-            --set-secrets "$SECRETS,ADMIN_PASSWORD=ADMIN_PASSWORD:latest" \
+            --set-secrets "$SECRETS,ADMIN_PASSWORD=ADMIN_PASSWORD:latest${SMTP_SECRET}" \
             --env-vars-file "$RUNNER_TEMP/env-service.json" \
             --cpu 1 --memory 512Mi --concurrency 40 \
             --min-instances 0 --max-instances 4 --timeout 60 \
@@ -132,3 +143,24 @@ jobs:
             echo "::error::API доступний публічно (allUsers) — це заборонено"; exit 1
           fi
           echo "API: $(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')"
+
+      # Daily job: mobilization term from the decrees + e-mail reminders (deferral / reservation ending)
+      - name: Щоденна задача (Cloud Run Job + Cloud Scheduler)
+        run: |
+          gcloud run jobs deploy "$DAILY_JOB" \
+            --image "$IMAGE" --region "$REGION" \
+            --service-account "${{ vars.GCP_API_SA }}" \
+            --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
+            --set-secrets "${SECRETS}${SMTP_SECRET}" \
+            --env-vars-file "$RUNNER_TEMP/env-service.json" \
+            --command node --args dist/jobs/daily.js \
+            --max-retries 1 --task-timeout 10m --quiet
+          gcloud run jobs add-iam-policy-binding "$DAILY_JOB" --region "$REGION" \
+            --member "serviceAccount:${{ vars.GCP_API_SA }}" --role roles/run.invoker --quiet >/dev/null
+          URI="https://run.googleapis.com/v2/projects/${{ vars.GCP_PROJECT_ID }}/locations/${REGION}/jobs/${DAILY_JOB}:run"
+          if gcloud scheduler jobs describe "$DAILY_JOB" --location "$REGION" >/dev/null 2>&1; then verb=update; else verb=create; fi
+          gcloud scheduler jobs "$verb" http "$DAILY_JOB" --location "$REGION" \
+            --schedule "0 7 * * *" --time-zone "Europe/Kyiv" \
+            --uri "$URI" --http-method POST \
+            --oauth-service-account-email "${{ vars.GCP_API_SA }}" --quiet
+          echo "Щоденна задача: щодня о 07:00 (Київ)"

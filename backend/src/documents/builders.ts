@@ -5,7 +5,7 @@
 import { BorderStyle, HeightRule, type Paragraph, Table, TableCell, TableLayoutType, TableRow, WidthType } from 'docx';
 import { formatUa, formatUaLong, type IsoDate } from '../common/utils/dates.js';
 import type { Tck } from '../dictionaries/tck.entity.js';
-import { CHANGE_TYPE_LABELS, type ChangeType, LIST_GROUP_TITLES, type ListGroup } from '../military/dictionaries.js';
+import { CHANGE_TYPE_LABELS, type ChangeType, LIST_SECTION_TITLES, type ListSection } from '../military/dictionaries.js';
 import {
   LIST_TITLES,
   LIST_WIDTHS,
@@ -239,8 +239,8 @@ function inventoryPage(input: { org: Organization; tck: Tck | null | undefined; 
 export interface ListsInput {
   date: IsoDate;
   extract: boolean;
-  /** Lists by group (sheets GN1…GN4R); every row has 18 cells (see military/personal-list.ts). */
-  groups: { group: ListGroup; rows: string[][] }[];
+  /** The four lists (officers, soldiers, women, conscripts); every row has 18 cells (see military/personal-list.ts). */
+  sections: { section: ListSection; rows: string[][] }[];
   org: Organization;
   letter?: { number: string; date: IsoDate } | null;
 }
@@ -249,8 +249,9 @@ export interface ListsInput {
 const LIST_MARGINS = { top: 1080, bottom: 1080, left: 1008, right: 1008 };
 
 /**
- * Personal military registration lists laid out like sheets GN1…GN4R of the Excel file:
- * a separate list per group on its own landscape page(s), one row per record, columns 1–18.
+ * Personal military registration lists laid out like sheets GN* of the Excel file: four separate lists
+ * (officers; rank-and-file, sergeants and petty officers; women; conscripts — reservists together with
+ * their composition), each on its own landscape page(s), one row per record, columns 1–18.
  */
 export async function buildLists(input: ListsInput): Promise<Buffer> {
   const contentWidth = A4.height - LIST_MARGINS.left - LIST_MARGINS.right;
@@ -264,11 +265,11 @@ export async function buildLists(input: ListsInput): Promise<Buffer> {
   const sign = [Math.round(contentWidth * 0.3), Math.round(contentWidth * 0.2), Math.round(contentWidth * 0.3)] as [number, number, number];
   const orgText = input.org.nameLocative || input.org.fullName;
 
-  const groupSection = (group: ListGroup | null, rows: string[][]) => {
+  const groupSection = (list: ListSection | null, rows: string[][]) => {
     const body = rows.length
       ? rows.map((row) => row.map((text, i) => ({ text, size, align: i === 0 || i === 4 ? ('center' as const) : undefined })))
       : [[{ text: 'Особи відсутні', colSpan: LIST_TITLES.length, align: 'center' as const, size }]];
-    const whom = group ? LIST_GROUP_TITLES[group].replace(/,$/, '') : 'призовників, військовозобов’язаних та резервістів';
+    const whom = list ? LIST_SECTION_TITLES[list] : 'призовників, військовозобов’язаних та резервістів';
     return section(
       [
         p(`Вихідний номер   ${input.letter?.number ?? '__________'}`, { size: 10 }),
@@ -286,9 +287,9 @@ export async function buildLists(input: ListsInput): Promise<Buffer> {
     );
   };
 
-  const groups = input.groups.filter((g) => g.rows.length);
+  const sections = input.sections.filter((g) => g.rows.length);
   return render(
-    groups.length ? groups.map((g) => groupSection(g.group, g.rows)) : [groupSection(null, [])],
+    sections.length ? sections.map((g) => groupSection(g.section, g.rows)) : [groupSection(null, [])],
     input.extract ? 'Витяг зі списків' : 'Списки персонального військового обліку',
   );
 }

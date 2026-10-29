@@ -45,6 +45,34 @@ export class FamilyMemberDto {
   @PastDate() birthDate?: string | null;
 }
 
+/** One military registration document (an employee may have several). */
+export class MilitaryDocumentDto {
+  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docType, { message: MESSAGE.tooLong(MAX_LENGTH.docType) })
+  type?: string;
+  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docSeries, { message: MESSAGE.tooLong(MAX_LENGTH.docSeries) }) @Pattern(PATTERN.docSeries, MESSAGE.docSeries)
+  series?: string;
+  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docNumber, { message: MESSAGE.tooLong(MAX_LENGTH.docNumber) }) @Pattern(PATTERN.docNumber, MESSAGE.docNumber)
+  number?: string;
+  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docIssuedBy, { message: MESSAGE.tooLong(MAX_LENGTH.docIssuedBy) })
+  issuedBy?: string;
+  @PastDate() issuedAt?: string | null;
+  /** Electronic document: date and time of generation — separate fields. */
+  @PastDate() generatedDate?: string | null;
+  @IsOptional() @IsString() @Pattern(PATTERN.docGeneratedTime, MESSAGE.docGeneratedTime)
+  generatedTime?: string;
+}
+
+/** A position in the company (appointment or transfer). */
+export class EmployeePositionDto {
+  @IsString() @IsNotEmpty({ message: 'Вкажіть посаду' }) @MaxLength(MAX_LENGTH.position, { message: MESSAGE.tooLong(MAX_LENGTH.position) })
+  position: string;
+  @Str('department') department?: string;
+  @DateField() since?: string | null;
+  @Str('orderDocName') orderDocName?: string;
+  @Str('orderNumber') orderNumber?: string;
+  @DateField() orderDate?: string | null;
+}
+
 /** Change metadata for the TCK notice: effective date and grounds. */
 export class ChangeMetaDto {
   @IsOptional() @IsIsoDate() effectiveDate?: string;
@@ -113,9 +141,21 @@ export class CreateEmployeeDto {
   @DateField()
   @Rule((v: string, dto) => !dto.hireDate || v >= (dto.hireDate as string), 'Раніше за дату прийняття')
   positionSince?: string | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => EmployeePositionDto)
+  positions?: EmployeePositionDto[];
+
   @DateField() hireDate?: string | null;
+  @Str('hireOrderDocName') hireOrderDocName?: string;
   @Str('hireOrderNumber') hireOrderNumber?: string;
   @DateField() hireOrderDate?: string | null;
+
+  /** Dismissal is entered in the edit form as well (a TCK notice is created). */
+  @DateField()
+  @Rule((v: string, dto) => !dto.hireDate || v >= (dto.hireDate as string), 'Раніше за дату прийняття')
+  dismissalDate?: string | null;
+  @Str('dismissalOrderDocName') dismissalOrderDocName?: string;
+  @Str('dismissalOrderNumber') dismissalOrderNumber?: string;
+  @DateField() dismissalOrderDate?: string | null;
 
   @IsOptional() @IsBoolean() militaryRegistered?: boolean;
   @Str('registryNumber') @Pattern(PATTERN.registryNumber, MESSAGE.registryNumber) registryNumber?: string;
@@ -131,12 +171,10 @@ export class CreateEmployeeDto {
   vos?: string;
   @Str('trainingProfile') trainingProfile?: string;
   @Str('accountingCategory') @Pattern(PATTERN.accountingCategory, MESSAGE.accountingCategory) accountingCategory?: string;
-  @Str('militaryDocType') militaryDocType?: string;
-  @Str('militaryDocSeries') @Pattern(PATTERN.militaryDocSeries, MESSAGE.militaryDocSeries) militaryDocSeries?: string;
-  @Str('militaryDocNumber') @Pattern(PATTERN.militaryDocNumber, MESSAGE.militaryDocNumber) militaryDocNumber?: string;
-  @Str('militaryDocIssuedBy') militaryDocIssuedBy?: string;
-  @PastDate() militaryDocIssuedAt?: string | null;
-  @Str('militaryDocGeneratedAt') @Pattern(PATTERN.militaryDocGeneratedAt, MESSAGE.militaryDocGeneratedAt) militaryDocGeneratedAt?: string;
+  @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => MilitaryDocumentDto)
+  militaryDocuments?: MilitaryDocumentDto[];
+
+  @IsOptional() @IsBoolean() servedInArmy?: boolean;
 
   @IsOptional() @ValidateIf((o: CreateEmployeeDto) => o.tckId !== null) @IsUUID('all', { message: 'Невідомий ТЦК' })
   tckId?: string | null;
@@ -151,9 +189,15 @@ export class CreateEmployeeDto {
   @Str('specialAccountingCertificate') specialAccountingCertificate?: string;
   @DateField()
   reservationUntil?: string | null;
+  @IsOptional() @IsIn(['COMPANY', 'OTHER'], { message: 'Ким заброньовано: COMPANY або OTHER' })
+  reservedBy?: 'COMPANY' | 'OTHER';
+  @Str('reservedByName') reservedByName?: string;
+  @Str('reservedByEdrpou') @Pattern(PATTERN.edrpou, MESSAGE.edrpou) reservedByEdrpou?: string;
   @Str('deferralConscriptionBasis') deferralConscriptionBasis?: string;
   @Str('deferralMobilizationBasis') deferralMobilizationBasis?: string;
   @DateField() deferralUntil?: string | null;
+  /** Deferral «до завершення мобілізації» instead of a date. */
+  @IsOptional() @IsBoolean() deferralUntilMobilizationEnd?: boolean;
   @Str('reserveTeamNumber') reserveTeamNumber?: string;
   @PastDate() mobilizationOrderDate?: string | null;
   @Str('militaryServiceInfo') militaryServiceInfo?: string;
@@ -175,6 +219,7 @@ export class UpdateEmployeeDto extends PartialType(OmitType(CreateEmployeeDto, [
 
 export class DismissEmployeeDto {
   @IsIsoDate() dismissalDate: string;
+  @Str('dismissalOrderDocName') dismissalOrderDocName?: string;
   @IsOptional() @IsString() @MaxLength(50, { message: MESSAGE.tooLong(50) }) dismissalOrderNumber?: string;
   @DateField() dismissalOrderDate?: string | null;
   @Str('changeBasis') basis?: string;

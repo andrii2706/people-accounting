@@ -70,9 +70,10 @@ function addressText(e: Employee): string {
 
 /** Column 13: deferral term and legal grounds. */
 function deferralText(e: Employee): string {
-  if (isConscript(e)) return e.deferralConscriptionBasis ?? '';
-  if (!e.deferralMobilizationBasis && !e.deferralUntil) return '';
-  return join([until(e.deferralUntil), e.deferralMobilizationBasis]);
+  const term = e.deferralUntilMobilizationEnd ? 'до завершення мобілізації' : until(e.deferralUntil);
+  if (isConscript(e)) return join([e.deferralConscriptionBasis, e.deferralConscriptionBasis ? term : '']);
+  if (!e.deferralMobilizationBasis && !e.deferralUntil && !e.deferralUntilMobilizationEnd) return '';
+  return join([term, e.deferralMobilizationBasis]);
 }
 
 /**
@@ -81,11 +82,11 @@ function deferralText(e: Employee): string {
  */
 function reservationText(e: Employee): string {
   if (!e.reserved || isConscript(e) || isReservist(e)) return '';
-  if (!e.reservationBasis && !e.reservationUntil) return '';
+  if (!e.reservationUntil) return '';
   return join([
     until(e.reservationUntil),
-    e.reservationBasis,
     e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
+    e.reservedBy === 'OTHER' && e.reservedByName ? `заброньовано за ${e.reservedByName}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}` : '',
   ]);
 }
 
@@ -133,7 +134,8 @@ export function personalListCells(e: Employee, date: IsoDate, notices: string): 
     e.tck?.name ?? '',
     deferralText(e),
     reservationText(e),
-    conscript ? '' : isMobilizedAt(toMilitaryRecord(e), date) ? 'так' : 'ні',
+    // column 15: «так» — served in the armed forces (checkbox in the card) or serving now
+    conscript ? '' : e.servedInArmy || isMobilizedAt(toMilitaryRecord(e), date) ? 'так' : 'ні',
     mobilizationOrderText(e),
     positionText(e),
     noticesText(e, date, notices),

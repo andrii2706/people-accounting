@@ -21,11 +21,18 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { LetterSigningComponent } from '../letter-signing/letter-signing.component';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import {
+  type SelectOption,
+  SelectComponent,
+} from '../../../shared/components/select/select.component';
 
 @Component({
   selector: 'app-letter-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    DateInputComponent,
+    SelectComponent,
     RouterLink,
     IconComponent,
     LetterStatusBadgeComponent,
@@ -64,6 +71,10 @@ export class LetterDetailComponent {
       'Реквізити збережено',
     );
   }
+
+  protected readonly tckOptions = computed<SelectOption[]>(() =>
+    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name })),
+  );
 
   protected async changeTck(tckId: string) {
     await this.mutate(() => this.lettersService.update(this.id(), { tckId }), 'Адресата змінено');

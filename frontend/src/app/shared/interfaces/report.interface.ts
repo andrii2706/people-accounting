@@ -1,10 +1,23 @@
 import type { Warning } from './common.interface';
-import type { DutyCategory, ListGroup } from './dictionary.interface';
+import type { DutyCategory, ListGroup, ListSection } from './dictionary.interface';
 export interface Dashboard {
   date: string;
   employees: { employed: number; onLists: number; mobilized: number; reserved: number };
   byGroup: Record<ListGroup, number>;
+  bySection: Record<ListSection, number>;
   byCategory: Record<DutyCategory, number>;
+  /** Deferrals in force on the date. */
+  deferrals: number;
+  /** Reservation quota of the company and how much of it is used. */
+  reservation: {
+    quota: number | null;
+    quotaBasis: string;
+    reservedCompany: number;
+    reservedOther: number;
+    available: number | null;
+    exceeded: boolean;
+  };
+  mobilizationUntil: string | null;
   pendingChanges: number;
   overdueChanges: number;
   attention: { id: string; fullName: string; warnings: Warning[] }[];
@@ -15,6 +28,8 @@ export interface Dashboard {
 export interface ListRow {
   employeeId: string;
   group: ListGroup;
+  /** Which of the four lists. */
+  section: ListSection;
   category: DutyCategory | null;
   cells: string[];
 }

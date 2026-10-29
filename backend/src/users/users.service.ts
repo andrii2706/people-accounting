@@ -5,8 +5,9 @@ import { randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
 import { generateTemporaryPassword, passwordMessage, passwordProblems } from '../common/password-policy.js';
 import { loadEnv } from '../config/env.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
-import { User } from './user.entity.js';
+import { User, type UserRole } from './user.entity.js';
 
 const BCRYPT_ROUNDS = 12;
 /** Hash used to equalize response time when the email does not exist (protection against email enumeration). */
@@ -21,7 +22,14 @@ export type CredentialsResult =
 export class UsersService {
   private readonly env = loadEnv();
 
-  constructor(@InjectRepository(User) private readonly repo: Repository<User>) {}
+  constructor(
+    @InjectRepository(User) private readonly repo: Repository<User>,
+    private readonly notifications: NotificationsService,
+  ) {}
+
+  private roleLabel(role: UserRole) {
+    return role === 'ADMIN' ? 'адміністратор' : 'працівник з військового обліку';
+  }
 
   list() {
     return this.repo.find({ order: { fullName: 'ASC' } });
@@ -70,7 +78,7 @@ export class UsersService {
     return { status: 'ok', user };
   }
 
-  async create(dto: CreateUserDto, opts: { mustChangePassword?: boolean } = {}) {
+  async create(dto: CreateUserDto, opts: { mustChangePassword?: boolean; silent?: boolean } = {}) {
     const email = dto.email.toLowerCase();
     if (await this.repo.exists({ where: { email } })) throw new ConflictException('Користувач з таким email вже існує');
     this.assertPolicy(dto.password, email);
@@ -85,6 +93,16 @@ export class UsersService {
         passwordChangedAt: new Date(),
       }),
     );
+    if (!opts.silent) {
+      // the temporary password is never sent by e-mail — the administrator hands it over personally
+      await this.notifications.notifyUser(
+        email,
+        'Вам надано доступ до системи військового обліку',
+        `Для вас створено обліковий запис (роль: ${this.roleLabel(saved.role)}).\n` +
+          `Адреса: ${this.env.appUrl}\nЛогін: ${email}\n` +
+          'Тимчасовий пароль вам передасть адміністратор особисто. Під час першого входу система попросить його змінити.',
+      );
+    }
     return this.findById(saved.id);
   }
 
@@ -104,7 +122,16 @@ export class UsersService {
       changes.isActive = dto.isActive;
       changes.tokenVersion = user.tokenVersion + 1; // lockout — instant sign-out from all sessions
     }
+    if (dto.notify !== undefined) changes.notify = dto.notify;
     if (Object.keys(changes).length) await this.repo.update(id, changes);
+    if (changes.role) {
+      await this.notifications.notifyUser(user.email, 'Змінено вашу роль у системі військового обліку', `Ваша нова роль: ${this.roleLabel(changes.role)}. Увійдіть знову, щоб зміни набули чинності.`);
+    }
+    if (changes.isActive === false) {
+      await this.notifications.notifyUser(user.email, 'Доступ до системи військового обліку припинено', 'Адміністратор вимкнув ваш обліковий запис. Якщо це помилка — зверніться до адміністратора.');
+    } else if (changes.isActive === true) {
+      await this.notifications.notifyUser(user.email, 'Доступ до системи військового обліку відновлено', `Ваш обліковий запис знову активний: ${this.env.appUrl}`);
+    }
     return this.findById(id);
   }
 
@@ -121,7 +148,23 @@ export class UsersService {
       lockedUntil: null,
       passwordChangedAt: new Date(),
     });
+    await this.notifications.notifyUser(
+      user.email,
+      'Ваш пароль скинуто',
+      'Адміністратор скинув пароль до вашого облікового запису. Новий тимчасовий пароль він передасть вам особисто.\n' +
+        'Якщо ви цього не очікували — негайно зверніться до адміністратора.',
+    );
     return { temporaryPassword };
+  }
+
+  async preferences(id: string) {
+    const user = await this.findById(id);
+    return { notify: user.notify };
+  }
+
+  async updatePreferences(id: string, notify: boolean) {
+    await this.repo.update(id, { notify });
+    return this.preferences(id);
   }
 
   async unlock(id: string) {
@@ -142,6 +185,7 @@ export class UsersService {
       tokenVersion: user.tokenVersion + 1,
       passwordChangedAt: new Date(),
     });
+    await this.notifications.notifyUser(user.email, 'Пароль змінено', 'Пароль до вашого облікового запису в системі військового обліку щойно змінено. Якщо це були не ви — зверніться до адміністратора.');
     return (await this.findForSession(id))!;
   }
 
@@ -149,7 +193,7 @@ export class UsersService {
   async ensureAdmin(email: string, password: string, fullName: string) {
     const existing = await this.repo.findOneBy({ email: email.toLowerCase() });
     if (existing) return existing;
-    return this.create({ email, password, fullName, role: 'ADMIN' }, { mustChangePassword: this.env.isProduction });
+    return this.create({ email, password, fullName, role: 'ADMIN' }, { mustChangePassword: this.env.isProduction, silent: true });
   }
 
   private assertPolicy(password: string, email: string) {

@@ -56,7 +56,11 @@ export const FAMILY_RELATION_LABELS: Record<FamilyRelation, string> = {
   DAUGHTER: 'донька',
 };
 
-/** Types of registration data changes the company notifies the TCK about (employee card, rows 102–114). */
+/**
+ * Types of registration data changes the company notifies the TCK about (employee card, rows 102–114).
+ * A notice is one of three kinds: hiring, dismissal, or a change of registration data —
+ * all pending data changes of a person go into one notice (type DATA).
+ */
 export type ChangeType =
   | 'LAST_NAME'
   | 'FIRST_NAME'
@@ -68,6 +72,18 @@ export type ChangeType =
   | 'FOREIGN_PASSPORT'
   | 'EDUCATION'
   | 'MARITAL_STATUS'
+  | 'REGISTRY_NUMBER'
+  | 'RANK'
+  | 'VOS'
+  | 'MILITARY_DOC'
+  | 'TCK'
+  | 'FITNESS'
+  | 'MILITARY_SERVICE'
+  | 'DEFERRAL'
+  | 'RESERVATION'
+  | 'RESERVE_SERVICE'
+  | 'MOBILIZATION_ORDER'
+  | 'DATA'
   | 'HIRE'
   | 'DISMISSAL';
 
@@ -82,6 +98,18 @@ export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
   FOREIGN_PASSPORT: 'Отримано закордонний паспорт',
   EDUCATION: 'Здобуто освіту',
   MARITAL_STATUS: 'Зміна сімейного стану',
+  REGISTRY_NUMBER: 'Зміна номера в реєстрі «Оберіг»',
+  RANK: 'Зміна військового звання',
+  VOS: 'Зміна ВОС',
+  MILITARY_DOC: 'Зміна військово-облікового документа',
+  TCK: 'Зміна ТЦК та СП',
+  FITNESS: 'Зміна придатності до військової служби',
+  MILITARY_SERVICE: 'Зміна відомостей про військову службу',
+  DEFERRAL: 'Зміна відомостей про відстрочку',
+  RESERVATION: 'Зміна відомостей про бронювання',
+  RESERVE_SERVICE: 'Зміна відомостей про службу в резерві',
+  MOBILIZATION_ORDER: 'Зміна відомостей про мобілізаційне розпорядження',
+  DATA: 'Зміна облікових даних',
   HIRE: 'Прийняття на роботу',
   DISMISSAL: 'Звільнення з роботи',
 };
@@ -101,6 +129,28 @@ export const LIST_GROUP_TITLES: Record<ListGroup, string> = {
 };
 
 export const LIST_GROUPS = Object.keys(LIST_GROUP_TITLES) as ListGroup[];
+
+/**
+ * The personal registration lists are kept as four separate lists; reservists go into the list
+ * of their composition together with persons liable for military service.
+ */
+export type ListSection = 'OFFICERS' | 'SOLDIERS' | 'WOMEN' | 'CONSCRIPTS';
+
+export const LIST_SECTION_TITLES: Record<ListSection, string> = {
+  OFFICERS: 'військовозобов’язаних та резервістів офіцерського складу',
+  SOLDIERS: 'військовозобов’язаних та резервістів рядового, сержантського та старшинського складу',
+  WOMEN: 'військовозобов’язаних та резервістів з числа жінок',
+  CONSCRIPTS: 'призовників',
+};
+
+export const LIST_SECTIONS = Object.keys(LIST_SECTION_TITLES) as ListSection[];
+
+export function listSection(group: ListGroup): ListSection {
+  if (group.startsWith('G1')) return 'OFFICERS';
+  if (group.startsWith('G2')) return 'SOLDIERS';
+  if (group.startsWith('G3')) return 'WOMEN';
+  return 'CONSCRIPTS';
+}
 
 export type DutyCategory = 'LIABLE' | 'RESERVIST' | 'CONSCRIPT';
 

@@ -21,6 +21,73 @@
     </a>
   }
 
+  <!-- reservation quota -->
+  <section class="card mb-4 p-5" [class.border-danger]="d.reservation.exceeded">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="label">Бронювання за квотою</p>
+        @if (d.reservation.quota !== null) {
+          <p class="text-sm text-muted">
+            {{ d.reservation.quotaBasis || 'Квота підприємства' }}
+          </p>
+        } @else {
+          <p class="text-sm text-muted">
+            Квоту не задано —
+            <a routerLink="/settings" class="text-brand-600 hover:underline"
+              >вкажіть у налаштуваннях</a
+            >
+          </p>
+        }
+      </div>
+      <dl class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
+        <div>
+          <dt class="text-xs text-muted">Квота</dt>
+          <dd class="text-2xl font-semibold tabular-nums">{{ d.reservation.quota ?? '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-muted">Заброньовано підприємством</dt>
+          <dd
+            class="text-2xl font-semibold tabular-nums"
+            [class.text-danger]="d.reservation.exceeded"
+          >
+            {{ d.reservation.reservedCompany }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-muted">Ще можна забронювати</dt>
+          <dd
+            class="text-2xl font-semibold tabular-nums"
+            [class.text-ok]="(d.reservation.available ?? 0) > 0"
+          >
+            {{ d.reservation.available ?? '—' }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-xs text-muted">Заброньовані іншою юр. особою</dt>
+          <dd class="text-2xl font-semibold tabular-nums">{{ d.reservation.reservedOther }}</dd>
+        </div>
+      </dl>
+    </div>
+    @if (d.reservation.quota !== null) {
+      <div
+        class="mt-4 h-2 overflow-hidden rounded-full bg-sunken"
+        role="progressbar"
+        [attr.aria-valuenow]="d.reservation.reservedCompany"
+        [attr.aria-valuemax]="d.reservation.quota"
+        aria-label="Використання квоти"
+      >
+        <div
+          class="h-full rounded-full"
+          [class]="d.reservation.exceeded ? 'bg-danger' : 'bg-brand-500'"
+          [style.width.%]="quotaShare()"
+        ></div>
+      </div>
+      @if (d.reservation.exceeded) {
+        <p class="mt-2 text-sm text-danger">Кількість заброньованих перевищує квоту.</p>
+      }
+    }
+  </section>
+
   <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <div class="card p-5">
       <p class="label">Працюють</p>
@@ -37,9 +104,14 @@
       </p>
     </a>
     <div class="card p-5">
-      <p class="label">Заброньовані</p>
-      <p class="text-3xl font-semibold tabular-nums">{{ d.employees.reserved }}</p>
-      <p class="mt-1 text-xs text-muted">мобілізовано: {{ d.employees.mobilized }}</p>
+      <p class="label">Мають відстрочку</p>
+      <p class="text-3xl font-semibold tabular-nums">{{ d.deferrals }}</p>
+      <p class="mt-1 text-xs text-muted">
+        мобілізовано: {{ d.employees.mobilized }}
+        @if (d.mobilizationUntil) {
+          · мобілізація до {{ d.mobilizationUntil | uaDate }}
+        }
+      </p>
     </div>
     <div class="card p-5">
       <p class="label">За категоріями</p>
@@ -63,7 +135,7 @@
   <div class="mt-6 grid gap-6 xl:grid-cols-[1fr_1.2fr]">
     <section class="card p-5">
       <div class="mb-4 flex items-center justify-between">
-        <h2 class="font-semibold">Склад за групами</h2>
+        <h2 class="font-semibold">Списки персонального обліку</h2>
         <a routerLink="/reports/lists" class="text-sm text-brand-600 hover:underline"
           >Відкрити списки</a
         >
@@ -72,10 +144,7 @@
         @for (row of groups(); track row.group) {
           <li>
             <div class="mb-1 flex items-baseline justify-between gap-3 text-sm">
-              <span class="truncate"
-                ><span class="mr-2 font-mono text-xs font-semibold text-muted">{{ row.group }}</span
-                >{{ row.title }}</span
-              >
+              <span class="truncate first-letter:uppercase">{{ row.title }}</span>
               <span class="font-medium tabular-nums">{{ row.count }}</span>
             </div>
             <div class="h-1.5 overflow-hidden rounded-full bg-sunken">

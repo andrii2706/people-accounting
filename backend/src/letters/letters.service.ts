@@ -48,6 +48,14 @@ const TYPE_TITLES = {
   OTHER: 'Лист',
 } as const;
 
+/** Splits the pending changes of one person into notices: hiring, combined data changes, dismissal. */
+export function noticeBatches(changes: EmployeeChange[]): EmployeeChange[][] {
+  const hires = changes.filter((c) => c.type === 'HIRE').map((c) => [c]);
+  const data = changes.filter((c) => c.type !== 'HIRE' && c.type !== 'DISMISSAL');
+  const dismissals = changes.filter((c) => c.type === 'DISMISSAL').map((c) => [c]);
+  return [...hires, ...(data.length ? [data] : []), ...dismissals];
+}
+
 @Injectable()
 export class LettersService {
   constructor(
@@ -91,7 +99,6 @@ export class LettersService {
       if (!changes.length) throw new BadRequestException('Немає змін, про які потрібно повідомити');
 
       // group by TCK; inside a letter — employees alphabetically, their changes by date
-      const byId = new Map(employees.map((e) => [e.id, e]));
       const groups = new Map<string, Employee[]>();
       for (const e of employees) {
         if (!changes.some((c) => c.employeeId === e.id)) continue;
@@ -116,9 +123,9 @@ export class LettersService {
           createdById: user.id,
         });
         await m.getRepository(EmployeeChange).update({ id: In(groupChanges.map((c) => c.id)) }, { letterId: letter.id });
-        await m.getRepository(ChangeNotice).save(
-          groupChanges.map((c, i) => this.noticeRow(letter.id, i + 1, byId.get(c.employeeId)!, c)),
-        );
+        // three kinds of notices: hiring, dismissal, and one combined «зміна облікових даних» per person
+        const notices = group.flatMap((e) => noticeBatches(changes.filter((c) => c.employeeId === e.id)).map((batch) => ({ e, batch })));
+        await m.getRepository(ChangeNotice).save(notices.map(({ e, batch }, i) => this.noticeRow(letter.id, i + 1, e, batch)));
         created.push(letter.id);
       }
       return created;
@@ -126,16 +133,17 @@ export class LettersService {
     return Promise.all(ids.map((id) => this.get(id)));
   }
 
-  private noticeRow(letterId: string, sequence: number, employee: Employee, change: EmployeeChange) {
+  private noticeRow(letterId: string, sequence: number, employee: Employee, batch: EmployeeChange[]) {
+    const combined = batch.length > 1 || (batch[0].type !== 'HIRE' && batch[0].type !== 'DISMISSAL');
     return this.noticeRepo.create({
       letterId,
       sequence,
       employeeId: employee.id,
-      changeId: change.id,
+      changeId: batch[0].id,
       employeeName: fullName(employee),
-      changeType: change.type,
-      effectiveDate: change.effectiveDate,
-      content: JSON.stringify(noticeSnapshot(employee, change)),
+      changeType: combined ? 'DATA' : batch[0].type,
+      effectiveDate: batch.map((c) => c.effectiveDate).sort().at(-1)!,
+      content: JSON.stringify(noticeSnapshot(employee, batch)),
     });
   }
 
@@ -152,7 +160,7 @@ export class LettersService {
     const rows: ChangeNotice[] = [];
     for (const [i, c] of changes.entries()) {
       const employee = await this.employees.findEntity(c.employeeId);
-      rows.push(this.noticeRow(letter.id, i + 1, employee, c));
+      rows.push(this.noticeRow(letter.id, i + 1, employee, [c]));
     }
     return rows.length ? this.noticeRepo.save(rows) : [];
   }
@@ -210,7 +218,7 @@ export class LettersService {
     const notice = await this.noticeRepo.findOne({ where: { id }, relations: { letter: { tck: true } } });
     if (!notice) throw new NotFoundException('Повідомлення не знайдено');
     const total = await this.noticeRepo.countBy({ letterId: notice.letterId });
-    const org = await this.org.get();
+    const org = await this.org.getAt(notice.letter.date);
     const responsible = await this.org.responsibleAt(notice.letter.date);
     const snapshot = JSON.parse(notice.content) as NoticeSnapshot;
     const ref = { number: notice.letter.number, date: notice.letter.date };
@@ -363,7 +371,7 @@ export class LettersService {
       const rows = await this.ensureNotices(letter);
       if (!rows.length) throw new BadRequestException('У листі немає повідомлень');
       const [org, responsible, tck] = await Promise.all([
-        this.org.get(),
+        this.org.getAt(letter.date),
         this.org.responsibleAt(letter.date),
         letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
       ]);

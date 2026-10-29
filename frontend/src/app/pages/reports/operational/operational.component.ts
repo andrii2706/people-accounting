@@ -10,11 +10,12 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
 import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 
 @Component({
   selector: 'app-operational',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, IconComponent],
+  imports: [DateInputComponent, PageHeaderComponent, IconComponent],
   templateUrl: './operational.component.html',
 })
 export class OperationalComponent {
@@ -34,6 +35,8 @@ export class OperationalComponent {
   protected readonly busy = signal(false);
 
   protected setDate(date: string) {
+    // the field reports every keystroke — react only to a complete date or clearing
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
     void this.updateQuery({ date: date && date !== this.today ? date : '' });
   }
 

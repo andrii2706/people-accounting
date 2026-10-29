@@ -63,3 +63,25 @@
     Після зміни пароля всі інші ваші сесії (на інших комп’ютерах) буде завершено.
   </p>
 </form>
+
+@if (preferences.hasValue()) {
+  <section class="card mt-6 max-w-xl p-5 sm:p-6">
+    <h2 class="mb-1 font-semibold">Сповіщення</h2>
+    <label class="mt-3 flex items-start gap-3 text-sm">
+      <input
+        type="checkbox"
+        class="mt-0.5 size-4 accent-brand-600"
+        [checked]="preferences.value().notify"
+        [disabled]="savingNotify()"
+        (change)="setNotify($any($event.target).checked)"
+      />
+      <span>
+        Отримувати листи на {{ auth.user()?.email }}
+        <span class="block text-xs text-muted">
+          Завершення відстрочок (за 5 днів), бронювань, строку мобілізації; зміна керівника. Листи
+          про ваш обліковий запис (пароль, роль) надходять завжди.
+        </span>
+      </span>
+    </label>
+  </section>
+}

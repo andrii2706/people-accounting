@@ -20,6 +20,7 @@ import { DictionariesService } from '../../../shared/services/dictionaries.servi
 import { EmployeeImportService } from '../../../shared/services/employee-import.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 
 type FieldKind = 'text' | 'date' | 'gender' | 'rank' | 'tck' | 'passportType' | 'bool' | 'docType';
 
@@ -44,9 +45,11 @@ const EDIT_FIELDS: { key: string; label: string; kind: FieldKind }[] = [
   { key: 'position', label: 'Посада', kind: 'text' },
   { key: 'department', label: 'Підрозділ', kind: 'text' },
   { key: 'hireDate', label: 'Дата прийняття', kind: 'date' },
+  { key: 'hireOrderDocName', label: 'Документ про прийняття', kind: 'text' },
   { key: 'hireOrderNumber', label: 'Наказ про прийняття №', kind: 'text' },
   { key: 'hireOrderDate', label: 'Дата наказу', kind: 'date' },
   { key: 'militaryRegistered', label: 'На військовому обліку', kind: 'bool' },
+  { key: 'servedInArmy', label: 'Проходив військову службу', kind: 'bool' },
   { key: 'rankCode', label: 'Військове звання', kind: 'rank' },
   { key: 'vos', label: 'ВОС', kind: 'text' },
   { key: 'registryNumber', label: 'Номер у реєстрі «Оберіг»', kind: 'text' },
@@ -58,9 +61,13 @@ const EDIT_FIELDS: { key: string; label: string; kind: FieldKind }[] = [
   { key: 'tckId', label: 'ТЦК та СП', kind: 'tck' },
   { key: 'fitness', label: 'Придатність', kind: 'text' },
   { key: 'reserved', label: 'Заброньований', kind: 'bool' },
-  { key: 'reservationBasis', label: 'Підстава бронювання', kind: 'text' },
   { key: 'reservationUntil', label: 'Заброньовано до', kind: 'date' },
   { key: 'deferralUntil', label: 'Відстрочка до', kind: 'date' },
+  {
+    key: 'deferralUntilMobilizationEnd',
+    label: 'Відстрочка до завершення мобілізації',
+    kind: 'bool',
+  },
   { key: 'deferralMobilizationBasis', label: 'Підстава відстрочки', kind: 'text' },
   { key: 'notes', label: 'Примітки', kind: 'text' },
 ];
@@ -93,7 +100,7 @@ const statusOf = (r: CheckedImportRow): Status =>
 @Component({
   selector: 'app-employee-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, IconComponent, RouterLink, UaDatePipe],
+  imports: [PageHeaderComponent, IconComponent, RouterLink, UaDatePipe, DateInputComponent],
   templateUrl: './employee-import.component.html',
 })
 export class EmployeeImportComponent {

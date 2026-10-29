@@ -1,15 +1,15 @@
 <app-page-header
   eyebrow="Додаток 5 до Порядку (ред. постанови КМУ № 916, зі змінами постанови № 812 від 10.06.2026)"
   title="Списки персонального військового обліку"
-  subtitle="Окремий список для кожної групи, як на аркушах GN1…GN4R файлу Excel: один рядок на особу, графи 1–18."
+  subtitle="Чотири окремі списки: офіцерський склад; рядовий, сержантський і старшинський склад; жінки; призовники (резервісти — у списку свого складу). Один рядок на особу, графи 1–18."
 >
   <label class="flex items-center gap-2 text-sm">
     <span class="text-muted">Станом на</span>
-    <input
-      class="input w-auto"
-      type="date"
+    <app-date-input
+      class="w-40"
+      ariaLabel="Станом на дату"
       [value]="date()"
-      (change)="setDate($any($event.target).value)"
+      (valueChange)="setDate($event)"
     />
   </label>
   <a class="btn btn-secondary" [href]="downloadUrl()" download
@@ -49,7 +49,7 @@
         "
         (click)="filter.set(g.group)"
       >
-        {{ dictionaries.groupTitle(g.group) }}
+        {{ title(g.group) }}
         <span class="ml-1.5 tabular-nums opacity-80">{{ g.rows.length }}</span>
       </button>
     }
@@ -60,7 +60,7 @@
   <section class="card mb-5 overflow-hidden">
     <header class="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3">
       <h2 class="text-sm font-semibold first-letter:uppercase">
-        {{ dictionaries.groupTitle(g.group) }}
+        {{ title(g.group) }}
       </h2>
       <span class="text-xs text-muted tabular-nums">{{ g.rows.length }} ос.</span>
     </header>

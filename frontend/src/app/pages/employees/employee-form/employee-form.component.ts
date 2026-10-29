@@ -25,14 +25,25 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import {
   apiPathToFormPath,
+  DATE_FIELDS,
+  emptyDocument,
   type EmployeeFormModel,
   employeeToForm,
   emptyEmployeeForm,
+  emptyPosition,
   FIELD_META,
   type FormTab,
   formToPayload,
+  LIST_ITEM_FIELDS,
+  normalizeTime,
   reportableChanges,
 } from './employee-form.model';
+import { httpResource } from '@angular/common/http';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import {
+  type SelectOption,
+  SelectComponent,
+} from '../../../shared/components/select/select.component';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
@@ -54,32 +65,18 @@ import {
 
 const TABS: { id: FormTab; label: string }[] = [
   { id: 'personal', label: 'Особисті дані' },
+  { id: 'passport', label: 'Паспорти' },
+  { id: 'education', label: 'Освіта' },
+  { id: 'family', label: 'Сімейний стан' },
   { id: 'work', label: 'Робота' },
-  { id: 'military', label: 'Військовий облік' },
-  { id: 'documents', label: 'Паспорти й освіта' },
-  { id: 'family', label: 'Сім’я' },
+  { id: 'military', label: 'Військово-облікові дані' },
   { id: 'notes', label: 'Примітки' },
 ];
 
-const DATE_FIELDS = [
-  'birthDate',
-  'passportIssuedAt',
-  'foreignPassportIssuedAt',
-  'foreignPassportValidUntil',
-  'educationDocumentDate',
-  'positionSince',
-  'hireDate',
-  'hireOrderDate',
-  'militaryDocIssuedAt',
-  'tckRegisteredAt',
-  'fitnessDate',
-  'reservationUntil',
-  'deferralUntil',
-  'mobilizationOrderDate',
-  'mobilizedAt',
-  'demobilizedAt',
-  'changeEffectiveDate',
-] as const;
+const ALL_DATE_FIELDS = [...DATE_FIELDS, 'changeEffectiveDate'] as const;
+
+/** Document names for the hire / transfer / dismissal (free text is allowed too). */
+export const ORDER_DOC_NAMES = ['наказ', 'розпорядження', 'рішення', 'постанова', 'протокол'];
 
 /** Protection against «0002-05-12» from typing the year by hand in a date input. */
 const sensibleDate = (v: string) =>
@@ -96,18 +93,30 @@ interface FieldStateLike {
 }
 type FieldLike = () => FieldStateLike;
 
+type ListKey = keyof typeof LIST_ITEM_FIELDS;
+
 export interface FormErrorItem {
   key: string;
   label: string;
   message: string;
   tab: FormTab | 'sidebar';
+  /** For a field inside a list (family member, document, position). */
+  list?: ListKey;
   index?: number;
 }
 
 @Component({
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormField, FormFieldComponent, PageHeaderComponent, RouterLink, IconComponent],
+  imports: [
+    FormField,
+    FormFieldComponent,
+    PageHeaderComponent,
+    RouterLink,
+    IconComponent,
+    DateInputComponent,
+    SelectComponent,
+  ],
   templateUrl: './employee-form.component.html',
 })
 export class EmployeeFormComponent {
@@ -154,6 +163,62 @@ export class EmployeeFormComponent {
   protected readonly isConscript = computed(() => this.rank()?.code === 0);
   protected readonly isReservist = computed(() => !!this.model().reserveTeamNumber.trim());
   protected readonly isIdCard = computed(() => this.model().passportType === 'ID_CARD');
+  /** VOS depends on the rank: 6 characters for officers, 3 for the others, none for conscripts. */
+  protected readonly vosHint = computed(() =>
+    !this.rank()
+      ? 'Спершу оберіть звання'
+      : this.isConscript()
+        ? 'Для призовників не заповнюється'
+        : this.isOfficer()
+          ? '6 символів (для офіцерів)'
+          : '3 символи',
+  );
+  /** Rank-and-file, sergeants, petty officers — «категорія обліку»; officers — «розряд». */
+  protected readonly categoryLabel = computed(() =>
+    this.isOfficer() ? 'Розряд' : 'Категорія обліку',
+  );
+  protected readonly orderDocNames = ORDER_DOC_NAMES;
+
+  /** Term of general mobilization (from the presidential decrees) — for deferrals «до завершення мобілізації». */
+  protected readonly mobilization = httpResource<{
+    mobilizationUntil: string | null;
+    mobilizationDecree: string;
+  }>(() => '/api/notifications/status');
+
+  // ---- options of the drop-down lists
+  protected readonly rankOptions = computed<SelectOption[]>(() =>
+    this.dict.ranks().map((r) => ({
+      value: String(r.code),
+      label: this.model().navy ? r.navy : r.army,
+      hint: r.compositionLabel,
+    })),
+  );
+  protected readonly tckOptions = computed<SelectOption[]>(() =>
+    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name })),
+  );
+  protected readonly docTypeOptions = computed<SelectOption[]>(() =>
+    (this.dict.dictionaries()?.militaryDocumentTypes ?? []).map((t) => ({ value: t, label: t })),
+  );
+  protected readonly fitnessOptions = computed<SelectOption[]>(() =>
+    (this.dict.dictionaries()?.fitnessStatuses ?? []).map((t) => ({ value: t, label: t })),
+  );
+  protected readonly educationOptions = computed<SelectOption[]>(() =>
+    (this.dict.dictionaries()?.educationLevels ?? []).map((t) => ({ value: t, label: t })),
+  );
+  protected readonly maritalOptions = computed<SelectOption[]>(() =>
+    (this.dict.dictionaries()?.maritalStatuses ?? []).map((m) => ({
+      value: m.value,
+      label: this.model().gender === 'F' ? m.labelF : m.labelM,
+    })),
+  );
+  protected readonly genderOptions: SelectOption[] = [
+    { value: 'M', label: 'чоловіча' },
+    { value: 'F', label: 'жіноча' },
+  ];
+  protected readonly passportTypeOptions: SelectOption[] = [
+    { value: 'ID_CARD', label: 'ID-картка' },
+    { value: 'BOOK', label: 'Паспорт-книжечка' },
+  ];
   /** Preliminary calculation of category and group — the same logic as on the server. */
   protected readonly preview = computed(() => {
     const m = this.model();
@@ -166,12 +231,17 @@ export class EmployeeFormComponent {
       : this.isConscript()
         ? 'Призовник'
         : 'Військовозобов’язаний';
-    let group: string;
-    if (m.gender === 'F') group = reservist ? 'G3R' : 'G3';
-    else if (this.isConscript()) group = reservist ? 'G4R' : 'G4';
-    else if (this.isOfficer()) group = reservist ? 'G1R' : 'G1';
-    else group = reservist ? 'G2R' : 'G2';
-    return { category, group: `${group} — ${this.dict.groupTitle(group as never)}` };
+    const section =
+      m.gender === 'F'
+        ? 'WOMEN'
+        : this.isConscript()
+          ? 'CONSCRIPTS'
+          : this.isOfficer()
+            ? 'OFFICERS'
+            : 'SOLDIERS';
+    const title =
+      this.dict.dictionaries()?.listSections?.find((s) => s.value === section)?.label ?? section;
+    return { category, group: `Списки ${title}` };
   });
 
   protected readonly rnokppHint = computed(() => {
@@ -187,8 +257,9 @@ export class EmployeeFormComponent {
     const isConscriptRank = (rank: string) => rank === '0';
 
     // lengths match the DB columns (the input will not accept more)
+    const modelKeys = new Set(Object.keys(emptyEmployeeForm(this.today)));
     for (const [key, max] of Object.entries(MAX_LENGTH)) {
-      maxLength(at(key), max, { message: MESSAGE.tooLong(max) });
+      if (modelKeys.has(key)) maxLength(at(key), max, { message: MESSAGE.tooLong(max) });
     }
 
     // --- personal data
@@ -244,12 +315,42 @@ export class EmployeeFormComponent {
         : undefined;
     });
 
-    // --- employment
-    validate(p.positionSince, ({ value, valueOf }) => {
+    // --- employment: positions (appointment and transfers), dismissal
+    applyEach(p.positions, (pos) => {
+      required(pos.position, { message: 'Вкажіть посаду' });
+      maxLength(pos.position, MAX_LENGTH.position, {
+        message: MESSAGE.tooLong(MAX_LENGTH.position),
+      });
+      maxLength(pos.department, MAX_LENGTH.department, {
+        message: MESSAGE.tooLong(MAX_LENGTH.department),
+      });
+      maxLength(pos.orderDocName, MAX_LENGTH.orderDocName, {
+        message: MESSAGE.tooLong(MAX_LENGTH.orderDocName),
+      });
+      maxLength(pos.orderNumber, MAX_LENGTH.orderNumber, {
+        message: MESSAGE.tooLong(MAX_LENGTH.orderNumber),
+      });
+      for (const d of [pos.since, pos.orderDate]) {
+        validate(d, ({ value }) =>
+          sensibleDate(value()) ? undefined : { kind: 'date', message: MESSAGE.invalidDate },
+        );
+      }
+      validate(pos.since, ({ value }) => {
+        const hire = this.model().hireDate;
+        return value() && hire && value() < hire
+          ? { kind: 'order', message: 'Раніше за дату прийняття' }
+          : undefined;
+      });
+    });
+    validate(p.dismissalDate, ({ value, valueOf }) => {
       const hire = valueOf(p.hireDate);
       return value() && hire && value() < hire
         ? { kind: 'order', message: 'Раніше за дату прийняття' }
         : undefined;
+    });
+    required(p.dismissalOrderNumber, {
+      message: 'Вкажіть номер документа про звільнення',
+      when: ({ valueOf }) => !!valueOf(p.dismissalDate) && !!valueOf(p.dismissalOrderDate),
     });
 
     // --- military registration
@@ -265,24 +366,65 @@ export class EmployeeFormComponent {
       message: MESSAGE.accountingCategory,
     });
     pattern(p.registryNumber, PATTERN.registryNumber, { message: MESSAGE.registryNumber });
-    pattern(p.militaryDocSeries, PATTERN.militaryDocSeries, { message: MESSAGE.militaryDocSeries });
-    pattern(p.militaryDocNumber, PATTERN.militaryDocNumber, { message: MESSAGE.militaryDocNumber });
-    pattern(p.militaryDocGeneratedAt, PATTERN.militaryDocGeneratedAt, {
-      message: MESSAGE.militaryDocGeneratedAt,
+    // VOS follows the rank: not before the rank is chosen, not for conscripts
+    disabled(p.vos, ({ valueOf }) =>
+      valueOf(p.rankCode) === ''
+        ? 'Спершу оберіть звання'
+        : isConscriptRank(valueOf(p.rankCode))
+          ? 'Для призовників не заповнюється'
+          : false,
+    );
+    disabled(p.trainingProfile, ({ valueOf }) =>
+      isOfficer(valueOf(p.rankCode)) ? false : 'Лише для офіцерів',
+    );
+    applyEach(p.militaryDocuments, (doc) => {
+      maxLength(doc.type, MAX_LENGTH.docType, { message: MESSAGE.tooLong(MAX_LENGTH.docType) });
+      maxLength(doc.series, MAX_LENGTH.docSeries, {
+        message: MESSAGE.tooLong(MAX_LENGTH.docSeries),
+      });
+      maxLength(doc.number, MAX_LENGTH.docNumber, {
+        message: MESSAGE.tooLong(MAX_LENGTH.docNumber),
+      });
+      maxLength(doc.issuedBy, MAX_LENGTH.docIssuedBy, {
+        message: MESSAGE.tooLong(MAX_LENGTH.docIssuedBy),
+      });
+      pattern(doc.series, PATTERN.docSeries, { message: MESSAGE.docSeries });
+      pattern(doc.number, PATTERN.docNumber, { message: MESSAGE.docNumber });
+      validate(doc.generatedTime, ({ value }) =>
+        value() && !PATTERN.docGeneratedTime.test(normalizeTime(value()))
+          ? { kind: 'time', message: MESSAGE.docGeneratedTime }
+          : undefined,
+      );
+      required(doc.type, {
+        message: 'Оберіть тип документа',
+        when: ({ valueOf }) => !!valueOf(doc.number) || !!valueOf(doc.series),
+      });
+      for (const d of [doc.issuedAt, doc.generatedDate]) {
+        validate(d, ({ value }) => {
+          if (!sensibleDate(value())) return { kind: 'date', message: MESSAGE.invalidDate };
+          return value() && value() > this.today
+            ? { kind: 'future', message: MESSAGE.futureDate }
+            : undefined;
+        });
+      }
     });
     required(p.tckId, {
       message: 'Оберіть ТЦК — без нього не сформується повідомлення',
       when: ({ valueOf }) => valueOf(p.militaryRegistered) && valueOf(p.rankCode) !== '',
     });
-    // same rule as applyReservation() on the backend
-    required(p.reservationBasis, {
-      message: 'Вкажіть підставу бронювання',
-      when: ({ valueOf }) => valueOf(p.reserved) && !isConscriptRank(valueOf(p.rankCode)),
-    });
+    // same rules as applyReservation() on the backend
     required(p.reservationUntil, {
       message: 'Вкажіть строк бронювання',
       when: ({ valueOf }) => valueOf(p.reserved) && !isConscriptRank(valueOf(p.rankCode)),
     });
+    required(p.reservedByName, {
+      message: 'Вкажіть юридичну особу, за якою заброньовано',
+      when: ({ valueOf }) => valueOf(p.reserved) && valueOf(p.reservedBy) === 'OTHER',
+    });
+    pattern(p.reservedByEdrpou, PATTERN.edrpou, { message: MESSAGE.edrpou });
+    disabled(p.deferralUntil, ({ valueOf }) =>
+      valueOf(p.deferralUntilMobilizationEnd) ? 'До завершення мобілізації' : false,
+    );
     validate(p.demobilizedAt, ({ value, valueOf }) => {
       const mob = valueOf(p.mobilizedAt);
       return value() && mob && value() < mob
@@ -291,7 +433,7 @@ export class EmployeeFormComponent {
     });
 
     // --- dates: valid year, not in the future, not before birth
-    for (const key of DATE_FIELDS) {
+    for (const key of ALL_DATE_FIELDS) {
       validate(at(key), ({ value }) =>
         sensibleDate(value()) ? undefined : { kind: 'date', message: MESSAGE.invalidDate },
       );
@@ -348,16 +490,21 @@ export class EmployeeFormComponent {
     return (this.f as unknown as Record<string, FieldLike | undefined>)[key];
   }
 
-  private familyField(index: number, key: string): FieldLike | undefined {
-    const member = (this.f.familyMembers as unknown as Record<number, Record<string, FieldLike>>)[
-      index
-    ];
-    return member?.[key];
+  private listField(list: ListKey, index: number, key: string): FieldLike | undefined {
+    const item = (this.f[list] as unknown as Record<number, Record<string, FieldLike>>)[index];
+    return item?.[key];
+  }
+
+  private itemField(item: Pick<FormErrorItem, 'key' | 'list' | 'index'>) {
+    return item.list === undefined || item.index === undefined
+      ? this.field(item.key)
+      : this.listField(item.list, item.index, item.key);
   }
 
   /** All form errors in tab order — for the "what to fix" list. */
   protected readonly errorList = computed<FormErrorItem[]>(() => {
     const items: FormErrorItem[] = [];
+    const model = this.model();
     for (const [key, meta] of Object.entries(FIELD_META)) {
       if (!meta) continue;
       const state = this.field(key)?.();
@@ -369,16 +516,19 @@ export class EmployeeFormComponent {
           tab: meta.tab,
         });
       }
-      if (key === 'familyMembers') {
-        this.model().familyMembers.forEach((_, index) => {
-          for (const sub of ['lastName', 'firstName', 'middleName', 'birthDate']) {
-            for (const e of this.familyField(index, sub)?.().errors() ?? []) {
+      if (key in LIST_ITEM_FIELDS) {
+        const list = key as ListKey;
+        const { item, fields } = LIST_ITEM_FIELDS[list];
+        model[list].forEach((_, index) => {
+          for (const sub of fields) {
+            for (const e of this.listField(list, index, sub)?.().errors() ?? []) {
               items.push({
                 key: sub,
+                list,
                 index,
-                label: `Член сім’ї ${index + 1}`,
+                label: `${item} ${index + 1}`,
                 message: e.message ?? 'Некоректне значення',
-                tab: 'family',
+                tab: meta.tab,
               });
             }
           }
@@ -390,33 +540,20 @@ export class EmployeeFormComponent {
 
   /** Red dot on a tab with an error (after a save attempt or touching the field). */
   protected readonly tabErrors = computed(() => {
-    const result: Record<FormTab, boolean> = {
-      personal: false,
-      work: false,
-      military: false,
-      documents: false,
-      family: false,
-      notes: false,
-    };
+    const result = Object.fromEntries(TABS.map((t) => [t.id, false])) as Record<FormTab, boolean>;
     for (const item of this.errorList()) {
       if (item.tab === 'sidebar') continue;
-      const state =
-        item.index === undefined
-          ? this.field(item.key)?.()
-          : this.familyField(item.index, item.key)?.();
-      if (this.submitAttempted() || state?.touched()) result[item.tab] = true;
+      if (this.submitAttempted() || this.itemField(item)?.().touched()) result[item.tab] = true;
     }
     return result;
   });
 
   /** Switch to the tab with the field and focus it. */
-  protected goTo(item: Pick<FormErrorItem, 'key' | 'tab' | 'index'>) {
+  protected goTo(item: Pick<FormErrorItem, 'key' | 'tab' | 'list' | 'index'>) {
     if (item.tab !== 'sidebar') this.tab.set(item.tab);
     afterNextRender(
       () => {
-        const target =
-          item.index === undefined ? this.field(item.key) : this.familyField(item.index, item.key);
-        target?.().focusBoundControl({ preventScroll: false });
+        this.itemField(item)?.().focusBoundControl({ preventScroll: false });
         if (typeof document !== 'undefined') {
           (document.activeElement as HTMLElement | null)?.scrollIntoView({
             block: 'center',
@@ -456,6 +593,42 @@ export class EmployeeFormComponent {
       ...m,
       familyMembers: m.familyMembers.filter((_, i) => i !== index),
     }));
+  }
+
+  protected addDocument() {
+    this.model.update((m) => ({
+      ...m,
+      militaryDocuments: [...m.militaryDocuments, emptyDocument()],
+    }));
+  }
+
+  protected removeDocument(index: number) {
+    this.model.update((m) => ({
+      ...m,
+      militaryDocuments: m.militaryDocuments.filter((_, i) => i !== index),
+    }));
+  }
+
+  /** A transfer: a new position from today (the latest entry is the current position). */
+  protected addPosition() {
+    this.model.update((m) => {
+      const last = m.positions.at(-1);
+      return {
+        ...m,
+        positions: [
+          ...m.positions,
+          { ...emptyPosition(this.today), department: last?.department ?? '' },
+        ],
+      };
+    });
+  }
+
+  protected removePosition(index: number) {
+    this.model.update((m) => ({ ...m, positions: m.positions.filter((_, i) => i !== index) }));
+  }
+
+  protected isElectronic(type: string) {
+    return /електрон/i.test(type);
   }
 
   protected relationLabel(relation: FamilyRelation) {

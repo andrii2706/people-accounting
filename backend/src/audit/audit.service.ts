@@ -7,7 +7,7 @@ import { AuditLog } from '../employees/entities/audit-log.entity.js';
 /** Fields whose values are never written to the audit log in plain text. */
 const SENSITIVE = new Set([
   'rnokpp', 'passportSeries', 'passportNumber', 'foreignPassportSeries', 'foreignPassportNumber',
-  'militaryDocNumber', 'registryNumber', 'passwordHash', 'password',
+  'militaryDocNumber', 'militaryDocuments', 'registryNumber', 'passwordHash', 'password',
 ]);
 
 export const NIL_UUID = '00000000-0000-0000-0000-000000000000';

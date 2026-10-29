@@ -56,6 +56,28 @@ export interface FamilyMember {
   birthDate: string | null;
 }
 
+export interface MilitaryDocument {
+  id?: string;
+  type: string;
+  series: string;
+  number: string;
+  issuedBy: string;
+  issuedAt: string | null;
+  /** Electronic document: date and time of generation — separate fields. */
+  generatedDate: string | null;
+  generatedTime: string;
+}
+
+export interface EmployeePosition {
+  id?: string;
+  position: string;
+  department: string;
+  since: string | null;
+  orderDocName: string;
+  orderNumber: string;
+  orderDate: string | null;
+}
+
 export interface Employee {
   id: string;
   personnelNumber: string;
@@ -89,10 +111,13 @@ export interface Employee {
   department: string;
   positionOrder: string;
   positionSince: string | null;
+  positions: EmployeePosition[];
   hireDate: string | null;
+  hireOrderDocName: string;
   hireOrderNumber: string;
   hireOrderDate: string | null;
   dismissalDate: string | null;
+  dismissalOrderDocName: string;
   dismissalOrderNumber: string;
   dismissalOrderDate: string | null;
   militaryRegistered: boolean;
@@ -102,12 +127,8 @@ export interface Employee {
   vos: string;
   trainingProfile: string;
   accountingCategory: string;
-  militaryDocType: string;
-  militaryDocSeries: string;
-  militaryDocNumber: string;
-  militaryDocIssuedBy: string;
-  militaryDocIssuedAt: string | null;
-  militaryDocGeneratedAt: string;
+  militaryDocuments: MilitaryDocument[];
+  servedInArmy: boolean;
   tckId: string | null;
   tck: Tck | null;
   tckRegisteredAt: string | null;
@@ -118,9 +139,13 @@ export interface Employee {
   reservationBasis: string;
   specialAccountingCertificate: string;
   reservationUntil: string | null;
+  reservedBy: 'COMPANY' | 'OTHER';
+  reservedByName: string;
+  reservedByEdrpou: string;
   deferralConscriptionBasis: string;
   deferralMobilizationBasis: string;
   deferralUntil: string | null;
+  deferralUntilMobilizationEnd: boolean;
   reserveTeamNumber: string;
   mobilizationOrderDate: string | null;
   militaryServiceInfo: string;
@@ -163,12 +188,14 @@ export interface EmployeeDetails extends Employee {
   changes: EmployeeChange[];
 }
 
+/** History of the card in human-readable form (prepared by the server). */
 export interface AuditEntry {
   id: string;
   action: string;
-  diff: Record<string, [unknown, unknown]>;
+  actionLabel: string;
   userName: string;
   createdAt: string;
+  changes: { field: string; label: string; from: string; to: string }[];
 }
 
 export type EmployeePayload = Partial<Omit<Employee, 'id' | 'tck' | 'createdAt' | 'updatedAt'>> & {

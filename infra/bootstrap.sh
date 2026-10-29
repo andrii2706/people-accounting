@@ -47,7 +47,8 @@ gcloud services enable \
   run.googleapis.com sqladmin.googleapis.com secretmanager.googleapis.com \
   artifactregistry.googleapis.com iam.googleapis.com iamcredentials.googleapis.com sts.googleapis.com \
   storage.googleapis.com cloudbuild.googleapis.com firebaseapphosting.googleapis.com \
-  developerconnect.googleapis.com cloudresourcemanager.googleapis.com logging.googleapis.com
+  developerconnect.googleapis.com cloudresourcemanager.googleapis.com logging.googleapis.com \
+  cloudscheduler.googleapis.com
 
 say "Artifact Registry (образи API)"
 exists gcloud artifacts repositories describe "$AR_REPO" --location "$REGION" ||
@@ -109,6 +110,16 @@ if ! exists gcloud secrets describe ADMIN_PASSWORD; then
 fi
 echo "  ⚠ DATA_ENCRYPTION_KEY / BLIND_INDEX_KEY: без них дані не розшифрувати. Не видаляйте версії секретів."
 
+# Optional: SMTP for e-mail reminders (smtps://user:app-password@smtp.gmail.com:465)
+if [ -n "${SMTP_URL:-}" ]; then
+  if exists gcloud secrets describe SMTP_URL; then
+    printf '%s' "$SMTP_URL" | gcloud secrets versions add SMTP_URL --data-file=- >/dev/null
+    echo "  • SMTP_URL — оновлено"
+  else
+    create_secret SMTP_URL "$SMTP_URL"
+  fi
+fi
+
 say "Бакет для підписаних документів: без публічного доступу, write-once (retention $RETENTION)"
 if ! exists gcloud storage buckets describe "gs://$BUCKET"; then
   gcloud storage buckets create "gs://$BUCKET" --location="$REGION" \
@@ -122,7 +133,7 @@ exists gcloud iam service-accounts describe "$API_SA" ||
   gcloud iam service-accounts create "$API_SA_NAME" --display-name="Military registry API (runtime)"
 gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$API_SA" \
   --role=roles/cloudsql.client --condition=None >/dev/null
-for s in DATABASE_URL JWT_SECRET DATA_ENCRYPTION_KEY BLIND_INDEX_KEY ADMIN_PASSWORD; do
+for s in DATABASE_URL JWT_SECRET DATA_ENCRYPTION_KEY BLIND_INDEX_KEY ADMIN_PASSWORD $(exists gcloud secrets describe SMTP_URL && echo SMTP_URL); do
   gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$API_SA" \
     --role=roles/secretmanager.secretAccessor >/dev/null
 done
@@ -139,6 +150,12 @@ gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$D
   --role=roles/run.admin --condition=None >/dev/null
 gcloud artifacts repositories add-iam-policy-binding "$AR_REPO" --location "$REGION" \
   --member="serviceAccount:$DEPLOY_SA" --role=roles/artifactregistry.writer >/dev/null
+# the daily job (reminders, decrees) is started by Cloud Scheduler — the deployer creates it
+gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$DEPLOY_SA" \
+  --role=roles/cloudscheduler.admin --condition=None >/dev/null
+# the deployer checks whether the optional SMTP_URL secret exists
+gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$DEPLOY_SA" \
+  --role=roles/secretmanager.viewer --condition=None >/dev/null
 # deploy as the API account (actAs) — granted on that account only, not the whole project
 gcloud iam service-accounts add-iam-policy-binding "$API_SA" --member="serviceAccount:$DEPLOY_SA" \
   --role=roles/iam.serviceAccountUser >/dev/null
@@ -167,6 +184,7 @@ cat <<EOF
   GCP_WEB_SA          = $WEB_SA
   APP_ORIGIN          = ${APP_DOMAIN:+https://$APP_DOMAIN}${APP_DOMAIN:-https://people-accounting--${PROJECT_ID}.${REGION}.hosted.app}
   ADMIN_EMAIL         = <email першого адміністратора>
+  MAIL_FROM           = Військовий облік <ваша-пошта@домен>   (для листів-нагадувань; разом із SMTP_URL)
 
 Далі:
   1. firebase projects:addfirebase $PROJECT_ID   (якщо проєкт ще не Firebase; потрібен тариф Blaze)

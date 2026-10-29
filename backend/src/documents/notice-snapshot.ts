@@ -49,6 +49,30 @@ export function changeDescription(c: Pick<EmployeeChange, 'type' | 'newValue'>, 
       return `Здобуто освіту - ${c.newValue}`;
     case 'MARITAL_STATUS':
       return `Зміна сімейного стану. ${c.newValue}`;
+    case 'REGISTRY_NUMBER':
+      return `Зміна номера облікового запису в реєстрі: ${c.newValue}`;
+    case 'RANK':
+      return `Зміна військового звання: ${c.newValue || 'немає'}`;
+    case 'VOS':
+      return `Зміна військово-облікової спеціальності: ${c.newValue || 'немає'}`;
+    case 'MILITARY_DOC':
+      return `Зміна військово-облікового документа: ${c.newValue || 'немає'}`;
+    case 'TCK':
+      return `Взят${ending} на облік у ${c.newValue}`;
+    case 'FITNESS':
+      return `Зміна придатності до військової служби: ${c.newValue}`;
+    case 'MILITARY_SERVICE':
+      return `Відомості про проходження військової служби: ${c.newValue}`;
+    case 'DEFERRAL':
+      return c.newValue ? `Надано відстрочку: ${c.newValue}` : 'Відстрочку припинено';
+    case 'RESERVATION':
+      return c.newValue ? `Заброньован${ending === 'а' ? 'а' : 'ий'}: ${c.newValue}` : 'Бронювання припинено';
+    case 'RESERVE_SERVICE':
+      return c.newValue ? `Служба в резерві: ${c.newValue}` : 'Припинено службу в резерві';
+    case 'MOBILIZATION_ORDER':
+      return c.newValue ? `Вручено мобілізаційне розпорядження: ${c.newValue}` : 'Мобілізаційне розпорядження відсутнє';
+    case 'DATA':
+      return c.newValue;
     case 'HIRE':
       return `Прийняття на роботу. Прийнят${ending} на посаду ${c.newValue}`;
     case 'DISMISSAL':
@@ -56,7 +80,11 @@ export function changeDescription(c: Pick<EmployeeChange, 'type' | 'newValue'>, 
   }
 }
 
-export function noticeSnapshot(e: Employee, change: EmployeeChange): NoticeSnapshot {
+/**
+ * Snapshot for one notice. Hiring and dismissal are separate notices; all other changes of
+ * the person are combined into one notice «зміна облікових даних» (several lines in item 7).
+ */
+export function noticeSnapshot(e: Employee, changes: Pick<EmployeeChange, 'type' | 'newValue' | 'basis'>[]): NoticeSnapshot {
   return {
     lastName: e.lastName,
     firstName: e.firstName,
@@ -71,8 +99,8 @@ export function noticeSnapshot(e: Employee, change: EmployeeChange): NoticeSnaps
     tckName: e.tck?.name ?? '',
     registeredAddress: e.registeredAddress ?? '',
     actualAddress: actualAddressText(e) ?? '',
-    change: changeDescription(change, e.gender),
-    basis: change.basis ?? '',
+    change: changes.map((c) => changeDescription(c, e.gender)).join(';\n'),
+    basis: [...new Set(changes.map((c) => c.basis?.trim()).filter(Boolean))].join('; '),
   };
 }
 

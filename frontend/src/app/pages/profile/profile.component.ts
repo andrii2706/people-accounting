@@ -1,4 +1,6 @@
+import { HttpClient, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
 import { Router } from '@angular/router';
 import { FormFieldComponent } from '../../shared/components/form-field/form-field.component';
@@ -19,6 +21,29 @@ export class ProfileComponent {
   protected readonly auth = inject(AuthService);
   private readonly toast = inject(ToastService);
   private readonly router = inject(Router);
+  private readonly http = inject(HttpClient);
+
+  /** E-mail reminders on / off (not available until the temporary password is changed). */
+  protected readonly preferences = httpResource<{ notify: boolean }>(() =>
+    this.auth.mustChangePassword() ? undefined : '/api/auth/preferences',
+  );
+  protected readonly savingNotify = signal(false);
+
+  protected async setNotify(notify: boolean) {
+    this.savingNotify.set(true);
+    try {
+      const value = await firstValueFrom(
+        this.http.patch<{ notify: boolean }>('/api/auth/preferences', { notify }),
+      );
+      this.preferences.set(value);
+      this.toast.success(notify ? 'Сповіщення на пошту увімкнено' : 'Сповіщення вимкнено');
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err));
+      this.preferences.reload();
+    } finally {
+      this.savingNotify.set(false);
+    }
+  }
 
   protected readonly error = signal('');
   protected readonly model = signal({ currentPassword: '', newPassword: '', confirmPassword: '' });

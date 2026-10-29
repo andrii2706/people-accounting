@@ -41,4 +41,15 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  /** Receive e-mail reminders. */
+  @IsOptional()
+  @IsBoolean()
+  notify?: boolean;
+}
+
+/** The user's own settings (Profile). */
+export class UpdatePreferencesDto {
+  @IsBoolean()
+  notify: boolean;
 }
