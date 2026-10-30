@@ -25,6 +25,7 @@ export const MAX_LENGTH = {
   educationLevel: 100,
   educationSpecialty: 300,
   educationDocument: 300,
+  educationInstitution: 300,
   position: 300,
   department: 200,
   positionOrder: 300,

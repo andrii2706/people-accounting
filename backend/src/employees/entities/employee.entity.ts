@@ -15,6 +15,7 @@ import {
 import { blindIndex, encrypted } from '../../common/crypto/field-encryption.js';
 import { Tck } from '../../dictionaries/tck.entity.js';
 import type { MaritalStatus } from '../../military/dictionaries.js';
+import { EmployeeEducation } from './employee-education.entity.js';
 import { EmployeePosition } from './employee-position.entity.js';
 import { FamilyMember } from './family-member.entity.js';
 import { MilitaryDocument } from './military-document.entity.js';
@@ -116,6 +117,10 @@ export class Employee {
 
   @Column({ type: 'date', nullable: true })
   educationDocumentDate: string | null;
+
+  /** All educations; the highest level is mirrored into the four fields above. */
+  @OneToMany(() => EmployeeEducation, (d) => d.employee, { cascade: true, eager: true })
+  educations: Relation<EmployeeEducation[]>;
 
   // ---------- Family ----------
   @Column({ type: 'varchar', length: 20, nullable: true })

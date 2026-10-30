@@ -86,6 +86,11 @@ describe('military logic', () => {
     expect(isReservedAt({ ...base, ...data }, '2026-10-27')).toBe(false);
     expect(isReservedAt({ ...base, ...data, reserved: true }, '2026-10-27')).toBe(true);
     expect(isReservedAt({ ...base, ...data, reserved: true }, '2027-01-02')).toBe(false);
+    // reserved by another legal entity: the mark is enough; a filled-in term is still checked
+    expect(isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER' }, '2030-01-01')).toBe(true);
+    expect(isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }, '2026-12-31')).toBe(true);
+    expect(isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }, '2027-01-02')).toBe(false);
+    expect(isReservedAt({ ...base, reserved: false, reservedBy: 'OTHER' }, '2030-01-01')).toBe(false);
     expect(recordWarnings({ ...base, ...data, reservationUntil: '2026-10-01' }, '2026-10-27').some((w) => w.code === 'RESERVATION_EXPIRED')).toBe(false);
   });
 });

@@ -310,6 +310,13 @@ export async function validateValues(values: ImportValues): Promise<FieldError[]
   if (values.reserved === true && rank !== 0 && !values.reservationUntil) {
     errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
   }
+  const conscription = String(values.deferralConscriptionBasis ?? '').trim();
+  const mobilization = String(values.deferralMobilizationBasis ?? '').trim();
+  if (values.reserved === true && (conscription || mobilization || values.deferralUntil)) {
+    errors.push({ field: 'deferralMobilizationBasis', message: 'Заброньований працівник не може мати відстрочку' });
+  } else if (conscription && mobilization) {
+    errors.push({ field: 'deferralMobilizationBasis', message: 'Оберіть один вид відстрочки: від строкової служби або від мобілізації' });
+  }
   const birth = values.birthDate as string | undefined;
   if (birth) {
     for (const key of AFTER_BIRTH_DATES) {

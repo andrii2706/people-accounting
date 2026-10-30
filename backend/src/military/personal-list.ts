@@ -82,11 +82,18 @@ function deferralText(e: Employee): string {
  */
 function reservationText(e: Employee): string {
   if (!e.reserved || isConscript(e) || isReservist(e)) return '';
+  if (e.reservedBy === 'OTHER') {
+    return join([
+      'заброньований іншою юридичною особою',
+      e.reservedByName?.trim() ? `${e.reservedByName.trim()}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}` : '',
+      e.reservationUntil ? until(e.reservationUntil) : '',
+      e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
+    ]);
+  }
   if (!e.reservationUntil) return '';
   return join([
     until(e.reservationUntil),
     e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
-    e.reservedBy === 'OTHER' && e.reservedByName ? `заброньовано за ${e.reservedByName}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}` : '',
   ]);
 }
 

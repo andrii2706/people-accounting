@@ -35,6 +35,7 @@ export const FIELD_LABELS: Record<string, string> = {
   educationSpecialty: 'Спеціальність',
   educationDocument: 'Документ про освіту',
   educationDocumentDate: 'Дата документа про освіту',
+  educations: 'Освіта (усі документи)',
   maritalStatus: 'Сімейний стан',
   familyMembers: 'Склад сім’ї',
   positions: 'Посади (місця роботи)',

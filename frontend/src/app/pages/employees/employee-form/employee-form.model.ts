@@ -28,6 +28,17 @@ export interface MilitaryDocumentForm {
   generatedTime: string;
 }
 
+export type DeferralKind = 'NONE' | 'CONSCRIPTION' | 'MOBILIZATION';
+
+/** One education (school, college, university, second degree…). */
+export interface EducationForm {
+  level: string;
+  institution: string;
+  specialty: string;
+  document: string;
+  documentDate: string;
+}
+
 /** One position in the company (appointment or transfer). */
 export interface PositionForm {
   position: string;
@@ -62,10 +73,7 @@ export interface EmployeeFormModel {
   foreignPassportIssuedAt: string;
   foreignPassportValidUntil: string;
 
-  educationLevel: string;
-  educationSpecialty: string;
-  educationDocument: string;
-  educationDocumentDate: string;
+  educations: EducationForm[];
   maritalStatus: string;
   familyMembers: FamilyMemberForm[];
 
@@ -103,6 +111,8 @@ export interface EmployeeFormModel {
   deferralMobilizationBasis: string;
   deferralUntil: string;
   deferralUntilMobilizationEnd: boolean;
+  /** Form only: which deferral the person has (one of the two). */
+  deferralKind: DeferralKind;
   reserveTeamNumber: string;
   mobilizationOrderDate: string;
   militaryServiceInfo: string;
@@ -122,7 +132,6 @@ export const DATE_FIELDS = [
   'passportIssuedAt',
   'foreignPassportIssuedAt',
   'foreignPassportValidUntil',
-  'educationDocumentDate',
   'hireDate',
   'hireOrderDate',
   'dismissalDate',
@@ -137,7 +146,7 @@ export const DATE_FIELDS = [
 ] as const satisfies readonly (keyof EmployeeFormModel)[];
 
 /** Array fields — converted separately. */
-const LIST_FIELDS = new Set(['familyMembers', 'militaryDocuments', 'positions']);
+const LIST_FIELDS = new Set(['familyMembers', 'militaryDocuments', 'positions', 'educations']);
 
 export const emptyDocument = (): MilitaryDocumentForm => ({
   type: '',
@@ -147,6 +156,14 @@ export const emptyDocument = (): MilitaryDocumentForm => ({
   issuedAt: '',
   generatedDate: '',
   generatedTime: '',
+});
+
+export const emptyEducation = (): EducationForm => ({
+  level: '',
+  institution: '',
+  specialty: '',
+  document: '',
+  documentDate: '',
 });
 
 export const emptyPosition = (since = ''): PositionForm => ({
@@ -181,10 +198,7 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     foreignPassportIssuedBy: '',
     foreignPassportIssuedAt: '',
     foreignPassportValidUntil: '',
-    educationLevel: '',
-    educationSpecialty: '',
-    educationDocument: '',
-    educationDocumentDate: '',
+    educations: [emptyEducation()],
     maritalStatus: '',
     familyMembers: [],
     hireDate: today,
@@ -221,6 +235,7 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     deferralMobilizationBasis: '',
     deferralUntil: '',
     deferralUntilMobilizationEnd: false,
+    deferralKind: 'NONE',
     reserveTeamNumber: '',
     mobilizationOrderDate: '',
     militaryServiceInfo: '',
@@ -260,6 +275,27 @@ export function employeeToForm(e: Employee, today: string): EmployeeFormModel {
     generatedDate: d.generatedDate ?? '',
     generatedTime: d.generatedTime ?? '',
   }));
+  const educations = (e.educations ?? []).map((d) => ({
+    level: d.level ?? '',
+    institution: d.institution ?? '',
+    specialty: d.specialty ?? '',
+    document: d.document ?? '',
+    documentDate: d.documentDate ?? '',
+  }));
+  // cards created before the educations list: the education fields of the card are the first entry
+  out['educations'] = educations.length
+    ? educations
+    : e.educationLevel || e.educationSpecialty || e.educationDocument
+      ? [
+          {
+            level: e.educationLevel ?? '',
+            institution: '',
+            specialty: e.educationSpecialty ?? '',
+            document: e.educationDocument ?? '',
+            documentDate: e.educationDocumentDate ?? '',
+          },
+        ]
+      : [emptyEducation()];
   const positions = (e.positions ?? []).map((p) => ({
     position: p.position,
     department: p.department ?? '',
@@ -282,6 +318,11 @@ export function employeeToForm(e: Employee, today: string): EmployeeFormModel {
           },
         ]
       : [emptyPosition()];
+  out['deferralKind'] = e.deferralMobilizationBasis
+    ? 'MOBILIZATION'
+    : e.deferralConscriptionBasis
+      ? 'CONSCRIPTION'
+      : 'NONE';
   if (!e.hireOrderDocName) out['hireOrderDocName'] = 'наказ';
   if (!e.dismissalOrderDocName) out['dismissalOrderDocName'] = 'наказ';
   return out as unknown as EmployeeFormModel;
@@ -297,6 +338,7 @@ export function formToPayload(
     familyMembers,
     militaryDocuments,
     positions,
+    educations,
     rankCode,
     tckId,
     maritalStatus,
@@ -322,6 +364,16 @@ export function formToPayload(
       generatedDate: d.generatedDate || null,
       generatedTime: normalizeTime(d.generatedTime),
     }));
+  // the card fields of the highest education are filled in by the server from this list
+  payload['educations'] = educations
+    .filter((d) => d.level || d.institution.trim() || d.specialty.trim() || d.document.trim())
+    .map((d) => ({
+      level: d.level,
+      institution: d.institution.trim(),
+      specialty: d.specialty.trim(),
+      document: d.document.trim(),
+      documentDate: d.documentDate || null,
+    }));
   payload['positions'] = positions
     .filter((p) => p.position.trim())
     .map((p) => ({ ...p, since: p.since || null, orderDate: p.orderDate || null }));
@@ -334,10 +386,12 @@ export function formToPayload(
     payload['reservedByName'] = '';
     payload['reservedByEdrpou'] = '';
   } else if (model.reservedBy !== 'OTHER') {
+    // reserved by the company — the other legal entity's details are not needed
     payload['reservedByName'] = '';
     payload['reservedByEdrpou'] = '';
   }
-  if (model.deferralUntilMobilizationEnd) payload['deferralUntil'] = null;
+  delete payload['deferralKind'];
+  Object.assign(payload, effectiveDeferral(model));
   // dismissal fields are sent only together with the date
   if (!model.dismissalDate) {
     payload['dismissalOrderDocName'] = '';
@@ -347,6 +401,18 @@ export function formToPayload(
   if (includeChangeMeta)
     payload['changeMeta'] = { effectiveDate: changeEffectiveDate || undefined, basis: changeBasis };
   return payload as EmployeePayload;
+}
+
+/** Deferral as it will be saved: nothing when reserved, only the fields of the chosen kind. */
+export function effectiveDeferral(m: EmployeeFormModel) {
+  const kind = m.reserved ? 'NONE' : m.deferralKind;
+  const untilEnd = kind === 'MOBILIZATION' && m.deferralUntilMobilizationEnd;
+  return {
+    deferralConscriptionBasis: kind === 'CONSCRIPTION' ? m.deferralConscriptionBasis.trim() : '',
+    deferralMobilizationBasis: kind === 'MOBILIZATION' ? m.deferralMobilizationBasis.trim() : '',
+    deferralUntil: kind === 'NONE' || untilEnd ? null : m.deferralUntil || null,
+    deferralUntilMobilizationEnd: untilEnd,
+  };
 }
 
 const docsKey = (m: EmployeeFormModel) =>
@@ -380,24 +446,26 @@ export const REPORTABLE: { label: string; key: (m: EmployeeFormModel) => string 
   { label: 'військова служба', key: (m) => `${m.servedInArmy}|${m.mobilizedAt}` },
   {
     label: 'відстрочка',
-    key: (m) =>
-      [
-        m.deferralConscriptionBasis,
-        m.deferralMobilizationBasis,
-        m.deferralUntil,
-        m.deferralUntilMobilizationEnd,
-      ].join('|'),
+    key: (m) => {
+      const d = effectiveDeferral(m);
+      return [
+        d.deferralConscriptionBasis,
+        d.deferralMobilizationBasis,
+        d.deferralUntil ?? '',
+        d.deferralUntilMobilizationEnd,
+      ].join('|');
+    },
   },
   {
     label: 'бронювання',
     key: (m) =>
       m.reserved
         ? [
+            m.reservedBy,
             m.reservationUntil,
             m.specialAccountingCertificate,
-            m.reservedBy,
-            m.reservedByName,
-            m.reservedByEdrpou,
+            m.reservedBy === 'OTHER' ? m.reservedByName : '',
+            m.reservedBy === 'OTHER' ? m.reservedByEdrpou : '',
           ].join('|')
         : '',
   },
@@ -443,10 +511,7 @@ export const FIELD_META: Partial<
   foreignPassportValidUntil: { tab: 'passport', label: 'Закордонний паспорт дійсний до' },
   foreignPassportIssuedBy: { tab: 'passport', label: 'Ким виданий закордонний паспорт' },
 
-  educationLevel: { tab: 'education', label: 'Рівень освіти' },
-  educationSpecialty: { tab: 'education', label: 'Спеціальність' },
-  educationDocument: { tab: 'education', label: 'Документ про освіту' },
-  educationDocumentDate: { tab: 'education', label: 'Дата видачі документа про освіту' },
+  educations: { tab: 'education', label: 'Освіта' },
 
   maritalStatus: { tab: 'family', label: 'Сімейний стан' },
   familyMembers: { tab: 'family', label: 'Члени сім’ї' },
@@ -484,6 +549,7 @@ export const FIELD_META: Partial<
   deferralConscriptionBasis: { tab: 'military', label: 'Відстрочка від строкової служби' },
   deferralMobilizationBasis: { tab: 'military', label: 'Відстрочка від мобілізації' },
   deferralUntil: { tab: 'military', label: 'Відстрочка до' },
+  deferralKind: { tab: 'military', label: 'Вид відстрочки' },
   reserveTeamNumber: { tab: 'military', label: '№ команди (резерв)' },
   mobilizationOrderDate: { tab: 'military', label: 'Мобілізаційне розпорядження' },
   mobilizedAt: { tab: 'military', label: 'Дата мобілізації' },
@@ -500,7 +566,7 @@ export const FIELD_META: Partial<
 
 /** Sub-fields of the list fields (for the «what to fix» list). */
 export const LIST_ITEM_FIELDS: Record<
-  'familyMembers' | 'militaryDocuments' | 'positions',
+  'familyMembers' | 'militaryDocuments' | 'positions' | 'educations',
   { item: string; fields: string[] }
 > = {
   familyMembers: {
@@ -512,6 +578,10 @@ export const LIST_ITEM_FIELDS: Record<
     fields: ['type', 'series', 'number', 'issuedAt', 'generatedDate', 'generatedTime'],
   },
   positions: { item: 'Посада', fields: ['position', 'since', 'orderNumber', 'orderDate'] },
+  educations: {
+    item: 'Освіта',
+    fields: ['level', 'institution', 'specialty', 'document', 'documentDate'],
+  },
 };
 
 /** API error path (e.g. "familyMembers.0.lastName", "changeMeta.basis") → form field. */

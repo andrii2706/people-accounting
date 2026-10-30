@@ -106,7 +106,11 @@ async function seed() {
         militaryDocuments: [{ type: 'військовий квиток', series: 'АА', number: '000001', issuedAt: '2009-07-01', issuedBy: 'Шевченківський РВК м. Львова' }],
         servedInArmy: true, tckId: tck('Шевченківський'), registryNumber: '0000000001',
         reserved: true, specialAccountingCertificate: '12345', reservationUntil: '2026-11-15',
-        educationLevel: 'Повна вища освіта', educationSpecialty: 'Електроенергетика', maritalStatus: 'MARRIED',
+        educations: [
+          { level: 'Повна вища освіта', institution: 'Національний університет «Львівська політехніка»', specialty: 'Електроенергетика', document: 'диплом магістра ЛВ № 000001', documentDate: '2010-06-30' },
+          { level: 'Повна вища освіта', institution: 'Львівський національний університет імені Івана Франка', specialty: 'Менеджмент', document: 'диплом магістра ЛВ № 000002', documentDate: '2016-06-30' },
+        ],
+        maritalStatus: 'MARRIED',
         familyMembers: [
           { relation: 'WIFE', lastName: 'Демченко', firstName: 'Олена', middleName: 'Ігорівна', birthDate: '1989-06-02' },
           { relation: 'SON', lastName: 'Демченко', firstName: 'Максим', middleName: 'Андрійович', birthDate: '2014-09-10' },

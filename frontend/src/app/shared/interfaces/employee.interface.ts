@@ -68,6 +68,15 @@ export interface MilitaryDocument {
   generatedTime: string;
 }
 
+export interface EmployeeEducation {
+  id?: string;
+  level: string;
+  institution: string;
+  specialty: string;
+  document: string;
+  documentDate: string | null;
+}
+
 export interface EmployeePosition {
   id?: string;
   position: string;
@@ -105,6 +114,7 @@ export interface Employee {
   educationSpecialty: string;
   educationDocument: string;
   educationDocumentDate: string | null;
+  educations?: EmployeeEducation[];
   maritalStatus: MaritalStatus | null;
   familyMembers: FamilyMember[];
   position: string;

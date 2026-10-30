@@ -121,15 +121,21 @@ export class EmployeeDetailComponent {
       },
       {
         label: 'Бронювання',
-        value: e.reserved
-          ? join(
-              e.reservationUntil && `до ${d(e.reservationUntil)}`,
-              e.specialAccountingCertificate && `посв. № ${e.specialAccountingCertificate}`,
-              e.reservedBy === 'OTHER'
-                ? `за ${e.reservedByName}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}`
-                : 'за нашим підприємством',
-            )
-          : 'ні',
+        value: !e.reserved
+          ? 'ні'
+          : e.reservedBy === 'OTHER'
+            ? join(
+                'заброньований іншою юридичною особою',
+                e.reservedByName &&
+                  `${e.reservedByName}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}`,
+                e.reservationUntil && `до ${d(e.reservationUntil)}`,
+                e.specialAccountingCertificate && `посв. № ${e.specialAccountingCertificate}`,
+              )
+            : join(
+                e.reservationUntil && `до ${d(e.reservationUntil)}`,
+                e.specialAccountingCertificate && `посв. № ${e.specialAccountingCertificate}`,
+                'за нашим підприємством',
+              ),
       },
       { label: 'Відстрочка від строкової служби', value: e.deferralConscriptionBasis },
       {
@@ -190,13 +196,25 @@ export class EmployeeDetailComponent {
         ),
       },
       {
-        label: 'Освіта',
-        value: join(
-          e.educationLevel,
-          e.educationSpecialty,
-          e.educationDocument,
-          d(e.educationDocumentDate),
-        ),
+        label: (e.educations?.length ?? 0) > 1 ? 'Освіта (усі документи)' : 'Освіта',
+        value: e.educations?.length
+          ? e.educations
+              .map((ed) =>
+                join(
+                  ed.level,
+                  ed.institution,
+                  ed.specialty && `спеціальність «${ed.specialty}»`,
+                  ed.document,
+                  ed.documentDate && `від ${d(ed.documentDate)}`,
+                ),
+              )
+              .join('\n')
+          : join(
+              e.educationLevel,
+              e.educationSpecialty,
+              e.educationDocument,
+              d(e.educationDocumentDate),
+            ),
       },
       { label: 'Сімейний стан', value: this.dict.maritalLabel(e.maritalStatus, e.gender) },
     ];

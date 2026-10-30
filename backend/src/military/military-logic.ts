@@ -26,6 +26,8 @@ export interface MilitaryRecord {
   reserved: boolean;
   reservationBasis: string | null;
   reservationUntil: IsoDate | null;
+  /** OTHER — reserved by another legal entity: the mark is enough, the term is optional. */
+  reservedBy?: 'COMPANY' | 'OTHER';
   specialAccountingCertificate: string | null;
   deferralUntil: IsoDate | null;
   mobilizedAt: IsoDate | null;
@@ -129,9 +131,14 @@ export function operationalRow(group: ListGroup): OperationalRow {
   }
 }
 
-/** Reserved on the date: chosen explicitly in the form and the reservation term has not expired. */
+/**
+ * Reserved on the date: chosen explicitly in the form and the reservation term has not expired.
+ * Reserved by another legal entity — the mark is enough; if the term is filled in, it is checked too.
+ */
 export function isReservedAt(r: MilitaryRecord, date: IsoDate): boolean {
-  return r.reserved && !!r.reservationUntil && r.reservationUntil >= date;
+  if (!r.reserved) return false;
+  if (r.reservedBy === 'OTHER' && !r.reservationUntil) return true;
+  return !!r.reservationUntil && r.reservationUntil >= date;
 }
 
 /** Has a mobilization order (column GP). */

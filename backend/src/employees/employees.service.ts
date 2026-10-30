@@ -4,9 +4,9 @@ import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'ty
 import { type AuditAction, AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../common/auth.js';
 import { blindIndex } from '../common/crypto/field-encryption.js';
-import { type FieldError, fieldErrors } from '../common/validators.js';
+import { fieldErrors } from '../common/validators.js';
 import { formatUa, todayIso } from '../common/utils/dates.js';
-import { CHANGE_TYPE_LABELS, type ChangeType } from '../military/dictionaries.js';
+import { CHANGE_TYPE_LABELS, type ChangeType, EDUCATION_LEVELS } from '../military/dictionaries.js';
 import { familyText, militaryDocText, passportText, rankText } from '../military/employee-format.js';
 import { isConscript, notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
@@ -23,6 +23,7 @@ import type {
 import { AuditLog } from './entities/audit-log.entity.js';
 import { EmployeeChange } from './entities/employee-change.entity.js';
 import { Employee } from './entities/employee.entity.js';
+import { EmployeeEducation } from './entities/employee-education.entity.js';
 import { EmployeePosition } from './entities/employee-position.entity.js';
 import { FamilyMember } from './entities/family-member.entity.js';
 import { MilitaryDocument } from './entities/military-document.entity.js';
@@ -53,12 +54,22 @@ export function deferralText(e: Employee): string {
   return join([e.deferralConscriptionBasis, e.deferralMobilizationBasis, until]);
 }
 
+/** Reserved by another legal entity: the mark plus whatever details are filled in (all optional). */
+export function otherReservationText(e: Pick<Employee, 'reservedByName' | 'reservedByEdrpou' | 'reservationUntil' | 'specialAccountingCertificate'>): string {
+  return join([
+    'заброньований іншою юридичною особою',
+    e.reservedByName?.trim() ? `${e.reservedByName.trim()}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}` : e.reservedByEdrpou ? `ЄДРПОУ ${e.reservedByEdrpou}` : '',
+    e.reservationUntil ? `до ${date(e.reservationUntil)}` : '',
+    e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
+  ]);
+}
+
 export function reservationText(e: Employee): string {
   if (!e.reserved) return '';
+  if (e.reservedBy === 'OTHER') return otherReservationText(e);
   return join([
     e.reservationUntil ? `до ${date(e.reservationUntil)}` : '',
     e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
-    e.reservedBy === 'OTHER' ? join([`за ${e.reservedByName}`, e.reservedByEdrpou ? `ЄДРПОУ ${e.reservedByEdrpou}` : ''], ' ') : '',
   ]);
 }
 
@@ -107,19 +118,30 @@ function applyReservation(e: Employee) {
     e.reservedByEdrpou = '';
     return;
   }
-  const errors: FieldError[] = [];
-  if (!e.reservationUntil) errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
-  if (e.reservedBy === 'OTHER' && !e.reservedByName?.trim()) errors.push({ field: 'reservedByName', message: 'Вкажіть юридичну особу, за якою заброньовано' });
-  if (e.reservedBy !== 'OTHER') {
-    e.reservedBy = 'COMPANY';
-    e.reservedByName = '';
-    e.reservedByEdrpou = '';
-  }
-  if (errors.length) throw fieldErrors(errors);
+  // reserved by another legal entity: the mark is enough, name / EDRPOU / term / certificate are optional
+  if (e.reservedBy === 'OTHER') return;
+  e.reservedBy = 'COMPANY';
+  e.reservedByName = '';
+  e.reservedByEdrpou = '';
+  if (!e.reservationUntil) throw fieldErrors([{ field: 'reservationUntil', message: 'Вкажіть строк бронювання' }]);
 }
 
 /** A deferral «до завершення мобілізації» has no fixed date. */
 function applyDeferral(e: Employee) {
+  // a reserved employee has no deferral (feedback 30.10.2026)
+  if (e.reserved) {
+    e.deferralConscriptionBasis = '';
+    e.deferralMobilizationBasis = '';
+    e.deferralUntil = null;
+    e.deferralUntilMobilizationEnd = false;
+    return;
+  }
+  // one kind only: from conscript service OR from conscription during mobilization
+  if (e.deferralConscriptionBasis?.trim() && e.deferralMobilizationBasis?.trim()) {
+    throw fieldErrors([{ field: 'deferralMobilizationBasis', message: 'Оберіть один вид відстрочки: від строкової служби або від мобілізації' }]);
+  }
+  // «до завершення мобілізації» is only for the deferral from mobilization
+  if (!e.deferralMobilizationBasis?.trim()) e.deferralUntilMobilizationEnd = false;
   if (e.deferralUntilMobilizationEnd) e.deferralUntil = null;
 }
 
@@ -137,6 +159,26 @@ function applyPositions(e: Employee) {
     current.orderDate ? `від ${date(current.orderDate)}` : '',
   ], ' ');
 }
+
+/** The highest level (by the dictionary order) is mirrored into the card fields — lists, import, documents. */
+function applyEducations(e: Employee) {
+  const list = e.educations ?? [];
+  const rank = (level: string) => {
+    const i = (EDUCATION_LEVELS as readonly string[]).indexOf(level);
+    return i < 0 ? EDUCATION_LEVELS.length : i;
+  };
+  const best = [...list].sort((a, b) => rank(a.level) - rank(b.level) || (b.documentDate ?? '').localeCompare(a.documentDate ?? ''))[0];
+  e.educationLevel = best?.level ?? '';
+  e.educationSpecialty = best?.specialty ?? '';
+  e.educationDocument = best ? join([best.institution, best.document], ', ') : '';
+  e.educationDocumentDate = best?.documentDate ?? null;
+}
+
+const educationsText = (e: Employee) =>
+  [...(e.educations ?? [])]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((d) => join([d.level, d.institution, d.specialty, d.document, d.documentDate ? `від ${date(d.documentDate)}` : '']))
+    .join('; ');
 
 const positionsText = (e: Employee) =>
   [...(e.positions ?? [])]
@@ -224,6 +266,7 @@ export class EmployeesService {
     employee.familyMembers?.sort((a, b) => (a.birthDate ?? '').localeCompare(b.birthDate ?? ''));
     employee.militaryDocuments?.sort((a, b) => a.sortOrder - b.sortOrder);
     employee.positions?.sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''));
+    employee.educations?.sort((a, b) => a.sortOrder - b.sortOrder);
     return employee;
   }
 
@@ -272,8 +315,14 @@ export class EmployeesService {
   }
 
   private async createIn(m: EntityManager, dto: CreateEmployeeDto, user: AuthUser, opts: { hireNotices?: boolean; source?: string } = {}) {
-    const { changeMeta, familyMembers, militaryDocuments, positions, ...data } = dto;
+    const { changeMeta, familyMembers, militaryDocuments, positions, educations, ...data } = dto;
     const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
+    // without an educations list (e.g. import) the education fields of the card become the first entry
+    employee.educations = this.educationRows(m, educations ?? [{
+      level: employee.educationLevel, specialty: employee.educationSpecialty,
+      document: employee.educationDocument, documentDate: employee.educationDocumentDate,
+    }]);
+    if (educations) applyEducations(employee);
     applyReservation(employee);
     applyDeferral(employee);
     employee.familyMembers = (familyMembers ?? []).map((f) => m.getRepository(FamilyMember).create({ ...f, middleName: f.middleName ?? '', birthDate: f.birthDate || null }));
@@ -301,13 +350,14 @@ export class EmployeesService {
   }
 
   async update(id: string, dto: UpdateEmployeeDto, user: AuthUser) {
-    const { changeMeta, familyMembers, militaryDocuments, positions, ...data } = dto;
+    const { changeMeta, familyMembers, militaryDocuments, positions, educations, ...data } = dto;
     await this.dataSource.transaction(async (m) => {
       const employee = await this.findEntity(id, m);
       const before = structuredClone(employee);
       const beforeFamily = familyText(employee);
       const beforeDocs = militaryDocText(employee);
       const beforePositions = positionsText(employee);
+      const beforeEducations = educationsText(employee);
 
       Object.assign(employee, this.normalize(data));
       applyReservation(employee);
@@ -318,6 +368,11 @@ export class EmployeesService {
       if (militaryDocuments) {
         await m.getRepository(MilitaryDocument).delete({ employeeId: id });
         employee.militaryDocuments = this.documents(m, militaryDocuments, id);
+      }
+      if (educations) {
+        await m.getRepository(EmployeeEducation).delete({ employeeId: id });
+        employee.educations = this.educationRows(m, educations, id);
+        applyEducations(employee);
       }
       if (positions) {
         await m.getRepository(EmployeePosition).delete({ employeeId: id });
@@ -343,6 +398,7 @@ export class EmployeesService {
       if (familyMembers && beforeFamily !== familyText(after)) diff.familyMembers = [beforeFamily, familyText(after)];
       if (militaryDocuments && beforeDocs !== militaryDocText(after)) diff.militaryDocuments = [beforeDocs, militaryDocText(after)];
       if (positions && beforePositions !== positionsText(after)) diff.positions = [beforePositions, positionsText(after)];
+      if (educations && beforeEducations !== educationsText(after)) diff.educations = [beforeEducations, educationsText(after)];
       for (const key of ['position', 'department', 'positionSince', 'positionOrder'] as const) {
         if (before[key] !== after[key] && !diff[key]) diff[key] = [before[key], after[key]];
       }
@@ -497,6 +553,22 @@ export class EmployeesService {
           issuedAt: d.issuedAt || null,
           generatedDate: d.generatedDate || null,
           generatedTime: d.generatedTime?.trim() ?? '',
+        }),
+      );
+  }
+
+  private educationRows(m: EntityManager, list: NonNullable<CreateEmployeeDto['educations']>, employeeId?: string) {
+    return list
+      .filter((d) => d.level?.trim() || d.institution?.trim() || d.specialty?.trim() || d.document?.trim())
+      .map((d, i) =>
+        m.getRepository(EmployeeEducation).create({
+          ...(employeeId ? { employeeId } : {}),
+          sortOrder: i,
+          level: d.level?.trim() ?? '',
+          institution: d.institution?.trim() ?? '',
+          specialty: d.specialty?.trim() ?? '',
+          document: d.document?.trim() ?? '',
+          documentDate: d.documentDate || null,
         }),
       );
   }

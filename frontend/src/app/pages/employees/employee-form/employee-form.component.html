@@ -182,30 +182,80 @@
 
         <!-- ============================================================ education -->
         @case ('education') {
-          <div class="grid gap-4 sm:grid-cols-2">
-            <app-form-field label="Рівень освіти">
-              <app-select
-                [formField]="f.educationLevel"
-                [options]="educationOptions()"
-                placeholder="— не вказано —"
-                ariaLabel="Рівень освіти"
-              />
-            </app-form-field>
-            <app-form-field label="Спеціальність" [field]="f.educationSpecialty">
-              <input class="input" [formField]="f.educationSpecialty" />
-            </app-form-field>
-            <app-form-field
-              label="Документ про освіту (назва, серія, номер)"
-              [field]="f.educationDocument"
-            >
-              <input class="input" [formField]="f.educationDocument" />
-            </app-form-field>
-            <app-form-field label="Дата видачі" [field]="f.educationDocumentDate">
-              <app-date-input
-                [formField]="f.educationDocumentDate"
-                ariaLabel="Дата видачі документа про освіту"
-              />
-            </app-form-field>
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <p class="text-xs text-muted">
+              Можна додати кілька освіт: школа, коледж, бакалавр, магістр, друга вища. У списках
+              виводиться найвищий рівень.
+            </p>
+            <button type="button" class="btn btn-secondary py-1.5" (click)="addEducation()">
+              <app-icon name="plus" [size]="14" /> Додати освіту
+            </button>
+          </div>
+          <div class="space-y-3">
+            @for (ed of f.educations; track $index; let i = $index) {
+              <div class="rounded-lg border border-line p-3">
+                <div class="mb-2 flex items-center justify-between">
+                  <p class="text-xs font-medium tracking-wide text-muted uppercase">
+                    Освіта {{ i + 1 }}
+                  </p>
+                  <button
+                    type="button"
+                    class="btn btn-ghost px-2 py-1"
+                    (click)="removeEducation(i)"
+                    aria-label="Видалити освіту"
+                  >
+                    <app-icon name="x" [size]="16" />
+                  </button>
+                </div>
+                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
+                  <app-form-field class="lg:col-span-2" label="Рівень освіти" [field]="ed.level">
+                    <app-select
+                      [formField]="ed.level"
+                      [options]="educationOptions()"
+                      placeholder="— не вказано —"
+                      ariaLabel="Рівень освіти"
+                    />
+                  </app-form-field>
+                  <app-form-field
+                    class="lg:col-span-4"
+                    label="Навчальний заклад"
+                    [field]="ed.institution"
+                  >
+                    <input class="input" [formField]="ed.institution" />
+                  </app-form-field>
+                  <app-form-field
+                    class="lg:col-span-2"
+                    label="Спеціальність"
+                    [field]="ed.specialty"
+                  >
+                    <input class="input" [formField]="ed.specialty" />
+                  </app-form-field>
+                  <app-form-field
+                    class="lg:col-span-2"
+                    label="Документ (назва, серія, номер)"
+                    [field]="ed.document"
+                  >
+                    <input class="input" [formField]="ed.document" />
+                  </app-form-field>
+                  <app-form-field
+                    class="lg:col-span-2"
+                    label="Дата видачі"
+                    [field]="ed.documentDate"
+                  >
+                    <app-date-input
+                      [formField]="ed.documentDate"
+                      ariaLabel="Дата видачі документа про освіту"
+                    />
+                  </app-form-field>
+                </div>
+              </div>
+            } @empty {
+              <p
+                class="rounded-lg border border-dashed border-line px-4 py-6 text-center text-sm text-muted"
+              >
+                Освіту не вказано
+              </p>
+            }
           </div>
         }
 
@@ -659,11 +709,11 @@
                       </div>
                     </fieldset>
                     @if (model().reservedBy === 'OTHER') {
-                      <app-form-field
-                        label="Юридична особа"
-                        [required]="true"
-                        [field]="f.reservedByName"
-                      >
+                      <p class="rounded-lg bg-sunken px-3 py-2 text-xs text-muted">
+                        Достатньо відмітки. Поля нижче — необов’язкові, заповніть, коли будуть
+                        відомості. Працівник не враховується у квоті підприємства.
+                      </p>
+                      <app-form-field label="Юридична особа" [field]="f.reservedByName">
                         <input class="input" [formField]="f.reservedByName" />
                       </app-form-field>
                       <app-form-field label="ЄДРПОУ" hint="8 цифр" [field]="f.reservedByEdrpou">
@@ -676,7 +726,7 @@
                     }
                     <app-form-field
                       label="Заброньовано до"
-                      [required]="true"
+                      [required]="model().reservedBy !== 'OTHER'"
                       [field]="f.reservationUntil"
                     >
                       <app-date-input
@@ -696,71 +746,127 @@
             </section>
 
             <!-- deferral -->
-            <section class="rounded-xl border border-line p-4" aria-labelledby="sub-deferral">
+            <section
+              class="rounded-xl border border-line p-4"
+              [class.opacity-60]="model().reserved"
+              aria-labelledby="sub-deferral"
+            >
               <h3 id="sub-deferral" class="mb-3 text-sm font-semibold">Відстрочка</h3>
+              @if (model().reserved) {
+                <p class="mb-3 rounded-lg bg-sunken px-3 py-2 text-xs text-muted">
+                  Працівник заброньований — відстрочка не застосовується. Щоб вказати відстрочку,
+                  зніміть відмітку «Працівник заброньований».
+                </p>
+              }
               <div class="space-y-3">
-                <app-form-field
-                  label="Відстрочка від строкової військової служби"
-                  hint="норма закону (для призовників)"
-                  [field]="f.deferralConscriptionBasis"
-                >
-                  <input class="input" [formField]="f.deferralConscriptionBasis" />
-                </app-form-field>
-                @if (!isConscript()) {
-                  <app-form-field
-                    label="Відстрочка від призову під час мобілізації"
-                    hint="пункт, частина, стаття закону"
-                    [field]="f.deferralMobilizationBasis"
-                  >
-                    <input class="input" [formField]="f.deferralMobilizationBasis" />
-                  </app-form-field>
-                }
-                <fieldset>
-                  <legend class="label">Строк відстрочки</legend>
+                <fieldset [disabled]="model().reserved">
+                  <legend class="label">Вид відстрочки</legend>
                   <div class="flex flex-col gap-1.5 text-sm">
                     <label class="flex items-center gap-2">
                       <input
                         type="radio"
-                        name="deferralTerm"
+                        name="deferralKind"
                         class="accent-brand-600"
-                        [checked]="!model().deferralUntilMobilizationEnd"
-                        (change)="
-                          model.update((m) => ({ ...m, deferralUntilMobilizationEnd: false }))
-                        "
+                        [checked]="model().reserved || model().deferralKind === 'NONE'"
+                        (change)="setDeferralKind('NONE')"
                       />
-                      до конкретної дати
+                      немає
                     </label>
                     <label class="flex items-center gap-2">
                       <input
                         type="radio"
-                        name="deferralTerm"
+                        name="deferralKind"
                         class="accent-brand-600"
-                        [checked]="model().deferralUntilMobilizationEnd"
-                        (change)="
-                          model.update((m) => ({ ...m, deferralUntilMobilizationEnd: true }))
-                        "
+                        [checked]="!model().reserved && model().deferralKind === 'CONSCRIPTION'"
+                        (change)="setDeferralKind('CONSCRIPTION')"
                       />
-                      до завершення мобілізації
+                      від строкової військової служби
                     </label>
+                    @if (!isConscript() || model().deferralKind === 'MOBILIZATION') {
+                      <label class="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="deferralKind"
+                          class="accent-brand-600"
+                          [checked]="!model().reserved && model().deferralKind === 'MOBILIZATION'"
+                          (change)="setDeferralKind('MOBILIZATION')"
+                        />
+                        від призову під час мобілізації
+                      </label>
+                    }
                   </div>
                 </fieldset>
-                @if (model().deferralUntilMobilizationEnd) {
-                  <p class="rounded-lg bg-sunken px-3 py-2 text-xs text-muted">
-                    @if (mobilization.value()?.mobilizationUntil; as until) {
-                      За останнім указом мобілізація триває до
-                      <b class="text-ink">{{ until.split('-').reverse().join('.') }}</b>
-                      @if (mobilization.value()?.mobilizationDecree) {
-                        ({{ mobilization.value()?.mobilizationDecree }})
-                      }
-                      — дата оновлюється автоматично після кожного продовження.
-                    } @else {
-                      Дата завершення мобілізації підтягується з указів Президента щодня.
-                    }
-                  </p>
-                } @else {
+
+                @if (!model().reserved && model().deferralKind === 'CONSCRIPTION') {
+                  <app-form-field
+                    label="Підстава відстрочки від строкової служби"
+                    hint="норма закону"
+                    [required]="true"
+                    [field]="f.deferralConscriptionBasis"
+                  >
+                    <input class="input" [formField]="f.deferralConscriptionBasis" />
+                  </app-form-field>
                   <app-form-field label="Відстрочка до" [field]="f.deferralUntil">
                     <app-date-input [formField]="f.deferralUntil" ariaLabel="Відстрочка до" />
                   </app-form-field>
+                }
+
+                @if (!model().reserved && model().deferralKind === 'MOBILIZATION') {
+                  <app-form-field
+                    label="Підстава відстрочки від мобілізації"
+                    hint="пункт, частина, стаття закону"
+                    [required]="true"
+                    [field]="f.deferralMobilizationBasis"
+                  >
+                    <input class="input" [formField]="f.deferralMobilizationBasis" />
+                  </app-form-field>
+                  <fieldset>
+                    <legend class="label">Строк відстрочки</legend>
+                    <div class="flex flex-col gap-1.5 text-sm">
+                      <label class="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="deferralTerm"
+                          class="accent-brand-600"
+                          [checked]="!model().deferralUntilMobilizationEnd"
+                          (change)="
+                            model.update((m) => ({ ...m, deferralUntilMobilizationEnd: false }))
+                          "
+                        />
+                        до конкретної дати
+                      </label>
+                      <label class="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="deferralTerm"
+                          class="accent-brand-600"
+                          [checked]="model().deferralUntilMobilizationEnd"
+                          (change)="
+                            model.update((m) => ({ ...m, deferralUntilMobilizationEnd: true }))
+                          "
+                        />
+                        до завершення мобілізації
+                      </label>
+                    </div>
+                  </fieldset>
+                  @if (model().deferralUntilMobilizationEnd) {
+                    <p class="rounded-lg bg-sunken px-3 py-2 text-xs text-muted">
+                      @if (mobilization.value()?.mobilizationUntil; as until) {
+                        За останнім указом мобілізація триває до
+                        <b class="text-ink">{{ until.split('-').reverse().join('.') }}</b>
+                        @if (mobilization.value()?.mobilizationDecree) {
+                          ({{ mobilization.value()?.mobilizationDecree }})
+                        }
+                        — дата оновлюється автоматично після кожного продовження.
+                      } @else {
+                        Дата завершення мобілізації підтягується з указів Президента щодня.
+                      }
+                    </p>
+                  } @else {
+                    <app-form-field label="Відстрочка до" [field]="f.deferralUntil">
+                      <app-date-input [formField]="f.deferralUntil" ariaLabel="Відстрочка до" />
+                    </app-form-field>
+                  }
                 }
               </div>
             </section>

@@ -1,6 +1,7 @@
 import { Tck } from '../dictionaries/tck.entity.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
+import { EmployeeEducation } from '../employees/entities/employee-education.entity.js';
 import { EmployeePosition } from '../employees/entities/employee-position.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { FamilyMember } from '../employees/entities/family-member.entity.js';
@@ -25,6 +26,7 @@ export const ENTITIES = [
   FamilyMember,
   MilitaryDocument,
   EmployeePosition,
+  EmployeeEducation,
   EmployeeChange,
   AuditLog,
   OutgoingLetter,

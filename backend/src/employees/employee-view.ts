@@ -30,6 +30,7 @@ export function toMilitaryRecord(e: Employee): MilitaryRecord {
     reserved: e.reserved,
     reservationBasis: s(e.reservationBasis),
     reservationUntil: e.reservationUntil,
+    reservedBy: e.reservedBy,
     specialAccountingCertificate: s(e.specialAccountingCertificate),
     deferralUntil: e.deferralUntil,
     mobilizedAt: e.mobilizedAt,

@@ -73,6 +73,14 @@ export class EmployeePositionDto {
   @DateField() orderDate?: string | null;
 }
 
+export class EmployeeEducationDto {
+  @Str('educationLevel') level?: string;
+  @Str('educationInstitution') institution?: string;
+  @Str('educationSpecialty') specialty?: string;
+  @Str('educationDocument') document?: string;
+  @PastDate() documentDate?: string | null;
+}
+
 /** Change metadata for the TCK notice: effective date and grounds. */
 export class ChangeMetaDto {
   @IsOptional() @IsIsoDate() effectiveDate?: string;
@@ -126,6 +134,8 @@ export class CreateEmployeeDto {
   @Str('educationSpecialty') educationSpecialty?: string;
   @Str('educationDocument') educationDocument?: string;
   @PastDate() educationDocumentDate?: string | null;
+  @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => EmployeeEducationDto)
+  educations?: EmployeeEducationDto[];
 
   @ApiPropertyOptional({ enum: MARITAL, nullable: true })
   @IsOptional() @ValidateIf((o: CreateEmployeeDto) => o.maritalStatus !== null) @IsIn(MARITAL, { message: 'Невідомий сімейний стан' })

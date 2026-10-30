@@ -27,9 +27,11 @@ import {
   apiPathToFormPath,
   DATE_FIELDS,
   emptyDocument,
+  type DeferralKind,
   type EmployeeFormModel,
   employeeToForm,
   emptyEmployeeForm,
+  emptyEducation,
   emptyPosition,
   FIELD_META,
   type FormTab,
@@ -412,19 +414,38 @@ export class EmployeeFormComponent {
       message: 'Оберіть ТЦК — без нього не сформується повідомлення',
       when: ({ valueOf }) => valueOf(p.militaryRegistered) && valueOf(p.rankCode) !== '',
     });
-    // same rules as applyReservation() on the backend
+    // same rules as applyReservation() on the backend: for another legal entity everything is optional
+    pattern(p.reservedByEdrpou, PATTERN.edrpou, { message: MESSAGE.edrpou });
     required(p.reservationUntil, {
       message: 'Вкажіть строк бронювання',
-      when: ({ valueOf }) => valueOf(p.reserved) && !isConscriptRank(valueOf(p.rankCode)),
+      when: ({ valueOf }) =>
+        valueOf(p.reserved) &&
+        valueOf(p.reservedBy) !== 'OTHER' &&
+        !isConscriptRank(valueOf(p.rankCode)),
     });
-    required(p.reservedByName, {
-      message: 'Вкажіть юридичну особу, за якою заброньовано',
-      when: ({ valueOf }) => valueOf(p.reserved) && valueOf(p.reservedBy) === 'OTHER',
-    });
-    pattern(p.reservedByEdrpou, PATTERN.edrpou, { message: MESSAGE.edrpou });
-    disabled(p.deferralUntil, ({ valueOf }) =>
-      valueOf(p.deferralUntilMobilizationEnd) ? 'До завершення мобілізації' : false,
+    // deferral: blocked for a reserved employee; one kind only
+    const reservedMsg = 'Працівник заброньований — відстрочка не застосовується';
+    disabled(p.deferralConscriptionBasis, ({ valueOf }) =>
+      valueOf(p.reserved) ? reservedMsg : false,
     );
+    disabled(p.deferralMobilizationBasis, ({ valueOf }) =>
+      valueOf(p.reserved) ? reservedMsg : false,
+    );
+    disabled(p.deferralUntil, ({ valueOf }) =>
+      valueOf(p.reserved)
+        ? reservedMsg
+        : valueOf(p.deferralKind) === 'MOBILIZATION' && valueOf(p.deferralUntilMobilizationEnd)
+          ? 'До завершення мобілізації'
+          : false,
+    );
+    required(p.deferralConscriptionBasis, {
+      message: 'Вкажіть підставу відстрочки',
+      when: ({ valueOf }) => !valueOf(p.reserved) && valueOf(p.deferralKind) === 'CONSCRIPTION',
+    });
+    required(p.deferralMobilizationBasis, {
+      message: 'Вкажіть підставу відстрочки',
+      when: ({ valueOf }) => !valueOf(p.reserved) && valueOf(p.deferralKind) === 'MOBILIZATION',
+    });
     validate(p.demobilizedAt, ({ value, valueOf }) => {
       const mob = valueOf(p.mobilizedAt);
       return value() && mob && value() < mob
@@ -438,14 +459,15 @@ export class EmployeeFormComponent {
         sensibleDate(value()) ? undefined : { kind: 'date', message: MESSAGE.invalidDate },
       );
     }
-    for (const key of NOT_FUTURE_DATES) {
+    // education dates are checked per entry of the list (below)
+    for (const key of NOT_FUTURE_DATES.filter((k) => k !== 'educationDocumentDate')) {
       validate(at(key), ({ value }) =>
         value() && value() > this.today
           ? { kind: 'future', message: MESSAGE.futureDate }
           : undefined,
       );
     }
-    for (const key of AFTER_BIRTH_DATES) {
+    for (const key of AFTER_BIRTH_DATES.filter((k) => k !== 'educationDocumentDate')) {
       validate(at(key), ({ value, valueOf }) => {
         const birth = valueOf(p.birthDate);
         return value() && birth && value() < birth
@@ -458,6 +480,35 @@ export class EmployeeFormComponent {
     required(p.changeEffectiveDate, {
       message: 'Вкажіть дату, з якої діють зміни',
       when: () => this.changedLabels().length > 0,
+    });
+
+    // --- education: several entries
+    applyEach(p.educations, (ed) => {
+      maxLength(ed.level, MAX_LENGTH.educationLevel, {
+        message: MESSAGE.tooLong(MAX_LENGTH.educationLevel),
+      });
+      maxLength(ed.institution, MAX_LENGTH.educationInstitution, {
+        message: MESSAGE.tooLong(MAX_LENGTH.educationInstitution),
+      });
+      maxLength(ed.specialty, MAX_LENGTH.educationSpecialty, {
+        message: MESSAGE.tooLong(MAX_LENGTH.educationSpecialty),
+      });
+      maxLength(ed.document, MAX_LENGTH.educationDocument, {
+        message: MESSAGE.tooLong(MAX_LENGTH.educationDocument),
+      });
+      required(ed.level, {
+        message: 'Оберіть рівень освіти',
+        when: ({ valueOf }) =>
+          !!(valueOf(ed.institution) || valueOf(ed.specialty) || valueOf(ed.document)),
+      });
+      validate(ed.documentDate, ({ value, valueOf }) => {
+        if (!sensibleDate(value())) return { kind: 'date', message: MESSAGE.invalidDate };
+        if (value() && value() > this.today) return { kind: 'future', message: MESSAGE.futureDate };
+        const birth = valueOf(p.birthDate);
+        return value() && birth && value() < birth
+          ? { kind: 'beforeBirth', message: MESSAGE.beforeBirth }
+          : undefined;
+      });
     });
 
     // --- family
@@ -625,6 +676,18 @@ export class EmployeeFormComponent {
 
   protected removePosition(index: number) {
     this.model.update((m) => ({ ...m, positions: m.positions.filter((_, i) => i !== index) }));
+  }
+
+  protected setDeferralKind(kind: DeferralKind) {
+    this.model.update((m) => ({ ...m, deferralKind: kind }));
+  }
+
+  protected addEducation() {
+    this.model.update((m) => ({ ...m, educations: [...m.educations, emptyEducation()] }));
+  }
+
+  protected removeEducation(index: number) {
+    this.model.update((m) => ({ ...m, educations: m.educations.filter((_, i) => i !== index) }));
   }
 
   protected isElectronic(type: string) {
