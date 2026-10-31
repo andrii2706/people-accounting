@@ -39,7 +39,7 @@ import {
   LIST_ITEM_FIELDS,
   normalizeTime,
   reportableChanges,
-} from './employee-form.model';
+} from '../../../shared/interfaces/employee-form.model';
 import { httpResource } from '@angular/common/http';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import {
@@ -172,8 +172,8 @@ export class EmployeeFormComponent {
       : this.isConscript()
         ? 'Для призовників не заповнюється'
         : this.isOfficer()
-          ? '6 символів (для офіцерів)'
-          : '3 символи',
+          ? '6 цифр, напр. 021101 або 021101А'
+          : '3 або 6 цифр, напр. 100, 100915 або 837А',
   );
   /** Rank-and-file, sergeants, petty officers — «категорія обліку»; officers — «розряд». */
   protected readonly categoryLabel = computed(() =>

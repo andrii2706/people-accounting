@@ -1,3 +1,4 @@
+import { normalizeVos } from '../military/employee-rules.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'typeorm';
@@ -600,6 +601,7 @@ export class EmployeesService {
     if (typeof out.lastName === 'string') out.lastName = capitalizeName(out.lastName);
     if (typeof out.firstName === 'string') out.firstName = capitalizeName(out.firstName);
     if (typeof out.middleName === 'string') out.middleName = capitalizeName(out.middleName);
+    if (typeof out.vos === 'string') out.vos = normalizeVos(out.vos);
     return out;
   }
 

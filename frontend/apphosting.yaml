@@ -1,5 +1,5 @@
 # Firebase App Hosting — Angular SSR (frontend).
-# Values marked REPLACE are filled in after infra/bootstrap.sh (see docs/DEPLOYMENT.md).
+# Nothing has to be filled in: the API address is found automatically (see docs/DEPLOYMENT.md).
 # No secrets here: the frontend has no access to the DB or keys — only to the private API.
 
 runConfig:
@@ -10,10 +10,11 @@ runConfig:
   maxInstances: 4
 
 env:
-  # Private Cloud Run with the NestJS API (gcloud run services describe military-registry-api --format='value(status.url)')
-  - variable: API_INTERNAL_URL
-    value: https://military-registry-api-4auyn6kkgq-uk.a.run.app
-    availability: [RUNTIME]
+  # API address is determined automatically: https://military-registry-api-<project number>.<region>.run.app
+  # (the same region as App Hosting). Set it only if the API is in another region or under another name:
+  # - variable: API_INTERNAL_URL
+  #   value: https://military-registry-api-123456789012.us-east4.run.app
+  #   availability: [RUNTIME]
 
   # API calls carry the ID token of the App Hosting service account (the API has no public access)
   - variable: API_AUTH
@@ -29,12 +30,12 @@ env:
   # (its *.hosted.app and *.run.app domains). Only when a custom domain is connected, uncomment
   # and list ALL hosts — this value replaces the automatic one:
   # - variable: NG_ALLOWED_HOSTS
-  #   value: people-accounting--accounting-project-1aecf.europe-west4.hosted.app,hr.company.ua
+  #   value: people-accounting--accounting-project-1aecf.us-east4.hosted.app,hr.company.ua
   #   availability: [RUNTIME]
 
   # Number of Google proxies in front of the container — for the correct client IP (see docs/SECURITY.md)
   - variable: TRUST_PROXY_HOPS
-    value: '2'
+    value: "2"
     availability: [RUNTIME]
 
   # The IIT signing widget may be embedded in a frame

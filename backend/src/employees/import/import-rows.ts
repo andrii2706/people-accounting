@@ -176,7 +176,9 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
       const { field } = column;
       switch (column.kind) {
         case 'text':
-          if (text) values[field] = text;
+          // a VOS stored as a number in Excel loses the leading zero of officer codes: 21101 → 021101
+          if (field === 'vos' && typeof cell === 'number' && /^\d{5}$/.test(text)) values[field] = text.padStart(6, '0');
+          else if (text) values[field] = text;
           break;
         case 'upper':
           if (text) values[field] = text.toUpperCase().replace(/\s/g, '');

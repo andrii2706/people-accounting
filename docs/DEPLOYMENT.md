@@ -4,7 +4,7 @@
 > у [DEPLOYMENT-PROCESS.md](DEPLOYMENT-PROCESS.md).
 
 ```
- Браузер ──HTTPS──▶ Firebase App Hosting (Angular SSR, Express)          europe-west4
+ Браузер ──HTTPS──▶ Firebase App Hosting (Angular SSR, Express)          us-east4
                       │  /api/*  → проксі + ID-токен сервісного акаунта
                       ▼
                     Cloud Run «military-registry-api» (NestJS)        ← без публічного доступу (IAM)
@@ -19,7 +19,7 @@
 * **API** — окремий Cloud Run, викликати його може **лише** сервісний акаунт App Hosting
   (`roles/run.invoker`). Браузер не має прямого доступу до API: усі запити йдуть через `/api` на тому ж домені.
 * **БД** — Cloud SQL без authorized networks: підключення тільки через Cloud SQL connector.
-* **Секрети** — Secret Manager (регіональні, лише `europe-west4`), у коді та в GitHub їх немає.
+* **Секрети** — Secret Manager (регіональні, лише `us-east4`), у коді та в GitHub їх немає.
 * **CI/CD** — GitHub Actions з Workload Identity Federation (без JSON-ключів), обов'язкове підтвердження
   деплою через GitHub Environment `production`.
 
@@ -27,9 +27,10 @@
 > а API в Functions не дає приватності на рівні IAM так просто, як Cloud Run. App Hosting — офіційний шлях
 > для Angular SSR у Firebase.
 
-Регіон `europe-west4` (Нідерланди, ЄС) — App Hosting, Cloud Run і Cloud SQL в одному регіоні, щоб SSR → API → БД
-не ходили між регіонами. Передача персональних даних у країни ЄС відповідає вимогам ЗУ «Про захист персональних
-даних» (держави — учасниці Конвенції 108), але погодьте це з відповідальним за захист даних у компанії.
+Регіон `us-east4` (Північна Вірджинія, США) — App Hosting, Cloud Run і Cloud SQL в одному регіоні, щоб SSR → API → БД
+не ходили між регіонами. Інший регіон задається змінною `REGION` для `infra/bootstrap.sh` і змінною GitHub `GCP_REGION`.
+Транскордонну передачу персональних даних погодьте з відповідальним за захист даних у компанії
+(ЗУ «Про захист персональних даних», ст. 29).
 
 ---
 
@@ -83,27 +84,27 @@ Workflows:
 ## 4. Перший деплой API
 
 Запустіть **Actions → Deploy API → Run workflow**. Після підтвердження у `production` у логах буде URL API
-(`https://military-registry-api-….europe-west4.run.app`). Відкрити його в браузері не вийде — 403, так і має бути.
+(`https://military-registry-api-….us-east4.run.app`). Відкрити його в браузері не вийде — 403, так і має бути.
 
 ## 5. Фронтенд — Firebase App Hosting
 
 ```bash
 firebase projects:addfirebase $PROJECT_ID          # якщо проєкт ще не Firebase
 firebase apphosting:backends:create \
-  --project $PROJECT_ID --location europe-west4 --backend people-accounting
+  --project $PROJECT_ID --location us-east4 --backend people-accounting
 #   → підключіть GitHub-репозиторій, root directory: frontend, live branch: main
 ```
 
-> ⚠️ **Root directory = `frontend`**, регіон — **europe-west4**. Якщо вказати корінь репозиторію (`/`),
+> ⚠️ **Root directory = `frontend`**, регіон — **us-east4**. Якщо вказати корінь репозиторію (`/`),
 > збірка падає з `package.json not found` / `No buildpack groups passed detection`. Регіон бекенда
 > App Hosting змінити не можна — лише видалити й створити заново. Бекенд (`backend/`) в App Hosting
 > не додається — він розгортається в Cloud Run (крок 4).
 
-Заповніть у `frontend/apphosting.yaml`:
+`frontend/apphosting.yaml` заповнювати не треба: адресу API (`https://military-registry-api-<номер проєкту>.<регіон>.run.app`)
+SSR-сервер визначає сам. `API_INTERNAL_URL` задавайте лише якщо API в іншому регіоні або під іншою назвою. За потреби:
 
-* `API_INTERNAL_URL` — URL API з кроку 4;
 * `NG_ALLOWED_HOSTS` не потрібен — App Hosting задає його сам; розкоментуйте лише для власного домену
-  (і перелічіть там також `people-accounting--<project>.europe-west4.hosted.app`);
+  (і перелічіть там також `people-accounting--<project>.us-east4.hosted.app`);
 * за потреби `ALLOWED_CLIENT_CIDRS` — доступ лише з офісу/VPN.
 
 Push у `main` → App Hosting збере й розгорне SSR. Власний домен: Firebase Console → App Hosting →
@@ -137,7 +138,7 @@ Push у `main` → App Hosting збере й розгорне SSR. Власни�
 ```bash
 # 1) секрет SMTP_URL (Gmail: App Password, smtps://…:465; або SMTP поштового сервісу компанії)
 SMTP_URL='smtps://hr%40company.ua:APP_PASSWORD@smtp.gmail.com:465' \
-REGION=us-east4 SQL_INSTANCE=military-registry-db-us BUCKET=accounting-project-1aecf-mr-docs-us \
+PROJECT_ID=accounting-project-1aecf GITHUB_REPO=andrii2706/people-accounting \
   ./infra/bootstrap.sh            # повторний запуск безпечний: додасть Scheduler-ролі і секрет
 # 2) змінна GitHub (environment production): MAIL_FROM = Військовий облік <hr@company.ua>
 # 3) Actions → Deploy API → Run workflow
@@ -147,7 +148,20 @@ REGION=us-east4 SQL_INSTANCE=military-registry-db-us BUCKET=accounting-project-1
 
 > Листи містять ПІБ працівників — використовуйте лише `smtps://` (TLS) і корпоративну скриньку.
 
-## 6б. Перенесення довідника ТЦК з локальної бази
+## 6б. Довідник ТЦК по всій Україні
+
+Довідник — 306 ТЦК та СП усіх областей (Львівська — з файлу обліку, решта — 280 записів):
+обласні, районні, міські, районні у містах і відділи, для яких знайдено адресу. Зібрано 31.10.2026 з довідника
+телефонів і email ТЦК Міноборони (04.11.2025), ArmyInform, сайтів ОВА/ОДА і міських рад та довідкових переліків.
+Адреси частини ТЦК — з неофіційних джерел (особливо Миколаївська, Херсонська, Донецька, Луганська, частина
+Чернігівської й Черкаської): перед надсиланням повідомлення звіряйте адресу. Порожнє поле — даних не знайдено.
+
+Довідник заповнюється **автоматично міграцією** `TckDirectory` (і локально `npm run migration:run`, і в
+продакшні — крок «Міграції» в Deploy API): додаються лише відсутні ТЦК, наявні та ваші правки не змінюються.
+Дані — у `backend/src/database/tck-directory.ts` і `tck-ukraine.ts`. Якщо довідник почистили вручну —
+`npm run seed` або *Налаштування → Довідник ТЦК → Імпорт* → `docs/tck-ukraine.json`.
+
+## 6в. Перенесення довідника ТЦК з локальної бази
 
 ```bash
 cd backend

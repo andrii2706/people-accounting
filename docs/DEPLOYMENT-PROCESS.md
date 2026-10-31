@@ -158,8 +158,8 @@ npm run migration:run && npm run migration:revert && npm run migration:run   # �
 
 Корисні команди:
 ```bash
-gcloud run services describe military-registry-api --region europe-west4 --format='value(status.latestReadyRevisionName)'
-gcloud run jobs executions list --job military-registry-migrate --region europe-west4 --limit 3
+gcloud run services describe military-registry-api --region us-east4 --format='value(status.latestReadyRevisionName)'
+gcloud run jobs executions list --job military-registry-migrate --region us-east4 --limit 3
 gcloud logging read 'resource.labels.service_name="military-registry-api" severity>=ERROR' --limit 20 --freshness 1h
 ```
 
@@ -169,8 +169,8 @@ gcloud logging read 'resource.labels.service_name="military-registry-api" severi
 
 ### API — за хвилину, без перезбирання
 ```bash
-gcloud run revisions list --service military-registry-api --region europe-west4 --limit 5
-gcloud run services update-traffic military-registry-api --region europe-west4 \
+gcloud run revisions list --service military-registry-api --region us-east4 --limit 5
+gcloud run services update-traffic military-registry-api --region us-east4 \
   --to-revisions military-registry-api-<попередня>=100
 ```
 Або в консолі: Cloud Run → сервіс → *Revisions* → *Manage traffic*.
@@ -227,10 +227,11 @@ Cloud SQL → *Point-in-time recovery* відновлює дані **в нову
 | API не стартує, у логах «Конфігурація некоректна» | бракує змінної/секрету | у логах перелік, чого саме бракує → додайте у Variables / Secret Manager → повторний деплой |
 | Після входу все падає з 403 | фронтенд не має `run.invoker` або `API_AUTH` не `google-id-token` | перезапустіть Deploy API (видає право) і перевірте `apphosting.yaml` |
 | Сайт віддає 400 «Header host … is not allowed» | домену немає в `NG_ALLOWED_HOSTS` | додайте домен у `frontend/apphosting.yaml` |
-| 502 «Сервіс тимчасово недоступний» | SSR не отримав IAM-токен або неправильний `API_INTERNAL_URL` | логи App Hosting; перевірте URL API |
+| 502 «Сервіс тимчасово недоступний» | SSR не отримав IAM-токен або неправильний `API_INTERNAL_URL` | логи App Hosting (рядок «SSR: … API → …» показує адресу API); перевірте URL API |
+| 404 на `/api/...` | SSR звертається на неіснуючу адресу API (застаріле `API_INTERNAL_URL` з `REPLACE` або інший регіон) | приберіть `API_INTERNAL_URL` з `apphosting.yaml` — адреса визначиться автоматично; перевірте рядок «API → …» у логах App Hosting |
 | Усіх користувачів «викидає» | змінено `JWT_SECRET` або час сесії | очікувано після ротації; інакше — логи API |
 | Не розшифровуються дані працівників | змінено `DATA_ENCRYPTION_KEY` | **негайно** поверніть попередню версію секрету й передеплойте |
-| Workflow: «API доступний публічно (allUsers)» | хтось вручну відкрив доступ | `gcloud run services remove-iam-policy-binding military-registry-api --member=allUsers --role=roles/run.invoker --region europe-west4` і з'ясуйте, хто це зробив (Cloud Audit Logs) |
+| Workflow: «API доступний публічно (allUsers)» | хтось вручну відкрив доступ | `gcloud run services remove-iam-policy-binding military-registry-api --member=allUsers --role=roles/run.invoker --region us-east4` і з'ясуйте, хто це зробив (Cloud Audit Logs) |
 
 ---
 

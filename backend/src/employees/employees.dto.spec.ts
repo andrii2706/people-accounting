@@ -4,6 +4,7 @@ import { validate } from 'class-validator';
 import { describe, expect, it } from 'vitest';
 import { flattenValidationErrors } from '../common/validators.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './employees.dto.js';
+import { MESSAGE, normalizeVos } from '../military/employee-rules.js';
 
 async function errorsOf(cls: new () => object, payload: Record<string, unknown>) {
   const dto = plainToInstance(cls, payload);
@@ -53,9 +54,14 @@ describe('валідація картки працівника', () => {
     expect(longSeries).toContainEqual({ field: 'passportSeries', message: 'Не більше 2 символів' });
   });
 
-  it('ВОС: 6 символів для офіцерів, 3 для інших', async () => {
-    expect((await errorsOf(CreateEmployeeDto, { ...valid, rankCode: 14, vos: '837' })).map((e) => e.message)).toContain('Для офіцерів ВОС — 6 символів');
-    expect(await errorsOf(CreateEmployeeDto, { ...valid, rankCode: 14, vos: '021101' })).toEqual([]);
+  it('ВОС: офіцери — 6 цифр, інші — 3 або 6, можна з літерою в кінці', async () => {
+    const messages = async (rankCode: number, vos: string) => (await errorsOf(CreateEmployeeDto, { ...valid, rankCode, vos })).map((e) => e.message);
+    expect(await messages(14, '837')).toContain(MESSAGE.vosOfficer);
+    expect(await messages(14, '21101')).toContain(MESSAGE.vosOfficer);
+    for (const vos of ['021101', '021101А', '021-101']) expect(await messages(14, vos)).toEqual([]);
+    for (const vos of ['100', '837А', '100915', '100-915', '100915А']) expect(await messages(2, vos)).toEqual([]);
+    for (const vos of ['10', '1000', 'ABC']) expect(await messages(2, vos)).toContain(MESSAGE.vosOther);
+    expect(normalizeVos('021-101 а')).toBe('021101А');
   });
 
   it('дати: не в майбутньому, порядок дат', async () => {

@@ -7,7 +7,9 @@
 # Federation for GitHub Actions (no JSON keys).
 #
 # Run (as project Owner, gcloud ≥ 500):
-#   PROJECT_ID=my-project GITHUB_REPO=org/military-registry APP_DOMAIN=oblik.company.ua ./infra/bootstrap.sh
+#   PROJECT_ID=accounting-project-1aecf GITHUB_REPO=andrii2706/people-accounting ./infra/bootstrap.sh
+# Defaults match the current deployment (us-east4, military-registry-db-us, <project>-mr-docs-us) —
+# a re-run reuses them and never creates a second database in another region.
 #
 # The script is idempotent: re-running it does not break what exists (secrets are never overwritten).
 # Next — the steps in docs/DEPLOYMENT.md (App Hosting, GitHub variables, first deploy).
@@ -16,9 +18,9 @@ set -euo pipefail
 
 : "${PROJECT_ID:?Вкажіть PROJECT_ID}"
 : "${GITHUB_REPO:?Вкажіть GITHUB_REPO у форматі owner/repo}"
-REGION="${REGION:-europe-west4}"           # App Hosting, Cloud Run and Cloud SQL in one region (EU)
+REGION="${REGION:-us-east4}"               # App Hosting, Cloud Run and Cloud SQL in one region
 APP_DOMAIN="${APP_DOMAIN:-}"                # custom frontend domain (optional)
-SQL_INSTANCE="${SQL_INSTANCE:-military-registry-db}"
+SQL_INSTANCE="${SQL_INSTANCE:-military-registry-db-us}"
 SQL_TIER="${SQL_TIER:-db-custom-1-3840}"
 DB_NAME="military"
 DB_USER="api"
@@ -26,7 +28,7 @@ AR_REPO="military-registry"
 API_SERVICE="military-registry-api"
 API_SA_NAME="mr-api"
 DEPLOY_SA_NAME="mr-github-deployer"
-BUCKET="${BUCKET:-${PROJECT_ID}-mr-signed-docs}"
+BUCKET="${BUCKET:-${PROJECT_ID}-mr-docs-us}"
 RETENTION="${RETENTION:-5y}"                # retention of signed documents (write-once)
 WIF_POOL="github"
 WIF_PROVIDER="github-oidc"

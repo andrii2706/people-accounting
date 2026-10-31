@@ -145,7 +145,7 @@ frontend/src/app
 | Змінна | За замовчуванням | Призначення |
 |---|---|---|
 | `PORT` | 4000 | порт SSR (App Hosting задає 8080) |
-| `API_INTERNAL_URL` | http://localhost:3000 | адреса NestJS API |
+| `API_INTERNAL_URL` | у Google Cloud — визначається сам (`https://military-registry-api-<номер проєкту>.<регіон>.run.app`), локально — http://localhost:3000 | адреса NestJS API |
 | `API_AUTH` | — | `google-id-token` — додавати IAM-токен (Cloud Run) |
 | `SSR_API_BASE` | = `API_INTERNAL_URL` | куди SSR робить запити (у продакшні — власний проксі `http://127.0.0.1:8080`) |
 | `NG_ALLOWED_HOSTS` | localhost | дозволені хости SSR |

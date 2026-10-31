@@ -123,6 +123,17 @@ jobs:
 
       - name: Деплой сервісу (без публічного доступу)
         run: |
+          # The frontend finds the API at https://<service>-<project number>.<region>.run.app and uses
+          # this address as the ID-token audience — we register it explicitly as an accepted audience.
+          NUM=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(metadata.namespace)' 2>/dev/null || true)
+          [ -n "$NUM" ] || NUM=$(gcloud projects describe "${{ vars.GCP_PROJECT_ID }}" --format='value(projectNumber)' 2>/dev/null || true)
+          AUDIENCE_FLAG=()
+          if [ -n "$NUM" ]; then
+            AUDIENCE_FLAG=(--add-custom-audiences "https://${SERVICE}-${NUM}.${REGION}.run.app")
+            echo "Адреса API для фронтенду: https://${SERVICE}-${NUM}.${REGION}.run.app"
+          else
+            echo "::warning::Не вдалося визначити номер проєкту — фронтенду може знадобитися API_INTERNAL_URL"
+          fi
           gcloud run deploy "$SERVICE" \
             --image "$IMAGE" --region "$REGION" \
             --service-account "${{ vars.GCP_API_SA }}" \
@@ -132,7 +143,7 @@ jobs:
             --env-vars-file "$RUNNER_TEMP/env-service.json" \
             --cpu 1 --memory 512Mi --concurrency 40 \
             --min-instances 0 --max-instances 4 --timeout 60 \
-            --execution-environment gen2 --cpu-boost --quiet
+            --execution-environment gen2 --cpu-boost "${AUDIENCE_FLAG[@]}" --quiet
 
       - name: Доступ до API лише для фронтенду (App Hosting)
         run: |
@@ -157,10 +168,22 @@ jobs:
             --max-retries 1 --task-timeout 10m --quiet
           gcloud run jobs add-iam-policy-binding "$DAILY_JOB" --region "$REGION" \
             --member "serviceAccount:${{ vars.GCP_API_SA }}" --role roles/run.invoker --quiet >/dev/null
-          URI="https://run.googleapis.com/v2/projects/${{ vars.GCP_PROJECT_ID }}/locations/${REGION}/jobs/${DAILY_JOB}:run"
+          # The schedule needs Cloud Scheduler — it is enabled by infra/bootstrap.sh (the deployer cannot enable APIs
+          # or grant itself roles — on purpose). If it is not set up yet, the deploy does not fail: it explains what to run.
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          HINT="Увімкніть Cloud Scheduler один раз у Cloud Shell (від власника проєкту):%0A  gcloud services enable cloudscheduler.googleapis.com --project $PROJECT%0A  gcloud projects add-iam-policy-binding $PROJECT --member=serviceAccount:${{ vars.GCP_DEPLOY_SA }} --role=roles/cloudscheduler.admin --condition=None%0Aабо перезапустіть infra/bootstrap.sh, потім — Re-run цього workflow. API і щоденна задача вже розгорнуті; бракує лише розкладу о 07:00."
+          if ! out=$(gcloud scheduler jobs list --location "$REGION" --limit 1 2>&1); then
+            echo "::warning title=Розклад щоденної задачі не створено::$HINT"
+            echo "$out" | head -3
+            exit 0
+          fi
+          URI="https://run.googleapis.com/v2/projects/${PROJECT}/locations/${REGION}/jobs/${DAILY_JOB}:run"
           if gcloud scheduler jobs describe "$DAILY_JOB" --location "$REGION" >/dev/null 2>&1; then verb=update; else verb=create; fi
-          gcloud scheduler jobs "$verb" http "$DAILY_JOB" --location "$REGION" \
+          if ! gcloud scheduler jobs "$verb" http "$DAILY_JOB" --location "$REGION" \
             --schedule "0 7 * * *" --time-zone "Europe/Kyiv" \
             --uri "$URI" --http-method POST \
-            --oauth-service-account-email "${{ vars.GCP_API_SA }}" --quiet
+            --oauth-service-account-email "${{ vars.GCP_API_SA }}" --quiet; then
+            echo "::warning title=Розклад щоденної задачі не створено::$HINT"
+            exit 0
+          fi
           echo "Щоденна задача: щодня о 07:00 (Київ)"

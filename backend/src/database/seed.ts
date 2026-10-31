@@ -1,6 +1,6 @@
 /**
  * Initial data:
- *   npm run seed          — Lviv region TCK directory (from sheet EDU_TCK) + placeholder company details
+ *   npm run seed          — TCK directory: Lviv region (from sheet EDU_TCK) + all other regions (tck-ukraine.ts) + placeholder company details
  *   npm run seed -- --demo — additionally fictitious employees for a demo (NOT real people)
  */
 import 'reflect-metadata';
@@ -10,57 +10,28 @@ import type { Repository } from 'typeorm';
 import { AppModule } from '../app.module.js';
 import type { AuthUser } from '../common/auth.js';
 import { Tck } from '../dictionaries/tck.entity.js';
+import { ALL_TCK } from './tck-directory.js';
 import type { CreateEmployeeDto } from '../employees/employees.dto.js';
 import { EmployeesService } from '../employees/employees.service.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { UsersService } from '../users/users.service.js';
 
-const TCK_LIST = [
-  ['Львівський ОТЦК та СП (м. Львів)', '79005, м. Львів, вул. І. Франка, 25', '(032) 260-26-44'],
-  ['Галицько-Франківський ОРТЦК та СП (м. Львів)', '79007, м. Львів, вул. Батуринська, 2', '(032) 261-42-45, 261-31-22'],
-  ['Личаківсько-Залізничний ОРТЦК та СП (м. Львів)', '79007, м. Львів, вул. Батуринська, 2', '(032) 255-36-23'],
-  ['Шевченківський РТЦК та СП (м. Львів)', '79007, м. Львів, вул. Батуринська, 2', '(032) 261-42-45'],
-  ['Сихівський РТЦК та СП (м. Львів)', '79045, м. Львів, вул. Стрийська, 105', '(032) 223-07-70'],
-  ['Дрогобицький РТЦК та СП (м. Дрогобич)', '82100, м. Дрогобич, вул. Шевченка, 25', '(03244) 2-16-43'],
-  ['Золочівський РТЦК та СП (м. Золочів)', '80700, м. Золочів, вул. Січових Стрільців, 22', '(03265) 4-24-72'],
-  ['І відділ Золочівського РТЦК та СП (м. Броди)', '80600, м. Броди, вул. 22-го Січня', '(03266) 4-21-70'],
-  ['ІІ відділ Золочівського РТЦК та СП (м. Буськ)', '80500, м. Буськ, вул. Грушевського, 1а', '(03264) 3-00-46'],
-  ['Львівський РТЦК та СП (м. Жовква)', '80300, м. Жовква, вул. Дорошенка, 9', '(03252) 2-13-73'],
-  ['І відділ Львівського РТЦК та СП (м. Городок)', '81500, м. Городок, вул. Львівська, 3', '(03231) 3-00-24'],
-  ['ІІ відділ Львівського РТЦК та СП (м. Кам’янка-Бузька)', '80400, м. Кам’янка-Бузька, вул. Шевченка, 57', '(03254) 2-35-02'],
-  ['ІІІ відділ Львівського РТЦК та СП (м. Пустомити)', '81100, м. Пустомити, вул. Грушевського, 36', '(03230) 4-13-41'],
-  ['ІV відділ Львівського РТЦК та СП (м. Перемишляни)', '81200, м. Перемишляни, вул. Галицька, 26а', '(03263) 2-14-37'],
-  ['Самбірський РТЦК та СП (м. Самбір)', '81400, м. Самбір, вул. Мазепи, 17', '(03236) 6-10-04'],
-  ['І відділ Самбірського РТЦК та СП (м. Старий Самбір)', '82000, м. Старий Самбір, вул. Коцюбинського, 6', '(03238) 2-32-27'],
-  ['ІІ відділ Самбірського РТЦК та СП (м. Турка)', '82501, м. Турка, вул. Січових Стрільців, 9', '(03269) 3-25-04'],
-  ['Стрийський РТЦК та СП (м. Стрий)', '82400, м. Стрий, вул. Нижанківського, 6', '(03245) 5-31-23'],
-  ['І відділ Стрийського РТЦК та СП (м. Жидачів)', '81700, м. Жидачів, вул. Шашкевича, 17', '(03239) 31-3-31'],
-  ['ІІ відділ Стрийського РТЦК та СП (м. Миколаїв)', '81600, м. Миколаїв, пл. Ринок, 16', '(03241) 5-15-75'],
-  ['ІІІ відділ Стрийського РТЦК та СП (м. Сколе)', '82600, м. Сколе, вул. Майдан Незалежності, 4', '(03251) 2-12-92'],
-  ['Шептицький РТЦК та СП (м. Шептицький)', '80100, м. Шептицький, вул. Шевська, 36', '(03249) 3-90-09'],
-  ['І відділ Шептицького РТЦК та СП (м. Сокаль)', '80000, м. Сокаль, вул. Семенюка, 2', '(03257) 7-30-18'],
-  ['ІІ відділ Шептицького РТЦК та СП (м. Радехів)', '80200, м. Радехів, вул. Стоянівська, 23', '(03255) 2-13-76'],
-  ['Яворівський РТЦК та СП (м. Яворів)', '81000, м. Яворів, вул. Львівська, 2', '(03259) 2-16-78'],
-  ['І відділ Яворівського РТЦК та СП (м. Мостиська)', '81300, м. Мостиська, вул. Міцкевича, 13', '(03234) 4-13-43'],
-] as const;
 
-/** «Шевченківський РТЦК та СП» → «Шевченківського РТЦК та СП»; «І відділ …» → «І відділу …». */
-export function tckGenitive(name: string): string {
-  return name
-    .replace(/^((?:І|ІІ|ІІІ|ІV)\s+)відділ\s/u, '$1відділу ')
-    .replace(/^(\S+?)ий\s/u, '$1ого ');
-}
+
 
 async function seed() {
   const demo = process.argv.includes('--demo');
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
     const tckRepo = app.get<Repository<Tck>>(getRepositoryToken(Tck));
-    for (const [name, address, phone] of TCK_LIST) {
-      const exists = await tckRepo.existsBy({ name });
-      if (!exists) await tckRepo.save(tckRepo.create({ name, address, phone, nameGenitive: tckGenitive(name) }));
+    // the directory is also filled by the TckDirectory migration; here — in case it was cleared by hand
+    let added = 0;
+    for (const t of ALL_TCK) {
+      if (await tckRepo.existsBy({ name: t.name })) continue;
+      await tckRepo.save(tckRepo.create(t));
+      added++;
     }
-    console.log(`ТЦК: ${await tckRepo.count()}`);
+    console.log(`ТЦК: ${await tckRepo.count()} (додано: ${added})`);
 
     const org = app.get(OrganizationService);
     const current = await org.get();

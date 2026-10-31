@@ -13,8 +13,42 @@ import { join } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
-/** NestJS API address. In production — the URL of the private Cloud Run service. */
-const apiTarget = process.env['API_INTERNAL_URL'] ?? 'http://localhost:3000';
+/** Google metadata server (Cloud Run / App Hosting): project number, region, ID tokens. */
+async function metadata(path: string): Promise<string> {
+  const res = await fetch(`http://metadata.google.internal/computeMetadata/v1/${path}`, {
+    headers: { 'Metadata-Flavor': 'Google' },
+    signal: AbortSignal.timeout(3000),
+  });
+  if (!res.ok) throw new Error(`metadata ${path}: HTTP ${res.status}`);
+  return (await res.text()).trim();
+}
+
+/**
+ * NestJS API address.
+ * 1) API_INTERNAL_URL, if set (local development, docker compose, another domain);
+ * 2) in Google Cloud (App Hosting / Cloud Run) — the address of the Cloud Run service is computed:
+ *    https://<API_SERVICE>-<project number>.<region>.run.app. Nothing needs to be copied into
+ *    apphosting.yaml, so an updated copy of the repository cannot break the address;
+ * 3) otherwise — http://localhost:3000.
+ */
+async function resolveApiTarget(): Promise<string> {
+  const configured = process.env['API_INTERNAL_URL']?.trim();
+  if (configured && !configured.includes('REPLACE')) return configured.replace(/\/+$/, '');
+  if (!process.env['K_SERVICE']) return 'http://localhost:3000'; // not in Google Cloud
+  const service = process.env['API_SERVICE'] || 'military-registry-api';
+  try {
+    const projectNumber = await metadata('project/numeric-project-id');
+    // "projects/123456789/regions/us-east4" → "us-east4"
+    const region =
+      process.env['API_REGION'] || (await metadata('instance/region')).split('/').pop();
+    return `https://${service}-${projectNumber}.${region}.run.app`;
+  } catch (err) {
+    console.error('Не вдалося визначити адресу API — задайте API_INTERNAL_URL', err);
+    return 'http://localhost:3000';
+  }
+}
+
+const apiTarget = await resolveApiTarget();
 /**
  * The API on Cloud Run is closed to the internet (no allUsers in the run.invoker role).
  * The SSR server calls it on behalf of its service account: an ID token from the metadata server
@@ -139,12 +173,9 @@ let cachedToken: { value: string; expiresAt: number } | null = null;
 
 async function googleIdToken(audience: string): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 60_000) return cachedToken.value;
-  const url =
-    'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/identity' +
-    `?audience=${encodeURIComponent(audience)}`;
-  const res = await fetch(url, { headers: { 'Metadata-Flavor': 'Google' } });
-  if (!res.ok) throw new Error(`metadata server: HTTP ${res.status}`);
-  const value = (await res.text()).trim();
+  const value = await metadata(
+    `instance/service-accounts/default/identity?audience=${encodeURIComponent(audience)}`,
+  );
   const payload = JSON.parse(Buffer.from(value.split('.')[1], 'base64url').toString()) as {
     exp: number;
   };

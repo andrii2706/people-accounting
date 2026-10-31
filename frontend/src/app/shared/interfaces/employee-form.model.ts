@@ -1,6 +1,7 @@
-import type { Gender } from '../../../shared/interfaces/common.interface';
-import type { FamilyRelation } from '../../../shared/interfaces/dictionary.interface';
-import type { Employee, EmployeePayload } from '../../../shared/interfaces/employee.interface';
+import type { Gender } from './common.interface';
+import type { FamilyRelation } from './dictionary.interface';
+import type { Employee, EmployeePayload } from './employee.interface';
+import { normalizeVos } from '../validators/employee-rules';
 
 export type FormTab =
   'personal' | 'passport' | 'education' | 'family' | 'work' | 'military' | 'notes';
@@ -351,6 +352,7 @@ export function formToPayload(
   payload['foreignPassportSeries'] = model.foreignPassportSeries.trim().toUpperCase();
   for (const key of DATE_FIELDS) payload[key] = model[key] || null;
   payload['rankCode'] = rankCode === '' ? null : Number(rankCode);
+  payload['vos'] = normalizeVos(model.vos);
   payload['tckId'] = tckId || null;
   payload['maritalStatus'] = maritalStatus || null;
   payload['familyMembers'] = familyMembers.map((m) => ({ ...m, birthDate: m.birthDate || null }));

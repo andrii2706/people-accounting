@@ -36,7 +36,7 @@ export const MAX_LENGTH = {
   orderDocName: 100,
   orderNumber: 50,
   registryNumber: 50,
-  vos: 6,
+  vos: 10,
   trainingProfile: 200,
   accountingCategory: 1,
   docType: 150,
@@ -79,8 +79,10 @@ export const PATTERN = {
   docSeries: /^\p{L}{1,3}$/u,
   docNumber: /^[\p{L}\d/-]{1,50}$/u,
   /** Military occupational specialty: officers — 6 characters, others — 3 (note in the Excel file, column DD). */
-  vosOfficer: /^[\p{L}\d]{6}$/u,
-  vosOther: /^[\p{L}\d]{3}$/u,
+  /** Officers: 6 digits, optionally a letter at the end (021101, 021101А); «021-101» is accepted too. */
+  vosOfficer: /^\d{3}[ -]?\d{3}[ -]?\p{L}?$/u,
+  /** Rank-and-file, sergeants, petty officers: 3 or 6 digits, optionally a letter at the end (100, 100915, 837А). */
+  vosOther: /^\d{3}(?:[ -]?\d{3})?[ -]?\p{L}?$/u,
   accountingCategory: /^[12]$/,
   /** Time the e-document was generated: HH:MM. */
   docGeneratedTime: /^([01]\d|2[0-3]):[0-5]\d$/,
@@ -103,8 +105,8 @@ export const MESSAGE = {
   foreignNumber: 'Номер — 6 цифр',
   docSeries: 'Серія — 1–3 літери',
   docNumber: 'Лише літери, цифри, «-» та «/»',
-  vosOfficer: 'Для офіцерів ВОС — 6 символів',
-  vosOther: 'ВОС — 3 символи',
+  vosOfficer: 'Для офіцерів ВОС — 6 цифр, можна з літерою в кінці: 021101 або 021101А',
+  vosOther: 'ВОС — 3 або 6 цифр, можна з літерою в кінці: 100, 100915 або 837А',
   accountingCategory: 'Категорія обліку / розряд — 1 або 2',
   docGeneratedTime: 'Час у форматі ГГ:ХХ, напр. 10:15',
   edrpou: 'Код ЄДРПОУ — 8 цифр',
@@ -153,4 +155,9 @@ export function rnokppMismatch(rnokpp: string, birthDate: string, gender: 'M' | 
   }
   if (encodedGender !== gender) problems.push(`за РНОКПП стать ${encodedGender === 'M' ? 'чоловіча' : 'жіноча'}`);
   return problems.length ? `Перевірте: ${problems.join(', ')}` : null;
+}
+
+/** VOS as stored: without spaces and hyphens, the letter in upper case («021-101 а» → «021101А»). */
+export function normalizeVos(value: string): string {
+  return value.replace(/[\s-]/g, '').toUpperCase();
 }
