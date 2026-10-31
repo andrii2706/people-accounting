@@ -52,8 +52,24 @@ describe('employee import — reading values', () => {
   it('validates with the rules of the employee form', async () => {
     const errors = await validateValues({ lastName: 'Тест', firstName: 'Олена', gender: 'F', rnokpp: '123', rankCode: 2, reserved: true });
     const fields = errors.map((e) => e.field).sort();
-    expect(fields).toEqual(['reservationUntil', 'rnokpp', 'tckId']);
+    // TCK is not required on import — it stays empty when it is not in the directory
+    expect(fields).toEqual(['reservationUntil', 'rnokpp']);
     expect(await validateValues({ lastName: 'Тест', firstName: 'Олена', gender: 'F' })).toEqual([]);
+  });
+
+  it('takes the TCK from «Ким виданий ВОД»; unknown TCK — empty, without an error', () => {
+    const tcks = { tcks: [
+      { id: 'a', name: 'Личаківсько-Залізничний ОРТЦК та СП (м. Львів)' },
+      { id: 'b', name: 'Сихівський РТЦК та СП (м. Львів)' },
+    ] };
+    const headers = ['Прізвище', 'Ім’я', 'Ким виданий ВОД', 'ТЦК та СП'];
+    const { rows } = convertRows({ headers, rows: [
+      { rowNumber: 2, cells: ['Тест', 'Іван', 'Личаківсько-Залізничний ОР у місті Львові ТЦК та СП', ''] },
+      { rowNumber: 3, cells: ['Тест', 'Петро', '', 'Сихівський районний у місті Львові ТЦК та СП'] },
+      { rowNumber: 4, cells: ['Тест', 'Олег', 'Невідомий РВК', 'Невідомий ТЦК'] },
+    ] }, tcks);
+    expect(rows.map((r) => r.values.tckId)).toEqual(['a', 'b', undefined]);
+    expect(rows[2].issues).toEqual([]);
   });
 
   it('parses CSV with quotes and semicolons', () => {

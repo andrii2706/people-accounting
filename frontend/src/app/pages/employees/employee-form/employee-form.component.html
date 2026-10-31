@@ -540,6 +540,9 @@
                 placeholder="— оберіть —"
                 ariaLabel="ТЦК та СП"
               />
+              @if (tckAutoFilled() && model().tckId) {
+                <p class="mt-1 text-xs text-muted">Підставлено з «Ким виданий» документа</p>
+              }
             </app-form-field>
             <app-form-field label="На обліку з" [field]="f.tckRegisteredAt">
               <app-date-input [formField]="f.tckRegisteredAt" ariaLabel="На обліку з" />

@@ -4,11 +4,13 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   Injector,
   input,
   linkedSignal,
   signal,
+  untracked,
 } from '@angular/core';
 import {
   applyEach,
@@ -39,7 +41,7 @@ import {
   LIST_ITEM_FIELDS,
   normalizeTime,
   reportableChanges,
-} from '../../../shared/interfaces/employee-form.model';
+} from './employee-form.model';
 import { httpResource } from '@angular/common/http';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import {
@@ -56,6 +58,7 @@ import { EmployeesService } from '../../../shared/services/employees.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
+import { matchTck } from '../../../shared/utils/tck-match';
 import {
   AFTER_BIRTH_DATES,
   MAX_LENGTH,
@@ -182,6 +185,32 @@ export class EmployeeFormComponent {
   protected readonly orderDocNames = ORDER_DOC_NAMES;
 
   /** Term of general mobilization (from the presidential decrees) — for deferrals «до завершення мобілізації». */
+  /**
+   * TCK from «Ким виданий» of a military document: filled in automatically when that TCK is in the directory
+   * and the field is still empty; when it is not found, the field stays empty. Acts only when «Ким виданий»
+   * changes (or on opening the card), so a TCK cleared by hand is not put back.
+   */
+  protected readonly tckAutoFilled = signal(false);
+  private lastIssuedBy: string | null = null;
+  private readonly autoTck = effect(() => {
+    const issuedBy = this.model().militaryDocuments.map((d) => d.issuedBy.trim());
+    const tcks = this.dict.activeTcks();
+    const key = issuedBy.join('\n');
+    if (!tcks.length || key === this.lastIssuedBy) return;
+    this.lastIssuedBy = key;
+    untracked(() => {
+      if (this.model().tckId) return;
+      for (const text of issuedBy) {
+        const id = matchTck(text, tcks);
+        if (id) {
+          this.model.update((m) => ({ ...m, tckId: id }));
+          this.tckAutoFilled.set(true);
+          return;
+        }
+      }
+    });
+  });
+
   protected readonly mobilization = httpResource<{
     mobilizationUntil: string | null;
     mobilizationDecree: string;

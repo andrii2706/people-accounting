@@ -1,3 +1,4 @@
+import { matchTck } from '../../military/tck-match.js';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import ExcelJS from 'exceljs';
@@ -53,7 +54,14 @@ export class EmployeeImportService {
     const existing = await this.existingIndex(rows.map((r) => r.values));
     const seenRnokpp = new Map<string, number>();
     const checked: CheckedRow[] = [];
-    for (const row of rows) {
+    const tcks = await this.tcks.find({ select: { id: true, name: true } });
+    for (const input of rows) {
+      // «Ким виданий ВОД» edited on the preview → pick the TCK, if it is in the directory and not chosen yet
+      const row = { ...input, values: { ...input.values } };
+      if (!row.values.tckId && row.values.militaryDocIssuedBy) {
+        const id = matchTck(String(row.values.militaryDocIssuedBy), tcks);
+        if (id) row.values.tckId = id;
+      }
       const errors = [...row.issues];
       for (const e of await validateValues(row.values)) {
         if (!errors.some((x) => x.field === e.field)) errors.push(e);

@@ -1,3 +1,4 @@
+import { matchTck } from '../../military/tck-match.js';
 /**
  * Converts raw cells into CreateEmployeeDto values and validates them with the same rules
  * as the employee form (class-validator DTO + the cross-field rules of the form).
@@ -116,14 +117,6 @@ function parseRank(v: RawCell): { code: number; navy: boolean } | null | undefin
   return RANK_INDEX.get(key);
 }
 
-function findTck(v: RawCell, ctx: ImportContext): string | null | undefined {
-  const key = normalizeKey(str(v));
-  if (!key) return null;
-  const exact = ctx.tcks.find((t) => normalizeKey(t.name) === key);
-  if (exact) return exact.id;
-  const partial = ctx.tcks.filter((t) => normalizeKey(t.name).includes(key) || key.includes(normalizeKey(t.name)));
-  return partial.length === 1 ? partial[0].id : undefined;
-}
 
 function parsePassportType(v: RawCell): 'ID_CARD' | 'BOOK' | null | undefined {
   const key = normalizeKey(str(v));
@@ -222,9 +215,9 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
           break;
         }
         case 'tck': {
-          const id = findTck(cell, ctx);
-          if (id === undefined) issue('tckId', `ТЦК «${text}» не знайдено в довіднику (Налаштування → ТЦК)`);
-          else if (id) values.tckId = id;
+          // not found in the directory — the field stays empty (it can be chosen later), no error
+          const id = matchTck(text, ctx.tcks);
+          if (id) values.tckId = id;
           break;
         }
         case 'passportType': {
@@ -260,6 +253,11 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
     if (values.gender === undefined && !issues.some((i) => i.field === 'gender')) {
       const g = genderByMiddleName(String(values.middleName ?? ''));
       if (g) values.gender = g;
+    }
+    // TCK from «Ким виданий ВОД» when the TCK column is empty or not recognised
+    if (!values.tckId && values.militaryDocIssuedBy) {
+      const id = matchTck(String(values.militaryDocIssuedBy), ctx.tcks);
+      if (id) values.tckId = id;
     }
     if (values.passportType === undefined && values.passportNumber) {
       values.passportType = values.passportSeries || /^\d{6}$/.test(String(values.passportNumber)) ? 'BOOK' : 'ID_CARD';
@@ -306,9 +304,7 @@ export async function validateValues(values: ImportValues): Promise<FieldError[]
 
   const rank = values.rankCode;
   // cross-field rules of the form (employee-form.component.ts)
-  if (values.militaryRegistered !== false && rank !== undefined && rank !== null && !values.tckId) {
-    errors.push({ field: 'tckId', message: 'Оберіть ТЦК — без нього не сформується повідомлення' });
-  }
+  // TCK is not required on import: if it is not in the directory, the field stays empty and can be chosen later
   if (values.reserved === true && rank !== 0 && !values.reservationUntil) {
     errors.push({ field: 'reservationUntil', message: 'Вкажіть строк бронювання' });
   }
