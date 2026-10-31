@@ -35,6 +35,8 @@ export interface MilitaryRecord {
   registryNumber: string | null;
   tckId: string | null;
   militaryDocNumber: string | null;
+  /** At least one military document is added (even without a number). */
+  hasMilitaryDocument?: boolean;
   trainingProfile: string | null;
 }
 
@@ -168,6 +170,17 @@ export interface RecordWarning {
   message: string;
 }
 
+const uaDate = (iso: IsoDate) => iso.split('-').reverse().join('.');
+
+/** «сьогодні», «через 1 день», «через 3 дні», «через 12 днів». */
+function inDays(n: number): string {
+  if (n === 0) return 'сьогодні';
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? 'день' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'дні' : 'днів';
+  return `через ${n} ${word}`;
+}
+
 /** Automatic checks the Excel file did not have, but which follow naturally from its logic. */
 export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAlertDays = 30): RecordWarning[] {
   const warnings: RecordWarning[] = [];
@@ -178,38 +191,72 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
   const age = fullYears(r.birthDate, date);
 
   if (r.gender === 'M' && r.rankCode === null) {
-    warnings.push({ code: 'NO_RANK', level: 'warning', message: 'Не вказано військове звання / статус призовника' });
+    warnings.push({
+      code: 'NO_RANK',
+      level: 'warning',
+      message: 'Не вказано військове звання. Оберіть звання (або «призовник») у картці на вкладці «Військово-облікові дані».',
+    });
   }
   if (!r.registryNumber) {
-    warnings.push({ code: 'NO_REGISTRY', level: 'info', message: 'Немає реєстраційного номера в ЄДР призовників' });
+    warnings.push({
+      code: 'NO_REGISTRY',
+      level: 'info',
+      message: 'Не вказано номер у реєстрі «Оберіг» — його видно в застосунку Резерв+ або у військово-обліковому документі.',
+    });
   }
   if (!r.tckId) {
-    warnings.push({ code: 'NO_TCK', level: 'warning', message: 'Не вказано ТЦК та СП, де перебуває на обліку' });
+    warnings.push({
+      code: 'NO_TCK',
+      level: 'warning',
+      message: 'Не обрано ТЦК, де працівник стоїть на обліку, — без цього не вийде сформувати повідомлення в ТЦК.',
+    });
   }
   if (!r.militaryDocNumber && r.rankCode !== null) {
-    warnings.push({ code: 'NO_MIL_DOC', level: 'warning', message: 'Немає реквізитів військово-облікового документа' });
+    warnings.push({
+      code: 'NO_MIL_DOC',
+      level: 'warning',
+      message: r.hasMilitaryDocument
+        ? 'У військово-обліковому документі не вказано номер — допишіть його в картці, інакше повідомлення в ТЦК буде неповним.'
+        : 'Не додано військово-обліковий документ (військовий квиток, посвідчення або е-документ з Резерв+). Додайте його в картці на вкладці «Військово-облікові дані».',
+    });
   }
   if (rank && age !== null && age >= rank.ageLimit) {
     warnings.push({
       code: 'AGE_LIMIT',
       level: 'danger',
-      message: `Досяг граничного віку (${rank.ageLimit}) — підлягає зняттю з військового обліку`,
+      message: `Виповнилося ${rank.ageLimit} років — граничний вік перебування в запасі. Працівника потрібно зняти з військового обліку.`,
     });
   }
   if (r.reserved && r.reservationUntil) {
     const left = daysBetween(date, r.reservationUntil);
     if (left < 0) {
-      warnings.push({ code: 'RESERVATION_EXPIRED', level: 'danger', message: 'Строк бронювання минув' });
+      warnings.push({
+        code: 'RESERVATION_EXPIRED',
+        level: 'danger',
+        message: `Бронювання закінчилося ${uaDate(r.reservationUntil)}. Продовжте бронювання або зніміть відмітку «Заброньований».`,
+      });
     } else if (left <= reservationAlertDays) {
-      warnings.push({ code: 'RESERVATION_EXPIRING', level: 'warning', message: `Бронювання закінчується через ${left} дн.` });
+      warnings.push({
+        code: 'RESERVATION_EXPIRING',
+        level: 'warning',
+        message: `Бронювання закінчується ${uaDate(r.reservationUntil)} (${inDays(left)}) — подбайте про продовження.`,
+      });
     }
   }
   if (r.deferralUntil) {
     const left = daysBetween(date, r.deferralUntil);
     if (left < 0) {
-      warnings.push({ code: 'DEFERRAL_EXPIRED', level: 'danger', message: 'Строк відстрочки минув' });
+      warnings.push({
+        code: 'DEFERRAL_EXPIRED',
+        level: 'danger',
+        message: `Відстрочка закінчилася ${uaDate(r.deferralUntil)}. Уточніть у працівника (Резерв+) і оновіть дані в картці.`,
+      });
     } else if (left <= reservationAlertDays) {
-      warnings.push({ code: 'DEFERRAL_EXPIRING', level: 'warning', message: `Відстрочка закінчується через ${left} дн.` });
+      warnings.push({
+        code: 'DEFERRAL_EXPIRING',
+        level: 'warning',
+        message: `Відстрочка закінчується ${uaDate(r.deferralUntil)} (${inDays(left)}) — нагадайте працівнику оформити нову.`,
+      });
     }
   }
   return warnings;

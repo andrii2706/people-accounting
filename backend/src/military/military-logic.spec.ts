@@ -81,6 +81,17 @@ describe('military logic', () => {
     expect(codes).toContain('RESERVATION_EXPIRING');
   });
 
+  it('пояснює попередження зрозумілою мовою', () => {
+    const msg = (r: Partial<MilitaryRecord>, code: string) =>
+      recordWarnings({ ...base, rankCode: 2, ...r }, '2026-10-10').find((w) => w.code === code)?.message ?? '';
+    expect(msg({ militaryDocNumber: null }, 'NO_MIL_DOC')).toContain('Не додано військово-обліковий документ');
+    expect(msg({ militaryDocNumber: null, hasMilitaryDocument: true }, 'NO_MIL_DOC')).toContain('не вказано номер');
+    expect(msg({ reserved: true, reservationUntil: '2026-10-11' }, 'RESERVATION_EXPIRING')).toContain('11.10.2026 (через 1 день)');
+    expect(msg({ reserved: true, reservationUntil: '2026-10-13' }, 'RESERVATION_EXPIRING')).toContain('(через 3 дні)');
+    expect(msg({ deferralUntil: '2026-10-21' }, 'DEFERRAL_EXPIRING')).toContain('(через 11 днів)');
+    expect(msg({ deferralUntil: '2026-10-01' }, 'DEFERRAL_EXPIRED')).toContain('закінчилася 01.10.2026');
+  });
+
   it('treats an employee as reserved only when it is chosen explicitly', () => {
     const data = { reservationBasis: 'Перелік №1', reservationUntil: '2027-01-01' };
     expect(isReservedAt({ ...base, ...data }, '2026-10-27')).toBe(false);
