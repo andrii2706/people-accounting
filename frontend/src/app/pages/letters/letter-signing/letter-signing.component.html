@@ -11,17 +11,15 @@
   </div>
 
   @if (!state().frozen) {
-    <!-- step 1: freeze the document -->
     <p class="text-sm text-muted">
       Щоб підписати лист кваліфікованим електронним підписом, спершу зафіксуйте документ: він
       збережеться без змін, і саме цей файл буде підписано та передано в ТЦК. Перевірте реквізити та
       адресата — після першого підпису змінити їх не можна.
     </p>
-    <button type="button" class="btn btn-primary mt-4" [disabled]="busy()" (click)="freeze()">
+    <button type="button" class="btn btn-primary mt-4 cursor-pointer" [disabled]="busy()" (click)="freeze()">
       <app-icon name="lock" /> Зафіксувати документ для підпису
     </button>
   } @else {
-    <!-- frozen document -->
     <div class="rounded-lg bg-sunken/60 px-3 py-2 text-sm">
       <p class="flex flex-wrap items-center gap-x-2">
         <app-icon name="lock" [size]="16" />
@@ -42,7 +40,7 @@
         @if (!hasSignatures() && letterStatus() !== 'SENT') {
           <button
             type="button"
-            class="btn btn-ghost px-2 py-1 text-xs"
+            class="btn btn-ghost px-2 py-1 text-xs cursor-pointer"
             [disabled]="busy()"
             (click)="unfreeze()"
           >
@@ -52,7 +50,6 @@
       </div>
     </div>
 
-    <!-- collected signatures -->
     @if (hasSignatures()) {
       <ul class="mt-4 space-y-3">
         @for (sig of state().signatures; track sig.id) {
@@ -121,7 +118,6 @@
       </p>
     }
 
-    <!-- add a signature -->
     <div class="mt-5 border-t border-line pt-4">
       <h3 class="mb-3 text-sm font-semibold">
         {{ hasSignatures() ? 'Додати ще підпис' : 'Підписати' }}
@@ -131,7 +127,7 @@
           <button
             type="button"
             role="tab"
-            class="rounded-md px-3 py-1"
+            class="rounded-md px-3 py-1 cursor-pointer"
             [class]="mode() === 'widget' ? 'bg-surface font-medium shadow-sm' : 'text-muted'"
             [attr.aria-selected]="mode() === 'widget'"
             (click)="setMode('widget')"
@@ -141,7 +137,7 @@
           <button
             type="button"
             role="tab"
-            class="rounded-md px-3 py-1"
+            class="rounded-md px-3 py-1 cursor-pointer"
             [class]="mode() === 'upload' ? 'bg-surface font-medium shadow-sm' : 'text-muted'"
             [attr.aria-selected]="mode() === 'upload'"
             (click)="setMode('upload')"
@@ -165,12 +161,12 @@
         <div class="mt-3 flex flex-wrap gap-2">
           @switch (widgetStage()) {
             @case ('idle') {
-              <button type="button" class="btn btn-primary" (click)="readKey()">
+              <button type="button" class="btn btn-primary cursor-pointer" (click)="readKey()">
                 <app-icon name="key" /> Зчитати ключ
               </button>
             }
             @case ('reading') {
-              <button type="button" class="btn btn-ghost" (click)="resetWidget()">Скасувати</button>
+              <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetWidget()">Скасувати</button>
             }
             @default {
               <button
@@ -182,7 +178,7 @@
                 <app-icon name="signature" />
                 {{ widgetStage() === 'signing' ? 'Підписуємо…' : 'Підписати документ' }}
               </button>
-              <button type="button" class="btn btn-ghost" (click)="resetWidget()">
+              <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetWidget()">
                 Інший ключ
               </button>
             }

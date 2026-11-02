@@ -2,18 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { CookieOptions, Response } from 'express';
 import { loadEnv } from '../config/env.js';
-import type { UserRole } from '../users/user.entity.js';
-
-export interface SessionPayload {
-  sub: string;
-  /** Credentials version — after a password change / lockout old sessions become invalid. */
-  ver: number;
-  /** Session start (seconds) — for the absolute session lifetime limit. */
-  sst: number;
-  role: UserRole;
-  iat?: number;
-  exp?: number;
-}
+import type { SessionPayload, UserRole } from '../shared/interfaces/auth.interface.js';
 
 /**
  * Issues and extends the session in an httpOnly cookie.
@@ -59,7 +48,6 @@ export class SessionService {
     return this.jwt.verifyAsync<SessionPayload>(token);
   }
 
-  /** Has the session reached its absolute limit? */
   isExpiredAbsolutely(payload: SessionPayload) {
     return Date.now() / 1000 - payload.sst > this.env.sessionMaxHours * 3600;
   }

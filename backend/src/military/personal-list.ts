@@ -5,11 +5,12 @@
  * Layout follows sheets GN1…GN4R of the Excel file: a separate list per group, one row per record.
  * Column meanings follow the official "ПЕРЕЛІК інформації" that accompanies the form.
  */
-import { formatUa, formatUaQuoted, type IsoDate } from '../common/utils/dates.js';
+import { formatUa, formatUaQuoted } from '../common/utils/dates.js';
 import type { Employee } from '../employees/entities/employee.entity.js';
 import { toMilitaryRecord } from '../employees/employee-view.js';
 import { fullName, militaryDocText, passportText, positionText, rankText } from './employee-format.js';
 import { dutyCategory, hasReachedAgeLimit, isConscript, isMobilizedAt, isReservist } from './military-logic.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
 
 const join = (parts: Array<string | null | undefined | false>, sep = ', ') =>
   parts.filter((p): p is string => !!p && !!p.trim()).join(sep);
@@ -38,7 +39,9 @@ export const LIST_TITLES = [
 ] as const;
 
 /** Relative column widths — Excel column widths of sheets GN* (A…R). */
-export const LIST_WIDTHS = [5.3, 12.2, 9.9, 11.1, 9.1, 24, 12.7, 8.2, 24, 18, 15.4, 17.1, 14.7, 12.7, 12.9, 15.3, 15.4, 13];
+export const LIST_WIDTHS = [
+  5.3, 12.2, 9.9, 11.1, 9.1, 24, 12.7, 8.2, 24, 18, 15.4, 17.1, 14.7, 12.7, 12.9, 15.3, 15.4, 13,
+];
 
 /** Column 2: category in the singular, as the form expects. */
 export function categoryText(e: Employee): string {
@@ -85,7 +88,9 @@ function reservationText(e: Employee): string {
   if (e.reservedBy === 'OTHER') {
     return join([
       'заброньований іншою юридичною особою',
-      e.reservedByName?.trim() ? `${e.reservedByName.trim()}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}` : '',
+      e.reservedByName?.trim()
+        ? `${e.reservedByName.trim()}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}`
+        : '',
       e.reservationUntil ? until(e.reservationUntil) : '',
       e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
     ]);
@@ -101,7 +106,11 @@ function reservationText(e: Employee): string {
 function mobilizationOrderText(e: Employee): string {
   if (isConscript(e)) return '';
   if (isReservist(e)) {
-    return join(['так', e.mobilizationOrderDate ? `від ${formatUa(e.mobilizationOrderDate)} р.` : '', `в/ч ${e.reserveTeamNumber}`]);
+    return join([
+      'так',
+      e.mobilizationOrderDate ? `від ${formatUa(e.mobilizationOrderDate)} р.` : '',
+      `в/ч ${e.reserveTeamNumber}`,
+    ]);
   }
   return e.mobilizationOrderDate ? `так, від ${formatUa(e.mobilizationOrderDate)} р.` : 'ні';
 }
@@ -134,7 +143,7 @@ export function personalListCells(e: Employee, date: IsoDate, notices: string): 
     formatUa(e.birthDate, ''),
     e.registryNumber ?? '',
     taxNumberText(e),
-    conscript ? '' : e.vos ?? '',
+    conscript ? '' : (e.vos ?? ''),
     militaryDocText(e),
     passportText(e),
     addressText(e),

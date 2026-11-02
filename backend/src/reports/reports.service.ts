@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
-import { formatUa, type IsoDate, todayIso } from '../common/utils/dates.js';
-import { buildLists, buildOperationalReport, type OperationalRowData } from '../documents/builders.js';
+import { formatUa, todayIso } from '../common/utils/dates.js';
+import { buildLists, buildOperationalReport } from '../documents/builders.js';
 import { deriveEmployee, toMilitaryRecord } from '../employees/employee-view.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
-import { type DutyCategory, type ListGroup, LIST_GROUPS, LIST_SECTIONS, type ListSection, listSection } from '../military/dictionaries.js';
+import { LIST_GROUPS, LIST_SECTIONS, listSection } from '../military/dictionaries.js';
 import { personalListCells } from '../military/personal-list.js';
 import {
   dutyCategory,
@@ -20,6 +20,10 @@ import {
   operationalRow,
 } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { ListGroup, ListSection, DutyCategory } from '../shared/interfaces/dictionary.interface.js';
+import type { ListRowView } from '../shared/interfaces/report.interface.js';
+import type { OperationalRowData } from '../shared/interfaces/document.interface.js';
 
 const SINCE_2020 = '2020-01-01';
 
@@ -30,15 +34,6 @@ const OPERATIONAL_TITLES: Record<string, string> = {
   '1.3': 'Військовозобов’язані-жінки (у тому числі резервісти)',
   '2.': 'Призовники',
 };
-
-export interface ListRowView {
-  employeeId: string;
-  group: ListGroup;
-  /** Which of the four lists the record belongs to. */
-  section: ListSection;
-  category: DutyCategory | null;
-  cells: string[];
-}
 
 @Injectable()
 export class ReportsService {
@@ -66,7 +61,8 @@ export class ReportsService {
     const map = new Map<string, string[]>();
     for (const c of rows) {
       if (!c.letter) continue;
-      const about = c.type === 'HIRE' ? 'про призначення' : c.type === 'POSITION' ? 'про переведення' : 'про звільнення';
+      const about =
+        c.type === 'HIRE' ? 'про призначення' : c.type === 'POSITION' ? 'про переведення' : 'про звільнення';
       const text = `${about}: вих. № ${c.letter.number} від ${formatUa(c.letter.date)} р.`;
       map.set(c.employeeId, [...(map.get(c.employeeId) ?? []), text]);
     }
@@ -92,7 +88,13 @@ export class ReportsService {
       const group = listGroup(record);
       if (!group || !groups.includes(group)) continue;
       const category = dutyCategory(record);
-      rows.push({ employeeId: e.id, group, section: listSection(group), category, cells: personalListCells(e, date, notices.get(e.id) ?? '') });
+      rows.push({
+        employeeId: e.id,
+        group,
+        section: listSection(group),
+        category,
+        cells: personalListCells(e, date, notices.get(e.id) ?? ''),
+      });
       if (category) counts[category]++;
     }
     // list order: officers, soldiers, women, conscripts; alphabetical inside a list (loadAll is sorted by name)
@@ -106,13 +108,21 @@ export class ReportsService {
     return { date, rows, counts };
   }
 
-  async listsDocx(date: IsoDate, groups: ListGroup[], extractIds?: string[], letter?: { number: string; date: IsoDate } | null) {
+  async listsDocx(
+    date: IsoDate,
+    groups: ListGroup[],
+    extractIds?: string[],
+    letter?: { number: string; date: IsoDate } | null,
+  ) {
     const data = await this.lists(date, groups, extractIds);
     const org = await this.org.getAt(letter?.date ?? date);
     return buildLists({
       date,
       extract: !!extractIds?.length,
-      sections: LIST_SECTIONS.map((section) => ({ section, rows: data.rows.filter((r) => r.section === section).map((r) => r.cells) })),
+      sections: LIST_SECTIONS.map((section) => ({
+        section,
+        rows: data.rows.filter((r) => r.section === section).map((r) => r.cells),
+      })),
       org,
       letter,
     });
@@ -122,9 +132,19 @@ export class ReportsService {
   async operational(date: IsoDate = todayIso()): Promise<{ date: IsoDate; rows: OperationalRowData[] }> {
     const all = await this.loadAll();
     const rows = new Map<string, OperationalRowData>(
-      ['1.1', '1.2', '1.3', '2.'].map((code) => [code, {
-        code, title: OPERATIONAL_TITLES[code], total: 0, mobilizationOrders: 0, reserved: 0, other: 0, hiredSince2020: 0, dismissedSince2020: 0,
-      }]),
+      ['1.1', '1.2', '1.3', '2.'].map((code) => [
+        code,
+        {
+          code,
+          title: OPERATIONAL_TITLES[code],
+          total: 0,
+          mobilizationOrders: 0,
+          reserved: 0,
+          other: 0,
+          hiredSince2020: 0,
+          dismissedSince2020: 0,
+        },
+      ]),
     );
 
     for (const e of all) {
@@ -148,20 +168,27 @@ export class ReportsService {
     const sub = ['1.1', '1.2', '1.3'].map((c) => rows.get(c)!);
     const sum = (k: keyof OperationalRowData) => sub.reduce((a, r) => a + (r[k] as number), 0);
     const head: OperationalRowData = {
-      code: '1.', title: OPERATIONAL_TITLES['1.'],
-      total: sum('total'), mobilizationOrders: sum('mobilizationOrders'), reserved: sum('reserved'),
-      other: sum('other'), hiredSince2020: sum('hiredSince2020'), dismissedSince2020: sum('dismissedSince2020'),
+      code: '1.',
+      title: OPERATIONAL_TITLES['1.'],
+      total: sum('total'),
+      mobilizationOrders: sum('mobilizationOrders'),
+      reserved: sum('reserved'),
+      other: sum('other'),
+      hiredSince2020: sum('hiredSince2020'),
+      dismissedSince2020: sum('dismissedSince2020'),
     };
     return { date, rows: [head, ...sub, rows.get('2.')!] };
   }
 
   async operationalDocx(date: IsoDate, letter?: { number: string; date: IsoDate } | null) {
     const data = await this.operational(date);
-    const [org, responsible] = await Promise.all([this.org.getAt(letter?.date ?? date), this.org.responsibleAt(letter?.date ?? date)]);
+    const [org, responsible] = await Promise.all([
+      this.org.getAt(letter?.date ?? date),
+      this.org.responsibleAt(letter?.date ?? date),
+    ]);
     return buildOperationalReport({ date, rows: data.rows, org, responsible, letter });
   }
 
-  /** Summary for the dashboard. */
   async dashboard(date: IsoDate = todayIso()) {
     const [all, org, pending] = await Promise.all([
       this.loadAll(),
@@ -169,7 +196,12 @@ export class ReportsService {
       this.changes.find({
         where: { letterId: IsNull(), skipped: false },
         relations: { employee: true },
-        select: { id: true, type: true, effectiveDate: true, employee: { id: true, hireOrderDate: true, dismissalOrderDate: true } },
+        select: {
+          id: true,
+          type: true,
+          effectiveDate: true,
+          employee: { id: true, hireOrderDate: true, dismissalOrderDate: true },
+        },
       }),
     ]);
     const derived = all.map((e) => ({ e, d: deriveEmployee(e, date, org.alertDays) }));
@@ -199,7 +231,6 @@ export class ReportsService {
     const reservedCompany = reserved.filter(({ e }) => e.reservedBy !== 'OTHER').length;
     const quota = org.reservationQuota;
 
-
     const attention = derived
       .filter(({ d }) => d.employed && d.warnings.some((w) => w.level !== 'info'))
       .map(({ e, d }) => ({ id: e.id, fullName: d.fullName, warnings: d.warnings.filter((w) => w.level !== 'info') }))
@@ -207,7 +238,12 @@ export class ReportsService {
 
     return {
       date,
-      employees: { employed: employed.length, onLists: derived.filter((x) => x.d.onLists).length, mobilized: derived.filter((x) => x.d.mobilized).length, reserved: employed.filter((x) => x.d.reserved).length },
+      employees: {
+        employed: employed.length,
+        onLists: derived.filter((x) => x.d.onLists).length,
+        mobilized: derived.filter((x) => x.d.mobilized).length,
+        reserved: employed.filter((x) => x.d.reserved).length,
+      },
       byGroup,
       bySection,
       byCategory,
@@ -222,7 +258,9 @@ export class ReportsService {
       },
       mobilizationUntil: org.mobilizationUntil,
       pendingChanges: pending.length,
-      overdueChanges: pending.filter((c) => notificationDeadline(c.type, c.effectiveDate, c.employee, org.notifyDeadlineDays) < date).length,
+      overdueChanges: pending.filter(
+        (c) => notificationDeadline(c.type, c.effectiveDate, c.employee, org.notifyDeadlineDays) < date,
+      ).length,
       attention,
       organizationConfigured: !!(org.fullName && org.edrpou && org.headName),
     };

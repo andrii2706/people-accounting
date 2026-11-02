@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, type Relation } from 'typeorm';
-import type { FamilyRelation } from '../../military/dictionaries.js';
 import { Employee } from './employee.entity.js';
+import type { FamilyRelation } from '../../shared/interfaces/dictionary.interface.js';
 
 @Entity('family_members')
 export class FamilyMember {

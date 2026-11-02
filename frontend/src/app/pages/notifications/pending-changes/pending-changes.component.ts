@@ -7,15 +7,7 @@ import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { LettersService } from '../../../shared/services/letters.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
-
-interface EmployeeGroup {
-  employeeId: string;
-  fullName: string;
-  tckId: string | null;
-  tckName: string;
-  overdue: boolean;
-  changes: PendingChange[];
-}
+import type { PendingChangesGroup } from '../../../shared/interfaces/letter.interface';
 
 @Component({
   selector: 'app-pending-changes',
@@ -28,7 +20,6 @@ export class PendingChangesComponent {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
 
-  /** Data from pendingChangesResolver. */
   readonly pending = input.required<PendingChange[]>();
   protected readonly busy = signal<string | null>(null);
   /** Employees selected for a combined notice. */
@@ -50,8 +41,8 @@ export class PendingChangesComponent {
   );
 
   /** Grouped by employee; overdue ones first. */
-  protected readonly groups = computed<EmployeeGroup[]>(() => {
-    const map = new Map<string, EmployeeGroup>();
+  protected readonly groups = computed<PendingChangesGroup[]>(() => {
+    const map = new Map<string, PendingChangesGroup>();
     for (const c of this.pending()) {
       const g = map.get(c.employee.id) ?? {
         employeeId: c.employee.id,
@@ -109,7 +100,7 @@ export class PendingChangesComponent {
     }
   }
 
-  protected async createLetter(g: EmployeeGroup) {
+  protected async createLetter(g: PendingChangesGroup) {
     this.busy.set(g.employeeId);
     try {
       const letter = await this.lettersService.createChangeNotice(g.employeeId);

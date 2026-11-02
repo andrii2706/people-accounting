@@ -10,13 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { FormValueControl } from '@angular/forms/signals';
-
-export interface SelectOption {
-  value: string;
-  label: string;
-  /** Second line in the list (e.g. the composition of a rank). */
-  hint?: string;
-}
+import type { SelectOption } from '../../interfaces/ui.interface';
 
 /**
  * Drop-down list in the style of the app (instead of the native <select>): search for long lists,

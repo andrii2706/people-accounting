@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { addDays, formatUa, type IsoDate, todayIso } from '../common/utils/dates.js';
+import { addDays, formatUa, todayIso } from '../common/utils/dates.js';
 import { loadEnv } from '../config/env.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { Organization } from '../organization/organization.entity.js';
 import { htmlToText, parseMobilizationTerm } from './decree-parser.js';
 import { NIL_REF, NotificationsService } from './notifications.service.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
 
 /** How many days before the end of a deferral / reservation the reminder is sent. */
 export const REMIND_DAYS_BEFORE = 5;
@@ -84,8 +85,16 @@ export class DailyJobService {
     } catch (err) {
       this.logger.error(`Не вдалося перевірити укази (${source})`, err as Error);
       const cause = (err as { cause?: { code?: string } }).cause?.code;
-      const reason = err instanceof Error && err.name === 'TimeoutError' ? 'сайт не відповідає' : cause ? `сайт недоступний (${cause})` : (err as Error).message;
-      return { ok: false, message: `Не вдалося перевірити укази: ${reason}. Вкажіть строк вручну або спробуйте пізніше.` };
+      const reason =
+        err instanceof Error && err.name === 'TimeoutError'
+          ? 'сайт не відповідає'
+          : cause
+            ? `сайт недоступний (${cause})`
+            : (err as Error).message;
+      return {
+        ok: false,
+        message: `Не вдалося перевірити укази: ${reason}. Вкажіть строк вручну або спробуйте пізніше.`,
+      };
     }
   }
 
@@ -114,8 +123,9 @@ export class DailyJobService {
       due.push({ e, end });
     }
     if (!due.length) return 0;
-    const lines = due.map(({ e, end }) =>
-      `• ${fullName(e)} — відстрочка до ${formatUa(end)}${e.deferralUntilMobilizationEnd ? ' (до завершення мобілізації)' : ''}` +
+    const lines = due.map(
+      ({ e, end }) =>
+        `• ${fullName(e)} — відстрочка до ${formatUa(end)}${e.deferralUntilMobilizationEnd ? ' (до завершення мобілізації)' : ''}` +
         `${e.deferralMobilizationBasis || e.deferralConscriptionBasis ? `, підстава: ${e.deferralMobilizationBasis || e.deferralConscriptionBasis}` : ''}\n  ${this.env.appUrl}/employees/${e.id}`,
     );
     const sent = await this.notifications.notifyUsers(
@@ -123,7 +133,11 @@ export class DailyJobService {
       `Через ${REMIND_DAYS_BEFORE} днів або раніше закінчується відстрочка:\n\n${lines.join('\n')}\n\n` +
         'Перевірте, чи продовжено відстрочку (Резерв+ / ТЦК), і оновіть дані в картці працівника.',
     );
-    await this.notifications.markSent('DEFERRAL_ENDING', due.map(({ e, end }) => ({ refId: e.id, refDate: end })), sent);
+    await this.notifications.markSent(
+      'DEFERRAL_ENDING',
+      due.map(({ e, end }) => ({ refId: e.id, refDate: end })),
+      sent,
+    );
     return due.length;
   }
 
@@ -139,9 +153,18 @@ export class DailyJobService {
     const sent = await this.notifications.notifyUsers(
       `Закінчується бронювання: ${due.length} працівн.`,
       `Через ${REMIND_DAYS_BEFORE} днів або раніше закінчується бронювання:\n\n` +
-        due.map((e) => `• ${fullName(e)} — заброньовано до ${formatUa(e.reservationUntil!)}\n  ${this.env.appUrl}/employees/${e.id}`).join('\n'),
+        due
+          .map(
+            (e) =>
+              `• ${fullName(e)} — заброньовано до ${formatUa(e.reservationUntil!)}\n  ${this.env.appUrl}/employees/${e.id}`,
+          )
+          .join('\n'),
     );
-    await this.notifications.markSent('RESERVATION_ENDING', due.map((e) => ({ refId: e.id, refDate: e.reservationUntil! })), sent);
+    await this.notifications.markSent(
+      'RESERVATION_ENDING',
+      due.map((e) => ({ refId: e.id, refDate: e.reservationUntil! })),
+      sent,
+    );
     return due.length;
   }
 

@@ -10,7 +10,6 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   return user ? true : router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
 };
 
-/** Administrators only. */
 export const adminGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);

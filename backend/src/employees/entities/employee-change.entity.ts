@@ -8,9 +8,9 @@ import {
   PrimaryGeneratedColumn,
   type Relation,
 } from 'typeorm';
-import type { ChangeType } from '../../military/dictionaries.js';
 import { OutgoingLetter } from '../../letters/entities/outgoing-letter.entity.js';
 import { Employee } from './employee.entity.js';
+import type { ChangeType } from '../../shared/interfaces/dictionary.interface.js';
 
 /**
  * A change of registration data the TCK must be notified about (Annex 4 to the Procedure).
@@ -38,7 +38,6 @@ export class EmployeeChange {
   @Column({ type: 'text', default: '' })
   newValue: string;
 
-  /** Date from which the change takes effect. */
   @Column({ type: 'date' })
   effectiveDate: string;
 

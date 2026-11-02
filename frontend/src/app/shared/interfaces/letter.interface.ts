@@ -1,4 +1,6 @@
 import type { ChangeType, ListGroup, Tck } from './dictionary.interface';
+import type { PendingChange } from './employee.interface';
+
 export type LetterType = 'CHANGE_NOTICE' | 'LISTS' | 'OPERATIONAL_REPORT' | 'OTHER';
 
 /** DRAFT — in preparation; SENT — handed over to the TCK outside the system (Ukrposhta, by hand, document management system). */
@@ -62,4 +64,13 @@ export interface LetterDetails extends Letter {
     basis: string;
   }[];
   signatureCount: number;
+}
+
+export interface PendingChangesGroup {
+  employeeId: string;
+  fullName: string;
+  tckId: string | null;
+  tckName: string;
+  overdue: boolean;
+  changes: PendingChange[];
 }

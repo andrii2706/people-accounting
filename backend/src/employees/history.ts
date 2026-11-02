@@ -6,6 +6,7 @@ import { formatUa, isIsoDate } from '../common/utils/dates.js';
 import { maritalStatusLabel } from '../military/dictionaries.js';
 import { rankTitle } from '../military/ranks.js';
 import type { AuditLog } from './entities/audit-log.entity.js';
+import type { HistoryEntry } from '../shared/interfaces/employee.interface.js';
 
 export const FIELD_LABELS: Record<string, string> = {
   fullName: 'ПІБ',
@@ -95,15 +96,6 @@ export const ACTION_LABELS: Record<string, string> = {
   VIEW: 'Переглянуто',
   EXPORT: 'Вивантажено',
 };
-
-export interface HistoryEntry {
-  id: string;
-  action: string;
-  actionLabel: string;
-  userName: string;
-  createdAt: Date;
-  changes: { field: string; label: string; from: string; to: string }[];
-}
 
 export function historyEntries(rows: AuditLog[], tckNames: Map<string, string>, gender: 'M' | 'F'): HistoryEntry[] {
   const format = (field: string, v: unknown): string => {

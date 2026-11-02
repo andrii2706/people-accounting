@@ -30,7 +30,27 @@ env:
     DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,DATA_ENCRYPTION_KEY=DATA_ENCRYPTION_KEY:latest,BLIND_INDEX_KEY=BLIND_INDEX_KEY:latest
 
 jobs:
+  # The API is not deployed when types, lint or tests fail
+  checks:
+    name: Перевірки перед деплоєм
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --legacy-peer-deps
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+
   deploy:
+    needs: checks
     # Until the infrastructure is set up (infra/bootstrap.sh + repository variables) the deploy is skipped
     # instead of failing on every push to main
     if: vars.GCP_PROJECT_ID != ''

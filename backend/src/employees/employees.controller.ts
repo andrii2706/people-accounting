@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { type AuthUser, CurrentUser, Roles } from '../common/auth.js';
+import { CurrentUser, Roles } from '../common/auth.js';
 import {
   CreateEmployeeDto,
   DismissEmployeeDto,
@@ -9,6 +9,7 @@ import {
   UpdateEmployeeDto,
 } from './employees.dto.js';
 import { EmployeesService } from './employees.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('employees')
 @Controller('employees')
@@ -20,7 +21,6 @@ export class EmployeesController {
     return this.employees.list(query);
   }
 
-  /** Changes awaiting a notice to the TCK (for all employees). */
   @Get('changes/pending')
   pending() {
     return this.employees.pendingChanges();

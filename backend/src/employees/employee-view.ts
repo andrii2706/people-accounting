@@ -1,5 +1,4 @@
-import { fullYears, type IsoDate } from '../common/utils/dates.js';
-import type { DutyCategory, ListGroup } from '../military/dictionaries.js';
+import { fullYears } from '../common/utils/dates.js';
 import { fullName } from '../military/employee-format.js';
 import {
   dutyCategory,
@@ -8,12 +7,12 @@ import {
   isOnListsAt,
   isReservedAt,
   listGroup,
-  type MilitaryRecord,
-  type RecordWarning,
   recordWarnings,
 } from '../military/military-logic.js';
 import { COMPOSITION_LABELS, findRank, rankTitle } from '../military/ranks.js';
 import type { Employee } from './entities/employee.entity.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { MilitaryRecord, EmployeeDerived } from '../shared/interfaces/employee.interface.js';
 
 export function toMilitaryRecord(e: Employee): MilitaryRecord {
   const s = (v: string | null | undefined) => (v && v.trim() ? v : null);
@@ -41,20 +40,6 @@ export function toMilitaryRecord(e: Employee): MilitaryRecord {
     hasMilitaryDocument: (e.militaryDocuments ?? []).some((d) => d.type?.trim() || d.series?.trim()),
     trainingProfile: s(e.trainingProfile),
   };
-}
-
-export interface EmployeeDerived {
-  fullName: string;
-  age: number | null;
-  rankTitle: string;
-  compositionLabel: string;
-  dutyCategory: DutyCategory | null;
-  listGroup: ListGroup | null;
-  employed: boolean;
-  onLists: boolean;
-  mobilized: boolean;
-  reserved: boolean;
-  warnings: RecordWarning[];
 }
 
 export function deriveEmployee(e: Employee, date: IsoDate, alertDays = 30): EmployeeDerived {

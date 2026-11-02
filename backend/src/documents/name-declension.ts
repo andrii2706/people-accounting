@@ -1,11 +1,5 @@
 import * as shevchenko from 'shevchenko';
-
-export interface PersonName {
-  lastName: string;
-  firstName: string;
-  middleName?: string;
-  gender: 'M' | 'F';
-}
+import type { PersonName } from '../shared/interfaces/document.interface.js';
 
 /** Full name in the genitive case («працівника Шевченка Тараса Григоровича»). Does not fail if the library cannot decline it. */
 export async function inGenitive(name: PersonName): Promise<string> {

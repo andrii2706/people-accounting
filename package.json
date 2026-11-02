@@ -1,0 +1,15 @@
+{
+  "name": "military-registry",
+  "private": true,
+  "description": "Git hooks and checks for the whole repository (backend and frontend have their own package.json)",
+  "scripts": {
+    "prepare": "husky",
+    "check:backend": "npm --prefix backend run typecheck && npm --prefix backend run lint && npm --prefix backend test",
+    "check:frontend": "npm --prefix frontend run format:check && npm --prefix frontend run test:ci && npm --prefix frontend run build",
+    "check": "npm run check:backend && npm run check:frontend"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6"
+  }
+}

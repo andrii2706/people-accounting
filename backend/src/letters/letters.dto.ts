@@ -1,7 +1,7 @@
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
 import { IsIsoDate } from '../common/validators.js';
-import type { ListGroup } from '../military/dictionaries.js';
-import type { LetterStatus, LetterType } from './entities/outgoing-letter.entity.js';
+import type { ListGroup } from '../shared/interfaces/dictionary.interface.js';
+import type { LetterType, LetterStatus } from '../shared/interfaces/letter.interface.js';
 
 export class CreateChangeNoticeDto {
   @IsUUID() employeeId: string;
@@ -41,7 +41,9 @@ export class CreateReportLetterDto {
   /** Date the report is made as of. */
   @IsIsoDate() reportDate: string;
 
-  @IsOptional() @IsArray() @IsIn(['G1', 'G1R', 'G2', 'G2R', 'G3', 'G3R', 'G4', 'G4R'], { each: true })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['G1', 'G1R', 'G2', 'G2R', 'G3', 'G3R', 'G4', 'G4R'], { each: true })
   groups?: ListGroup[];
 
   /** For an extract — specific employees. */

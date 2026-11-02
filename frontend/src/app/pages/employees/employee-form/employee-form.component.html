@@ -20,14 +20,13 @@
 
 <form class="grid gap-6 xl:grid-cols-[1fr_320px]" (submit)="save($event)" novalidate>
   <div class="card min-w-0">
-    <!-- tabs -->
     <div class="flex gap-1 overflow-x-auto border-b border-line px-3 pt-3" role="tablist">
       @for (t of tabs; track t.id) {
         <button
           type="button"
           role="tab"
           [attr.aria-selected]="tab() === t.id"
-          class="relative rounded-t-lg px-3 py-2 text-sm whitespace-nowrap"
+          class="relative rounded-t-lg px-3 py-2 text-sm whitespace-nowrap cursor-pointer"
           [class]="
             tab() === t.id
               ? 'bg-surface font-semibold text-ink shadow-[inset_0_-2px_0_var(--color-brand-600)]'
@@ -45,7 +44,6 @@
 
     <div class="p-5 sm:p-6">
       @switch (tab()) {
-        <!-- ============================================================ personal -->
         @case ('personal') {
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <app-form-field label="Прізвище" [required]="true" [field]="f.lastName">
@@ -103,7 +101,6 @@
           </div>
         }
 
-        <!-- ============================================================ passports -->
         @case ('passport') {
           <h3 class="mb-3 text-sm font-semibold">Паспорт громадянина України</h3>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -180,14 +177,13 @@
           </div>
         }
 
-        <!-- ============================================================ education -->
         @case ('education') {
           <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p class="text-xs text-muted">
               Можна додати кілька освіт: школа, коледж, бакалавр, магістр, друга вища. У списках
               виводиться найвищий рівень.
             </p>
-            <button type="button" class="btn btn-secondary py-1.5" (click)="addEducation()">
+            <button type="button" class="btn btn-secondary py-1.5 cursor-pointer" (click)="addEducation()">
               <app-icon name="plus" [size]="14" /> Додати освіту
             </button>
           </div>
@@ -200,7 +196,7 @@
                   </p>
                   <button
                     type="button"
-                    class="btn btn-ghost px-2 py-1"
+                    class="btn btn-ghost px-2 py-1 cursor-pointer"
                     (click)="removeEducation(i)"
                     aria-label="Видалити освіту"
                   >
@@ -259,7 +255,6 @@
           </div>
         }
 
-        <!-- ============================================================ marital status -->
         @case ('family') {
           <div class="mb-5 grid gap-4 sm:grid-cols-2">
             <app-form-field label="Сімейний стан">
@@ -277,7 +272,7 @@
             <div class="flex flex-wrap gap-2">
               <button
                 type="button"
-                class="btn btn-secondary py-1.5"
+                class="btn btn-secondary py-1.5 cursor-pointer cursor-pointer"
                 (click)="addFamilyMember(model().gender === 'F' ? 'HUSBAND' : 'WIFE')"
               >
                 <app-icon name="plus" [size]="14" />
@@ -285,14 +280,14 @@
               </button>
               <button
                 type="button"
-                class="btn btn-secondary py-1.5"
+                class="btn btn-secondary py-1.5 cursor-pointer"
                 (click)="addFamilyMember('SON')"
               >
                 <app-icon name="plus" [size]="14" /> Син
               </button>
               <button
                 type="button"
-                class="btn btn-secondary py-1.5"
+                class="btn btn-secondary py-1.5 cursor-pointer"
                 (click)="addFamilyMember('DAUGHTER')"
               >
                 <app-icon name="plus" [size]="14" /> Донька
@@ -327,7 +322,7 @@
                 </app-form-field>
                 <button
                   type="button"
-                  class="btn btn-ghost mb-0.5 px-2"
+                  class="btn btn-ghost mb-0.5 px-2 cursor-pointer"
                   (click)="removeFamilyMember(i)"
                   aria-label="Видалити"
                 >
@@ -344,7 +339,6 @@
           </div>
         }
 
-        <!-- ============================================================ work -->
         @case ('work') {
           <h3 class="mb-3 text-sm font-semibold">Прийняття на роботу</h3>
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -377,7 +371,7 @@
                 потрапляє в графу 17 списків.
               </p>
             </div>
-            <button type="button" class="btn btn-secondary py-1.5" (click)="addPosition()">
+            <button type="button" class="btn btn-secondary py-1.5 cursor-pointer" (click)="addPosition()">
               <app-icon name="plus" [size]="14" /> Додати переведення
             </button>
           </div>
@@ -399,7 +393,7 @@
                   @if (model().positions.length > 1) {
                     <button
                       type="button"
-                      class="btn btn-ghost px-2 py-1"
+                      class="btn btn-ghost px-2 py-1 cursor-pointer"
                       (click)="removePosition(i)"
                       aria-label="Видалити посаду"
                     >
@@ -466,7 +460,6 @@
           </div>
         }
 
-        <!-- ============================================================ military -->
         @case ('military') {
           <div
             class="mb-5 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg bg-sunken/60 px-4 py-3"
@@ -551,7 +544,7 @@
 
           <div class="mt-7 mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 class="text-sm font-semibold">Військово-облікові документи</h3>
-            <button type="button" class="btn btn-secondary py-1.5" (click)="addDocument()">
+            <button type="button" class="btn btn-secondary py-1.5 cursor-pointer" (click)="addDocument()">
               <app-icon name="plus" [size]="14" /> Додати документ
             </button>
           </div>
@@ -564,7 +557,7 @@
                   </p>
                   <button
                     type="button"
-                    class="btn btn-ghost px-2 py-1"
+                    class="btn btn-ghost px-2 py-1 cursor-pointer"
                     (click)="removeDocument(i)"
                     aria-label="Видалити документ"
                   >
@@ -664,7 +657,6 @@
 
           <!-- three separate sub-forms: reservation, deferral, service in the reserve -->
           <div class="mt-7 grid gap-4 lg:grid-cols-3">
-            <!-- reservation -->
             <section class="rounded-xl border border-line p-4" aria-labelledby="sub-reservation">
               <h3 id="sub-reservation" class="mb-3 text-sm font-semibold">Бронювання</h3>
               @if (isConscript()) {
@@ -748,7 +740,6 @@
               }
             </section>
 
-            <!-- deferral -->
             <section
               class="rounded-xl border border-line p-4"
               [class.opacity-60]="model().reserved"
@@ -874,7 +865,6 @@
               </div>
             </section>
 
-            <!-- service in the reserve -->
             <section class="rounded-xl border border-line p-4" aria-labelledby="sub-reserve">
               <h3 id="sub-reserve" class="mb-3 text-sm font-semibold">Служба в резерві</h3>
               <div class="space-y-3">
@@ -934,7 +924,6 @@
     </div>
   </div>
 
-  <!-- side panel -->
   <aside class="space-y-4 xl:sticky xl:top-6 xl:self-start">
     <section class="card p-4">
       <p class="label">Попередній розрахунок</p>
@@ -992,7 +981,7 @@
               <li>
                 <button
                   type="button"
-                  class="text-left text-danger hover:underline"
+                  class="text-left text-danger hover:underline cursor-pointer"
                   (click)="goTo(e)"
                 >
                   <span class="font-medium">{{ e.label }}:</span> {{ e.message }}
@@ -1010,7 +999,7 @@
       </section>
     }
 
-    <button type="submit" class="btn btn-primary w-full py-2.5" [disabled]="f().submitting()">
+    <button type="submit" class="btn btn-primary w-full py-2.5 cursor-pointer" [disabled]="f().submitting()">
       <app-icon name="check" />
       {{ f().submitting() ? 'Збереження…' : isEdit() ? 'Зберегти зміни' : 'Створити картку' }}
     </button>

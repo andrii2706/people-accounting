@@ -49,8 +49,6 @@ export class OrganizationController {
     return this.org.removeResponsible(id);
   }
 
-  // ---------------------------------------------------------------- heads (directors) by period
-
   @Get('heads')
   listHeads() {
     return this.org.listHeads();

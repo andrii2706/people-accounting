@@ -6,10 +6,10 @@ import {
   isOnListsAt,
   isReservedAt,
   listGroup,
-  type MilitaryRecord,
   operationalRow,
   recordWarnings,
 } from './military-logic.js';
+import type { MilitaryRecord } from '../shared/interfaces/employee.interface.js';
 
 const base: MilitaryRecord = {
   militaryRegistered: true,
@@ -67,7 +67,13 @@ describe('military logic', () => {
   });
 
   it('бронювання має пріоритет над моброзпорядженням', () => {
-    const r = { ...base, reserveTeamNumber: '7', reserved: true, reservationBasis: 'п. 1', reservationUntil: '2027-01-01' };
+    const r = {
+      ...base,
+      reserveTeamNumber: '7',
+      reserved: true,
+      reservationBasis: 'п. 1',
+      reservationUntil: '2027-01-01',
+    };
     expect(isReservedAt(r, '2026-10-01')).toBe(true);
     expect(hasMobilizationOrder(r, '2026-10-01')).toBe(false);
   });
@@ -86,7 +92,9 @@ describe('military logic', () => {
       recordWarnings({ ...base, rankCode: 2, ...r }, '2026-10-10').find((w) => w.code === code)?.message ?? '';
     expect(msg({ militaryDocNumber: null }, 'NO_MIL_DOC')).toContain('Не додано військово-обліковий документ');
     expect(msg({ militaryDocNumber: null, hasMilitaryDocument: true }, 'NO_MIL_DOC')).toContain('не вказано номер');
-    expect(msg({ reserved: true, reservationUntil: '2026-10-11' }, 'RESERVATION_EXPIRING')).toContain('11.10.2026 (через 1 день)');
+    expect(msg({ reserved: true, reservationUntil: '2026-10-11' }, 'RESERVATION_EXPIRING')).toContain(
+      '11.10.2026 (через 1 день)',
+    );
     expect(msg({ reserved: true, reservationUntil: '2026-10-13' }, 'RESERVATION_EXPIRING')).toContain('(через 3 дні)');
     expect(msg({ deferralUntil: '2026-10-21' }, 'DEFERRAL_EXPIRING')).toContain('(через 11 днів)');
     expect(msg({ deferralUntil: '2026-10-01' }, 'DEFERRAL_EXPIRED')).toContain('закінчилася 01.10.2026');
@@ -99,9 +107,17 @@ describe('military logic', () => {
     expect(isReservedAt({ ...base, ...data, reserved: true }, '2027-01-02')).toBe(false);
     // reserved by another legal entity: the mark is enough; a filled-in term is still checked
     expect(isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER' }, '2030-01-01')).toBe(true);
-    expect(isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }, '2026-12-31')).toBe(true);
-    expect(isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }, '2027-01-02')).toBe(false);
+    expect(
+      isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }, '2026-12-31'),
+    ).toBe(true);
+    expect(
+      isReservedAt({ ...base, reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }, '2027-01-02'),
+    ).toBe(false);
     expect(isReservedAt({ ...base, reserved: false, reservedBy: 'OTHER' }, '2030-01-01')).toBe(false);
-    expect(recordWarnings({ ...base, ...data, reservationUntil: '2026-10-01' }, '2026-10-27').some((w) => w.code === 'RESERVATION_EXPIRED')).toBe(false);
+    expect(
+      recordWarnings({ ...base, ...data, reservationUntil: '2026-10-01' }, '2026-10-27').some(
+        (w) => w.code === 'RESERVATION_EXPIRED',
+      ),
+    ).toBe(false);
   });
 });

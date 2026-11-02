@@ -1,0 +1,2 @@
+# The same checks as CI, only for the parts that changed — so a broken build never reaches the deploy.
+sh scripts/pre-push.sh

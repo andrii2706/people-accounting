@@ -2,131 +2,15 @@ import type { Gender } from '../../../shared/interfaces/common.interface';
 import type { FamilyRelation } from '../../../shared/interfaces/dictionary.interface';
 import type { Employee, EmployeePayload } from '../../../shared/interfaces/employee.interface';
 import { normalizeVos } from '../../../shared/validators/employee-rules';
-
-export type FormTab =
-  'personal' | 'passport' | 'education' | 'family' | 'work' | 'military' | 'notes';
-
-/**
- * Form model: all values are strings/booleans (that is how Signal Forms inputs work natively),
- * conversion to the DTO happens in formToPayload().
- */
-export interface FamilyMemberForm {
-  relation: FamilyRelation;
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  birthDate: string;
-}
-
-/** One military registration document; date and time of generation are separate fields. */
-export interface MilitaryDocumentForm {
-  type: string;
-  series: string;
-  number: string;
-  issuedBy: string;
-  issuedAt: string;
-  generatedDate: string;
-  generatedTime: string;
-}
-
-export type DeferralKind = 'NONE' | 'CONSCRIPTION' | 'MOBILIZATION';
-
-/** One education (school, college, university, second degree…). */
-export interface EducationForm {
-  level: string;
-  institution: string;
-  specialty: string;
-  document: string;
-  documentDate: string;
-}
-
-/** One position in the company (appointment or transfer). */
-export interface PositionForm {
-  position: string;
-  department: string;
-  since: string;
-  orderDocName: string;
-  orderNumber: string;
-  orderDate: string;
-}
-
-export interface EmployeeFormModel {
-  personnelNumber: string;
-  gender: Gender;
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  rnokpp: string;
-  birthDate: string;
-  phone: string;
-  email: string;
-  registeredAddress: string;
-  actualAddress: string;
-
-  passportType: 'ID_CARD' | 'BOOK';
-  passportSeries: string;
-  passportNumber: string;
-  passportIssuedBy: string;
-  passportIssuedAt: string;
-  foreignPassportSeries: string;
-  foreignPassportNumber: string;
-  foreignPassportIssuedBy: string;
-  foreignPassportIssuedAt: string;
-  foreignPassportValidUntil: string;
-
-  educations: EducationForm[];
-  maritalStatus: string;
-  familyMembers: FamilyMemberForm[];
-
-  hireDate: string;
-  hireOrderDocName: string;
-  hireOrderNumber: string;
-  hireOrderDate: string;
-  positions: PositionForm[];
-  dismissalDate: string;
-  dismissalOrderDocName: string;
-  dismissalOrderNumber: string;
-  dismissalOrderDate: string;
-
-  militaryRegistered: boolean;
-  registryNumber: string;
-  rankCode: string;
-  navy: boolean;
-  vos: string;
-  trainingProfile: string;
-  accountingCategory: string;
-  servedInArmy: boolean;
-  militaryDocuments: MilitaryDocumentForm[];
-  tckId: string;
-  tckRegisteredAt: string;
-  fitness: string;
-  fitnessBasis: string;
-  fitnessDate: string;
-  reserved: boolean;
-  reservedBy: 'COMPANY' | 'OTHER';
-  reservedByName: string;
-  reservedByEdrpou: string;
-  specialAccountingCertificate: string;
-  reservationUntil: string;
-  deferralConscriptionBasis: string;
-  deferralMobilizationBasis: string;
-  deferralUntil: string;
-  deferralUntilMobilizationEnd: boolean;
-  /** Form only: which deferral the person has (one of the two). */
-  deferralKind: DeferralKind;
-  reserveTeamNumber: string;
-  mobilizationOrderDate: string;
-  militaryServiceInfo: string;
-  mobilizedAt: string;
-  mobilizationReleaseOrder: string;
-  demobilizedAt: string;
-  readmissionOrder: string;
-  notes: string;
-
-  /** Grounds of the changes for the TCK notice. */
-  changeEffectiveDate: string;
-  changeBasis: string;
-}
+import type {
+  FormTab,
+  FamilyMemberForm,
+  MilitaryDocumentForm,
+  DeferralKind,
+  EducationForm,
+  PositionForm,
+  EmployeeFormModel,
+} from '../../../shared/interfaces/employee-form.interface';
 
 export const DATE_FIELDS = [
   'birthDate',

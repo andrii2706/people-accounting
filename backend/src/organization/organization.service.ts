@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
-import { addDays, type IsoDate, todayIso } from '../common/utils/dates.js';
+import { addDays, todayIso } from '../common/utils/dates.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type {
   CreateOrganizationHeadDto,
@@ -13,6 +13,7 @@ import type {
 import { OrganizationHead } from './organization-head.entity.js';
 import { Organization } from './organization.entity.js';
 import { ResponsiblePerson } from './responsible-person.entity.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
 
 @Injectable()
 export class OrganizationService {

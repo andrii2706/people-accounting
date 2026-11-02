@@ -3,13 +3,10 @@
  * They reproduce the CONCATENATE formulas of the employee card (columns FM–GE) and sheet «список».
  */
 import { formatUa } from '../common/utils/dates.js';
-import type { Employee } from '../employees/entities/employee.entity.js';
-import type { MilitaryDocument } from '../employees/entities/military-document.entity.js';
 import { FAMILY_RELATION_LABELS, maritalStatusLabel } from './dictionaries.js';
-import { compositionText, isConscript, isOfficer, isReservist } from './military-logic.js';
+import { compositionText, isConscript, isOfficer } from './military-logic.js';
 import { rankTitle } from './ranks.js';
-
-type E = Pick<Employee, keyof Employee>;
+import type { EmployeeFields, MilitaryDocumentFields } from '../shared/interfaces/employee.interface.js';
 
 const join = (parts: Array<string | null | undefined | false>, sep = ', ') =>
   parts.filter((p): p is string => !!p && !!p.trim()).join(sep);
@@ -18,55 +15,71 @@ export function capitalize(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
 
-export function fullName(e: Pick<E, 'lastName' | 'firstName' | 'middleName'>): string {
+export function fullName(e: Pick<EmployeeFields, 'lastName' | 'firstName' | 'middleName'>): string {
   return join([e.lastName, e.firstName, e.middleName], ' ');
 }
 
-export function rankText(e: Pick<E, 'rankCode' | 'navy'>): string {
+export function rankText(e: Pick<EmployeeFields, 'rankCode' | 'navy'>): string {
   return rankTitle(e.rankCode, e.navy);
 }
 
 /** Column 5: register number / RNOKPP. */
-export function registryText(e: E): string {
+export function registryText(e: EmployeeFields): string {
   return join([e.registryNumber, e.rnokpp], ' / ');
 }
 
-type DocLike = Pick<MilitaryDocument, 'type' | 'series' | 'number' | 'issuedBy' | 'issuedAt' | 'generatedDate' | 'generatedTime'>;
-
 /** One military registration document: type, series, number, issue date, issuer, time and date generated (e-document). */
-export function documentText(d: DocLike, withIssuer = true): string {
-  const generated = d.generatedDate || d.generatedTime
-    ? `час та дата формування ${join([d.generatedTime, d.generatedDate ? formatUa(d.generatedDate) : ''], ' ')}`
-    : '';
+export function documentText(d: MilitaryDocumentFields, withIssuer = true): string {
+  const generated =
+    d.generatedDate || d.generatedTime
+      ? `час та дата формування ${join([d.generatedTime, d.generatedDate ? formatUa(d.generatedDate) : ''], ' ')}`
+      : '';
   return join([
-    join([d.type, d.series ? `серія ${d.series.toUpperCase()}` : '', d.number ? `№ ${d.number.toUpperCase()}` : ''], ' '),
+    join(
+      [d.type, d.series ? `серія ${d.series.toUpperCase()}` : '', d.number ? `№ ${d.number.toUpperCase()}` : ''],
+      ' ',
+    ),
     d.issuedAt ? `виданий ${formatUa(d.issuedAt)} р.` : '',
     withIssuer ? d.issuedBy : '',
     generated,
   ]);
 }
 
-export function sortedDocuments(e: Pick<E, 'militaryDocuments'>): DocLike[] {
-  return [...(e.militaryDocuments ?? [])].sort((a, b) => ('sortOrder' in a && 'sortOrder' in b ? Number(a.sortOrder) - Number(b.sortOrder) : 0));
+export function sortedDocuments(e: Pick<EmployeeFields, 'militaryDocuments'>): MilitaryDocumentFields[] {
+  return [...(e.militaryDocuments ?? [])].sort((a, b) =>
+    'sortOrder' in a && 'sortOrder' in b ? Number(a.sortOrder) - Number(b.sortOrder) : 0,
+  );
 }
 
 /** Column 9 of the lists: all military registration documents of the person. */
-export function militaryDocText(e: E, withIssuer = true): string {
-  return join(sortedDocuments(e).map((d) => documentText(d, withIssuer)), '; ');
+export function militaryDocText(e: EmployeeFields, withIssuer = true): string {
+  return join(
+    sortedDocuments(e).map((d) => documentText(d, withIssuer)),
+    '; ',
+  );
 }
 
 /** Column 8: reserve category (grade for officers), military registration document. */
-export function categoryAndDocText(e: E): string {
+export function categoryAndDocText(e: EmployeeFields): string {
   const doc = join(
-    sortedDocuments(e).map((d) => join([d.type, d.series ? `серія ${d.series.toUpperCase()}` : '', d.number ? `№ ${d.number.toUpperCase()}` : ''], ' ')),
+    sortedDocuments(e).map((d) =>
+      join(
+        [d.type, d.series ? `серія ${d.series.toUpperCase()}` : '', d.number ? `№ ${d.number.toUpperCase()}` : ''],
+        ' ',
+      ),
+    ),
     '; ',
   );
   if (isConscript(e)) return doc;
-  const cat = e.accountingCategory ? (isOfficer(e) ? `розряд - ${e.accountingCategory}` : `категорія - ${e.accountingCategory}`) : '';
+  const cat = e.accountingCategory
+    ? isOfficer(e)
+      ? `розряд - ${e.accountingCategory}`
+      : `категорія - ${e.accountingCategory}`
+    : '';
   return join([cat, doc]);
 }
 
-export function passportText(e: E): string {
+export function passportText(e: EmployeeFields): string {
   if (!e.passportNumber) return '';
   const kind = e.passportType === 'ID_CARD' ? 'паспорт громадянина України (ID-картка)' : 'паспорт громадянина України';
   return join([
@@ -76,10 +89,17 @@ export function passportText(e: E): string {
   ]);
 }
 
-export function foreignPassportText(e: E): string {
+export function foreignPassportText(e: EmployeeFields): string {
   if (!e.foreignPassportNumber) return '';
   return join([
-    join(['паспорт для виїзду за кордон', e.foreignPassportSeries ? `серія ${e.foreignPassportSeries.toUpperCase()}` : '', `№ ${e.foreignPassportNumber}`], ' '),
+    join(
+      [
+        'паспорт для виїзду за кордон',
+        e.foreignPassportSeries ? `серія ${e.foreignPassportSeries.toUpperCase()}` : '',
+        `№ ${e.foreignPassportNumber}`,
+      ],
+      ' ',
+    ),
     e.foreignPassportIssuedAt ? `виданий ${formatUa(e.foreignPassportIssuedAt)} р.` : '',
     e.foreignPassportIssuedBy,
     e.foreignPassportValidUntil ? `дійсний до ${formatUa(e.foreignPassportValidUntil)} р.` : '',
@@ -87,12 +107,12 @@ export function foreignPassportText(e: E): string {
 }
 
 /** Column 10: both passports. */
-export function passportsText(e: E): string {
+export function passportsText(e: EmployeeFields): string {
   return join([passportText(e), foreignPassportText(e)], '; ');
 }
 
 /** Column 9: education. */
-export function educationText(e: E): string {
+export function educationText(e: EmployeeFields): string {
   return join([
     e.educationLevel,
     e.educationSpecialty ? `спеціальність «${e.educationSpecialty}»` : '',
@@ -101,23 +121,23 @@ export function educationText(e: E): string {
   ]);
 }
 
-export function actualAddressText(e: E): string {
+export function actualAddressText(e: EmployeeFields): string {
   return e.actualAddress || e.registeredAddress;
 }
 
 /** Column 13: TCK. */
-export function tckText(e: E): string {
+export function tckText(e: EmployeeFields): string {
   return e.tck?.name ?? '';
 }
 
 /** Column 15: fitness (not filled for officers and conscripts). */
-export function fitnessText(e: E): string {
+export function fitnessText(e: EmployeeFields): string {
   if (isOfficer(e) || isConscript(e)) return '';
   return join([e.fitness, e.fitnessBasis], ' ');
 }
 
 /** Column 16: marital status and family members with birth year (formula BM6). */
-export function familyText(e: E): string {
+export function familyText(e: EmployeeFields): string {
   const status = maritalStatusLabel(e.maritalStatus, e.gender);
   const members = (e.familyMembers ?? []).map((m) => {
     const year = m.birthDate ? `${m.birthDate.slice(0, 4)} р.н.` : '_______ р.н.';
@@ -127,22 +147,27 @@ export function familyText(e: E): string {
 }
 
 /** Column 17: position, details of the appointment / dismissal order. */
-export function positionText(e: E): string {
+export function positionText(e: EmployeeFields): string {
   const appointed = join([
     capitalize(e.position),
     e.positionSince ? `з ${formatUa(e.positionSince)} р.` : e.hireDate ? `з ${formatUa(e.hireDate)} р.` : '',
-    e.positionOrder || (e.hireOrderNumber ? `${e.hireOrderDocName || 'наказ'} № ${e.hireOrderNumber}${e.hireOrderDate ? ` від ${formatUa(e.hireOrderDate)} р.` : ''}` : ''),
+    e.positionOrder ||
+      (e.hireOrderNumber
+        ? `${e.hireOrderDocName || 'наказ'} № ${e.hireOrderNumber}${e.hireOrderDate ? ` від ${formatUa(e.hireOrderDate)} р.` : ''}`
+        : ''),
   ]);
   const dismissed = e.dismissalDate
     ? join([
         `звільнен${e.gender === 'F' ? 'а' : 'ий'} ${formatUa(e.dismissalDate)} р.`,
-        e.dismissalOrderNumber ? `${e.dismissalOrderDocName || 'наказ'} № ${e.dismissalOrderNumber}${e.dismissalOrderDate ? ` від ${formatUa(e.dismissalOrderDate)} р.` : ''}` : '',
+        e.dismissalOrderNumber
+          ? `${e.dismissalOrderDocName || 'наказ'} № ${e.dismissalOrderNumber}${e.dismissalOrderDate ? ` від ${formatUa(e.dismissalOrderDate)} р.` : ''}`
+          : '',
       ])
     : '';
   return join([appointed, dismissed], '; ');
 }
 
 /** Column 7: composition (training profile for an officer). */
-export function compositionColumnText(e: E): string {
+export function compositionColumnText(e: EmployeeFields): string {
   return compositionText(e);
 }

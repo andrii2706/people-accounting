@@ -29,14 +29,11 @@ import {
   apiPathToFormPath,
   DATE_FIELDS,
   emptyDocument,
-  type DeferralKind,
-  type EmployeeFormModel,
   employeeToForm,
   emptyEmployeeForm,
   emptyEducation,
   emptyPosition,
   FIELD_META,
-  type FormTab,
   formToPayload,
   LIST_ITEM_FIELDS,
   normalizeTime,
@@ -44,10 +41,7 @@ import {
 } from './employee-form.model';
 import { httpResource } from '@angular/common/http';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
-import {
-  type SelectOption,
-  SelectComponent,
-} from '../../../shared/components/select/select.component';
+import { SelectComponent } from '../../../shared/components/select/select.component';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
@@ -67,6 +61,16 @@ import {
   PATTERN,
   rnokppMismatch,
 } from '../../../shared/validators/employee-rules';
+import type { SelectOption } from '../../../shared/interfaces/ui.interface';
+import type {
+  FormTab,
+  DeferralKind,
+  EmployeeFormModel,
+  FormFieldState,
+  FormFieldRef,
+  FormListKey,
+  FormErrorItem,
+} from '../../../shared/interfaces/employee-form.interface';
 
 const TABS: { id: FormTab; label: string }[] = [
   { id: 'personal', label: 'Особисті дані' },
@@ -88,27 +92,6 @@ const sensibleDate = (v: string) =>
   !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= '1900-01-01' && v <= '2100-12-31');
 
 const SPOUSES: FamilyRelation[] = ['WIFE', 'HUSBAND'];
-
-/** Minimal field state interface needed to navigate to errors. */
-interface FieldStateLike {
-  invalid: () => boolean;
-  touched: () => boolean;
-  errors: () => readonly { message?: string }[];
-  focusBoundControl: (options?: FocusOptions) => void;
-}
-type FieldLike = () => FieldStateLike;
-
-type ListKey = keyof typeof LIST_ITEM_FIELDS;
-
-export interface FormErrorItem {
-  key: string;
-  label: string;
-  message: string;
-  tab: FormTab | 'sidebar';
-  /** For a field inside a list (family member, document, position). */
-  list?: ListKey;
-  index?: number;
-}
 
 @Component({
   selector: 'app-employee-form',
@@ -159,7 +142,6 @@ export class EmployeeFormComponent {
     reportableChanges(this.original(), this.model()),
   );
 
-  // ---- derived values
   protected readonly rank = computed(() => {
     const code = this.model().rankCode;
     return code === '' ? undefined : this.dict.rank(Number(code));
@@ -216,7 +198,6 @@ export class EmployeeFormComponent {
     mobilizationDecree: string;
   }>(() => '/api/notifications/status');
 
-  // ---- options of the drop-down lists
   protected readonly rankOptions = computed<SelectOption[]>(() =>
     this.dict.ranks().map((r) => ({
       value: String(r.code),
@@ -280,7 +261,6 @@ export class EmployeeFormComponent {
     return rnokppMismatch(m.rnokpp, m.birthDate, m.gender);
   });
 
-  // ================================================================ validation schema
   protected readonly f = form(this.model, (p) => {
     const at = (key: string) => (p as unknown as Record<string, SchemaPath<string>>)[key];
     const isOfficer = (rank: string) => rank !== '' && Number(rank) >= 12;
@@ -293,7 +273,6 @@ export class EmployeeFormComponent {
       if (modelKeys.has(key)) maxLength(at(key), max, { message: MESSAGE.tooLong(max) });
     }
 
-    // --- personal data
     required(p.lastName, { message: 'Вкажіть прізвище' });
     required(p.firstName, { message: 'Вкажіть ім’я' });
     pattern(p.lastName, PATTERN.name, { message: MESSAGE.name });
@@ -303,7 +282,7 @@ export class EmployeeFormComponent {
     pattern(p.phone, PATTERN.phone, { message: MESSAGE.phone });
     pattern(p.email, PATTERN.email, { message: MESSAGE.email });
 
-    // --- passport: rules depend on the document type
+    // passport: rules depend on the document type
     disabled(p.passportSeries, ({ valueOf }) =>
       valueOf(p.passportType) === 'ID_CARD' ? 'У ID-картки серії немає' : false,
     );
@@ -328,7 +307,6 @@ export class EmployeeFormComponent {
       when: ({ valueOf }) => valueOf(p.passportType) === 'ID_CARD',
     });
 
-    // --- foreign passport
     pattern(p.foreignPassportSeries, PATTERN.foreignSeries, { message: MESSAGE.foreignSeries });
     pattern(p.foreignPassportNumber, PATTERN.foreignNumber, { message: MESSAGE.foreignNumber });
     required(p.foreignPassportSeries, {
@@ -346,7 +324,6 @@ export class EmployeeFormComponent {
         : undefined;
     });
 
-    // --- employment: positions (appointment and transfers), dismissal
     applyEach(p.positions, (pos) => {
       required(pos.position, { message: 'Вкажіть посаду' });
       maxLength(pos.position, MAX_LENGTH.position, {
@@ -384,7 +361,6 @@ export class EmployeeFormComponent {
       when: ({ valueOf }) => !!valueOf(p.dismissalDate) && !!valueOf(p.dismissalOrderDate),
     });
 
-    // --- military registration
     pattern(p.vos, PATTERN.vosOfficer, {
       message: MESSAGE.vosOfficer,
       when: ({ valueOf }) => isOfficer(valueOf(p.rankCode)),
@@ -482,7 +458,7 @@ export class EmployeeFormComponent {
         : undefined;
     });
 
-    // --- dates: valid year, not in the future, not before birth
+    // dates: valid year, not in the future, not before birth
     for (const key of ALL_DATE_FIELDS) {
       validate(at(key), ({ value }) =>
         sensibleDate(value()) ? undefined : { kind: 'date', message: MESSAGE.invalidDate },
@@ -505,13 +481,11 @@ export class EmployeeFormComponent {
       });
     }
 
-    // --- grounds of the changes for the TCK
     required(p.changeEffectiveDate, {
       message: 'Вкажіть дату, з якої діють зміни',
       when: () => this.changedLabels().length > 0,
     });
 
-    // --- education: several entries
     applyEach(p.educations, (ed) => {
       maxLength(ed.level, MAX_LENGTH.educationLevel, {
         message: MESSAGE.tooLong(MAX_LENGTH.educationLevel),
@@ -540,7 +514,6 @@ export class EmployeeFormComponent {
       });
     });
 
-    // --- family
     applyEach(p.familyMembers, (m) => {
       required(m.lastName, { message: 'Вкажіть прізвище' });
       required(m.firstName, { message: 'Вкажіть ім’я' });
@@ -564,14 +537,12 @@ export class EmployeeFormComponent {
     );
   });
 
-  // ================================================================ errors and navigation
-
-  private field(key: string): FieldLike | undefined {
-    return (this.f as unknown as Record<string, FieldLike | undefined>)[key];
+  private field(key: string): FormFieldRef | undefined {
+    return (this.f as unknown as Record<string, FormFieldRef | undefined>)[key];
   }
 
-  private listField(list: ListKey, index: number, key: string): FieldLike | undefined {
-    const item = (this.f[list] as unknown as Record<number, Record<string, FieldLike>>)[index];
+  private listField(list: FormListKey, index: number, key: string): FormFieldRef | undefined {
+    const item = (this.f[list] as unknown as Record<number, Record<string, FormFieldRef>>)[index];
     return item?.[key];
   }
 
@@ -597,7 +568,7 @@ export class EmployeeFormComponent {
         });
       }
       if (key in LIST_ITEM_FIELDS) {
-        const list = key as ListKey;
+        const list = key as FormListKey;
         const { item, fields } = LIST_ITEM_FIELDS[list];
         model[list].forEach((_, index) => {
           for (const sub of fields) {
@@ -649,8 +620,6 @@ export class EmployeeFormComponent {
     const first = this.errorList()[0];
     if (first) this.goTo(first);
   }
-
-  // ================================================================ actions
 
   protected addFamilyMember(relation: FamilyRelation) {
     this.model.update((m) => ({

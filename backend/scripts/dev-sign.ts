@@ -21,9 +21,13 @@ if (!path) {
 }
 const doc = new Uint8Array(readFileSync(path));
 const crypto = pkijs.getCrypto(true);
-const name = (type: string, value: string) => new pkijs.AttributeTypeAndValue({ type, value: new asn1js.Utf8String({ value }) });
+const name = (type: string, value: string) =>
+  new pkijs.AttributeTypeAndValue({ type, value: new asn1js.Utf8String({ value }) });
 
-const keys = (await crypto.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+const keys = (await crypto.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+  'sign',
+  'verify',
+])) as CryptoKeyPair;
 const cert = new pkijs.Certificate();
 cert.version = 2;
 cert.serialNumber = new asn1js.Integer({ value: Date.now() % 1_000_000_000 });
@@ -49,8 +53,14 @@ const sd = new pkijs.SignedData({
       signedAttrs: new pkijs.SignedAndUnsignedAttributes({
         type: 0,
         attributes: [
-          new pkijs.Attribute({ type: '1.2.840.113549.1.9.3', values: [new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })] }),
-          new pkijs.Attribute({ type: '1.2.840.113549.1.9.5', values: [new asn1js.UTCTime({ valueDate: new Date() })] }),
+          new pkijs.Attribute({
+            type: '1.2.840.113549.1.9.3',
+            values: [new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })],
+          }),
+          new pkijs.Attribute({
+            type: '1.2.840.113549.1.9.5',
+            values: [new asn1js.UTCTime({ valueDate: new Date() })],
+          }),
           new pkijs.Attribute({ type: '1.2.840.113549.1.9.4', values: [new asn1js.OctetString({ valueHex: digest })] }),
         ],
       }),

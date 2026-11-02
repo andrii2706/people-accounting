@@ -13,7 +13,10 @@ const attr = (type: string, value: asn1js.Utf8String | asn1js.PrintableString) =
 /** Test "e-signature": self-signed ECDSA certificate with Ukrainian attributes (fictitious person). */
 async function makeSigner() {
   const crypto = pkijs.getCrypto(true);
-  const keys = (await crypto.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+  const keys = (await crypto.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, [
+    'sign',
+    'verify',
+  ])) as CryptoKeyPair;
   const cert = new pkijs.Certificate();
   cert.version = 2;
   cert.serialNumber = new asn1js.Integer({ value: 4242 });
@@ -38,7 +41,10 @@ function signedAttributes(digest: ArrayBuffer | Uint8Array) {
   return new pkijs.SignedAndUnsignedAttributes({
     type: 0,
     attributes: [
-      new pkijs.Attribute({ type: '1.2.840.113549.1.9.3', values: [new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })] }),
+      new pkijs.Attribute({
+        type: '1.2.840.113549.1.9.3',
+        values: [new asn1js.ObjectIdentifier({ value: '1.2.840.113549.1.7.1' })],
+      }),
       new pkijs.Attribute({ type: '1.2.840.113549.1.9.5', values: [new asn1js.UTCTime({ valueDate: new Date() })] }),
       new pkijs.Attribute({ type: '1.2.840.113549.1.9.4', values: [new asn1js.OctetString({ valueHex: digest })] }),
     ],
@@ -88,7 +94,9 @@ async function ecdsaDetached(doc: Buffer, forge = false) {
   await sd.sign(keys.privateKey, 0, 'SHA-256', new Uint8Array(doc));
   if (forge) {
     // sign with another key under the same certificate
-    const other = (await pkijs.getCrypto(true).generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
+    const other = (await pkijs
+      .getCrypto(true)
+      .generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])) as CryptoKeyPair;
     await sd.sign(other.privateKey, 0, 'SHA-256', new Uint8Array(doc));
   }
   return toDer(sd);
@@ -170,6 +178,8 @@ describe('КЕП: розбір і перевірка CMS', () => {
 
   it('відхиляє сміття замість підпису', async () => {
     await expect(parseAndVerifySignature(Buffer.from('hello'), DOC)).rejects.toThrow(SignatureFileError);
-    await expect(parseAndVerifySignature(Buffer.from([0x30, 0x03, 0x02, 0x01, 0x01]), DOC)).rejects.toThrow(SignatureFileError);
+    await expect(parseAndVerifySignature(Buffer.from([0x30, 0x03, 0x02, 0x01, 0x01]), DOC)).rejects.toThrow(
+      SignatureFileError,
+    );
   });
 });

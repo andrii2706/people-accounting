@@ -2,10 +2,11 @@ import { Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { type AuthUser, CurrentUser, Roles } from '../common/auth.js';
+import { CurrentUser, Roles } from '../common/auth.js';
 import { Organization } from '../organization/organization.entity.js';
 import { DailyJobService } from './daily-job.service.js';
 import { NotificationsService } from './notifications.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('notifications')
 @Controller('notifications')

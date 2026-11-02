@@ -10,7 +10,10 @@ import { QueryFailedError } from 'typeorm';
 export class DbExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(DbExceptionFilter.name);
 
-  catch(error: QueryFailedError & { driverError?: { code?: string; column?: string; detail?: string } }, host: ArgumentsHost) {
+  catch(
+    error: QueryFailedError & { driverError?: { code?: string; column?: string; detail?: string } },
+    host: ArgumentsHost,
+  ) {
     const res = host.switchToHttp().getResponse<Response>();
     const code = error.driverError?.code;
     const map: Record<string, [number, string]> = {

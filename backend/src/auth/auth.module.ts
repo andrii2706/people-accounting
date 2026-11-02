@@ -16,7 +16,11 @@ import { SessionService } from './session.service.js';
     UsersModule,
     TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({
-      useFactory: () => ({ secret: loadEnv().jwtSecret, signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }),
+      useFactory: () => ({
+        secret: loadEnv().jwtSecret,
+        signOptions: { algorithm: 'HS256' },
+        verifyOptions: { algorithms: ['HS256'] },
+      }),
     }),
     // global request limit; /auth/login has a stricter one (see @Throttle in the controller)
     ThrottlerModule.forRoot({

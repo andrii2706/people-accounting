@@ -60,8 +60,6 @@ export const MAX_LENGTH = {
   changeBasis: 1000,
 } as const;
 
-export type MaxLengthField = keyof typeof MAX_LENGTH;
-
 export const PATTERN = {
   /** Letters of any alphabet, apostrophe, hyphen, space. */
   name: /^[\p{L}][\p{L}'’ʼ\-\s.]*$/u,

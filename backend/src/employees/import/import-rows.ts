@@ -5,34 +5,22 @@ import { matchTck } from '../../military/tck-match.js';
  */
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
-import { type FieldError, flattenValidationErrors } from '../../common/validators.js';
+import { flattenValidationErrors } from '../../common/validators.js';
 import { MILITARY_DOCUMENT_TYPES } from '../../military/dictionaries.js';
 import { AFTER_BIRTH_DATES, MESSAGE } from '../../military/employee-rules.js';
 import { RANKS } from '../../military/ranks.js';
 import { CreateEmployeeDto } from '../employees.dto.js';
-import { columnForHeader, type ImportColumn, normalizeKey } from './import-columns.js';
-import type { RawCell, RawTable } from './import-reader.js';
-
-export type ImportValues = Record<string, string | number | boolean | null>;
-
-export interface ImportRow {
-  rowNumber: number;
-  values: ImportValues;
-  /** Problems found while reading the file (e.g. an unknown rank) — kept until the user edits the field. */
-  issues: FieldError[];
-}
-
-export interface ImportContext {
-  tcks: { id: string; name: string }[];
-}
-
-export interface ColumnMapping {
-  header: string;
-  field: string | null;
-  label: string | null;
-}
-
-// ------------------------------------------------------------------ conversion
+import { columnForHeader, normalizeKey } from './import-columns.js';
+import type { FieldError } from '../../shared/interfaces/common.interface.js';
+import type {
+  RawCell,
+  RawTable,
+  ImportColumn,
+  ImportValues,
+  ImportRow,
+  ImportContext,
+  ColumnMapping,
+} from '../../shared/interfaces/import.interface.js';
 
 const str = (v: RawCell): string => {
   if (v === null) return '';
@@ -117,7 +105,6 @@ function parseRank(v: RawCell): { code: number; navy: boolean } | null | undefin
   return RANK_INDEX.get(key);
 }
 
-
 function parsePassportType(v: RawCell): 'ID_CARD' | 'BOOK' | null | undefined {
   const key = normalizeKey(str(v));
   if (!key) return null;
@@ -138,7 +125,6 @@ function parseMilitaryDocType(v: RawCell): string | null {
   return DOC_TYPES.find(([k]) => k === key)?.[1] ?? str(v);
 }
 
-/** Maps the file headers to fields. */
 export function mapColumns(headers: string[]): { mapping: ColumnMapping[]; columns: (ImportColumn | undefined)[] } {
   const used = new Set<string>();
   const columns = headers.map((h) => {
@@ -170,7 +156,8 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
       switch (column.kind) {
         case 'text':
           // a VOS stored as a number in Excel loses the leading zero of officer codes: 21101 → 021101
-          if (field === 'vos' && typeof cell === 'number' && /^\d{5}$/.test(text)) values[field] = text.padStart(6, '0');
+          if (field === 'vos' && typeof cell === 'number' && /^\d{5}$/.test(text))
+            values[field] = text.padStart(6, '0');
           else if (text) values[field] = text;
           break;
         case 'upper':
@@ -243,13 +230,13 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
           const book = /^([А-ЩЬЮЯҐЄІЇ]{2})(\d{6})$/u.exec(compact);
           if (book) Object.assign(values, { passportType: 'BOOK', passportSeries: book[1], passportNumber: book[2] });
           else if (/^\d{9}$/.test(compact)) Object.assign(values, { passportType: 'ID_CARD', passportNumber: compact });
-          else if (text) issue('passportNumber', `Не вдалося розібрати паспорт «${text}» (АА 123456 або 9 цифр ID-картки)`);
+          else if (text)
+            issue('passportNumber', `Не вдалося розібрати паспорт «${text}» (АА 123456 або 9 цифр ID-картки)`);
           break;
         }
       }
     });
 
-    // inferred values
     if (values.gender === undefined && !issues.some((i) => i.field === 'gender')) {
       const g = genderByMiddleName(String(values.middleName ?? ''));
       if (g) values.gender = g;
@@ -266,8 +253,6 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
   });
   return { mapping, rows };
 }
-
-// ------------------------------------------------------------------ validation
 
 /** One military document from the file is kept as flat fields on the preview (easy to edit). */
 const DOC_FIELDS: Record<string, string> = {
@@ -296,11 +281,14 @@ export function toDtoValues(values: ImportValues): Record<string, unknown> {
 /** The same checks as the employee form; returns errors bound to fields. */
 export async function validateValues(values: ImportValues): Promise<FieldError[]> {
   const dto = plainToInstance(CreateEmployeeDto, toDtoValues(values));
-  const errors = flattenValidationErrors(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).map((e) => {
-    const m = /^militaryDocuments\.0\.(\w+)$/.exec(e.field);
-    return m && DOC_FIELD_BY_KEY[m[1]] ? { ...e, field: DOC_FIELD_BY_KEY[m[1]] } : e;
-  });
-  if (!values.gender && !errors.some((e) => e.field === 'gender')) errors.push({ field: 'gender', message: 'Вкажіть стать' });
+  const errors = flattenValidationErrors(await validate(dto, { whitelist: true, forbidNonWhitelisted: true })).map(
+    (e) => {
+      const m = /^militaryDocuments\.0\.(\w+)$/.exec(e.field);
+      return m && DOC_FIELD_BY_KEY[m[1]] ? { ...e, field: DOC_FIELD_BY_KEY[m[1]] } : e;
+    },
+  );
+  if (!values.gender && !errors.some((e) => e.field === 'gender'))
+    errors.push({ field: 'gender', message: 'Вкажіть стать' });
 
   const rank = values.rankCode;
   // cross-field rules of the form (employee-form.component.ts)
@@ -313,7 +301,10 @@ export async function validateValues(values: ImportValues): Promise<FieldError[]
   if (values.reserved === true && (conscription || mobilization || values.deferralUntil)) {
     errors.push({ field: 'deferralMobilizationBasis', message: 'Заброньований працівник не може мати відстрочку' });
   } else if (conscription && mobilization) {
-    errors.push({ field: 'deferralMobilizationBasis', message: 'Оберіть один вид відстрочки: від строкової служби або від мобілізації' });
+    errors.push({
+      field: 'deferralMobilizationBasis',
+      message: 'Оберіть один вид відстрочки: від строкової служби або від мобілізації',
+    });
   }
   const birth = values.birthDate as string | undefined;
   if (birth) {

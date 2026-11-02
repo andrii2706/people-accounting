@@ -12,24 +12,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Request, Response } from 'express';
 import type { Repository } from 'typeorm';
 import { SessionService } from '../auth/session.service.js';
-import { User, type UserRole } from '../users/user.entity.js';
-
-export interface AuthUser {
-  id: string;
-  email: string;
-  fullName: string;
-  role: UserRole;
-  mustChangePassword: boolean;
-}
+import { User } from '../users/user.entity.js';
+import type { AuthUser, UserRole } from '../shared/interfaces/auth.interface.js';
 
 const IS_PUBLIC = 'isPublic';
 const ROLES = 'roles';
 const ALLOW_PENDING_PASSWORD = 'allowPendingPassword';
 
-/** Route available without authentication. */
 export const Public = () => SetMetadata(IS_PUBLIC, true);
 
-/** Restrict the route to roles. */
 export const Roles = (...roles: UserRole[]) => SetMetadata(ROLES, roles);
 
 /** Route available even before the user has changed a temporary password. */
@@ -80,10 +71,20 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Сесія недійсна, увійдіть знову');
     }
 
-    req.user = { id: user.id, email: user.email, fullName: user.fullName, role: user.role, mustChangePassword: user.mustChangePassword };
+    req.user = {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    };
 
     if (user.mustChangePassword && !this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_PASSWORD, targets)) {
-      throw new ForbiddenException({ statusCode: 403, code: PASSWORD_CHANGE_REQUIRED, message: 'Спершу змініть тимчасовий пароль' });
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: PASSWORD_CHANGE_REQUIRED,
+        message: 'Спершу змініть тимчасовий пароль',
+      });
     }
 
     const roles = this.reflector.getAllAndOverride<UserRole[] | undefined>(ROLES, targets);

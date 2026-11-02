@@ -22,10 +22,8 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { LetterSigningComponent } from '../letter-signing/letter-signing.component';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
-import {
-  type SelectOption,
-  SelectComponent,
-} from '../../../shared/components/select/select.component';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import type { SelectOption } from '../../../shared/interfaces/ui.interface';
 
 @Component({
   selector: 'app-letter-detail',

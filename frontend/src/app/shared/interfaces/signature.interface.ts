@@ -47,3 +47,37 @@ export interface SigningConfig {
   widget: { enabled: boolean; scriptUrl: string; frameUrl: string };
   verifyUrl: string;
 }
+
+/** Minimal description of the EndUser API from eusign.js that we use. */
+export interface EndUserCertificate {
+  infoEx?: { publicKeyType?: number; keyUsageType?: number };
+}
+
+export interface EndUserInstance {
+  ReadPrivateKey(): Promise<EndUserCertificate[]>;
+  SignData(
+    data: Uint8Array,
+    external: boolean,
+    asBase64String: boolean,
+    signAlgo?: number,
+    previousSign?: string | null,
+    signType?: number,
+  ): Promise<string>;
+  ResetPrivateKey?(): Promise<void>;
+  destroy?(): void;
+}
+
+export interface EndUserConstructor {
+  new (
+    parentId: string,
+    id: string,
+    src: string,
+    formType: number,
+    formParams?: unknown,
+  ): EndUserInstance;
+  FormType?: Record<string, number>;
+  SignAlgo?: Record<string, number>;
+  SignType?: Record<string, number>;
+}
+
+export type SigningMode = 'widget' | 'upload';

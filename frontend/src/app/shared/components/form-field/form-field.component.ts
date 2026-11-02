@@ -1,10 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-
-/** Structural type of a Signal Forms field, so it does not depend on the value type. */
-export type FieldLike = () => {
-  touched: () => boolean;
-  errors: () => readonly { message?: string }[];
-};
+import type { FieldLike } from '../../interfaces/ui.interface';
 
 /**
  * Signal Forms field wrapper: label, hint and validation errors.

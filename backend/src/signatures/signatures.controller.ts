@@ -1,10 +1,11 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, StreamableFile } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { type AuthUser, CurrentUser } from '../common/auth.js';
+import { CurrentUser } from '../common/auth.js';
 import { DOCX_MIME, P7S_MIME } from '../letters/letters.service.js';
 import { AddSignatureDto } from './signatures.dto.js';
 import { SignaturesService } from './signatures.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 function file(buffer: Buffer, filename: string, type: string) {
   return new StreamableFile(buffer, {
@@ -66,7 +67,6 @@ export class SignaturesController {
     return file(buffer, filename, P7S_MIME);
   }
 
-  /** ZIP with the document and all signatures. */
   @Get('letters/:id/signed-package')
   async signedPackage(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     const { buffer, filename } = await this.signatures.signedPackage(id);

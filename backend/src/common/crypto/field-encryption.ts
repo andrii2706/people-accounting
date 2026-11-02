@@ -42,7 +42,6 @@ export function blindIndex(value: string | null | undefined): string | null {
   return createHmac('sha256', keys().blind).update(normalized).digest('hex');
 }
 
-/** TypeORM transformer for columns stored encrypted. */
 export const encrypted: ValueTransformer = {
   to: (value: string | null | undefined) => encryptField(value),
   from: (value: string | null | undefined) => decryptField(value),

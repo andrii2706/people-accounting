@@ -13,10 +13,7 @@ import {
 import { Tck } from '../../dictionaries/tck.entity.js';
 import { EmployeeChange } from '../../employees/entities/employee-change.entity.js';
 import { Employee } from '../../employees/entities/employee.entity.js';
-
-export type LetterType = 'CHANGE_NOTICE' | 'LISTS' | 'OPERATIONAL_REPORT' | 'OTHER';
-/** DRAFT — in preparation; SENT — handed over to the TCK (Ukrposhta, by hand, document management system etc.). */
-export type LetterStatus = 'DRAFT' | 'SENT';
+import type { LetterType, LetterStatus } from '../../shared/interfaces/letter.interface.js';
 
 /** Register of outgoing military-registration correspondence. */
 @Entity('outgoing_letters')
@@ -67,7 +64,6 @@ export class OutgoingLetter {
 
   @Column({ type: 'varchar', length: 20, default: 'DRAFT' })
   status: LetterStatus;
-
 
   @Column({ type: 'timestamptz', nullable: true })
   sentAt: Date | null;

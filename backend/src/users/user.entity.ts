@@ -1,6 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-
-export type UserRole = 'ADMIN' | 'HR';
+import type { UserRole } from '../shared/interfaces/auth.interface.js';
 
 @Entity('users')
 export class User {

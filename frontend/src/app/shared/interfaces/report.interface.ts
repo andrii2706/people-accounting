@@ -1,5 +1,6 @@
 import type { Warning } from './common.interface';
 import type { DutyCategory, ListGroup, ListSection } from './dictionary.interface';
+
 export interface Dashboard {
   date: string;
   employees: { employed: number; onLists: number; mobilized: number; reserved: number };
@@ -28,7 +29,6 @@ export interface Dashboard {
 export interface ListRow {
   employeeId: string;
   group: ListGroup;
-  /** Which of the four lists. */
   section: ListSection;
   category: DutyCategory | null;
   cells: string[];

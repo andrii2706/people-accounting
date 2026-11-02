@@ -14,6 +14,7 @@ import type {
   SignatureVerification,
   SigningConfig,
   SigningState,
+  SigningMode,
 } from '../../../shared/interfaces/signature.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { IitSignWidgetService } from '../../../shared/services/iit-sign-widget.service';
@@ -40,8 +41,6 @@ const VERIFICATION: Record<SignatureVerification, { label: string; cls: string; 
     hint: 'Алгоритм не підтримується сервером — перевірте підпис на сервісі ЦЗО.',
   },
 };
-
-type Mode = 'widget' | 'upload';
 
 function toBase64(buffer: ArrayBuffer) {
   const bytes = new Uint8Array(buffer);
@@ -78,8 +77,8 @@ export class LetterSigningComponent implements OnDestroy {
   protected readonly verification = VERIFICATION;
   protected readonly widgetContainerId = 'iit-sign-widget';
   protected readonly busy = signal(false);
-  protected readonly selectedMode = signal<Mode | null>(null);
-  protected readonly mode = computed<Mode>(
+  protected readonly selectedMode = signal<SigningMode | null>(null);
+  protected readonly mode = computed<SigningMode>(
     () => this.selectedMode() ?? (this.config().widget.enabled ? 'widget' : 'upload'),
   );
   protected readonly widgetStage = signal<'idle' | 'reading' | 'ready' | 'signing'>('idle');
@@ -93,7 +92,7 @@ export class LetterSigningComponent implements OnDestroy {
     this.widget.close();
   }
 
-  protected setMode(mode: Mode) {
+  protected setMode(mode: SigningMode) {
     this.selectedMode.set(mode);
     if (mode !== 'widget') this.resetWidget();
   }
@@ -114,8 +113,6 @@ export class LetterSigningComponent implements OnDestroy {
     }
     await this.run(() => this.signatures.unfreeze(this.letterId()), 'Фіксацію скасовано');
   }
-
-  // ---------------------------------------------------------------- IIT widget
 
   protected async readKey() {
     const { scriptUrl, frameUrl } = this.config().widget;
@@ -154,8 +151,6 @@ export class LetterSigningComponent implements OnDestroy {
     this.widget.close();
     this.widgetStage.set('idle');
   }
-
-  // ---------------------------------------------------------------- .p7s upload
 
   protected async upload(event: Event) {
     const input = event.target as HTMLInputElement;

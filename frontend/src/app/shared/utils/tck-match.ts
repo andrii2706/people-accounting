@@ -1,3 +1,4 @@
+import type { TckLevel, ParsedTckName } from '../interfaces/dictionary.interface';
 /**
  * Matching a free-text TCK name (from a document: «Ким виданий ВОД», a column of 1C / Excel)
  * with the TCK directory. The same TCK is written in many ways:
@@ -8,21 +9,9 @@
  * The file is identical in backend/src/military and frontend/src/app/shared/utils (keep them in sync).
  */
 
-type Level = 'O' | 'R' | 'M';
-
-interface ParsedTck {
-  /** Stem of the distinguishing adjective: «шевченківськ», «личаківськ», «київськ». */
-  adj: string | null;
-  level: Level | null;
-  /** Number of the «відділ» (department) or null for the TCK itself. */
-  dept: number | null;
-  /** Stem of the city: «льво», «киов». */
-  city: string | null;
-}
-
 const ROMAN: Record<string, number> = { і: 1, іі: 2, ііі: 3, іv: 4, ів: 4, v: 5, в: 5 };
 
-const LEVEL_WORDS: [RegExp, Level][] = [
+const LEVEL_WORDS: [RegExp, TckLevel][] = [
   [/^(отцк|обласн\S*|овк)$/u, 'O'],
   [/^(мтцк|омтцк|міськ\S*|мвк)$/u, 'M'],
   [/^(ртцк|ортцк|ор|районн\S*|рвк|орвк)$/u, 'R'],
@@ -49,17 +38,17 @@ function adjStem(word: string): string | null {
   return stem(word) ?? (word.includes('-') ? stem(word.split('-')[0]) : null);
 }
 
-export function parseTckName(text: string): ParsedTck {
+export function parseTckName(text: string): ParsedTckName {
   const words = normalize(text).split(' ').filter(Boolean);
   let adj: string | null = null;
-  let level: Level | null = null;
+  let level: TckLevel | null = null;
   let dept: number | null = null;
   let city: string | null = null;
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
     const next = words[i + 1];
     // department: «І відділ», «1 відділ», «відділ 1», «відділ № 2»
-    if (/^відділ/u.test(w)) {
+    if (w.startsWith('відділ')) {
       const before = words[i - 1];
       const n = before && (ROMAN[before] ?? (/^\d+$/.test(before) ? Number(before) : undefined));
       const after = next && (ROMAN[next] ?? (/^\d+$/.test(next) ? Number(next) : undefined));

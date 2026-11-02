@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import type { IconName } from '../../interfaces/ui.interface';
 
 /** Minimal icon set (stroke 1.75, 24×24) — no external dependencies. */
-const PATHS = {
+export const PATHS = {
   dashboard: 'M4 13h6V4H4zM14 20h6v-9h-6zM4 20h6v-4H4zM14 4v4h6V4z',
   users:
     'M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6M22 19v-1a4 4 0 0 0-3-3.87M16 4.13a3 3 0 0 1 0 5.74',
@@ -29,8 +30,6 @@ const PATHS = {
   lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
   signature: 'M3 17c3-3 4-8 6-8s0 8 2 8 2-4 4-4 1 3 3 3h3M3 21h18',
 } as const;
-
-export type IconName = keyof typeof PATHS;
 
 @Component({
   selector: 'app-icon',

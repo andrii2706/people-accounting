@@ -7,16 +7,12 @@ import { generateTemporaryPassword, passwordMessage, passwordProblems } from '..
 import { loadEnv } from '../config/env.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
-import { User, type UserRole } from './user.entity.js';
+import { User } from './user.entity.js';
+import type { UserRole, CredentialsResult } from '../shared/interfaces/auth.interface.js';
 
 const BCRYPT_ROUNDS = 12;
 /** Hash used to equalize response time when the email does not exist (protection against email enumeration). */
 const DUMMY_HASH = bcrypt.hashSync('timing-equalizer-not-a-password', BCRYPT_ROUNDS);
-
-export type CredentialsResult =
-  | { status: 'ok'; user: User }
-  | { status: 'invalid'; userId?: string }
-  | { status: 'locked'; userId: string; lockedUntil: Date };
 
 @Injectable()
 export class UsersService {
@@ -46,9 +42,7 @@ export class UsersService {
   }
 
   private findWithSecrets(where: { id?: string; email?: string }) {
-    const qb = this.repo
-      .createQueryBuilder('u')
-      .addSelect(['u.passwordHash', 'u.tokenVersion', 'u.failedLoginCount']);
+    const qb = this.repo.createQueryBuilder('u').addSelect(['u.passwordHash', 'u.tokenVersion', 'u.failedLoginCount']);
     if (where.id) qb.where('u.id = :id', { id: where.id });
     else qb.where('LOWER(u.email) = LOWER(:email)', { email: where.email });
     return qb.getOne();
@@ -125,12 +119,24 @@ export class UsersService {
     if (dto.notify !== undefined) changes.notify = dto.notify;
     if (Object.keys(changes).length) await this.repo.update(id, changes);
     if (changes.role) {
-      await this.notifications.notifyUser(user.email, 'Змінено вашу роль у системі військового обліку', `Ваша нова роль: ${this.roleLabel(changes.role)}. Увійдіть знову, щоб зміни набули чинності.`);
+      await this.notifications.notifyUser(
+        user.email,
+        'Змінено вашу роль у системі військового обліку',
+        `Ваша нова роль: ${this.roleLabel(changes.role)}. Увійдіть знову, щоб зміни набули чинності.`,
+      );
     }
     if (changes.isActive === false) {
-      await this.notifications.notifyUser(user.email, 'Доступ до системи військового обліку припинено', 'Адміністратор вимкнув ваш обліковий запис. Якщо це помилка — зверніться до адміністратора.');
+      await this.notifications.notifyUser(
+        user.email,
+        'Доступ до системи військового обліку припинено',
+        'Адміністратор вимкнув ваш обліковий запис. Якщо це помилка — зверніться до адміністратора.',
+      );
     } else if (changes.isActive === true) {
-      await this.notifications.notifyUser(user.email, 'Доступ до системи військового обліку відновлено', `Ваш обліковий запис знову активний: ${this.env.appUrl}`);
+      await this.notifications.notifyUser(
+        user.email,
+        'Доступ до системи військового обліку відновлено',
+        `Ваш обліковий запис знову активний: ${this.env.appUrl}`,
+      );
     }
     return this.findById(id);
   }
@@ -176,8 +182,10 @@ export class UsersService {
   async changeOwnPassword(id: string, currentPassword: string, newPassword: string) {
     const user = await this.findWithSecrets({ id });
     if (!user) throw new NotFoundException();
-    if (!(await bcrypt.compare(currentPassword, user.passwordHash))) throw new BadRequestException('Поточний пароль невірний');
-    if (await bcrypt.compare(newPassword, user.passwordHash)) throw new BadRequestException('Новий пароль має відрізнятися від поточного');
+    if (!(await bcrypt.compare(currentPassword, user.passwordHash)))
+      throw new BadRequestException('Поточний пароль невірний');
+    if (await bcrypt.compare(newPassword, user.passwordHash))
+      throw new BadRequestException('Новий пароль має відрізнятися від поточного');
     this.assertPolicy(newPassword, user.email);
     await this.repo.update(id, {
       passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS),
@@ -185,7 +193,11 @@ export class UsersService {
       tokenVersion: user.tokenVersion + 1,
       passwordChangedAt: new Date(),
     });
-    await this.notifications.notifyUser(user.email, 'Пароль змінено', 'Пароль до вашого облікового запису в системі військового обліку щойно змінено. Якщо це були не ви — зверніться до адміністратора.');
+    await this.notifications.notifyUser(
+      user.email,
+      'Пароль змінено',
+      'Пароль до вашого облікового запису в системі військового обліку щойно змінено. Якщо це були не ви — зверніться до адміністратора.',
+    );
     return (await this.findForSession(id))!;
   }
 
@@ -193,7 +205,10 @@ export class UsersService {
   async ensureAdmin(email: string, password: string, fullName: string) {
     const existing = await this.repo.findOneBy({ email: email.toLowerCase() });
     if (existing) return existing;
-    return this.create({ email, password, fullName, role: 'ADMIN' }, { mustChangePassword: this.env.isProduction, silent: true });
+    return this.create(
+      { email, password, fullName, role: 'ADMIN' },
+      { mustChangePassword: this.env.isProduction, silent: true },
+    );
   }
 
   private assertPolicy(password: string, email: string) {

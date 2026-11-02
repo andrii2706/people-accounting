@@ -8,6 +8,8 @@ import type {
   Tck,
 } from './dictionary.interface';
 import type { LetterRef } from './letter.interface';
+import type { MAX_LENGTH } from '../validators/employee-rules';
+
 export interface EmployeeDerived {
   fullName: string;
   age: number | null;
@@ -211,3 +213,7 @@ export interface AuditEntry {
 export type EmployeePayload = Partial<Omit<Employee, 'id' | 'tck' | 'createdAt' | 'updatedAt'>> & {
   changeMeta?: { effectiveDate?: string; basis?: string };
 };
+
+export type MaxLengthField = keyof typeof MAX_LENGTH;
+
+export type EmployeeStatusFilter = 'active' | 'dismissed' | 'all';

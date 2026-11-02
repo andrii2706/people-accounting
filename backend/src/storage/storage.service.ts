@@ -2,6 +2,7 @@ import { Global, Injectable, Logger, Module, NotFoundException } from '@nestjs/c
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, normalize, resolve, sep } from 'node:path';
 import { loadEnv } from '../config/env.js';
+import type { StoredObject, StorageDriver } from '../shared/interfaces/storage.interface.js';
 
 /**
  * Storage for files that must outlive a request: frozen (signed) documents and signature files.
@@ -13,18 +14,7 @@ import { loadEnv } from '../config/env.js';
  *
  * Files are write-once: overwriting an existing key is forbidden.
  */
-export interface StoredObject {
-  key: string;
-  size: number;
-}
-
-interface Driver {
-  put(key: string, data: Buffer, contentType: string): Promise<void>;
-  get(key: string): Promise<Buffer>;
-  exists(key: string): Promise<boolean>;
-}
-
-class LocalDriver implements Driver {
+class LocalDriver implements StorageDriver {
   private readonly root: string;
   constructor(dir: string) {
     this.root = resolve(dir);
@@ -55,7 +45,7 @@ class LocalDriver implements Driver {
   }
 }
 
-class GcsDriver implements Driver {
+class GcsDriver implements StorageDriver {
   private bucketPromise: Promise<import('@google-cloud/storage').Bucket>;
   constructor(bucketName: string) {
     // lazy loading: the package is not needed locally
@@ -91,7 +81,7 @@ class GcsDriver implements Driver {
 @Injectable()
 export class StorageService {
   private readonly logger = new Logger(StorageService.name);
-  private readonly driver: Driver;
+  private readonly driver: StorageDriver;
 
   constructor() {
     const env = loadEnv();
@@ -99,7 +89,9 @@ export class StorageService {
       env.storageDriver === 'gcs'
         ? new GcsDriver(env.storageBucket)
         : new LocalDriver(join(process.cwd(), env.storageLocalDir));
-    this.logger.log(`Сховище файлів: ${env.storageDriver === 'gcs' ? `gs://${env.storageBucket}` : env.storageLocalDir}`);
+    this.logger.log(
+      `Сховище файлів: ${env.storageDriver === 'gcs' ? `gs://${env.storageBucket}` : env.storageLocalDir}`,
+    );
   }
 
   async put(key: string, data: Buffer, contentType = 'application/octet-stream'): Promise<StoredObject> {

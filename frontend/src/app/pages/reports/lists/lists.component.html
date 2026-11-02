@@ -15,7 +15,7 @@
   <a class="btn btn-secondary" [href]="downloadUrl()" download
     ><app-icon name="download" /> Списки .docx</a
   >
-  <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="register()">
+  <button type="button" class="btn btn-primary cursor-pointer" [disabled]="busy()" (click)="register()">
     <app-icon name="mail" /> Зареєструвати лист
   </button>
 </app-page-header>
@@ -25,7 +25,7 @@
     <button
       type="button"
       role="tab"
-      class="rounded-lg border px-3 py-1.5 text-sm"
+      class="rounded-lg border px-3 py-1.5 text-sm cursor-pointer"
       [attr.aria-selected]="filter() === 'ALL'"
       [class]="
         filter() === 'ALL'
@@ -40,7 +40,7 @@
       <button
         type="button"
         role="tab"
-        class="rounded-lg border px-3 py-1.5 text-sm first-letter:uppercase"
+        class="rounded-lg border px-3 py-1.5 text-sm first-letter:uppercase cursor-pointer"
         [attr.aria-selected]="filter() === g.group"
         [class]="
           filter() === g.group

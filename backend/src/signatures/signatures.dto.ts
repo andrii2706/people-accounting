@@ -1,5 +1,5 @@
 import { IsBase64, IsIn, IsString, MaxLength } from 'class-validator';
-import type { SignatureMethod } from '../letters/entities/letter-signature.entity.js';
+import type { SignatureMethod } from '../shared/interfaces/signature.interface.js';
 
 export class AddSignatureDto {
   /** Signature file .p7s (DER, base64 or PEM) encoded in base64. Up to ~700 KB. */

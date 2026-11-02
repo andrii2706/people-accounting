@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { registerDecorator, type ValidationError, type ValidationOptions } from 'class-validator';
 import { isIsoDate, todayIso } from './utils/dates.js';
+import type { FieldError } from '../shared/interfaces/common.interface.js';
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '';
 
@@ -31,7 +32,10 @@ let ruleSeq = 0;
  * (required-ness is checked separately). `check` receives the value and the whole DTO —
  * for rules that depend on other fields (e.g. passport type).
  */
-export function Rule<T = string>(check: (value: T, dto: Record<string, unknown>) => boolean, message: string): PropertyDecorator {
+export function Rule<T = string>(
+  check: (value: T, dto: Record<string, unknown>) => boolean,
+  message: string,
+): PropertyDecorator {
   const name = `rule${++ruleSeq}`;
   return (object: object, key: string | symbol) => {
     registerDecorator({
@@ -50,8 +54,6 @@ export function Rule<T = string>(check: (value: T, dto: Record<string, unknown>)
 }
 
 export const NotFuture = () => Rule((v: string) => v <= todayIso(), 'Дата не може бути в майбутньому');
-
-// ---------------------------------------------------------------- error response
 
 /** Translation of the standard class-validator messages when a decorator has none of its own. */
 const DEFAULT_MESSAGES: Record<string, string> = {
@@ -73,12 +75,6 @@ const DEFAULT_MESSAGES: Record<string, string> = {
 };
 
 const hasCyrillic = (s: string) => /[а-яіїєґ]/i.test(s);
-
-export interface FieldError {
-  /** Field path: "passportSeries", "familyMembers.0.lastName", "changeMeta.basis". */
-  field: string;
-  message: string;
-}
 
 export function flattenValidationErrors(errors: ValidationError[], parent = ''): FieldError[] {
   const out: FieldError[] = [];

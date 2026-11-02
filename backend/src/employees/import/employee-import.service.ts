@@ -3,9 +3,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import ExcelJS from 'exceljs';
 import { In, Repository } from 'typeorm';
-import type { AuthUser } from '../../common/auth.js';
 import { blindIndex } from '../../common/crypto/field-encryption.js';
-import type { FieldError } from '../../common/validators.js';
 import { Tck } from '../../dictionaries/tck.entity.js';
 import { FITNESS_STATUSES, MILITARY_DOCUMENT_TYPES } from '../../military/dictionaries.js';
 import { RANKS } from '../../military/ranks.js';
@@ -14,21 +12,9 @@ import { EmployeesService } from '../employees.service.js';
 import { Employee } from '../entities/employee.entity.js';
 import { TEMPLATE_COLUMNS } from './import-columns.js';
 import { readTable } from './import-reader.js';
-import { type ColumnMapping, convertRows, fullNameOf, type ImportRow, type ImportValues, toDtoValues, validateValues } from './import-rows.js';
-
-export interface CheckedRow extends ImportRow {
-  fullName: string;
-  /** Read issues + validation errors. A row with errors cannot be imported. */
-  errors: FieldError[];
-  /** The employee is already in the system (by RNOKPP or full name + date of birth) — skipped. */
-  duplicate: { id: string; fullName: string; by: 'rnokpp' | 'name' } | null;
-}
-
-export interface ImportPreview {
-  fileName?: string;
-  mapping: ColumnMapping[];
-  rows: CheckedRow[];
-}
+import { convertRows, fullNameOf, toDtoValues, validateValues } from './import-rows.js';
+import type { AuthUser } from '../../shared/interfaces/auth.interface.js';
+import type { ImportValues, ImportRow, CheckedRow, ImportPreview } from '../../shared/interfaces/import.interface.js';
 
 @Injectable()
 export class EmployeeImportService {
@@ -44,7 +30,11 @@ export class EmployeeImportService {
     const tcks = await this.tcks.find({ select: { id: true, name: true } });
     const { mapping, rows } = convertRows(table, { tcks });
     if (!mapping.some((m) => m.field === 'lastName' || m.field === 'fullName')) {
-      throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: ['У файлі немає колонки «Прізвище» або «ПІБ»'] });
+      throw new BadRequestException({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: ['У файлі немає колонки «Прізвище» або «ПІБ»'],
+      });
     }
     return { fileName, mapping, rows: await this.check(rows) };
   }
@@ -103,11 +93,26 @@ export class EmployeeImportService {
     const hashes = values.map((v) => blindIndex(String(v.rnokpp ?? ''))).filter((h): h is string => !!h);
     const lastNames = [...new Set(values.map((v) => String(v.lastName ?? '')).filter(Boolean))];
     const [byHash, byName] = await Promise.all([
-      hashes.length ? this.employees.find({ loadEagerRelations: false, where: { rnokppHash: In(hashes) }, select: { id: true, lastName: true, firstName: true, middleName: true, rnokppHash: true } }) : [],
-      lastNames.length ? this.employees.find({ loadEagerRelations: false, where: { lastName: In(lastNames) }, select: { id: true, lastName: true, firstName: true, middleName: true, birthDate: true } }) : [],
+      hashes.length
+        ? this.employees.find({
+            loadEagerRelations: false,
+            where: { rnokppHash: In(hashes) },
+            select: { id: true, lastName: true, firstName: true, middleName: true, rnokppHash: true },
+          })
+        : [],
+      lastNames.length
+        ? this.employees.find({
+            loadEagerRelations: false,
+            where: { lastName: In(lastNames) },
+            select: { id: true, lastName: true, firstName: true, middleName: true, birthDate: true },
+          })
+        : [],
     ]);
     const name = (e: Employee) => `${e.lastName} ${e.firstName} ${e.middleName}`.trim();
-    const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
+    const norm = (s: unknown) =>
+      String(s ?? '')
+        .trim()
+        .toLowerCase();
     return (v: ImportValues): CheckedRow['duplicate'] => {
       const hash = blindIndex(String(v.rnokpp ?? ''));
       const sameRnokpp = hash ? byHash.find((e) => e.rnokppHash === hash) : undefined;
@@ -144,12 +149,12 @@ export class EmployeeImportService {
     // allowed values — on a separate sheet, referenced by drop-down lists
     const ref = wb.addWorksheet('Довідка');
     const lists: Record<string, string[]> = {
-      'Стать': ['чоловіча', 'жіноча'],
+      Стать: ['чоловіча', 'жіноча'],
       'Так / ні': ['так', 'ні'],
       'Тип паспорта': ['ID-картка', 'книжечка'],
       'Військове звання': [...new Set(RANKS.flatMap((r) => [r.army, r.navy]))],
       'Військово-обліковий документ': [...MILITARY_DOCUMENT_TYPES],
-      'Придатність': [...FITNESS_STATUSES],
+      Придатність: [...FITNESS_STATUSES],
       'ТЦК та СП': tcks.map((t) => t.name),
     };
     const ranges: Record<string, string> = {};
@@ -162,7 +167,8 @@ export class EmployeeImportService {
       const letter = col.letter;
       ranges[title] = `'Довідка'!$${letter}$2:$${letter}$${Math.max(items.length + 1, 2)}`;
     });
-    ref.getCell(1, Object.keys(lists).length + 2).value = 'Дати — ДД.ММ.РРРР. РНОКПП — 10 цифр. Паспорт-книжечка: серія (2 літери) + номер (6 цифр); ID-картка: номер 9 цифр, «ким виданий» — 4-значний код.';
+    ref.getCell(1, Object.keys(lists).length + 2).value =
+      'Дати — ДД.ММ.РРРР. РНОКПП — 10 цифр. Паспорт-книжечка: серія (2 літери) + номер (6 цифр); ID-картка: номер 9 цифр, «ким виданий» — 4-значний код.';
 
     const listFor: Record<string, string> = {
       gender: 'Стать',
@@ -180,9 +186,11 @@ export class EmployeeImportService {
       const letter = sheet.getColumn(i + 1).letter;
       for (let r = 2; r <= 501; r++) {
         const cell = sheet.getCell(`${letter}${r}`);
-        if (list) cell.dataValidation = { type: 'list', allowBlank: true, showErrorMessage: false, formulae: [ranges[list]] };
+        if (list)
+          cell.dataValidation = { type: 'list', allowBlank: true, showErrorMessage: false, formulae: [ranges[list]] };
         if (c.kind === 'date') cell.numFmt = 'dd.mm.yyyy';
-        if (c.kind === 'digits' || c.field === 'vos' || c.field === 'registryNumber' || c.field === 'personnelNumber') cell.numFmt = '@';
+        if (c.kind === 'digits' || c.field === 'vos' || c.field === 'registryNumber' || c.field === 'personnelNumber')
+          cell.numFmt = '@';
       }
     });
 
@@ -191,12 +199,33 @@ export class EmployeeImportService {
     example.columns = TEMPLATE_COLUMNS.map((c) => ({ header: c.header, key: c.field, width: c.width ?? 16 }));
     example.getRow(1).font = { bold: true };
     example.addRow({
-      personnelNumber: '0001', lastName: 'Приклад', firstName: 'Петро', middleName: 'Іванович', gender: 'чоловіча',
-      birthDate: '15.04.1990', rnokpp: '1234567890', phone: '+380 67 000 00 00', registeredAddress: 'м. Львів, вул. Прикладна, 1',
-      passportType: 'ID-картка', passportNumber: '000000001', passportIssuedBy: '4610', passportIssuedAt: '01.02.2020',
-      position: 'інженер', department: 'Технічний відділ', hireDate: '01.03.2024', hireOrderNumber: '15-к', hireOrderDate: '28.02.2024',
-      militaryRegistered: 'так', servedInArmy: 'ні', rankCode: 'солдат', vos: '100', militaryDocType: 'військово-обліковий документ в електронній формі',
-      militaryDocNumber: '000000000', tckId: tcks[0]?.name ?? '', fitness: 'придатний до військової служби', reserved: 'ні',
+      personnelNumber: '0001',
+      lastName: 'Приклад',
+      firstName: 'Петро',
+      middleName: 'Іванович',
+      gender: 'чоловіча',
+      birthDate: '15.04.1990',
+      rnokpp: '1234567890',
+      phone: '+380 67 000 00 00',
+      registeredAddress: 'м. Львів, вул. Прикладна, 1',
+      passportType: 'ID-картка',
+      passportNumber: '000000001',
+      passportIssuedBy: '4610',
+      passportIssuedAt: '01.02.2020',
+      position: 'інженер',
+      department: 'Технічний відділ',
+      hireDate: '01.03.2024',
+      hireOrderNumber: '15-к',
+      hireOrderDate: '28.02.2024',
+      militaryRegistered: 'так',
+      servedInArmy: 'ні',
+      rankCode: 'солдат',
+      vos: '100',
+      militaryDocType: 'військово-обліковий документ в електронній формі',
+      militaryDocNumber: '000000000',
+      tckId: tcks[0]?.name ?? '',
+      fitness: 'придатний до військової служби',
+      reserved: 'ні',
     });
     return Buffer.from(await wb.xlsx.writeBuffer());
   }

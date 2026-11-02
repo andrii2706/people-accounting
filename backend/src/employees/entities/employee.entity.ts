@@ -14,11 +14,11 @@ import {
 } from 'typeorm';
 import { blindIndex, encrypted } from '../../common/crypto/field-encryption.js';
 import { Tck } from '../../dictionaries/tck.entity.js';
-import type { MaritalStatus } from '../../military/dictionaries.js';
 import { EmployeeEducation } from './employee-education.entity.js';
 import { EmployeePosition } from './employee-position.entity.js';
 import { FamilyMember } from './family-member.entity.js';
 import { MilitaryDocument } from './military-document.entity.js';
+import type { MaritalStatus } from '../../shared/interfaces/dictionary.interface.js';
 
 /**
  * Employee card. Corresponds to one sheet 01–21 of the Excel file,
@@ -30,7 +30,6 @@ export class Employee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // ---------- Personal data ----------
   @Column({ type: 'varchar', length: 30, default: '' })
   personnelNumber: string;
 
@@ -72,7 +71,6 @@ export class Employee {
   @Column({ type: 'varchar', length: 500, default: '' })
   actualAddress: string;
 
-  // ---------- Passports ----------
   /** ID_CARD | BOOK */
   @Column({ type: 'varchar', length: 10, default: 'ID_CARD' })
   passportType: 'ID_CARD' | 'BOOK';
@@ -104,7 +102,6 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   foreignPassportValidUntil: string | null;
 
-  // ---------- Education ----------
   @Column({ type: 'varchar', length: 100, default: '' })
   educationLevel: string;
 
@@ -122,14 +119,12 @@ export class Employee {
   @OneToMany(() => EmployeeEducation, (d) => d.employee, { cascade: true, eager: true })
   educations: Relation<EmployeeEducation[]>;
 
-  // ---------- Family ----------
   @Column({ type: 'varchar', length: 20, nullable: true })
   maritalStatus: MaritalStatus | null;
 
   @OneToMany(() => FamilyMember, (m) => m.employee, { cascade: true })
   familyMembers: Relation<FamilyMember[]>;
 
-  // ---------- Employment ----------
   /** Positions in the company (appointment and transfers); the latest one is mirrored in position / department / positionSince / positionOrder. */
   @OneToMany(() => EmployeePosition, (p) => p.employee, { cascade: true, eager: true })
   positions: Relation<EmployeePosition[]>;
@@ -173,7 +168,6 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   dismissalOrderDate: string | null;
 
-  // ---------- Military registration ----------
   @Column({ type: 'boolean', default: true })
   militaryRegistered: boolean;
 
@@ -219,7 +213,6 @@ export class Employee {
   @Column({ type: 'date', nullable: true })
   tckRegisteredAt: string | null;
 
-  /** Fitness for military service. */
   @Column({ type: 'varchar', length: 300, default: '' })
   fitness: string;
 
@@ -237,7 +230,7 @@ export class Employee {
   @Column({ type: 'boolean', default: false })
   reserved: boolean;
 
-  /** Reservation: item, section and number of the list. */
+  /** Not used since 28.10.2026 («пункт, розділ, номер переліку» removed); always empty, the column is kept for older data. */
   @Column({ type: 'varchar', length: 500, default: '' })
   reservationBasis: string;
 

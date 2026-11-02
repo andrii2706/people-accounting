@@ -3,7 +3,6 @@ import { employeeDetailsResolver } from './resolvers/employee-details.resolver';
 import { employeeListResolver } from './resolvers/employee-list.resolver';
 import { employeeNoticesResolver } from './resolvers/employee-notices.resolver';
 
-/** Feature module "Employees": a separate lazy chunk with its own resolvers. */
 export const EMPLOYEES_ROUTES: Routes = [
   {
     path: '',

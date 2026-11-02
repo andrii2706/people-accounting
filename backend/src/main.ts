@@ -29,14 +29,24 @@ async function bootstrap() {
   if (env.trustProxyHops > 0) app.set('trust proxy', env.trustProxyHops);
   app.setGlobalPrefix('api');
 
-  app.use(helmet({ contentSecurityPolicy: env.swagger ? false : undefined, crossOriginResourcePolicy: { policy: 'same-origin' } }));
+  app.use(
+    helmet({
+      contentSecurityPolicy: env.swagger ? false : undefined,
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+    }),
+  );
   app.use(cookieParser());
   app.use('/api', noStore);
   app.use('/api', csrfGuard(env.appOrigins));
   app.useBodyParser('json', { limit: '2mb' });
 
   app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true, exceptionFactory: validationExceptionFactory }),
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      exceptionFactory: validationExceptionFactory,
+    }),
   );
   app.useGlobalFilters(new DbExceptionFilter());
 
@@ -59,6 +69,9 @@ async function bootstrap() {
   }
 
   await app.listen(env.port);
-  Logger.log(`API: http://localhost:${env.port}/api${env.swagger ? `  ·  Swagger: http://localhost:${env.port}/api/docs` : ''}`, 'Bootstrap');
+  Logger.log(
+    `API: http://localhost:${env.port}/api${env.swagger ? `  ·  Swagger: http://localhost:${env.port}/api/docs` : ''}`,
+    'Bootstrap',
+  );
 }
 await bootstrap();

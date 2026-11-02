@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { passwordProblems } from '../common/password-policy.js';
 import { Rule } from '../common/validators.js';
-import type { UserRole } from './user.entity.js';
+import type { UserRole } from '../shared/interfaces/auth.interface.js';
 
 const ROLES: UserRole[] = ['ADMIN', 'HR'];
 
@@ -48,7 +48,6 @@ export class UpdateUserDto {
   notify?: boolean;
 }
 
-/** The user's own settings (Profile). */
 export class UpdatePreferencesDto {
   @IsBoolean()
   notify: boolean;

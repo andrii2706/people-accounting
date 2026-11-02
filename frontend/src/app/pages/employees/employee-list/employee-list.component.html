@@ -38,7 +38,7 @@
     @for (opt of statusOptions; track opt.value) {
       <button
         type="button"
-        class="rounded-md px-3 py-1.5"
+        class="rounded-md px-3 py-1.5 cursor-pointer"
         [class]="
           currentStatus() === opt.value
             ? 'bg-surface font-medium shadow-sm'

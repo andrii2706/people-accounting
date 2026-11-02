@@ -1,13 +1,22 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
 import type { EntityManager, Repository } from 'typeorm';
-import type { AuthUser } from '../common/auth.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
+import type { AuditAction } from '../shared/interfaces/common.interface.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 /** Fields whose values are never written to the audit log in plain text. */
 const SENSITIVE = new Set([
-  'rnokpp', 'passportSeries', 'passportNumber', 'foreignPassportSeries', 'foreignPassportNumber',
-  'militaryDocNumber', 'militaryDocuments', 'registryNumber', 'passwordHash', 'password',
+  'rnokpp',
+  'passportSeries',
+  'passportNumber',
+  'foreignPassportSeries',
+  'foreignPassportNumber',
+  'militaryDocNumber',
+  'militaryDocuments',
+  'registryNumber',
+  'passwordHash',
+  'password',
 ]);
 
 export const NIL_UUID = '00000000-0000-0000-0000-000000000000';
@@ -23,10 +32,6 @@ export function maskDiff(diff: Record<string, [unknown, unknown]>): Record<strin
   for (const [k, [a, b]] of Object.entries(diff)) out[k] = SENSITIVE.has(k) ? [mask(a), mask(b)] : [a, b];
   return out;
 }
-
-export type AuditAction =
-  | 'CREATE' | 'UPDATE' | 'DELETE' | 'DISMISS' | 'VIEW' | 'EXPORT' | 'SEND' | 'SIGN'
-  | 'LOGIN' | 'LOGIN_FAILED' | 'LOCKED' | 'LOGOUT' | 'PASSWORD_CHANGED' | 'PASSWORD_RESET' | 'USER_UPDATED';
 
 /** Audit log of actions with personal data: who viewed / changed / exported what and when. */
 @Injectable()

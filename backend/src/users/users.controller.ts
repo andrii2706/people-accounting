@@ -1,9 +1,10 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { type AuthUser, CurrentUser, Roles } from '../common/auth.js';
+import { CurrentUser, Roles } from '../common/auth.js';
 import { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { UsersService } from './users.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('users')
 @Roles('ADMIN')
@@ -29,7 +30,13 @@ export class UsersController {
   @Patch(':id')
   async update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateUserDto, @CurrentUser() actor: AuthUser) {
     const user = await this.users.update(id, dto, actor.id);
-    await this.audit.log('user', id, 'USER_UPDATED', Object.fromEntries(Object.entries(dto).map(([k, v]) => [k, [null, v]])), actor);
+    await this.audit.log(
+      'user',
+      id,
+      'USER_UPDATED',
+      Object.fromEntries(Object.entries(dto).map(([k, v]) => [k, [null, v]])),
+      actor,
+    );
     return user;
   }
 

@@ -1,5 +1,10 @@
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { inject, Injectable, PLATFORM_ID } from '@angular/core';
+import type {
+  EndUserCertificate,
+  EndUserInstance,
+  EndUserConstructor,
+} from '../interfaces/signature.interface';
 
 /**
  * Adapter for the IIT signing widget («Віджет підпису», eusign.js library).
@@ -17,36 +22,6 @@ import { inject, Injectable, PLATFORM_ID } from '@angular/core';
  * ⚠️ The widget API belongs to IIT and may change between versions — when updating, check
  * the constant names (EndUser.FormType / SignAlgo / SignType) in the documentation of the new version.
  */
-
-/** Minimal description of the EndUser API from eusign.js that we use. */
-interface EndUserCertificate {
-  infoEx?: { publicKeyType?: number; keyUsageType?: number };
-}
-interface EndUserInstance {
-  ReadPrivateKey(): Promise<EndUserCertificate[]>;
-  SignData(
-    data: Uint8Array,
-    external: boolean,
-    asBase64String: boolean,
-    signAlgo?: number,
-    previousSign?: string | null,
-    signType?: number,
-  ): Promise<string>;
-  ResetPrivateKey?(): Promise<void>;
-  destroy?(): void;
-}
-interface EndUserConstructor {
-  new (
-    parentId: string,
-    id: string,
-    src: string,
-    formType: number,
-    formParams?: unknown,
-  ): EndUserInstance;
-  FormType?: Record<string, number>;
-  SignAlgo?: Record<string, number>;
-  SignType?: Record<string, number>;
-}
 
 /** Public key types in a certificate (EU_CERT_KEY_TYPE_*). */
 const KEY_TYPE = { DSTU4145: 1, RSA: 2, ECDSA: 4 } as const;

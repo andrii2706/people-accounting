@@ -36,3 +36,10 @@ export interface ImportResult {
   created: number;
   ids: string[];
 }
+
+export type ImportFieldKind =
+  'text' | 'date' | 'gender' | 'rank' | 'tck' | 'passportType' | 'bool' | 'docType';
+
+export type ImportRowStatus = 'ready' | 'error' | 'duplicate';
+
+export type ImportRowFilter = 'all' | ImportRowStatus;

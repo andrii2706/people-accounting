@@ -24,7 +24,6 @@ export class EmployeeEducation {
   @Column({ type: 'varchar', length: 100, default: '' })
   level: string;
 
-  /** Educational institution. */
   @Column({ type: 'varchar', length: 300, default: '' })
   institution: string;
 

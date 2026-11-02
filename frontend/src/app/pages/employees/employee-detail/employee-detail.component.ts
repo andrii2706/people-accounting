@@ -18,11 +18,7 @@ import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
-
-interface InfoRow {
-  label: string;
-  value: string;
-}
+import type { InfoRow } from '../../../shared/interfaces/ui.interface';
 
 @Component({
   selector: 'app-employee-detail',

@@ -60,7 +60,6 @@
     </aside>
   </section>
 } @else {
-  <!-- summary and filters -->
   <section class="card mb-4 flex flex-wrap items-center gap-3 p-4">
     <div class="mr-auto min-w-0">
       <p class="truncate font-medium">{{ preview()?.fileName }}</p>
@@ -84,7 +83,7 @@
         <button
           type="button"
           role="tab"
-          class="rounded-lg border px-3 py-1.5 text-sm"
+          class="rounded-lg border px-3 py-1.5 text-sm cursor-pointer"
           [attr.aria-selected]="filter() === f.value"
           [class]="
             filter() === f.value
@@ -97,7 +96,7 @@
         </button>
       }
     </div>
-    <button type="button" class="btn btn-ghost" (click)="reset()">Інший файл</button>
+    <button type="button" class="btn btn-ghost cursor-pointer" (click)="reset()">Інший файл</button>
   </section>
 
   <details class="card mb-4 p-4 text-sm">
@@ -119,7 +118,6 @@
     }
   </details>
 
-  <!-- rows -->
   <section class="card mb-24 overflow-hidden">
     <div class="overflow-x-auto">
       <table class="table-base text-sm">
@@ -211,7 +209,7 @@
               <td>
                 <button
                   type="button"
-                  class="btn btn-ghost px-2"
+                  class="btn btn-ghost px-2 cursor-pointer"
                   [attr.aria-expanded]="expanded() === row.rowNumber"
                   [attr.aria-label]="'Редагувати рядок ' + row.rowNumber"
                   (click)="toggleExpanded(row)"
@@ -374,7 +372,6 @@
     </div>
   </section>
 
-  <!-- action bar -->
   <div
     class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur lg:pl-[88px] xl:pl-[272px]"
   >
@@ -395,13 +392,13 @@
       </label>
       @if (dirty()) {
         <span class="text-sm text-warning">Є зміни — перевірте ще раз</span>
-        <button type="button" class="btn btn-secondary" [disabled]="busy()" (click)="recheck()">
+        <button type="button" class="btn btn-secondary cursor-pointer" [disabled]="busy()" (click)="recheck()">
           <app-icon name="check" /> Перевірити ще раз
         </button>
       }
       <button
         type="button"
-        class="btn btn-primary"
+        class="btn btn-primary cursor-pointer"
         [disabled]="busy() || dirty() || selectedCount() === 0"
         (click)="commit()"
       >

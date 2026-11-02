@@ -15,10 +15,8 @@ import type { Letter, LetterStatus, LetterType } from '../../../shared/interface
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { LettersService } from '../../../shared/services/letters.service';
 import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
-import {
-  type SelectOption,
-  SelectComponent,
-} from '../../../shared/components/select/select.component';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import type { SelectOption } from '../../../shared/interfaces/ui.interface';
 
 @Component({
   selector: 'app-letter-list',
@@ -37,7 +35,6 @@ export class LetterListComponent {
   protected readonly lettersService = inject(LettersService);
   private readonly updateQuery = injectQueryParamsUpdate();
 
-  /** Data from letterListResolver. */
   readonly letters = input.required<Letter[]>();
   /** Filters from query parameters (?type=…&status=…). */
   readonly type = input<LetterType | '', LetterType | '' | undefined>('', {

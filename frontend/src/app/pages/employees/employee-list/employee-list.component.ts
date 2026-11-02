@@ -15,18 +15,17 @@ import { GroupBadgeComponent } from '../../../shared/components/group-badge/grou
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { WarningsListComponent } from '../../../shared/components/warnings-list/warnings-list.component';
-import type { EmployeeList } from '../../../shared/interfaces/employee.interface';
+import type {
+  EmployeeList,
+  EmployeeStatusFilter,
+} from '../../../shared/interfaces/employee.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
-import {
-  type SelectOption,
-  SelectComponent,
-} from '../../../shared/components/select/select.component';
-
-type StatusFilter = 'active' | 'dismissed' | 'all';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import type { SelectOption } from '../../../shared/interfaces/ui.interface';
 
 /**
  * Employee list. Data comes from employeeListResolver, filters live in URL query parameters:
@@ -53,25 +52,25 @@ export class EmployeeListComponent {
   private readonly updateQuery = injectQueryParamsUpdate();
   protected readonly isLoading = inject(NavigationStateService).isNavigating;
 
-  /** Data from the resolver. */
   readonly list = input.required<EmployeeList>();
 
-  /** Filters from query parameters. */
   readonly search = input<string, string | undefined>('', { transform: orEmpty });
-  readonly status = input<StatusFilter | '', StatusFilter | '' | undefined>('', {
+  readonly status = input<EmployeeStatusFilter | '', EmployeeStatusFilter | '' | undefined>('', {
     transform: (v) => v ?? '',
   });
   readonly group = input<string, string | undefined>('', { transform: orEmpty });
   readonly category = input<string, string | undefined>('', { transform: orEmpty });
   readonly warnings = input<string, string | undefined>('', { transform: orEmpty });
 
-  protected readonly statusOptions: { value: StatusFilter; label: string }[] = [
+  protected readonly statusOptions: { value: EmployeeStatusFilter; label: string }[] = [
     { value: 'active', label: 'Працюють' },
     { value: 'dismissed', label: 'Звільнені' },
     { value: 'all', label: 'Усі' },
   ];
 
-  protected readonly currentStatus = computed<StatusFilter>(() => this.status() || 'active');
+  protected readonly currentStatus = computed<EmployeeStatusFilter>(
+    () => this.status() || 'active',
+  );
   protected readonly onlyWarnings = computed(() => this.warnings() === '1');
 
   /** Search box text — local; it reaches the URL with a debounce. */
@@ -95,7 +94,7 @@ export class EmployeeListComponent {
       });
   }
 
-  protected setStatus(status: StatusFilter) {
+  protected setStatus(status: EmployeeStatusFilter) {
     void this.updateQuery({ status: status === 'active' ? '' : status });
   }
 

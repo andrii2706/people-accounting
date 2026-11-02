@@ -1,0 +1,2 @@
+# Formats and lints only the staged files (a few seconds).
+npx lint-staged

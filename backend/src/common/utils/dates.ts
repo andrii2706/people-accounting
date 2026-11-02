@@ -1,5 +1,4 @@
-/** Dates in the API are stored as ISO strings `YYYY-MM-DD` — without time zones. */
-export type IsoDate = string;
+import type { IsoDate } from '../../shared/interfaces/common.interface.js';
 
 export function todayIso(): IsoDate {
   const now = new Date();
@@ -50,8 +49,18 @@ export function daysBetween(from: IsoDate, to: IsoDate): number {
 }
 
 const MONTHS_GENITIVE = [
-  'січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
-  'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня',
+  'січня',
+  'лютого',
+  'березня',
+  'квітня',
+  'травня',
+  'червня',
+  'липня',
+  'серпня',
+  'вересня',
+  'жовтня',
+  'листопада',
+  'грудня',
 ];
 
 /** "6 вересня 2026" — as in the operational report (OCL!L8). */

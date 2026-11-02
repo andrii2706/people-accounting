@@ -7,13 +7,10 @@ import type {
   Organization,
   OrganizationHead,
   ResponsiblePerson,
+  TckImportItem,
 } from '../interfaces/organization.interface';
 import type { Tck } from '../interfaces/dictionary.interface';
 
-export type TckImportItem = Pick<Tck, 'name'> &
-  Partial<Pick<Tck, 'nameGenitive' | 'address' | 'postalCode' | 'phone' | 'email'>>;
-
-/** Company details and persons responsible for military registration. */
 @Injectable({ providedIn: 'root' })
 export class OrganizationService {
   private readonly http = inject(HttpClient);

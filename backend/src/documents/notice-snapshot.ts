@@ -4,26 +4,7 @@
 import type { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import type { Employee } from '../employees/entities/employee.entity.js';
 import { actualAddressText, fullName, militaryDocText, rankText } from '../military/employee-format.js';
-
-export interface NoticeSnapshot {
-  lastName: string;
-  firstName: string;
-  middleName: string;
-  gender: 'M' | 'F';
-  birthDate: string | null;
-  registryNumber: string;
-  militaryDoc: string;
-  vos: string;
-  rank: string;
-  conscript: boolean;
-  tckName: string;
-  registeredAddress: string;
-  actualAddress: string;
-  /** Item 7 — human-readable description of the change. */
-  change: string;
-  /** Item 8 — grounds for the change. */
-  basis: string;
-}
+import type { NoticeSnapshot } from '../shared/interfaces/document.interface.js';
 
 /** Item 7 of the notice: text of the change (the wording follows the Excel template). */
 export function changeDescription(c: Pick<EmployeeChange, 'type' | 'newValue'>, gender: 'M' | 'F'): string {
@@ -84,7 +65,10 @@ export function changeDescription(c: Pick<EmployeeChange, 'type' | 'newValue'>, 
  * Snapshot for one notice. Hiring and dismissal are separate notices; all other changes of
  * the person are combined into one notice «зміна облікових даних» (several lines in item 7).
  */
-export function noticeSnapshot(e: Employee, changes: Pick<EmployeeChange, 'type' | 'newValue' | 'basis'>[]): NoticeSnapshot {
+export function noticeSnapshot(
+  e: Employee,
+  changes: Pick<EmployeeChange, 'type' | 'newValue' | 'basis'>[],
+): NoticeSnapshot {
   return {
     lastName: e.lastName,
     firstName: e.firstName,

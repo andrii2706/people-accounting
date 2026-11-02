@@ -18,7 +18,6 @@ import {
   validate,
 } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
-import type { OrganizationSettingsData } from '../resolvers/settings.resolvers';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
@@ -26,14 +25,14 @@ import type { Tck } from '../../../shared/interfaces/dictionary.interface';
 import type {
   NotificationStatus,
   Organization,
+  TckImportItem,
+  OrganizationExtraForm,
+  OrganizationSettingsData,
 } from '../../../shared/interfaces/organization.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { AuthService } from '../../../shared/services/auth.service';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
-import {
-  OrganizationService,
-  type TckImportItem,
-} from '../../../shared/services/organization.service';
+import { OrganizationService } from '../../../shared/services/organization.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
@@ -56,14 +55,6 @@ const EMPTY_ORG: Organization = {
   alertDays: 30,
   notifyDeadlineDays: 7,
 };
-
-interface ExtraModel {
-  reservationQuota: string;
-  reservationQuotaBasis: string;
-  mobilizationUntil: string;
-  mobilizationDecree: string;
-  notifyEmails: string;
-}
 
 @Component({
   selector: 'app-organization-settings',
@@ -100,7 +91,6 @@ export class OrganizationSettingsComponent {
   /** Status of e-mail and the mobilization term; refreshed after «Перевірити укази». */
   protected readonly status = linkedSignal<NotificationStatus>(() => this.settings().status);
 
-  // ---------- company details
   protected readonly orgModel = linkedSignal<Organization>(() => ({
     ...EMPTY_ORG,
     ...this.settings().organization,
@@ -156,7 +146,6 @@ export class OrganizationSettingsComponent {
     });
   }
 
-  // ---------- responsible persons
   protected readonly personModel = signal({
     fullName: '',
     position: '',
@@ -212,7 +201,6 @@ export class OrganizationSettingsComponent {
     }
   }
 
-  // ---------- head (director) history
   private emptyHead() {
     return { position: 'Директор', fullName: '', orderNumber: '', validFrom: todayIso() };
   }
@@ -251,8 +239,7 @@ export class OrganizationSettingsComponent {
     }
   }
 
-  // ---------- reservation quota, mobilization, e-mail
-  protected readonly extraModel = linkedSignal<ExtraModel>(() => {
+  protected readonly extraModel = linkedSignal<OrganizationExtraForm>(() => {
     const o = this.settings().organization;
     return {
       reservationQuota: o.reservationQuota == null ? '' : String(o.reservationQuota),
@@ -283,7 +270,7 @@ export class OrganizationSettingsComponent {
   });
   protected readonly savingExtra = signal(false);
 
-  private async saveExtra(fields: (keyof ExtraModel)[], ok: string) {
+  private async saveExtra(fields: (keyof OrganizationExtraForm)[], ok: string) {
     const f = this.extraForm;
     for (const k of fields) f[k]().markAsTouched();
     if (fields.some((k) => f[k]().invalid())) return;
@@ -359,7 +346,7 @@ export class OrganizationSettingsComponent {
     }
   }
 
-  // ---------- TCK import (file from `npm run tck:export`)
+  // TCK import file is produced by `npm run tck:export`
   protected readonly tckImport = signal<{ file: string; items: TckImportItem[] } | null>(null);
   protected readonly importingTck = signal(false);
 
@@ -410,7 +397,6 @@ export class OrganizationSettingsComponent {
     }
   }
 
-  // ---------- TCK directory
   protected readonly tckFilter = signal('');
   protected readonly tcks = computed(() => {
     const q = this.tckFilter().toLowerCase();

@@ -25,8 +25,14 @@ export class NotificationsService {
   }
 
   async recipients(): Promise<string[]> {
-    const [users, org] = await Promise.all([this.users.find({ where: { isActive: true, notify: true } }), this.org.findOneBy({ id: 1 })]);
-    const extra = (org?.notifyEmails ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+    const [users, org] = await Promise.all([
+      this.users.find({ where: { isActive: true, notify: true } }),
+      this.org.findOneBy({ id: 1 }),
+    ]);
+    const extra = (org?.notifyEmails ?? '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter(Boolean);
     return [...users.map((u) => u.email), ...extra];
   }
 
@@ -50,18 +56,26 @@ export class NotificationsService {
     }
   }
 
-  /** Has this reminder already been sent? */
   async wasSent(kind: string, refId: string, refDate: string) {
     return this.log.existsBy({ kind, refId, refDate });
   }
 
   async markSent(kind: string, refs: { refId: string; refDate: string }[], recipients: number) {
     if (!refs.length) return;
-    await this.log.createQueryBuilder().insert().values(refs.map((r) => ({ kind, ...r, recipients }))).orIgnore().execute();
+    await this.log
+      .createQueryBuilder()
+      .insert()
+      .values(refs.map((r) => ({ kind, ...r, recipients })))
+      .orIgnore()
+      .execute();
   }
 
   /** Test letter to one address (Settings → «Перевірити пошту»). */
   async test(email: string) {
-    return this.mail.send([email], 'Перевірка пошти — військовий облік', 'Якщо ви читаєте цей лист — сповіщення на пошту працюють.');
+    return this.mail.send(
+      [email],
+      'Перевірка пошти — військовий облік',
+      'Якщо ви читаєте цей лист — сповіщення на пошту працюють.',
+    );
   }
 }

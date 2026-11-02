@@ -10,7 +10,11 @@ import { ChangeNoticesController, LettersController } from './letters.controller
 import { LettersService } from './letters.service.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([OutgoingLetter, LetterSignature, ChangeNotice, Tck]), EmployeesModule, ReportsModule],
+  imports: [
+    TypeOrmModule.forFeature([OutgoingLetter, LetterSignature, ChangeNotice, Tck]),
+    EmployeesModule,
+    ReportsModule,
+  ],
   controllers: [LettersController, ChangeNoticesController],
   providers: [LettersService],
   exports: [LettersService],

@@ -1,27 +1,9 @@
+import type { CompositionKey, RankDef } from '../shared/interfaces/dictionary.interface.js';
+
 /**
- * Dictionary of military ranks.
  * Taken from sheet EDU_TCK (columns M/N/O/Q) of the file new_military_list v8.6.
  * code 0 — conscript (no rank).
  */
-export type CompositionKey =
-  | 'CONSCRIPT'
-  | 'PRIVATE'
-  | 'JUNIOR_NCO'
-  | 'SENIOR_NCO'
-  | 'HIGHER_NCO'
-  | 'JUNIOR_OFFICER'
-  | 'SENIOR_OFFICER'
-  | 'HIGHER_OFFICER';
-
-export interface RankDef {
-  code: number;
-  army: string;
-  navy: string;
-  /** Age limit for staying on military registration (EDU_TCK!Q). */
-  ageLimit: number;
-  composition: CompositionKey;
-}
-
 export const RANKS: readonly RankDef[] = [
   { code: 0, army: 'призовник', navy: 'призовник', ageLimit: 60, composition: 'CONSCRIPT' },
   { code: 1, army: 'рекрут', navy: 'рекрут', ageLimit: 60, composition: 'PRIVATE' },
@@ -33,8 +15,20 @@ export const RANKS: readonly RankDef[] = [
   { code: 7, army: 'головний сержант', navy: 'головний корабельний старшина', ageLimit: 60, composition: 'SENIOR_NCO' },
   { code: 8, army: 'штаб-сержант', navy: 'штаб-старшина', ageLimit: 60, composition: 'SENIOR_NCO' },
   { code: 9, army: 'майстер-сержант', navy: 'майстер-старшина', ageLimit: 60, composition: 'HIGHER_NCO' },
-  { code: 10, army: 'старший майстер-сержант', navy: 'старший майстер-старшина', ageLimit: 60, composition: 'HIGHER_NCO' },
-  { code: 11, army: 'головний майстер-сержант', navy: 'головний майстер-старшина', ageLimit: 60, composition: 'HIGHER_NCO' },
+  {
+    code: 10,
+    army: 'старший майстер-сержант',
+    navy: 'старший майстер-старшина',
+    ageLimit: 60,
+    composition: 'HIGHER_NCO',
+  },
+  {
+    code: 11,
+    army: 'головний майстер-сержант',
+    navy: 'головний майстер-старшина',
+    ageLimit: 60,
+    composition: 'HIGHER_NCO',
+  },
   { code: 12, army: 'молодший лейтенант', navy: 'молодший лейтенант', ageLimit: 60, composition: 'JUNIOR_OFFICER' },
   { code: 13, army: 'лейтенант', navy: 'лейтенант', ageLimit: 60, composition: 'JUNIOR_OFFICER' },
   { code: 14, army: 'старший лейтенант', navy: 'старший лейтенант', ageLimit: 60, composition: 'JUNIOR_OFFICER' },

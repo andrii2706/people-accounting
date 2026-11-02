@@ -153,6 +153,22 @@ frontend/src/app
 | `CSP_FRAME_SRC` | https://eu.iit.com.ua | дозволені фрейми (віджет КЕП) |
 | `ALLOWED_CLIENT_CIDRS` | — | доступ лише з цих мереж (офіс/VPN) |
 
+## Перевірки, тести й git-хуки
+
+Один раз у корені репозиторію: `npm install` — встановить husky і lint-staged та підключить хуки.
+
+| Коли | Що перевіряється |
+|---|---|
+| `git commit` (pre-commit) | prettier і oxlint лише для змінених файлів — кілька секунд |
+| `git push` (pre-push) | те саме, що в CI, лише для частин, які змінились: бекенд — типи, lint, тести; фронтенд — форматування, тести, збірка |
+| CI (GitHub Actions) | усе разом + міграції на чистій БД; Deploy API не запускається, якщо впали перевірки |
+
+Команди: `npm run check` (усе), `npm run check:backend`, `npm run check:frontend`;
+у `frontend/` — `npm test` (watch) і `npm run test:ci`; у `backend/` — `npm test`, `npm run typecheck`.
+У крайньому разі хук можна пропустити: `git push --no-verify`.
+
+Типи й інтерфейси лежать в одному місці: `frontend/src/app/shared/interfaces/` і `backend/src/shared/interfaces/`.
+
 ## Міграції
 ```bash
 cd backend

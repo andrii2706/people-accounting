@@ -2,18 +2,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
-import { IconComponent, type IconName } from '../../shared/components/icon/icon.component';
+import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AuthService } from '../../shared/services/auth.service';
 import { EmployeesService } from '../../shared/services/employees.service';
 import { NavigationStateService } from '../../shared/services/navigation-state.service';
-
-interface NavItem {
-  path: string;
-  label: string;
-  icon: IconName;
-  exact?: boolean;
-  adminOnly?: boolean;
-}
+import type { IconName, NavItem } from '../../shared/interfaces/ui.interface';
 
 @Component({
   selector: 'app-shell',

@@ -17,22 +17,11 @@ import {
   VerticalAlign,
   WidthType,
 } from 'docx';
+import type { TextOpts, CellSpec, PageMargins } from '../shared/interfaces/document.interface.js';
 
 export const FONT = 'Times New Roman';
 /** Font size in points. */
 const pt = (size: number) => size * 2;
-
-export interface TextOpts {
-  size?: number;
-  bold?: boolean;
-  italics?: boolean;
-  underline?: boolean;
-  align?: 'left' | 'center' | 'right' | 'justify';
-  indent?: number;
-  spacingAfter?: number;
-  spacingBefore?: number;
-  keepNext?: boolean;
-}
 
 const ALIGN = {
   left: AlignmentType.LEFT,
@@ -42,17 +31,21 @@ const ALIGN = {
 } as const;
 
 export function p(text: string | TextRun[], opts: TextOpts = {}): Paragraph {
-  const runs = typeof text === 'string'
-    ? text.split('\n').map((line, i) => new TextRun({
-        text: line,
-        break: i > 0 ? 1 : undefined,
-        bold: opts.bold,
-        italics: opts.italics,
-        underline: opts.underline ? {} : undefined,
-        size: pt(opts.size ?? 12),
-        font: FONT,
-      }))
-    : text;
+  const runs =
+    typeof text === 'string'
+      ? text.split('\n').map(
+          (line, i) =>
+            new TextRun({
+              text: line,
+              break: i > 0 ? 1 : undefined,
+              bold: opts.bold,
+              italics: opts.italics,
+              underline: opts.underline ? {} : undefined,
+              size: pt(opts.size ?? 12),
+              font: FONT,
+            }),
+        )
+      : text;
   return new Paragraph({
     children: runs,
     alignment: ALIGN[opts.align ?? 'left'],
@@ -89,16 +82,6 @@ export function pageBreak(): Paragraph {
 const NO_BORDER = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
 const THIN = { style: BorderStyle.SINGLE, size: 4, color: '000000' };
 
-export interface CellSpec {
-  text: string;
-  bold?: boolean;
-  align?: TextOpts['align'];
-  size?: number;
-  colSpan?: number;
-  /** Keep this row on the same page as the next one (e.g. two-tier records). */
-  keepNext?: boolean;
-}
-
 /** Table with borders. widths — in twips (1 cm ≈ 567). */
 export function table(
   header: (string | CellSpec)[][],
@@ -106,19 +89,29 @@ export function table(
   widths: number[],
   opts: { size?: number; headerSize?: number; borders?: boolean } = {},
 ): Table {
-  const borders = opts.borders === false
-    ? { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER }
-    : { top: THIN, bottom: THIN, left: THIN, right: THIN, insideHorizontal: THIN, insideVertical: THIN };
+  const borders =
+    opts.borders === false
+      ? {
+          top: NO_BORDER,
+          bottom: NO_BORDER,
+          left: NO_BORDER,
+          right: NO_BORDER,
+          insideHorizontal: NO_BORDER,
+          insideVertical: NO_BORDER,
+        }
+      : { top: THIN, bottom: THIN, left: THIN, right: THIN, insideHorizontal: THIN, insideVertical: THIN };
 
   const mkCell = (spec: string | CellSpec, width: number, isHeader: boolean) => {
     const s: CellSpec = typeof spec === 'string' ? { text: spec } : spec;
     return new TableCell({
-      children: [p(s.text ?? '', {
-        size: s.size ?? (isHeader ? opts.headerSize ?? 9 : opts.size ?? 9),
-        bold: s.bold ?? false,
-        align: s.align ?? (isHeader ? 'center' : 'left'),
-        keepNext: s.keepNext,
-      })],
+      children: [
+        p(s.text ?? '', {
+          size: s.size ?? (isHeader ? (opts.headerSize ?? 9) : (opts.size ?? 9)),
+          bold: s.bold ?? false,
+          align: s.align ?? (isHeader ? 'center' : 'left'),
+          keepNext: s.keepNext,
+        }),
+      ],
       width: { size: width, type: WidthType.DXA },
       columnSpan: s.colSpan,
       verticalAlign: isHeader ? VerticalAlign.CENTER : VerticalAlign.TOP,
@@ -132,7 +125,7 @@ export function table(
       tableHeader: isHeader,
       cantSplit: true,
       children: cells.map((c) => {
-        const span = typeof c === 'string' ? 1 : c.colSpan ?? 1;
+        const span = typeof c === 'string' ? 1 : (c.colSpan ?? 1);
         const width = widths.slice(col, col + span).reduce((a, b) => a + b, 0);
         col += span;
         return mkCell(c, width, isHeader);
@@ -152,54 +145,79 @@ export function table(
 /** Borderless row with two columns — for «Відправник / Отримувач», signatures etc. */
 export function twoColumns(left: Paragraph[], right: Paragraph[], widths: [number, number]): Table {
   return new Table({
-    rows: [new TableRow({
-      children: [
-        new TableCell({ children: left, width: { size: widths[0], type: WidthType.DXA } }),
-        new TableCell({ children: right, width: { size: widths[1], type: WidthType.DXA } }),
-      ],
-    })],
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({ children: left, width: { size: widths[0], type: WidthType.DXA } }),
+          new TableCell({ children: right, width: { size: widths[1], type: WidthType.DXA } }),
+        ],
+      }),
+    ],
     width: { size: widths[0] + widths[1], type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
-    borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+    borders: {
+      top: NO_BORDER,
+      bottom: NO_BORDER,
+      left: NO_BORDER,
+      right: NO_BORDER,
+      insideHorizontal: NO_BORDER,
+      insideVertical: NO_BORDER,
+    },
   });
 }
 
 /** Signature block: position — (signature) — initials and surname. */
-export function signature(position: string, name: string, widths: [number, number, number] = [4200, 2400, 3000]): Table {
-  const cell = (children: Paragraph[], width: number) => new TableCell({ children, width: { size: width, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM });
+export function signature(
+  position: string,
+  name: string,
+  widths: [number, number, number] = [4200, 2400, 3000],
+): Table {
+  const cell = (children: Paragraph[], width: number) =>
+    new TableCell({ children, width: { size: width, type: WidthType.DXA }, verticalAlign: VerticalAlign.BOTTOM });
   return new Table({
-    rows: [new TableRow({
-      children: [
-        cell([p(position || '______________________', { size: 12 })], widths[0]),
-        cell([p('______________', { align: 'center' }), hint('(підпис)')], widths[1]),
-        cell([p(name || '______________________', { align: 'right' }), hint('(ініціали та прізвище)', 'right')], widths[2]),
-      ],
-    })],
+    rows: [
+      new TableRow({
+        children: [
+          cell([p(position || '______________________', { size: 12 })], widths[0]),
+          cell([p('______________', { align: 'center' }), hint('(підпис)')], widths[1]),
+          cell(
+            [p(name || '______________________', { align: 'right' }), hint('(ініціали та прізвище)', 'right')],
+            widths[2],
+          ),
+        ],
+      }),
+    ],
     width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
     columnWidths: widths,
     layout: TableLayoutType.FIXED,
-    borders: { top: NO_BORDER, bottom: NO_BORDER, left: NO_BORDER, right: NO_BORDER, insideHorizontal: NO_BORDER, insideVertical: NO_BORDER },
+    borders: {
+      top: NO_BORDER,
+      bottom: NO_BORDER,
+      left: NO_BORDER,
+      right: NO_BORDER,
+      insideHorizontal: NO_BORDER,
+      insideVertical: NO_BORDER,
+    },
   });
 }
 
 export const A4 = { width: 11906, height: 16838 };
 
-export interface PageMargins {
-  top: number;
-  bottom: number;
-  left: number;
-  right: number;
-}
-
 export function section(children: FileChild[], landscape = false, margins?: PageMargins): ISectionOptions {
   return {
     properties: {
       page: {
-        size: { width: A4.width, height: A4.height, orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT },
-        margin: margins ?? (landscape
-          ? { top: 850, bottom: 850, left: 850, right: 850 }
-          : { top: 1134, bottom: 1134, left: 1701, right: 850 }),
+        size: {
+          width: A4.width,
+          height: A4.height,
+          orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+        },
+        margin:
+          margins ??
+          (landscape
+            ? { top: 850, bottom: 850, left: 850, right: 850 }
+            : { top: 1134, bottom: 1134, left: 1701, right: 850 }),
       },
     },
     children,

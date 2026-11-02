@@ -7,17 +7,11 @@ import type {
   Organization,
   OrganizationHead,
   ResponsiblePerson,
+  OrganizationSettingsData,
 } from '../../../shared/interfaces/organization.interface';
 import { OrganizationService } from '../../../shared/services/organization.service';
 import { UsersService } from '../../../shared/services/users.service';
 import { resolveOr } from '../../../shared/utils/router.utils';
-
-export interface OrganizationSettingsData {
-  organization: Organization;
-  responsiblePersons: ResponsiblePerson[];
-  heads: OrganizationHead[];
-  status: NotificationStatus;
-}
 
 /** Several requests of the settings page — in parallel, in one resolver. */
 export const organizationSettingsResolver: ResolveFn<OrganizationSettingsData> = () => {

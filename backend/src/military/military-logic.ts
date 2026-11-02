@@ -1,44 +1,12 @@
 /**
- * Military registration domain logic.
  * Pure functions without DB dependencies — ports of the formulas of the employee card
  * (sheets 01–21, columns FD–GT) and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
-import { addDays, daysBetween, fifthOfNextMonth, fullYears, type IsoDate, yearOf } from '../common/utils/dates.js';
-import {
-  type ChangeType,
-  type DutyCategory,
-  type ListGroup,
-} from './dictionaries.js';
-import { COMPOSITION_LABELS, findRank, OFFICER_MIN_CODE, type RankDef } from './ranks.js';
-
-/** Minimal set of fields needed for the calculations. */
-export interface MilitaryRecord {
-  /** Is on military registration (false — removed/excluded or not subject to registration). */
-  militaryRegistered: boolean;
-  gender: 'M' | 'F';
-  birthDate: IsoDate | null;
-  rankCode: number | null;
-  navy: boolean;
-  hireDate: IsoDate | null;
-  dismissalDate: IsoDate | null;
-  reserveTeamNumber: string | null;
-  mobilizationOrderDate: IsoDate | null;
-  reserved: boolean;
-  reservationBasis: string | null;
-  reservationUntil: IsoDate | null;
-  /** OTHER — reserved by another legal entity: the mark is enough, the term is optional. */
-  reservedBy?: 'COMPANY' | 'OTHER';
-  specialAccountingCertificate: string | null;
-  deferralUntil: IsoDate | null;
-  mobilizedAt: IsoDate | null;
-  demobilizedAt: IsoDate | null;
-  registryNumber: string | null;
-  tckId: string | null;
-  militaryDocNumber: string | null;
-  /** At least one military document is added (even without a number). */
-  hasMilitaryDocument?: boolean;
-  trainingProfile: string | null;
-}
+import { addDays, daysBetween, fifthOfNextMonth, fullYears, yearOf } from '../common/utils/dates.js';
+import { COMPOSITION_LABELS, findRank, OFFICER_MIN_CODE } from './ranks.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { ChangeType, ListGroup, DutyCategory, RankDef } from '../shared/interfaces/dictionary.interface.js';
+import type { MilitaryRecord, OperationalRow, RecordWarning } from '../shared/interfaces/employee.interface.js';
 
 export function isOfficer(r: Pick<MilitaryRecord, 'rankCode'>): boolean {
   return r.rankCode !== null && r.rankCode >= OFFICER_MIN_CODE;
@@ -58,7 +26,6 @@ export function isMobilizedAt(r: MilitaryRecord, date: IsoDate): boolean {
   return !r.demobilizedAt || r.demobilizedAt < r.mobilizedAt || r.demobilizedAt >= date;
 }
 
-/** Is employed by the company on the date. */
 export function isEmployedAt(r: MilitaryRecord, date: IsoDate): boolean {
   if (!r.hireDate || r.hireDate > date) return false;
   return !r.dismissalDate || r.dismissalDate >= date;
@@ -114,9 +81,6 @@ export function listGroup(r: MilitaryRecord): ListGroup | null {
   return reservist ? 'G2R' : 'G2';
 }
 
-/** Row of the operational report (Annex 12): 1.1 / 1.2 / 1.3 / 2. */
-export type OperationalRow = '1.1' | '1.2' | '1.3' | '2';
-
 export function operationalRow(group: ListGroup): OperationalRow {
   switch (group) {
     case 'G1':
@@ -162,14 +126,6 @@ export function compositionLabel(rank: RankDef | undefined): string {
   return rank ? COMPOSITION_LABELS[rank.composition] : '';
 }
 
-export type WarningLevel = 'danger' | 'warning' | 'info';
-
-export interface RecordWarning {
-  code: string;
-  level: WarningLevel;
-  message: string;
-}
-
 const uaDate = (iso: IsoDate) => iso.split('-').reverse().join('.');
 
 /** «сьогодні», «через 1 день», «через 3 дні», «через 12 днів». */
@@ -177,7 +133,8 @@ function inDays(n: number): string {
   if (n === 0) return 'сьогодні';
   const mod10 = n % 10;
   const mod100 = n % 100;
-  const word = mod10 === 1 && mod100 !== 11 ? 'день' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'дні' : 'днів';
+  const word =
+    mod10 === 1 && mod100 !== 11 ? 'день' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'дні' : 'днів';
   return `через ${n} ${word}`;
 }
 
@@ -194,14 +151,16 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
     warnings.push({
       code: 'NO_RANK',
       level: 'warning',
-      message: 'Не вказано військове звання. Оберіть звання (або «призовник») у картці на вкладці «Військово-облікові дані».',
+      message:
+        'Не вказано військове звання. Оберіть звання (або «призовник») у картці на вкладці «Військово-облікові дані».',
     });
   }
   if (!r.registryNumber) {
     warnings.push({
       code: 'NO_REGISTRY',
       level: 'info',
-      message: 'Не вказано номер у реєстрі «Оберіг» — його видно в застосунку Резерв+ або у військово-обліковому документі.',
+      message:
+        'Не вказано номер у реєстрі «Оберіг» — його видно в застосунку Резерв+ або у військово-обліковому документі.',
     });
   }
   if (!r.tckId) {

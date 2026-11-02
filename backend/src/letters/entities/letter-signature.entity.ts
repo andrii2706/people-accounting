@@ -9,29 +9,11 @@ import {
   type Relation,
 } from 'typeorm';
 import { OutgoingLetter } from './outgoing-letter.entity.js';
-
-export type SignatureMethod = 'WIDGET' | 'UPLOAD';
-export type SignatureVerification = 'VALID' | 'DIGEST_MATCH' | 'UNVERIFIED';
-
-/** Summary for one signer in a .p7s file (a file may contain several). */
-export interface SignerSummary {
-  name: string;
-  title: string;
-  organization: string;
-  edrpou: string;
-  /** RNOKPP of the key owner — last 4 digits only. */
-  drfoMasked: string;
-  issuer: string;
-  certificateSerial: string;
-  certificateValidFrom: string;
-  certificateValidTo: string;
-  signingTime: string | null;
-  hasTimestamp: boolean;
-  digestAlgorithm: string;
-  signatureAlgorithm: string;
-  verification: SignatureVerification;
-  notes: string[];
-}
+import type {
+  SignatureMethod,
+  SignerSummary,
+  SignatureVerification,
+} from '../../shared/interfaces/signature.interface.js';
 
 /**
  * Qualified e-signature file (CAdES detached, .p7s) for the frozen document of a letter.

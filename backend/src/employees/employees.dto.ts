@@ -18,12 +18,17 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { IsIsoDate, NotFuture, Rule } from '../common/validators.js';
-import type { ChangeType, FamilyRelation, MaritalStatus } from '../military/dictionaries.js';
-import { MAX_LENGTH, type MaxLengthField, MESSAGE, PATTERN } from '../military/employee-rules.js';
+import { MAX_LENGTH, MESSAGE, PATTERN } from '../military/employee-rules.js';
+import type { MaritalStatus, FamilyRelation, ChangeType } from '../shared/interfaces/dictionary.interface.js';
+import type { MaxLengthField } from '../shared/interfaces/employee.interface.js';
 
 /** Optional string with a length limit, as in the DB column. */
 const Str = (field: MaxLengthField) =>
-  applyDecorators(IsOptional(), IsString({ message: 'Очікується текст' }), MaxLength(MAX_LENGTH[field], { message: MESSAGE.tooLong(MAX_LENGTH[field]) }));
+  applyDecorators(
+    IsOptional(),
+    IsString({ message: 'Очікується текст' }),
+    MaxLength(MAX_LENGTH[field], { message: MESSAGE.tooLong(MAX_LENGTH[field]) }),
+  );
 const DateField = () => applyDecorators(IsOptional(), IsIsoDate({ nullable: true }));
 const PastDate = () => applyDecorators(DateField(), NotFuture());
 const Pattern = (re: RegExp, message: string) => Rule((v: string) => re.test(v), message);
@@ -36,35 +41,58 @@ const rankOf = (dto: Record<string, unknown>) => dto.rankCode as number | null |
 
 export class FamilyMemberDto {
   @IsIn(RELATIONS, { message: 'Невідомий ступінь спорідненості' }) relation: FamilyRelation;
-  @IsString() @IsNotEmpty({ message: 'Вкажіть прізвище' }) @MaxLength(100, { message: MESSAGE.tooLong(100) }) @Pattern(PATTERN.name, MESSAGE.name)
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть прізвище' })
+  @MaxLength(100, { message: MESSAGE.tooLong(100) })
+  @Pattern(PATTERN.name, MESSAGE.name)
   lastName: string;
-  @IsString() @IsNotEmpty({ message: 'Вкажіть ім’я' }) @MaxLength(100, { message: MESSAGE.tooLong(100) }) @Pattern(PATTERN.name, MESSAGE.name)
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть ім’я' })
+  @MaxLength(100, { message: MESSAGE.tooLong(100) })
+  @Pattern(PATTERN.name, MESSAGE.name)
   firstName: string;
-  @IsOptional() @IsString() @MaxLength(100, { message: MESSAGE.tooLong(100) }) @Pattern(PATTERN.name, MESSAGE.name)
+  @IsOptional()
+  @IsString()
+  @MaxLength(100, { message: MESSAGE.tooLong(100) })
+  @Pattern(PATTERN.name, MESSAGE.name)
   middleName?: string;
   @PastDate() birthDate?: string | null;
 }
 
 /** One military registration document (an employee may have several). */
 export class MilitaryDocumentDto {
-  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docType, { message: MESSAGE.tooLong(MAX_LENGTH.docType) })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_LENGTH.docType, { message: MESSAGE.tooLong(MAX_LENGTH.docType) })
   type?: string;
-  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docSeries, { message: MESSAGE.tooLong(MAX_LENGTH.docSeries) }) @Pattern(PATTERN.docSeries, MESSAGE.docSeries)
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_LENGTH.docSeries, { message: MESSAGE.tooLong(MAX_LENGTH.docSeries) })
+  @Pattern(PATTERN.docSeries, MESSAGE.docSeries)
   series?: string;
-  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docNumber, { message: MESSAGE.tooLong(MAX_LENGTH.docNumber) }) @Pattern(PATTERN.docNumber, MESSAGE.docNumber)
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_LENGTH.docNumber, { message: MESSAGE.tooLong(MAX_LENGTH.docNumber) })
+  @Pattern(PATTERN.docNumber, MESSAGE.docNumber)
   number?: string;
-  @IsOptional() @IsString() @MaxLength(MAX_LENGTH.docIssuedBy, { message: MESSAGE.tooLong(MAX_LENGTH.docIssuedBy) })
+  @IsOptional()
+  @IsString()
+  @MaxLength(MAX_LENGTH.docIssuedBy, { message: MESSAGE.tooLong(MAX_LENGTH.docIssuedBy) })
   issuedBy?: string;
   @PastDate() issuedAt?: string | null;
   /** Electronic document: date and time of generation — separate fields. */
   @PastDate() generatedDate?: string | null;
-  @IsOptional() @IsString() @Pattern(PATTERN.docGeneratedTime, MESSAGE.docGeneratedTime)
+  @IsOptional()
+  @IsString()
+  @Pattern(PATTERN.docGeneratedTime, MESSAGE.docGeneratedTime)
   generatedTime?: string;
 }
 
 /** A position in the company (appointment or transfer). */
 export class EmployeePositionDto {
-  @IsString() @IsNotEmpty({ message: 'Вкажіть посаду' }) @MaxLength(MAX_LENGTH.position, { message: MESSAGE.tooLong(MAX_LENGTH.position) })
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть посаду' })
+  @MaxLength(MAX_LENGTH.position, { message: MESSAGE.tooLong(MAX_LENGTH.position) })
   position: string;
   @Str('department') department?: string;
   @DateField() since?: string | null;
@@ -91,11 +119,15 @@ export class CreateEmployeeDto {
   @Str('personnelNumber') personnelNumber?: string;
   @IsIn(['M', 'F'], { message: 'Стать: M або F' }) gender: 'M' | 'F';
 
-  @IsString() @IsNotEmpty({ message: 'Вкажіть прізвище' }) @MaxLength(MAX_LENGTH.lastName, { message: MESSAGE.tooLong(MAX_LENGTH.lastName) })
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть прізвище' })
+  @MaxLength(MAX_LENGTH.lastName, { message: MESSAGE.tooLong(MAX_LENGTH.lastName) })
   @Pattern(PATTERN.name, MESSAGE.name)
   lastName: string;
 
-  @IsString() @IsNotEmpty({ message: 'Вкажіть ім’я' }) @MaxLength(MAX_LENGTH.firstName, { message: MESSAGE.tooLong(MAX_LENGTH.firstName) })
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть ім’я' })
+  @MaxLength(MAX_LENGTH.firstName, { message: MESSAGE.tooLong(MAX_LENGTH.firstName) })
   @Pattern(PATTERN.name, MESSAGE.name)
   firstName: string;
 
@@ -107,15 +139,22 @@ export class CreateEmployeeDto {
   @Str('registeredAddress') registeredAddress?: string;
   @Str('actualAddress') actualAddress?: string;
 
-  // ---- passport: the format depends on the type
-  @IsOptional() @IsIn(['ID_CARD', 'BOOK'], { message: 'Тип паспорта: ID_CARD або BOOK' }) passportType?: 'ID_CARD' | 'BOOK';
+  // passport: the format depends on the type
+  @IsOptional() @IsIn(['ID_CARD', 'BOOK'], { message: 'Тип паспорта: ID_CARD або BOOK' }) passportType?:
+    'ID_CARD' | 'BOOK';
   @Str('passportSeries')
   @Rule((_v: string, dto) => passportType(dto) === 'BOOK', 'У ID-картки серії немає')
-  @Rule((v: string, dto) => passportType(dto) !== 'BOOK' || PATTERN.passportBookSeries.test(v), MESSAGE.passportBookSeries)
+  @Rule(
+    (v: string, dto) => passportType(dto) !== 'BOOK' || PATTERN.passportBookSeries.test(v),
+    MESSAGE.passportBookSeries,
+  )
   passportSeries?: string;
   @Str('passportNumber')
   @Rule((v: string, dto) => passportType(dto) !== 'ID_CARD' || PATTERN.idCardNumber.test(v), MESSAGE.idCardNumber)
-  @Rule((v: string, dto) => passportType(dto) !== 'BOOK' || PATTERN.passportBookNumber.test(v), MESSAGE.passportBookNumber)
+  @Rule(
+    (v: string, dto) => passportType(dto) !== 'BOOK' || PATTERN.passportBookNumber.test(v),
+    MESSAGE.passportBookNumber,
+  )
   passportNumber?: string;
   @Str('passportIssuedBy')
   @Rule((v: string, dto) => passportType(dto) !== 'ID_CARD' || PATTERN.idCardIssuer.test(v), MESSAGE.idCardIssuer)
@@ -127,22 +166,38 @@ export class CreateEmployeeDto {
   @Str('foreignPassportIssuedBy') foreignPassportIssuedBy?: string;
   @PastDate() foreignPassportIssuedAt?: string | null;
   @DateField()
-  @Rule((v: string, dto) => !dto.foreignPassportIssuedAt || v > (dto.foreignPassportIssuedAt as string), 'Має бути пізніше дати видачі')
+  @Rule(
+    (v: string, dto) => !dto.foreignPassportIssuedAt || v > (dto.foreignPassportIssuedAt as string),
+    'Має бути пізніше дати видачі',
+  )
   foreignPassportValidUntil?: string | null;
 
   @Str('educationLevel') educationLevel?: string;
   @Str('educationSpecialty') educationSpecialty?: string;
   @Str('educationDocument') educationDocument?: string;
   @PastDate() educationDocumentDate?: string | null;
-  @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => EmployeeEducationDto)
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => EmployeeEducationDto)
   educations?: EmployeeEducationDto[];
 
   @ApiPropertyOptional({ enum: MARITAL, nullable: true })
-  @IsOptional() @ValidateIf((o: CreateEmployeeDto) => o.maritalStatus !== null) @IsIn(MARITAL, { message: 'Невідомий сімейний стан' })
+  @IsOptional()
+  @ValidateIf((o: CreateEmployeeDto) => o.maritalStatus !== null)
+  @IsIn(MARITAL, { message: 'Невідомий сімейний стан' })
   maritalStatus?: MaritalStatus | null;
 
-  @IsOptional() @IsArray() @ArrayMaxSize(20) @ValidateNested({ each: true }) @Type(() => FamilyMemberDto)
-  @Rule((v: FamilyMemberDto[]) => v.filter((m) => m.relation === 'WIFE' || m.relation === 'HUSBAND').length <= 1, 'Чоловік/дружина може бути лише один')
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => FamilyMemberDto)
+  @Rule(
+    (v: FamilyMemberDto[]) => v.filter((m) => m.relation === 'WIFE' || m.relation === 'HUSBAND').length <= 1,
+    'Чоловік/дружина може бути лише один',
+  )
   familyMembers?: FamilyMemberDto[];
 
   @Str('position') position?: string;
@@ -151,7 +206,11 @@ export class CreateEmployeeDto {
   @DateField()
   @Rule((v: string, dto) => !dto.hireDate || v >= (dto.hireDate as string), 'Раніше за дату прийняття')
   positionSince?: string | null;
-  @IsOptional() @IsArray() @ArrayMaxSize(50) @ValidateNested({ each: true }) @Type(() => EmployeePositionDto)
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => EmployeePositionDto)
   positions?: EmployeePositionDto[];
 
   @DateField() hireDate?: string | null;
@@ -170,36 +229,55 @@ export class CreateEmployeeDto {
   @IsOptional() @IsBoolean() militaryRegistered?: boolean;
   @Str('registryNumber') @Pattern(PATTERN.registryNumber, MESSAGE.registryNumber) registryNumber?: string;
 
-  @IsOptional() @ValidateIf((o: CreateEmployeeDto) => o.rankCode !== null)
-  @IsInt({ message: 'Невідоме звання' }) @Min(0, { message: 'Невідоме звання' }) @Max(22, { message: 'Невідоме звання' })
+  @IsOptional()
+  @ValidateIf((o: CreateEmployeeDto) => o.rankCode !== null)
+  @IsInt({ message: 'Невідоме звання' })
+  @Min(0, { message: 'Невідоме звання' })
+  @Max(22, { message: 'Невідоме звання' })
   rankCode?: number | null;
 
   @IsOptional() @IsBoolean() navy?: boolean;
   @Str('vos')
-  @Rule((v: string, dto) => { const r = rankOf(dto); return r === null || r === undefined || r < 12 || PATTERN.vosOfficer.test(v); }, MESSAGE.vosOfficer)
-  @Rule((v: string, dto) => { const r = rankOf(dto); return r === null || r === undefined || r === 0 || r >= 12 || PATTERN.vosOther.test(v); }, MESSAGE.vosOther)
+  @Rule((v: string, dto) => {
+    const r = rankOf(dto);
+    return r === null || r === undefined || r < 12 || PATTERN.vosOfficer.test(v);
+  }, MESSAGE.vosOfficer)
+  @Rule((v: string, dto) => {
+    const r = rankOf(dto);
+    return r === null || r === undefined || r === 0 || r >= 12 || PATTERN.vosOther.test(v);
+  }, MESSAGE.vosOther)
   vos?: string;
   @Str('trainingProfile') trainingProfile?: string;
-  @Str('accountingCategory') @Pattern(PATTERN.accountingCategory, MESSAGE.accountingCategory) accountingCategory?: string;
-  @IsOptional() @IsArray() @ArrayMaxSize(10) @ValidateNested({ each: true }) @Type(() => MilitaryDocumentDto)
+  @Str('accountingCategory')
+  @Pattern(PATTERN.accountingCategory, MESSAGE.accountingCategory)
+  accountingCategory?: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => MilitaryDocumentDto)
   militaryDocuments?: MilitaryDocumentDto[];
 
   @IsOptional() @IsBoolean() servedInArmy?: boolean;
 
-  @IsOptional() @ValidateIf((o: CreateEmployeeDto) => o.tckId !== null) @IsUUID('all', { message: 'Невідомий ТЦК' })
+  @IsOptional()
+  @ValidateIf((o: CreateEmployeeDto) => o.tckId !== null)
+  @IsUUID('all', { message: 'Невідомий ТЦК' })
   tckId?: string | null;
 
   @PastDate() tckRegisteredAt?: string | null;
   @Str('fitness') fitness?: string;
   @Str('fitnessBasis') fitnessBasis?: string;
   @PastDate() fitnessDate?: string | null;
-  @IsOptional() @IsBoolean({ message: 'Вкажіть, чи заброньований працівник' })
+  @IsOptional()
+  @IsBoolean({ message: 'Вкажіть, чи заброньований працівник' })
   reserved?: boolean;
   @Str('reservationBasis') reservationBasis?: string;
   @Str('specialAccountingCertificate') specialAccountingCertificate?: string;
   @DateField()
   reservationUntil?: string | null;
-  @IsOptional() @IsIn(['COMPANY', 'OTHER'], { message: 'Ким заброньовано: COMPANY або OTHER' })
+  @IsOptional()
+  @IsIn(['COMPANY', 'OTHER'], { message: 'Ким заброньовано: COMPANY або OTHER' })
   reservedBy?: 'COMPANY' | 'OTHER';
   @Str('reservedByName') reservedByName?: string;
   @Str('reservedByEdrpou') @Pattern(PATTERN.edrpou, MESSAGE.edrpou) reservedByEdrpou?: string;
@@ -219,7 +297,9 @@ export class CreateEmployeeDto {
   @Str('readmissionOrder') readmissionOrder?: string;
   @Str('notes') notes?: string;
 
-  @IsOptional() @ValidateNested() @Type(() => ChangeMetaDto)
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ChangeMetaDto)
   changeMeta?: ChangeMetaDto;
 }
 

@@ -14,6 +14,9 @@ import type {
   CheckedImportRow,
   ImportPreview,
   ImportValues,
+  ImportFieldKind,
+  ImportRowStatus,
+  ImportRowFilter,
 } from '../../../shared/interfaces/employee-import.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
@@ -22,10 +25,8 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 
-type FieldKind = 'text' | 'date' | 'gender' | 'rank' | 'tck' | 'passportType' | 'bool' | 'docType';
-
 /** Fields editable on the preview — the most common ones plus any field that came from the file or has an error. */
-const EDIT_FIELDS: { key: string; label: string; kind: FieldKind }[] = [
+const EDIT_FIELDS: { key: string; label: string; kind: ImportFieldKind }[] = [
   { key: 'lastName', label: 'Прізвище', kind: 'text' },
   { key: 'firstName', label: 'Ім’я', kind: 'text' },
   { key: 'middleName', label: 'По батькові', kind: 'text' },
@@ -85,10 +86,7 @@ const ALWAYS = new Set([
   'tckId',
 ]);
 
-type Status = 'ready' | 'error' | 'duplicate';
-type Filter = 'all' | Status;
-
-const statusOf = (r: CheckedImportRow): Status =>
+const statusOf = (r: CheckedImportRow): ImportRowStatus =>
   r.errors.length ? 'error' : r.duplicate ? 'duplicate' : 'ready';
 
 /**
@@ -117,7 +115,7 @@ export class EmployeeImportComponent {
   /** Rows changed after the last check — they must be checked again before the import. */
   protected readonly dirty = signal(false);
   protected readonly expanded = signal<number | null>(null);
-  protected readonly filter = signal<Filter>('all');
+  protected readonly filter = signal<ImportRowFilter>('all');
   protected readonly hireNotices = signal(false);
   /** Selected rows (by row number); by default — every row that is ready. */
   protected readonly selected = linkedSignal<CheckedImportRow[], Set<number>>({
@@ -156,8 +154,6 @@ export class EmployeeImportComponent {
   protected readonly ignored = computed(() =>
     (this.preview()?.mapping ?? []).filter((m) => !m.field),
   );
-
-  // ---------------------------------------------------------------- step 1: file
 
   protected onFile(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -204,8 +200,6 @@ export class EmployeeImportComponent {
     this.preview.set(null);
     this.dirty.set(false);
   }
-
-  // ---------------------------------------------------------------- step 2: review
 
   protected toggle(row: CheckedImportRow, checked: boolean) {
     this.selected.update((s) => {
@@ -295,8 +289,6 @@ export class EmployeeImportComponent {
       this.busy.set(false);
     }
   }
-
-  // ---------------------------------------------------------------- step 3: import
 
   protected async commit() {
     const rows = this.rows().filter(

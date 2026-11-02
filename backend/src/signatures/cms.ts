@@ -17,57 +17,17 @@ import * as asn1js from 'asn1js';
 import gost89 from 'gost89';
 import { createHash, webcrypto } from 'node:crypto';
 import * as pkijs from 'pkijs';
+import type {
+  SignatureVerification,
+  SignerCertificate,
+  ParsedSigner,
+  ParsedSignatureFile,
+} from '../shared/interfaces/signature.interface.js';
 
 pkijs.setEngine('node', new pkijs.CryptoEngine({ name: 'node', crypto: webcrypto as unknown as Crypto }));
 
-export type SignatureVerification =
-  /** The document matches, the signature is cryptographically valid (ECDSA/RSA). */
-  | 'VALID'
-  /** Документ збігається з підписаним (хеш), сам підпис ДСТУ 4145 перевіряється на czo.gov.ua. */
-  | 'DIGEST_MATCH'
-  /** Невідомий алгоритм — сервер не може нічого підтвердити. */
-  | 'UNVERIFIED';
-
-export interface SignerCertificate {
-  commonName: string;
-  surname: string;
-  givenName: string;
-  title: string;
-  organization: string;
-  organizationUnit: string;
-  /** EDRPOU of the organization (from organizationIdentifier or SubjectDirectoryAttributes). */
-  edrpou: string;
-  /** RNOKPP of the key owner — masked only, never stored in full. */
-  drfoMasked: string;
-  locality: string;
-  issuer: string;
-  serialNumber: string;
-  validFrom: Date;
-  validTo: Date;
-  keyAlgorithm: string;
-}
-
-export interface ParsedSigner {
-  digestAlgorithm: string;
-  signatureAlgorithm: string;
-  signingTime: Date | null;
-  hasTimestamp: boolean;
-  certificate: SignerCertificate | null;
-  verification: SignatureVerification;
-  /** Explanations for the user when something is wrong or the check is partial. */
-  notes: string[];
-}
-
-export interface ParsedSignatureFile {
-  /** DER bytes of the signature (normalized even if base64/PEM was uploaded). */
-  der: Buffer;
-  detached: boolean;
-  signers: ParsedSigner[];
-}
-
 export class SignatureFileError extends Error {}
 
-// ---------------------------------------------------------------- OID
 const OID = {
   signedData: '1.2.840.113549.1.7.2',
   messageDigest: '1.2.840.113549.1.9.4',
@@ -114,8 +74,6 @@ function signatureAlgorithmName(oid: string) {
 }
 
 const isInternational = (oid: string) => oid.startsWith('1.2.840.10045') || oid.startsWith('1.2.840.113549.1.1');
-
-// ---------------------------------------------------------------- decoding
 
 /** Accepts DER (.p7s), base64 or PEM — different programs save it differently. */
 export function normalizeSignatureFile(input: Buffer): Buffer {
@@ -229,8 +187,6 @@ function attributeTime(value: unknown): Date | null {
   return null;
 }
 
-// ---------------------------------------------------------------- public API
-
 /**
  * Parses a signature file and checks that it belongs to exactly `document`.
  * Throws SignatureFileError when the signature is for another document or is corrupted.
@@ -241,7 +197,8 @@ export async function parseAndVerifySignature(file: Buffer, document: Buffer): P
   let sd: pkijs.SignedData;
   try {
     const ci = pkijs.ContentInfo.fromBER(new Uint8Array(der));
-    if (ci.contentType !== OID.signedData) throw new SignatureFileError('Файл не містить підписаних даних (SignedData)');
+    if (ci.contentType !== OID.signedData)
+      throw new SignatureFileError('Файл не містить підписаних даних (SignedData)');
     sd = new pkijs.SignedData({ schema: ci.content });
   } catch (err) {
     if (err instanceof SignatureFileError) throw err;
@@ -271,7 +228,7 @@ export async function parseAndVerifySignature(file: Buffer, document: Buffer): P
       attrs.some((a) => a.type === OID.contentTimestamp) ||
       (si.unsignedAttrs?.attributes ?? []).some((a) => a.type === OID.signatureTimestamp);
 
-    // --- 1) was the signature made for our document?
+    // 1) was the signature made for our document?
     const mdAttr = attrs.find((a) => a.type === OID.messageDigest)?.values[0] as asn1js.OctetString | undefined;
     const digest = DIGESTS[digestOid];
     let digestMatches: boolean | null = null;
@@ -290,7 +247,7 @@ export async function parseAndVerifySignature(file: Buffer, document: Buffer): P
       notes.push(`Геш-функція ${KNOWN_UNSUPPORTED_DIGESTS[digestOid] ?? digestOid} не підтримується сервером`);
     }
 
-    // --- 2) cryptographic verification (international algorithms only)
+    // 2) cryptographic verification (international algorithms only)
     let cryptoValid: boolean | null = null;
     if (cert && isInternational(signatureOid) && digestMatches !== null) {
       try {

@@ -3,7 +3,6 @@ import { letterDetailsResolver } from './resolvers/letter-details.resolver';
 import { letterListResolver } from './resolvers/letter-list.resolver';
 import { letterSigningResolver, signingConfigResolver } from './resolvers/letter-signing.resolver';
 
-/** Feature module "Outgoing letters". */
 export const LETTERS_ROUTES: Routes = [
   {
     path: '',

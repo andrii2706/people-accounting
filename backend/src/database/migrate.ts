@@ -10,7 +10,9 @@ async function main() {
   loadEnv(); // configuration check, including encryption keys (needed by data migrations)
   await dataSource.initialize();
   const applied = await dataSource.runMigrations({ transaction: 'each' });
-  console.log(applied.length ? `Застосовано міграцій: ${applied.map((m) => m.name).join(', ')}` : 'Нових міграцій немає');
+  console.log(
+    applied.length ? `Застосовано міграцій: ${applied.map((m) => m.name).join(', ')}` : 'Нових міграцій немає',
+  );
   await dataSource.destroy();
 }
 

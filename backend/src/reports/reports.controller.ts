@@ -1,10 +1,12 @@
 import { BadRequestException, Controller, Get, Query, StreamableFile } from '@nestjs/common';
 import { AuditService, NIL_UUID } from '../audit/audit.service.js';
-import { type AuthUser, CurrentUser } from '../common/auth.js';
+import { CurrentUser } from '../common/auth.js';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { isIsoDate, todayIso } from '../common/utils/dates.js';
-import { type ListGroup, LIST_GROUPS } from '../military/dictionaries.js';
+import { LIST_GROUPS } from '../military/dictionaries.js';
 import { ReportsService } from './reports.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
+import type { ListGroup } from '../shared/interfaces/dictionary.interface.js';
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
@@ -49,9 +51,20 @@ export class ReportsController {
 
   @ApiQuery({ name: 'ids', required: false, description: 'id працівників для витягу через кому' })
   @Get('lists/docx')
-  async listsDocx(@CurrentUser() user: AuthUser, @Query('date') date?: string, @Query('groups') groups?: string, @Query('ids') ids?: string) {
+  async listsDocx(
+    @CurrentUser() user: AuthUser,
+    @Query('date') date?: string,
+    @Query('groups') groups?: string,
+    @Query('ids') ids?: string,
+  ) {
     const d = parseDate(date);
-    await this.audit.log('report', NIL_UUID, 'EXPORT', { lists: [null, `${d} ${groups ?? 'all'}${ids ? ` ids=${ids}` : ''}`] }, user);
+    await this.audit.log(
+      'report',
+      NIL_UUID,
+      'EXPORT',
+      { lists: [null, `${d} ${groups ?? 'all'}${ids ? ` ids=${ids}` : ''}`] },
+      user,
+    );
     const buffer = await this.reports.listsDocx(d, parseGroups(groups), ids?.split(',').filter(Boolean));
     return docxFile(buffer, `${ids ? 'Витяг' : 'Списки'} військового обліку ${d}.docx`);
   }

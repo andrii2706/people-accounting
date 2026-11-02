@@ -11,16 +11,55 @@ process.env.DATABASE_URL ??= 'postgres://test@localhost/test';
 /** Fictitious employee — only the fields the list needs. */
 function employee(overrides: Partial<Employee> = {}): Employee {
   return {
-    id: 'e1', gender: 'M', lastName: 'Тестенко', firstName: 'Тест', middleName: 'Тестович',
-    rnokpp: '1111111111', birthDate: '1990-01-01', registeredAddress: 'м. Львів, вул. Тестова, 1', actualAddress: '',
-    passportType: 'ID_CARD', passportSeries: '', passportNumber: '000000001', passportIssuedBy: '4610', passportIssuedAt: '2020-01-01',
-    position: 'інженер', positionOrder: '', positionSince: null, hireDate: '2020-01-10', hireOrderNumber: '1-к', hireOrderDate: '2020-01-10',
-    dismissalDate: null, dismissalOrderNumber: '', dismissalOrderDate: null, militaryRegistered: true,
-    registryNumber: '0000000001', rankCode: 3, navy: false, vos: '100', trainingProfile: '', accountingCategory: '1',
-    militaryDocType: 'військовий квиток', militaryDocSeries: '', militaryDocNumber: '000001', militaryDocIssuedBy: '', militaryDocIssuedAt: null,
-    militaryDocGeneratedAt: '', tck: { name: 'Тестовий РТЦК та СП' }, tckId: 't1', reservationBasis: '', specialAccountingCertificate: '',
-    reservationUntil: null, deferralConscriptionBasis: '', deferralMobilizationBasis: '', deferralUntil: null, reserveTeamNumber: '',
-    mobilizationOrderDate: null, mobilizedAt: null, demobilizedAt: null, familyMembers: [],
+    id: 'e1',
+    gender: 'M',
+    lastName: 'Тестенко',
+    firstName: 'Тест',
+    middleName: 'Тестович',
+    rnokpp: '1111111111',
+    birthDate: '1990-01-01',
+    registeredAddress: 'м. Львів, вул. Тестова, 1',
+    actualAddress: '',
+    passportType: 'ID_CARD',
+    passportSeries: '',
+    passportNumber: '000000001',
+    passportIssuedBy: '4610',
+    passportIssuedAt: '2020-01-01',
+    position: 'інженер',
+    positionOrder: '',
+    positionSince: null,
+    hireDate: '2020-01-10',
+    hireOrderNumber: '1-к',
+    hireOrderDate: '2020-01-10',
+    dismissalDate: null,
+    dismissalOrderNumber: '',
+    dismissalOrderDate: null,
+    militaryRegistered: true,
+    registryNumber: '0000000001',
+    rankCode: 3,
+    navy: false,
+    vos: '100',
+    trainingProfile: '',
+    accountingCategory: '1',
+    militaryDocType: 'військовий квиток',
+    militaryDocSeries: '',
+    militaryDocNumber: '000001',
+    militaryDocIssuedBy: '',
+    militaryDocIssuedAt: null,
+    militaryDocGeneratedAt: '',
+    tck: { name: 'Тестовий РТЦК та СП' },
+    tckId: 't1',
+    reservationBasis: '',
+    specialAccountingCertificate: '',
+    reservationUntil: null,
+    deferralConscriptionBasis: '',
+    deferralMobilizationBasis: '',
+    deferralUntil: null,
+    reserveTeamNumber: '',
+    mobilizationOrderDate: null,
+    mobilizedAt: null,
+    demobilizedAt: null,
+    familyMembers: [],
     ...overrides,
   } as unknown as Employee;
 }
@@ -57,7 +96,11 @@ describe('Annex 5 personal lists', () => {
   });
 
   it('uses the passport instead of RNOKPP for people who refused the taxpayer number', () => {
-    const cells = personalListCells(employee({ rnokpp: '', passportType: 'BOOK', passportSeries: 'аа', passportNumber: '123456' }), '2026-10-27', '');
+    const cells = personalListCells(
+      employee({ rnokpp: '', passportType: 'BOOK', passportSeries: 'аа', passportNumber: '123456' }),
+      '2026-10-27',
+      '',
+    );
     expect(cells[6]).toBe('АА 123456');
   });
 
@@ -67,7 +110,11 @@ describe('Annex 5 personal lists', () => {
   });
 
   it('adds the actual address when it differs (like the Excel file)', () => {
-    const cells = personalListCells(employee({ registeredAddress: 'м. Львів, вул. А, 1', actualAddress: 'м. Львів, вул. Б, 2' }), '2026-10-27', '');
+    const cells = personalListCells(
+      employee({ registeredAddress: 'м. Львів, вул. А, 1', actualAddress: 'м. Львів, вул. Б, 2' }),
+      '2026-10-27',
+      '',
+    );
     expect(cells[10]).toBe('м. Львів, вул. А, 1/ Фактичне місце проживання - м. Львів, вул. Б, 2');
   });
 });
@@ -90,7 +137,9 @@ describe('labels and wording helpers', () => {
 
 describe('notificationDeadline (Resolution No. 812)', () => {
   it('hire/dismissal — 7 days from the order date', () => {
-    expect(notificationDeadline('HIRE', '2026-07-01', { hireOrderDate: '2026-06-30', dismissalOrderDate: null })).toBe('2026-07-07');
+    expect(notificationDeadline('HIRE', '2026-07-01', { hireOrderDate: '2026-06-30', dismissalOrderDate: null })).toBe(
+      '2026-07-07',
+    );
     expect(notificationDeadline('DISMISSAL', '2026-09-30', null)).toBe('2026-10-07');
   });
   it('other data — by the 5th of the next month', () => {

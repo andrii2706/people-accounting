@@ -11,8 +11,8 @@ import {
 import { encrypted } from '../../common/crypto/field-encryption.js';
 import { EmployeeChange } from '../../employees/entities/employee-change.entity.js';
 import { Employee } from '../../employees/entities/employee.entity.js';
-import type { ChangeType } from '../../military/dictionaries.js';
 import { OutgoingLetter } from './outgoing-letter.entity.js';
+import type { ChangeType } from '../../shared/interfaces/dictionary.interface.js';
 
 /**
  * A single notice about a change of registration data (Annex 4 to the Procedure) sent to the TCK.

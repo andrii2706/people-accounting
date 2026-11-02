@@ -1,8 +1,32 @@
-import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ApiTags, PartialType } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsEmail, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, ValidateIf, ValidateNested } from 'class-validator';
+import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+  ValidateIf,
+  ValidateNested,
+} from 'class-validator';
 import { Repository } from 'typeorm';
 import { AllowPendingPasswordChange, Roles } from '../common/auth.js';
 import {
@@ -20,19 +44,30 @@ import { COMPOSITION_LABELS, RANKS } from '../military/ranks.js';
 import { Tck } from './tck.entity.js';
 
 class CreateTckDto {
-  @IsString() @IsNotEmpty({ message: 'Вкажіть назву' }) @MaxLength(300, { message: 'Не більше 300 символів' }) name: string;
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть назву' })
+  @MaxLength(300, { message: 'Не більше 300 символів' })
+  name: string;
   @IsOptional() @IsString() @MaxLength(300, { message: 'Не більше 300 символів' }) nameGenitive?: string;
   @IsOptional() @IsString() @MaxLength(300, { message: 'Не більше 300 символів' }) address?: string;
   @IsOptional() @Matches(/^(\d{5})?$/, { message: 'Поштовий індекс — 5 цифр' }) postalCode?: string;
   @IsOptional() @IsString() @MaxLength(200, { message: 'Не більше 200 символів' }) phone?: string;
-  @IsOptional() @ValidateIf((o: CreateTckDto) => !!o.email) @IsEmail({}, { message: 'Некоректний email' }) @MaxLength(200) email?: string;
+  @IsOptional()
+  @ValidateIf((o: CreateTckDto) => !!o.email)
+  @IsEmail({}, { message: 'Некоректний email' })
+  @MaxLength(200)
+  email?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 class UpdateTckDto extends PartialType(CreateTckDto) {}
 
 /** TCK directory moved from another database (npm run tck:export → Налаштування → ТЦК → Імпорт). */
 class ImportTckDto {
-  @IsArray() @ArrayMinSize(1) @ArrayMaxSize(2000) @ValidateNested({ each: true }) @Type(() => CreateTckDto)
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(2000)
+  @ValidateNested({ each: true })
+  @Type(() => CreateTckDto)
   items: CreateTckDto[];
 }
 

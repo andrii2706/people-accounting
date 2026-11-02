@@ -6,22 +6,23 @@
  *   «продовжити з 2 серпня 2026 року строк проведення загальної мобілізації на 90 діб».
  * The latest extension wins: mobilization lasts until start + days.
  */
-import { addDays, type IsoDate } from '../common/utils/dates.js';
+import { addDays } from '../common/utils/dates.js';
+import type { MobilizationTerm } from '../shared/interfaces/document.interface.js';
 
 const MONTHS: Record<string, number> = {
-  січня: 1, лютого: 2, березня: 3, квітня: 4, травня: 5, червня: 6,
-  липня: 7, серпня: 8, вересня: 9, жовтня: 10, листопада: 11, грудня: 12,
+  січня: 1,
+  лютого: 2,
+  березня: 3,
+  квітня: 4,
+  травня: 5,
+  червня: 6,
+  липня: 7,
+  серпня: 8,
+  вересня: 9,
+  жовтня: 10,
+  листопада: 11,
+  грудня: 12,
 };
-
-export interface MobilizationTerm {
-  /** Start of the latest extension. */
-  from: IsoDate;
-  days: number;
-  /** Mobilization lasts until this date. */
-  until: IsoDate;
-  /** «№ 597/2026 від 13.07.2026», when the text names the decree. */
-  decree: string;
-}
 
 /** HTML → plain text (tags removed, entities decoded, whitespace collapsed). */
 export function htmlToText(html: string): string {

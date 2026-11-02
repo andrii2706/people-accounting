@@ -12,7 +12,7 @@ describe('employee import — reading values', () => {
   it('recognizes headers from 1C and the template', () => {
     expect(columnForHeader('Ідентифікаційний код')?.field).toBe('rnokpp');
     expect(columnForHeader('Таб. №')?.field).toBe('personnelNumber');
-    expect(columnForHeader('Ім\'я')?.field).toBe('firstName');
+    expect(columnForHeader("Ім'я")?.field).toBe('firstName');
     expect(columnForHeader('Дата прийому')?.field).toBe('hireDate');
     expect(columnForHeader('Якась колонка')).toBeUndefined();
   });
@@ -32,25 +32,60 @@ describe('employee import — reading values', () => {
     const { rows, mapping } = convertRows(
       {
         headers: ['ПІБ', 'Дата народження', 'Паспорт', 'Звання', 'ТЦК', 'Заброньований', 'Невідома'],
-        rows: [{ rowNumber: 5, cells: ['Приклад Петро Іванович', '15.04.1990', 'КС 123456', 'старший солдат запасу', 'Шевченківський РТЦК', 'ні', 'x'] }],
+        rows: [
+          {
+            rowNumber: 5,
+            cells: [
+              'Приклад Петро Іванович',
+              '15.04.1990',
+              'КС 123456',
+              'старший солдат запасу',
+              'Шевченківський РТЦК',
+              'ні',
+              'x',
+            ],
+          },
+        ],
       },
       ctx,
     );
     expect(mapping.find((m) => m.header === 'Невідома')?.field).toBeNull();
     expect(rows[0].issues).toEqual([]);
     expect(rows[0].values).toMatchObject({
-      lastName: 'Приклад', firstName: 'Петро', middleName: 'Іванович', gender: 'M', birthDate: '1990-04-15',
-      passportType: 'BOOK', passportSeries: 'КС', passportNumber: '123456', rankCode: 3, tckId: ctx.tcks[0].id, reserved: false,
+      lastName: 'Приклад',
+      firstName: 'Петро',
+      middleName: 'Іванович',
+      gender: 'M',
+      birthDate: '1990-04-15',
+      passportType: 'BOOK',
+      passportSeries: 'КС',
+      passportNumber: '123456',
+      rankCode: 3,
+      tckId: ctx.tcks[0].id,
+      reserved: false,
     });
   });
 
   it('reports values that cannot be read instead of silently dropping them', () => {
-    const { rows } = convertRows({ headers: ['Прізвище', 'Ім’я', 'Звання', 'Дата народження'], rows: [{ rowNumber: 2, cells: ['Тест', 'Олена', 'генералісимус', '40.01.1990'] }] }, ctx);
+    const { rows } = convertRows(
+      {
+        headers: ['Прізвище', 'Ім’я', 'Звання', 'Дата народження'],
+        rows: [{ rowNumber: 2, cells: ['Тест', 'Олена', 'генералісимус', '40.01.1990'] }],
+      },
+      ctx,
+    );
     expect(rows[0].issues.map((i) => i.field).sort()).toEqual(['birthDate', 'rankCode']);
   });
 
   it('validates with the rules of the employee form', async () => {
-    const errors = await validateValues({ lastName: 'Тест', firstName: 'Олена', gender: 'F', rnokpp: '123', rankCode: 2, reserved: true });
+    const errors = await validateValues({
+      lastName: 'Тест',
+      firstName: 'Олена',
+      gender: 'F',
+      rnokpp: '123',
+      rankCode: 2,
+      reserved: true,
+    });
     const fields = errors.map((e) => e.field).sort();
     // TCK is not required on import — it stays empty when it is not in the directory
     expect(fields).toEqual(['reservationUntil', 'rnokpp']);
@@ -58,21 +93,32 @@ describe('employee import — reading values', () => {
   });
 
   it('takes the TCK from «Ким виданий ВОД»; unknown TCK — empty, without an error', () => {
-    const tcks = { tcks: [
-      { id: 'a', name: 'Личаківсько-Залізничний ОРТЦК та СП (м. Львів)' },
-      { id: 'b', name: 'Сихівський РТЦК та СП (м. Львів)' },
-    ] };
+    const tcks = {
+      tcks: [
+        { id: 'a', name: 'Личаківсько-Залізничний ОРТЦК та СП (м. Львів)' },
+        { id: 'b', name: 'Сихівський РТЦК та СП (м. Львів)' },
+      ],
+    };
     const headers = ['Прізвище', 'Ім’я', 'Ким виданий ВОД', 'ТЦК та СП'];
-    const { rows } = convertRows({ headers, rows: [
-      { rowNumber: 2, cells: ['Тест', 'Іван', 'Личаківсько-Залізничний ОР у місті Львові ТЦК та СП', ''] },
-      { rowNumber: 3, cells: ['Тест', 'Петро', '', 'Сихівський районний у місті Львові ТЦК та СП'] },
-      { rowNumber: 4, cells: ['Тест', 'Олег', 'Невідомий РВК', 'Невідомий ТЦК'] },
-    ] }, tcks);
+    const { rows } = convertRows(
+      {
+        headers,
+        rows: [
+          { rowNumber: 2, cells: ['Тест', 'Іван', 'Личаківсько-Залізничний ОР у місті Львові ТЦК та СП', ''] },
+          { rowNumber: 3, cells: ['Тест', 'Петро', '', 'Сихівський районний у місті Львові ТЦК та СП'] },
+          { rowNumber: 4, cells: ['Тест', 'Олег', 'Невідомий РВК', 'Невідомий ТЦК'] },
+        ],
+      },
+      tcks,
+    );
     expect(rows.map((r) => r.values.tckId)).toEqual(['a', 'b', undefined]);
     expect(rows[2].issues).toEqual([]);
   });
 
   it('parses CSV with quotes and semicolons', () => {
-    expect(parseCsv('a;"b;c";"d ""e"""\n1;2;3', ';')).toEqual([['a', 'b;c', 'd "e"'], ['1', '2', '3']]);
+    expect(parseCsv('a;"b;c";"d ""e"""\n1;2;3', ';')).toEqual([
+      ['a', 'b;c', 'd "e"'],
+      ['1', '2', '3'],
+    ]);
   });
 });

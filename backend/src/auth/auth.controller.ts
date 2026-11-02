@@ -4,12 +4,13 @@ import { Throttle } from '@nestjs/throttler';
 import { IsEmail, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
-import { AllowPendingPasswordChange, type AuthUser, CurrentUser, Public } from '../common/auth.js';
+import { AllowPendingPasswordChange, CurrentUser, Public } from '../common/auth.js';
 import { passwordMessage, passwordProblems } from '../common/password-policy.js';
 import { Rule } from '../common/validators.js';
 import { UpdatePreferencesDto } from '../users/users.dto.js';
 import { UsersService } from '../users/users.service.js';
 import { SessionService } from './session.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 class LoginDto {
   @IsEmail({}, { message: 'Некоректний email' }) @MaxLength(200) email: string;
@@ -18,13 +19,24 @@ class LoginDto {
 
 class ChangePasswordDto {
   @IsString() @MaxLength(200) currentPassword: string;
-  @IsString() @MaxLength(200)
+  @IsString()
+  @MaxLength(200)
   @Rule((v: string) => passwordProblems(v).length === 0, 'Пароль: щонайменше 12 символів, літери й цифри')
   newPassword: string;
 }
 
-const toAuthUser = (u: { id: string; email: string; fullName: string; role: AuthUser['role']; mustChangePassword: boolean }): AuthUser => ({
-  id: u.id, email: u.email, fullName: u.fullName, role: u.role, mustChangePassword: u.mustChangePassword,
+const toAuthUser = (u: {
+  id: string;
+  email: string;
+  fullName: string;
+  role: AuthUser['role'];
+  mustChangePassword: boolean;
+}): AuthUser => ({
+  id: u.id,
+  email: u.email,
+  fullName: u.fullName,
+  role: u.role,
+  mustChangePassword: u.mustChangePassword,
 });
 
 @ApiTags('auth')
@@ -51,7 +63,11 @@ export class AuthController {
     const result = await this.users.verifyCredentials(dto.email, dto.password);
     if (result.status === 'locked') {
       await this.audit.log('auth', result.userId, 'LOCKED', { email: [null, dto.email], ip: [null, ip] });
-      const until = result.lockedUntil.toLocaleTimeString('uk-UA', { timeZone: 'Europe/Kyiv', hour: '2-digit', minute: '2-digit' });
+      const until = result.lockedUntil.toLocaleTimeString('uk-UA', {
+        timeZone: 'Europe/Kyiv',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
       throw new UnauthorizedException(`Забагато невдалих спроб. Вхід заблоковано до ${until}`);
     }
     if (result.status !== 'ok') {
@@ -94,7 +110,11 @@ export class AuthController {
   @AllowPendingPasswordChange()
   @Post('change-password')
   @HttpCode(200)
-  async changePassword(@Body() dto: ChangePasswordDto, @CurrentUser() current: AuthUser, @Res({ passthrough: true }) res: Response) {
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() current: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const problems = passwordProblems(dto.newPassword, current.email);
     if (problems.length) throw new UnauthorizedException(passwordMessage(problems));
     const user = await this.users.changeOwnPassword(current.id, dto.currentPassword, dto.newPassword);

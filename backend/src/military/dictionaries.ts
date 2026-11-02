@@ -1,3 +1,11 @@
+import type {
+  MaritalStatus,
+  FamilyRelation,
+  ChangeType,
+  ListGroup,
+  ListSection,
+  DutyCategory,
+} from '../shared/interfaces/dictionary.interface.js';
 /** Static dictionaries taken from sheet EDU_TCK and the employee card. */
 
 export const EDUCATION_LEVELS = [
@@ -8,8 +16,6 @@ export const EDUCATION_LEVELS = [
   'Базова загальна середня освіта (БЗСО)',
   'Початкова загальна освіта',
 ] as const;
-
-export type MaritalStatus = 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | 'OTHER';
 
 const MARITAL_LABELS: Record<MaritalStatus, { M: string; F: string }> = {
   SINGLE: { M: 'неодружений', F: 'незаміжня' },
@@ -47,45 +53,12 @@ export const FITNESS_STATUSES = [
   'непридатний до військової служби з виключенням з військового обліку',
 ] as const;
 
-export type FamilyRelation = 'HUSBAND' | 'WIFE' | 'SON' | 'DAUGHTER';
-
 export const FAMILY_RELATION_LABELS: Record<FamilyRelation, string> = {
   HUSBAND: 'чоловік',
   WIFE: 'дружина',
   SON: 'син',
   DAUGHTER: 'донька',
 };
-
-/**
- * Types of registration data changes the company notifies the TCK about (employee card, rows 102–114).
- * A notice is one of three kinds: hiring, dismissal, or a change of registration data —
- * all pending data changes of a person go into one notice (type DATA).
- */
-export type ChangeType =
-  | 'LAST_NAME'
-  | 'FIRST_NAME'
-  | 'MIDDLE_NAME'
-  | 'POSITION'
-  | 'REGISTERED_ADDRESS'
-  | 'ACTUAL_ADDRESS'
-  | 'PASSPORT'
-  | 'FOREIGN_PASSPORT'
-  | 'EDUCATION'
-  | 'MARITAL_STATUS'
-  | 'REGISTRY_NUMBER'
-  | 'RANK'
-  | 'VOS'
-  | 'MILITARY_DOC'
-  | 'TCK'
-  | 'FITNESS'
-  | 'MILITARY_SERVICE'
-  | 'DEFERRAL'
-  | 'RESERVATION'
-  | 'RESERVE_SERVICE'
-  | 'MOBILIZATION_ORDER'
-  | 'DATA'
-  | 'HIRE'
-  | 'DISMISSAL';
 
 export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
   LAST_NAME: 'Зміна прізвища',
@@ -114,9 +87,6 @@ export const CHANGE_TYPE_LABELS: Record<ChangeType, string> = {
   DISMISSAL: 'Звільнення з роботи',
 };
 
-/** Groups used for the operational report and statistics (sheets G1…G4R of the Excel file). */
-export type ListGroup = 'G1' | 'G1R' | 'G2' | 'G2R' | 'G3' | 'G3R' | 'G4' | 'G4R';
-
 export const LIST_GROUP_TITLES: Record<ListGroup, string> = {
   G1: 'військовозобов’язаних офіцерського складу',
   G1R: 'резервістів офіцерського складу',
@@ -129,12 +99,6 @@ export const LIST_GROUP_TITLES: Record<ListGroup, string> = {
 };
 
 export const LIST_GROUPS = Object.keys(LIST_GROUP_TITLES) as ListGroup[];
-
-/**
- * The personal registration lists are kept as four separate lists; reservists go into the list
- * of their composition together with persons liable for military service.
- */
-export type ListSection = 'OFFICERS' | 'SOLDIERS' | 'WOMEN' | 'CONSCRIPTS';
 
 export const LIST_SECTION_TITLES: Record<ListSection, string> = {
   OFFICERS: 'військовозобов’язаних та резервістів офіцерського складу',
@@ -151,8 +115,6 @@ export function listSection(group: ListGroup): ListSection {
   if (group.startsWith('G3')) return 'WOMEN';
   return 'CONSCRIPTS';
 }
-
-export type DutyCategory = 'LIABLE' | 'RESERVIST' | 'CONSCRIPT';
 
 export const DUTY_CATEGORY_LABELS: Record<DutyCategory, string> = {
   LIABLE: 'Військовозобов’язаний',

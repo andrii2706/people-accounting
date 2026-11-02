@@ -39,6 +39,8 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci --legacy-peer-deps
+      - run: npm run format:check
+      - run: npm run typecheck
       - run: npm run lint
       - run: npm test
       - run: npm run build
@@ -64,7 +66,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npx prettier --check "src/**/*.{ts,html,css}"
+      - run: npm run format:check
+      - run: npm run test:ci
       - run: npm run build
       - name: Вразливості в залежностях
         run: npm audit --omit=dev --audit-level=high

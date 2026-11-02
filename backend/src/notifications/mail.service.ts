@@ -24,7 +24,10 @@ export class MailService {
       this.logger.warn(`E-mail не налаштовано (SMTP_URL / MAIL_FROM) — лист «${subject}» не надіслано`);
       return false;
     }
-    this.transport ??= nodemailer.createTransport(this.env.smtpUrl, { disableFileAccess: true, disableUrlAccess: true });
+    this.transport ??= nodemailer.createTransport(this.env.smtpUrl, {
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    });
     await this.transport.sendMail({
       from: this.env.mailFrom,
       to: this.env.mailFrom,

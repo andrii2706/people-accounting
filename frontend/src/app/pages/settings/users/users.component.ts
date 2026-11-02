@@ -12,10 +12,8 @@ import { UsersService } from '../../../shared/services/users.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { passwordProblems } from '../../../shared/validators/password.validators';
-import {
-  type SelectOption,
-  SelectComponent,
-} from '../../../shared/components/select/select.component';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import type { SelectOption } from '../../../shared/interfaces/ui.interface';
 
 /** Account administration: roles, lockout, password reset. */
 @Component({
@@ -38,7 +36,6 @@ export class UsersComponent {
   private readonly refresh = injectRouteRefresh();
   protected readonly auth = inject(AuthService);
 
-  /** Data from usersResolver. */
   readonly users = input.required<ManagedUser[]>();
 
   /** Temporary password after a reset — shown once. */

@@ -4,18 +4,19 @@ import JSZip from 'jszip';
 import { createHash } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service.js';
-import type { AuthUser } from '../common/auth.js';
 import { loadEnv } from '../config/env.js';
-import {
-  LetterSignature,
-  type SignatureMethod,
-  type SignatureVerification,
-  type SignerSummary,
-} from '../letters/entities/letter-signature.entity.js';
+import { LetterSignature } from '../letters/entities/letter-signature.entity.js';
 import { OutgoingLetter } from '../letters/entities/outgoing-letter.entity.js';
 import { DOCX_MIME, LettersService, P7S_MIME } from '../letters/letters.service.js';
 import { StorageService } from '../storage/storage.service.js';
-import { parseAndVerifySignature, type ParsedSigner, SignatureFileError } from './cms.js';
+import { parseAndVerifySignature, SignatureFileError } from './cms.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
+import type {
+  SignatureMethod,
+  SignerSummary,
+  ParsedSigner,
+  SignatureVerification,
+} from '../shared/interfaces/signature.interface.js';
 
 const sha256 = (data: Buffer) => createHash('sha256').update(data).digest('hex');
 const RANK: Record<SignatureVerification, number> = { UNVERIFIED: 0, DIGEST_MATCH: 1, VALID: 2 };
@@ -83,8 +84,6 @@ export class SignaturesService {
     return letter;
   }
 
-  // ---------------------------------------------------------------- freezing the document
-
   async freeze(id: string, user: AuthUser) {
     const letter = await this.letter(id);
     if (letter.documentKey) return this.state(id);
@@ -121,7 +120,12 @@ export class SignaturesService {
     if (await this.signatures.countBy({ letterId: id })) {
       throw new BadRequestException('Документ уже підписано — скасувати фіксацію не можна');
     }
-    await this.letters.update(id, { documentKey: null, documentSha256: null, documentFilename: null, documentFrozenAt: null });
+    await this.letters.update(id, {
+      documentKey: null,
+      documentSha256: null,
+      documentFilename: null,
+      documentFrozenAt: null,
+    });
     await this.audit.log('letter', id, 'UPDATE', { documentSha256: [letter.documentSha256, null] }, user);
     return this.state(id);
   }
@@ -129,8 +133,6 @@ export class SignaturesService {
   frozenDocument(id: string) {
     return this.lettersService.frozenDocument(id);
   }
-
-  // ---------------------------------------------------------------- signatures
 
   async state(id: string) {
     const letter = await this.letter(id);
@@ -189,7 +191,11 @@ export class SignaturesService {
         'letter',
         id,
         'SIGN',
-        { signers: [null, signers.map((s) => s.name).join(', ')], verification: [null, verification], method: [null, method] },
+        {
+          signers: [null, signers.map((s) => s.name).join(', ')],
+          verification: [null, verification],
+          method: [null, method],
+        },
         user,
         m,
       );

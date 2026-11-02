@@ -1,3 +1,5 @@
+import type { Tck } from './dictionary.interface';
+
 export interface Organization {
   fullName: string;
   nameLocative: string;
@@ -58,4 +60,22 @@ export interface ResponsiblePerson {
   orderNumber: string;
   validFrom: string;
   validTo: string | null;
+}
+
+export type TckImportItem = Pick<Tck, 'name'> &
+  Partial<Pick<Tck, 'nameGenitive' | 'address' | 'postalCode' | 'phone' | 'email'>>;
+
+export interface OrganizationExtraForm {
+  reservationQuota: string;
+  reservationQuotaBasis: string;
+  mobilizationUntil: string;
+  mobilizationDecree: string;
+  notifyEmails: string;
+}
+
+export interface OrganizationSettingsData {
+  organization: Organization;
+  responsiblePersons: ResponsiblePerson[];
+  heads: OrganizationHead[];
+  status: NotificationStatus;
 }

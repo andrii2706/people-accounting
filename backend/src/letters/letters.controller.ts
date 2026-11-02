@@ -1,8 +1,20 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { isUUID } from 'class-validator';
 import { AuditService } from '../audit/audit.service.js';
-import { type AuthUser, CurrentUser } from '../common/auth.js';
+import { CurrentUser } from '../common/auth.js';
 import { docxFile } from '../reports/reports.controller.js';
 import {
   CreateChangeNoticeDto,
@@ -13,6 +25,7 @@ import {
   UpdateLetterDto,
 } from './letters.dto.js';
 import { LettersService } from './letters.service.js';
+import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('letters')
 @Controller('letters')
@@ -33,7 +46,6 @@ export class LettersController {
     return this.letters.createChangeNotices(dto, user);
   }
 
-  /** Create a TCK notice about changes of an employee's registration data. */
   @Post('change-notice')
   createChangeNotice(@Body() dto: CreateChangeNoticeDto, @CurrentUser() user: AuthUser) {
     return this.letters.createChangeNotice(dto, user);
@@ -48,10 +60,19 @@ export class LettersController {
   /** Envelope labels for one or many letters: ?ids=<uuid>,<uuid> */
   @Get('labels')
   async labels(@Query('ids') ids: string | undefined, @CurrentUser() user: AuthUser) {
-    const list = (ids ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const list = (ids ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     if (list.some((id) => !isUUID(id))) throw new BadRequestException('ids: очікуються UUID листів через кому');
     const { buffer, filename } = await this.letters.labels(list);
-    await this.audit.log('letter', list.length === 1 ? list[0] : null, 'EXPORT', { labels: [null, list.join(',')] }, user);
+    await this.audit.log(
+      'letter',
+      list.length === 1 ? list[0] : null,
+      'EXPORT',
+      { labels: [null, list.join(',')] },
+      user,
+    );
     return docxFile(buffer, filename);
   }
 

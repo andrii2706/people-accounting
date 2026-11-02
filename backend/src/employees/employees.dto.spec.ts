@@ -46,16 +46,26 @@ describe('валідація картки працівника', () => {
     expect(id.map((e) => e.field)).toEqual(expect.arrayContaining(['passportSeries', 'passportNumber']));
 
     const book = await errorsOf(CreateEmployeeDto, {
-      ...valid, passportType: 'BOOK', passportSeries: 'КС', passportNumber: '123456', passportIssuedBy: 'Шевченківським РВ',
+      ...valid,
+      passportType: 'BOOK',
+      passportSeries: 'КС',
+      passportNumber: '123456',
+      passportIssuedBy: 'Шевченківським РВ',
     });
     expect(book).toEqual([]);
 
-    const longSeries = await errorsOf(CreateEmployeeDto, { ...valid, passportType: 'BOOK', passportSeries: 'ABCDEFGHIJKL', passportNumber: '123456' });
+    const longSeries = await errorsOf(CreateEmployeeDto, {
+      ...valid,
+      passportType: 'BOOK',
+      passportSeries: 'ABCDEFGHIJKL',
+      passportNumber: '123456',
+    });
     expect(longSeries).toContainEqual({ field: 'passportSeries', message: 'Не більше 2 символів' });
   });
 
   it('ВОС: офіцери — 6 цифр, інші — 3 або 6, можна з літерою в кінці', async () => {
-    const messages = async (rankCode: number, vos: string) => (await errorsOf(CreateEmployeeDto, { ...valid, rankCode, vos })).map((e) => e.message);
+    const messages = async (rankCode: number, vos: string) =>
+      (await errorsOf(CreateEmployeeDto, { ...valid, rankCode, vos })).map((e) => e.message);
     expect(await messages(14, '837')).toContain(MESSAGE.vosOfficer);
     expect(await messages(14, '21101')).toContain(MESSAGE.vosOfficer);
     for (const vos of ['021101', '021101А', '021-101']) expect(await messages(14, vos)).toEqual([]);
@@ -65,7 +75,12 @@ describe('валідація картки працівника', () => {
   });
 
   it('дати: не в майбутньому, порядок дат', async () => {
-    const errors = await errorsOf(CreateEmployeeDto, { ...valid, birthDate: '2999-01-01', mobilizedAt: '2025-05-01', demobilizedAt: '2025-01-01' });
+    const errors = await errorsOf(CreateEmployeeDto, {
+      ...valid,
+      birthDate: '2999-01-01',
+      mobilizedAt: '2025-05-01',
+      demobilizedAt: '2025-01-01',
+    });
     expect(errors).toEqual(
       expect.arrayContaining([
         { field: 'birthDate', message: 'Дата не може бути в майбутньому' },

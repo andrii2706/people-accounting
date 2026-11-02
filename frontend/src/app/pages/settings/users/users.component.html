@@ -18,8 +18,8 @@
         class="rounded-lg border border-line bg-surface px-3 py-2 font-mono text-base tracking-wider"
         >{{ issued.password }}</code
       >
-      <button type="button" class="btn btn-secondary" (click)="copyPassword()">Копіювати</button>
-      <button type="button" class="btn btn-ghost" (click)="issuedPassword.set(null)">
+      <button type="button" class="btn btn-secondary cursor-pointer" (click)="copyPassword()">Копіювати</button>
+      <button type="button" class="btn btn-ghost cursor-pointer" (click)="issuedPassword.set(null)">
         Сховати
       </button>
     </div>

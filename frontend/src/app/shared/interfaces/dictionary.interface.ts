@@ -1,4 +1,5 @@
 import type { Option } from './common.interface';
+
 export type MaritalStatus = 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | 'OTHER';
 
 export type FamilyRelation = 'HUSBAND' | 'WIFE' | 'SON' | 'DAUGHTER';
@@ -67,4 +68,16 @@ export interface Dictionaries {
   listGroups: Option<ListGroup>[];
   listSections: Option<ListSection>[];
   dutyCategories: Option<DutyCategory>[];
+}
+
+export type TckLevel = 'O' | 'R' | 'M';
+
+export interface ParsedTckName {
+  /** Stem of the distinguishing adjective: «шевченківськ», «личаківськ», «київськ». */
+  adj: string | null;
+  level: TckLevel | null;
+  /** Number of the «відділ» (department) or null for the TCK itself. */
+  dept: number | null;
+  /** Stem of the city: «льво», «киов». */
+  city: string | null;
 }
