@@ -56,7 +56,11 @@
       {{ error() }}
     </p>
   }
-  <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="passwordForm().submitting()">
+  <button
+    type="submit"
+    class="btn btn-primary cursor-pointer"
+    [disabled]="passwordForm().submitting()"
+  >
     Змінити пароль
   </button>
   <p class="text-xs text-muted">

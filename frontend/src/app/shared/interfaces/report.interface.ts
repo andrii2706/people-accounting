@@ -32,6 +32,38 @@ export interface ListRow {
   section: ListSection;
   category: DutyCategory | null;
   cells: string[];
+  status: ListRowStatus;
+}
+
+/** Statuses for the on-screen list (badges and filters); the document uses only the cells. */
+export interface ListRowStatus {
+  reserved: boolean;
+  reservedByOther: boolean;
+  reservedUntil: string | null;
+  /** Deferral in force on the date. */
+  deferral: boolean;
+  deferralUntil: string | null;
+  deferralUntilMobilizationEnd: boolean;
+  mobilized: boolean;
+  mobilizationOrder: boolean;
+  /** Changes not yet reported to the TCK. */
+  pendingNotices: number;
+  /** Date of the latest outgoing letter to the TCK about this person. */
+  lastNoticeDate: string | null;
+  /** Warnings and errors (not info) from the record checks. */
+  warnings: number;
+  position: string;
+  positionSince: string | null;
+}
+
+/** Quick filters of the lists page. */
+export type ListQuickFilter =
+  'RESERVED' | 'DEFERRAL' | 'MOBILIZATION_ORDER' | 'PENDING' | 'WARNINGS';
+
+/** A titled block of the expanded row: column numbers of the form (1-based). */
+export interface ListDetailGroup {
+  title: string;
+  columns: number[];
 }
 
 export interface ListsReport {

@@ -392,7 +392,12 @@
       </label>
       @if (dirty()) {
         <span class="text-sm text-warning">Є зміни — перевірте ще раз</span>
-        <button type="button" class="btn btn-secondary cursor-pointer" [disabled]="busy()" (click)="recheck()">
+        <button
+          type="button"
+          class="btn btn-secondary cursor-pointer"
+          [disabled]="busy()"
+          (click)="recheck()"
+        >
           <app-icon name="check" /> Перевірити ще раз
         </button>
       }

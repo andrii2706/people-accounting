@@ -47,7 +47,7 @@
     @apply rounded-xl border border-line bg-surface;
   }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
     @apply bg-brand-600 text-white hover:bg-brand-700;
@@ -60,6 +60,9 @@
   }
   .btn-danger {
     @apply border border-danger/30 bg-surface text-danger hover:bg-danger/5;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap;
   }
   .input {
     @apply block w-full rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink placeholder:text-muted/60 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-sunken;

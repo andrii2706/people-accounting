@@ -183,7 +183,11 @@
               Можна додати кілька освіт: школа, коледж, бакалавр, магістр, друга вища. У списках
               виводиться найвищий рівень.
             </p>
-            <button type="button" class="btn btn-secondary py-1.5 cursor-pointer" (click)="addEducation()">
+            <button
+              type="button"
+              class="btn btn-secondary py-1.5 cursor-pointer"
+              (click)="addEducation()"
+            >
               <app-icon name="plus" [size]="14" /> Додати освіту
             </button>
           </div>
@@ -272,7 +276,7 @@
             <div class="flex flex-wrap gap-2">
               <button
                 type="button"
-                class="btn btn-secondary py-1.5 cursor-pointer cursor-pointer"
+                class="btn btn-secondary py-1.5 cursor-pointer"
                 (click)="addFamilyMember(model().gender === 'F' ? 'HUSBAND' : 'WIFE')"
               >
                 <app-icon name="plus" [size]="14" />
@@ -371,7 +375,11 @@
                 потрапляє в графу 17 списків.
               </p>
             </div>
-            <button type="button" class="btn btn-secondary py-1.5 cursor-pointer" (click)="addPosition()">
+            <button
+              type="button"
+              class="btn btn-secondary py-1.5 cursor-pointer"
+              (click)="addPosition()"
+            >
               <app-icon name="plus" [size]="14" /> Додати переведення
             </button>
           </div>
@@ -544,7 +552,11 @@
 
           <div class="mt-7 mb-3 flex flex-wrap items-center justify-between gap-2">
             <h3 class="text-sm font-semibold">Військово-облікові документи</h3>
-            <button type="button" class="btn btn-secondary py-1.5 cursor-pointer" (click)="addDocument()">
+            <button
+              type="button"
+              class="btn btn-secondary py-1.5 cursor-pointer"
+              (click)="addDocument()"
+            >
               <app-icon name="plus" [size]="14" /> Додати документ
             </button>
           </div>
@@ -999,7 +1011,11 @@
       </section>
     }
 
-    <button type="submit" class="btn btn-primary w-full py-2.5 cursor-pointer" [disabled]="f().submitting()">
+    <button
+      type="submit"
+      class="btn btn-primary w-full py-2.5 cursor-pointer"
+      [disabled]="f().submitting()"
+    >
       <app-icon name="check" />
       {{ f().submitting() ? 'Збереження…' : isEdit() ? 'Зберегти зміни' : 'Створити картку' }}
     </button>

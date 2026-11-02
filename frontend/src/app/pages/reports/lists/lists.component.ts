@@ -11,7 +11,11 @@ import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import type { ListSection } from '../../../shared/interfaces/dictionary.interface';
-import type { ListsReport } from '../../../shared/interfaces/report.interface';
+import type {
+  ListQuickFilter,
+  ListRow,
+  ListsReport,
+} from '../../../shared/interfaces/report.interface';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { LettersService } from '../../../shared/services/letters.service';
 import { ReportsService } from '../../../shared/services/reports.service';
@@ -20,28 +24,18 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
 import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
-
-/** Short column titles for the on-screen preview; the .docx uses the full titles of the form. */
-const COLUMNS = [
-  '№',
-  'Категорія',
-  'Звання',
-  'ПІБ',
-  'Дата народж.',
-  'Номер в ЄДР',
-  'РНОКПП',
-  'ВОС',
-  'Військово-обліковий документ',
-  'Паспорт',
-  'Адреса',
-  'ТЦК та СП',
-  'Відстрочка',
-  'Спецоблік (бронювання)',
-  'Військова служба',
-  'Моброзпорядження',
-  'Посада, наказ',
-  'Повідомлення ТЦК, відмітки',
-];
+import { CategoryBadgeComponent } from '../../../shared/components/category-badge/category-badge.component';
+import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
+import {
+  COL,
+  DETAIL_GROUPS,
+  LIST_COLUMNS,
+  QUICK_FILTERS,
+  filterRows,
+  maskTaxNumber,
+  matchesQuickFilter,
+  splitTck,
+} from './lists-view.utils';
 
 /** Four lists: officers; rank-and-file, sergeants, petty officers; women; conscripts. */
 const SECTIONS: ListSection[] = ['OFFICERS', 'SOLDIERS', 'WOMEN', 'CONSCRIPTS'];
@@ -49,7 +43,14 @@ const SECTIONS: ListSection[] = ['OFFICERS', 'SOLDIERS', 'WOMEN', 'CONSCRIPTS'];
 @Component({
   selector: 'app-lists',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DateInputComponent, PageHeaderComponent, IconComponent, RouterLink],
+  imports: [
+    DateInputComponent,
+    PageHeaderComponent,
+    IconComponent,
+    RouterLink,
+    CategoryBadgeComponent,
+    UaDatePipe,
+  ],
   templateUrl: './lists.component.html',
 })
 export class ListsComponent {
@@ -60,7 +61,13 @@ export class ListsComponent {
   protected readonly dictionaries = inject(DictionariesService);
 
   protected readonly today = todayIso();
-  protected readonly columns = COLUMNS;
+  protected readonly columns = LIST_COLUMNS;
+  protected readonly col = COL;
+  protected readonly detailGroups = DETAIL_GROUPS;
+  protected readonly quickFilters = QUICK_FILTERS;
+  protected readonly maskTaxNumber = maskTaxNumber;
+  protected readonly splitTck = splitTck;
+  protected readonly capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   private readonly updateQuery = injectQueryParamsUpdate();
 
   /** Report from listsReportResolver; the date lives in the ?date= query parameter. */
@@ -68,13 +75,6 @@ export class ListsComponent {
   protected readonly date = computed(() => this.report().date);
   protected readonly busy = signal(false);
   protected readonly total = computed(() => this.report().rows.length);
-  /** Non-empty lists — every one is a separate list in the document. */
-  protected readonly groups = computed(() =>
-    SECTIONS.map((group) => ({
-      group,
-      rows: this.report().rows.filter((r) => r.section === group),
-    })).filter((g) => g.rows.length),
-  );
   private readonly titles = computed(
     () =>
       new Map(
@@ -85,15 +85,84 @@ export class ListsComponent {
   protected title(section: ListSection) {
     return this.titles().get(section) ?? section;
   }
-  /** Preview filter only — the document always contains all groups. Reset when the date changes. */
-  protected readonly filter = linkedSignal<ListsReport, ListSection | 'ALL'>({
+
+  /** Short tab names; the full official title stays above the table. */
+  protected readonly tabs: { value: ListSection | 'ALL'; label: string }[] = [
+    { value: 'ALL', label: 'Усі' },
+    { value: 'OFFICERS', label: 'Офіцери' },
+    { value: 'SOLDIERS', label: 'Рядові, сержанти, старшини' },
+    { value: 'WOMEN', label: 'Жінки' },
+    { value: 'CONSCRIPTS', label: 'Призовники' },
+  ];
+  protected readonly sectionCounts = computed(() => {
+    const counts = new Map<ListSection | 'ALL', number>([['ALL', this.total()]]);
+    for (const r of this.report().rows) counts.set(r.section, (counts.get(r.section) ?? 0) + 1);
+    return counts;
+  });
+
+  /* Preview state only — the document always contains all groups. Reset when the date changes. */
+  protected readonly tab = linkedSignal<ListsReport, ListSection | 'ALL'>({
     source: this.report,
     computation: () => 'ALL',
   });
-  protected readonly visibleGroups = computed(() => {
-    const f = this.filter();
-    return f === 'ALL' ? this.groups() : this.groups().filter((g) => g.group === f);
+  protected readonly query = signal('');
+  protected readonly quick = signal<ReadonlySet<ListQuickFilter>>(new Set());
+  /** Full 18-column table — an exact copy of the form for checking against the .docx. */
+  protected readonly wide = signal(false);
+  protected readonly expanded = signal<ReadonlySet<string>>(new Set());
+
+  private readonly tabRows = computed(() => {
+    const t = this.tab();
+    return t === 'ALL' ? this.report().rows : this.report().rows.filter((r) => r.section === t);
   });
+  protected readonly quickCounts = computed(
+    () =>
+      new Map(
+        QUICK_FILTERS.map((f) => [
+          f.value,
+          this.tabRows().filter((r) => matchesQuickFilter(r, f.value)).length,
+        ]),
+      ),
+  );
+  protected readonly filtering = computed(() => !!this.query().trim() || this.quick().size > 0);
+  /** Non-empty lists after the tab, search and quick filters. */
+  protected readonly visibleGroups = computed(() => {
+    const rows = filterRows(this.tabRows(), this.query(), this.quick());
+    return SECTIONS.map((group) => ({
+      group,
+      rows: rows.filter((r) => r.section === group),
+    })).filter((g) => g.rows.length);
+  });
+
+  protected toggleQuick(filter: ListQuickFilter) {
+    this.quick.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(filter)) next.add(filter);
+      return next;
+    });
+  }
+
+  protected resetFilters() {
+    this.query.set('');
+    this.quick.set(new Set());
+  }
+
+  protected isExpanded(row: ListRow) {
+    return this.expanded().has(row.employeeId);
+  }
+
+  protected toggleRow(row: ListRow) {
+    this.expanded.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(row.employeeId)) next.add(row.employeeId);
+      return next;
+    });
+  }
+
+  /** Cell by the column number of the form (1-based), «—» when empty. */
+  protected cell(row: ListRow, column: number) {
+    return row.cells[column - 1] || '—';
+  }
 
   protected setDate(date: string) {
     // the field reports every keystroke — react only to a complete date or clearing

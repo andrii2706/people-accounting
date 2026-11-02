@@ -75,7 +75,11 @@
       </div>
     </fieldset>
     @if (auth.isAdmin()) {
-      <button type="submit" class="btn btn-primary mt-5 cursor-pointer" [disabled]="orgForm().submitting()">
+      <button
+        type="submit"
+        class="btn btn-primary mt-5 cursor-pointer"
+        [disabled]="orgForm().submitting()"
+      >
         Зберегти реквізити
       </button>
     } @else {
@@ -441,7 +445,9 @@
         >
           Імпортувати
         </button>
-        <button type="button" class="btn btn-ghost cursor-pointer" (click)="tckImport.set(null)">Скасувати</button>
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="tckImport.set(null)">
+          Скасувати
+        </button>
       </div>
     </div>
   }

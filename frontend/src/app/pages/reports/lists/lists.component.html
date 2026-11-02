@@ -1,7 +1,7 @@
 <app-page-header
   eyebrow="Додаток 5 до Порядку (ред. постанови КМУ № 916, зі змінами постанови № 812 від 10.06.2026)"
   title="Списки персонального військового обліку"
-  subtitle="Чотири окремі списки: офіцерський склад; рядовий, сержантський і старшинський склад; жінки; призовники (резервісти — у списку свого складу). Один рядок на особу, графи 1–18."
+  subtitle="Робочий перегляд для кадровика. Документ для ТЦК — кнопка «Списки .docx»: чотири окремі списки, графи 1–18."
 >
   <label class="flex items-center gap-2 text-sm">
     <span class="text-muted">Станом на</span>
@@ -12,91 +12,363 @@
       (valueChange)="setDate($event)"
     />
   </label>
-  <a class="btn btn-secondary" [href]="downloadUrl()" download
+  <a class="btn btn-secondary cursor-pointer" [href]="downloadUrl()" download
     ><app-icon name="download" /> Списки .docx</a
   >
-  <button type="button" class="btn btn-primary cursor-pointer" [disabled]="busy()" (click)="register()">
+  <button
+    type="button"
+    class="btn btn-primary cursor-pointer"
+    [disabled]="busy()"
+    (click)="register()"
+  >
     <app-icon name="mail" /> Зареєструвати лист
   </button>
 </app-page-header>
 
-@if (groups().length > 1) {
-  <div class="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Фільтр за групою">
-    <button
-      type="button"
-      role="tab"
-      class="rounded-lg border px-3 py-1.5 text-sm cursor-pointer"
-      [attr.aria-selected]="filter() === 'ALL'"
-      [class]="
-        filter() === 'ALL'
-          ? 'border-brand-600 bg-brand-600 text-white'
-          : 'border-line bg-surface hover:border-brand-500'
-      "
-      (click)="filter.set('ALL')"
-    >
-      Усі <span class="ml-1.5 tabular-nums opacity-80">{{ total() }}</span>
-    </button>
-    @for (g of groups(); track g.group) {
+<div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+  <div
+    class="flex w-full max-w-max flex-wrap gap-1 rounded-xl bg-sunken p-1"
+    role="tablist"
+    aria-label="Список"
+  >
+    @for (t of tabs; track t.value) {
       <button
         type="button"
         role="tab"
-        class="rounded-lg border px-3 py-1.5 text-sm first-letter:uppercase cursor-pointer"
-        [attr.aria-selected]="filter() === g.group"
+        class="cursor-pointer rounded-lg px-3.5 py-1.5 text-sm transition-colors"
+        [attr.aria-selected]="tab() === t.value"
         [class]="
-          filter() === g.group
-            ? 'border-brand-600 bg-brand-600 text-white'
-            : 'border-line bg-surface hover:border-brand-500'
+          tab() === t.value
+            ? 'bg-surface font-semibold text-ink shadow-sm'
+            : 'text-muted hover:text-ink'
         "
-        (click)="filter.set(g.group)"
+        (click)="tab.set(t.value)"
       >
-        {{ title(g.group) }}
-        <span class="ml-1.5 tabular-nums opacity-80">{{ g.rows.length }}</span>
+        {{ t.label }}
+        <span class="ml-1 text-xs text-muted tabular-nums">{{
+          sectionCounts().get(t.value) ?? 0
+        }}</span>
       </button>
     }
   </div>
-}
+  <button
+    type="button"
+    class="btn btn-ghost cursor-pointer px-2.5 py-1.5 text-xs"
+    [attr.aria-pressed]="wide()"
+    (click)="wide.set(!wide())"
+  >
+    <app-icon name="columns" />
+    {{ wide() ? 'Коротка таблиця' : 'Показати всі 18 граф' }}
+  </button>
+</div>
+
+<div class="mb-4 flex flex-wrap items-center gap-2">
+  <label class="relative w-full sm:w-80">
+    <span class="sr-only">Пошук</span>
+    <app-icon
+      name="search"
+      class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted"
+    />
+    <input
+      class="input pl-9"
+      type="search"
+      placeholder="Пошук: ПІБ, РНОКПП, ВОС…"
+      [value]="query()"
+      (input)="query.set($any($event.target).value)"
+    />
+  </label>
+  @for (f of quickFilters; track f.value) {
+    <button
+      type="button"
+      class="cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors"
+      [attr.aria-pressed]="quick().has(f.value)"
+      [class]="
+        quick().has(f.value)
+          ? 'border-brand-500 bg-brand-50 font-semibold text-brand-700'
+          : 'border-line bg-surface text-ink hover:border-brand-500'
+      "
+      (click)="toggleQuick(f.value)"
+    >
+      {{ f.label }}
+      <span class="ml-0.5 text-muted tabular-nums">{{ quickCounts().get(f.value) }}</span>
+    </button>
+  }
+  @if (filtering()) {
+    <button
+      type="button"
+      class="cursor-pointer text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+      (click)="resetFilters()"
+    >
+      Скинути
+    </button>
+  }
+</div>
 
 @for (g of visibleGroups(); track g.group) {
   <section class="card mb-5 overflow-hidden">
     <header class="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3">
-      <h2 class="text-sm font-semibold first-letter:uppercase">
-        {{ title(g.group) }}
-      </h2>
-      <span class="text-xs text-muted tabular-nums">{{ g.rows.length }} ос.</span>
+      <h2 class="text-sm font-semibold first-letter:uppercase">{{ title(g.group) }}</h2>
+      <span class="shrink-0 text-xs text-muted tabular-nums">{{ g.rows.length }} ос.</span>
     </header>
-    <div class="overflow-x-auto">
-      <table class="table-base w-max min-w-full text-xs">
-        <thead>
-          <tr>
-            @for (title of columns; track $index) {
-              <th class="max-w-48 align-bottom">{{ title }}</th>
-            }
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of g.rows; track row.employeeId) {
+
+    @if (wide()) {
+      <!-- exact copy of the form: 18 columns, the name stays visible while scrolling -->
+      <div class="overflow-x-auto">
+        <table class="table-base w-max min-w-full text-xs">
+          <thead>
             <tr>
-              @for (cell of row.cells; track $index) {
-                <td class="max-w-48 min-w-16 align-top break-words whitespace-normal">
-                  @if ($index === 3) {
-                    <a
-                      [routerLink]="['/employees', row.employeeId]"
-                      class="font-medium hover:text-brand-600"
-                      >{{ cell }}</a
-                    >
-                  } @else {
-                    {{ cell || '—' }}
-                  }
-                </td>
+              @for (title of columns; track $index) {
+                <th
+                  class="max-w-44 align-bottom"
+                  [class]="
+                    $index === col.name ? 'sticky left-0 z-10 border-r border-line bg-sunken' : ''
+                  "
+                >
+                  <span class="block text-[10px] font-normal opacity-70">{{ $index + 1 }}</span>
+                  {{ title }}
+                </th>
               }
             </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            @for (row of g.rows; track row.employeeId) {
+              <tr>
+                @for (cell of row.cells; track $index) {
+                  <td
+                    class="max-w-44 min-w-14 align-top"
+                    [class]="
+                      $index === col.name
+                        ? 'sticky left-0 z-10 min-w-40 border-r border-line bg-surface'
+                        : ''
+                    "
+                    [attr.title]="cell.length > 60 ? cell : null"
+                  >
+                    @if ($index === col.name) {
+                      <a
+                        [routerLink]="['/employees', row.employeeId]"
+                        class="cursor-pointer font-medium hover:text-brand-600"
+                        >{{ cell }}</a
+                      >
+                    } @else {
+                      <span class="line-clamp-3 break-words">{{ cell || '—' }}</span>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table class="table-base min-w-[60rem] table-fixed">
+          <colgroup>
+            <col class="w-10" />
+            <col class="w-[19%]" />
+            <col class="w-[12%]" />
+            <col class="w-[14%]" />
+            <col class="w-[14%]" />
+            <col class="w-[16%]" />
+            <col class="w-[13%]" />
+            <col class="w-[12%]" />
+            <col class="w-10" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>Працівник</th>
+              <th>Звання · ВОС</th>
+              <th>Категорія</th>
+              <th>ТЦК та СП</th>
+              <th>Статус</th>
+              <th>Посада</th>
+              <th>ТЦК повідомлено</th>
+              <th><span class="sr-only">Деталі</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of g.rows; track row.employeeId) {
+              @let open = isExpanded(row);
+              @let s = row.status;
+              <tr
+                class="cursor-pointer"
+                [class.bg-brand-50]="open"
+                [class.!border-b-0]="open"
+                (click)="toggleRow(row)"
+              >
+                <td class="text-muted tabular-nums">{{ row.cells[col.number] }}</td>
+                <td>
+                  <a
+                    [routerLink]="['/employees', row.employeeId]"
+                    class="cursor-pointer font-medium hover:text-brand-600"
+                    (click)="$event.stopPropagation()"
+                    >{{ row.cells[col.name] }}</a
+                  >
+                  <div class="text-xs text-muted">
+                    {{ row.cells[col.birthDate] }}
+                    @if (row.cells[col.taxNumber]) {
+                      · <span class="font-mono">{{ maskTaxNumber(row.cells[col.taxNumber]) }}</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  {{ row.cells[col.rank] || '—' }}
+                  @if (row.cells[col.vos]) {
+                    <div class="font-mono text-xs text-muted">ВОС {{ row.cells[col.vos] }}</div>
+                  }
+                </td>
+                <td>
+                  <app-category-badge
+                    [category]="row.category"
+                    [label]="capitalize(row.cells[col.category])"
+                  />
+                </td>
+                <td>
+                  @let tck = splitTck(row.cells[col.tck]);
+                  @if (tck.name) {
+                    {{ tck.name }}
+                    @if (tck.place) {
+                      <div class="text-xs text-muted">{{ tck.place }}</div>
+                    }
+                  } @else {
+                    <span class="text-xs text-warning">не вказано</span>
+                  }
+                </td>
+                <td>
+                  <div class="flex flex-wrap gap-1 [&>.badge]:whitespace-normal">
+                    @if (s.reserved) {
+                      <span class="badge bg-ok/10 text-ok">
+                        @if (s.reservedByOther) {
+                          Заброньований іншою юрособою
+                        } @else {
+                          Заброньований
+                          @if (s.reservedUntil) {
+                            до {{ s.reservedUntil | uaDate }}
+                          }
+                        }
+                      </span>
+                    }
+                    @if (s.deferral) {
+                      <span class="badge bg-warning/10 text-warning">
+                        Відстрочка
+                        @if (s.deferralUntilMobilizationEnd) {
+                          до кінця мобілізації
+                        } @else if (s.deferralUntil) {
+                          до {{ s.deferralUntil | uaDate }}
+                        }
+                      </span>
+                    }
+                    @if (s.mobilized) {
+                      <span class="badge bg-info/10 text-info">Мобілізований</span>
+                    }
+                    @if (s.mobilizationOrder) {
+                      <span class="badge bg-danger/10 text-danger">Моброзпорядження</span>
+                    }
+                    @if (s.warnings) {
+                      <span class="badge bg-sunken text-warning">
+                        <app-icon name="alert" class="size-3" />
+                        {{ s.warnings }} попередж.
+                      </span>
+                    }
+                    @if (
+                      !s.reserved &&
+                      !s.deferral &&
+                      !s.mobilized &&
+                      !s.mobilizationOrder &&
+                      !s.warnings
+                    ) {
+                      <span class="text-muted">—</span>
+                    }
+                  </div>
+                </td>
+                <td>
+                  <span class="first-letter:uppercase">{{ s.position || '—' }}</span>
+                  @if (s.positionSince) {
+                    <div class="text-xs text-muted">з {{ s.positionSince | uaDate }}</div>
+                  }
+                </td>
+                <td>
+                  @if (s.pendingNotices) {
+                    <span class="badge bg-danger/10 text-danger">
+                      {{ s.pendingNotices }} не повідомлено
+                    </span>
+                  } @else if (s.lastNoticeDate) {
+                    <span class="badge bg-ok/10 text-ok">
+                      <app-icon name="check" class="size-3" /> {{ s.lastNoticeDate | uaDate }}
+                    </span>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td class="text-right">
+                  <button
+                    type="button"
+                    class="cursor-pointer rounded-md p-1 text-muted hover:bg-sunken hover:text-ink"
+                    [attr.aria-expanded]="open"
+                    [attr.aria-label]="open ? 'Згорнути' : 'Усі графи'"
+                    (click)="toggleRow(row); $event.stopPropagation()"
+                  >
+                    <app-icon
+                      name="chevronDown"
+                      class="transition-transform"
+                      [class.rotate-180]="open"
+                    />
+                  </button>
+                </td>
+              </tr>
+              @if (open) {
+                <tr class="bg-brand-50/60 hover:!bg-brand-50/60">
+                  <td></td>
+                  <td colspan="8">
+                    <div class="grid gap-x-8 gap-y-4 py-2 md:grid-cols-2 xl:grid-cols-4">
+                      @for (block of detailGroups; track block.title) {
+                        <div>
+                          <h3
+                            class="mb-2 text-[11px] font-semibold tracking-wider text-brand-600 uppercase"
+                          >
+                            {{ block.title }}
+                          </h3>
+                          <dl class="space-y-2">
+                            @for (n of block.columns; track n) {
+                              <div>
+                                <dt class="text-xs text-muted">
+                                  {{ columns[n - 1] }}
+                                  <span class="ml-1 text-muted/70">гр. {{ n }}</span>
+                                </dt>
+                                <dd class="text-sm break-words">{{ cell(row, n) }}</dd>
+                              </div>
+                            }
+                          </dl>
+                        </div>
+                      }
+                    </div>
+                    <a
+                      [routerLink]="['/employees', row.employeeId]"
+                      class="mt-2 inline-flex cursor-pointer items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700"
+                      >Відкрити картку →</a
+                    >
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
   </section>
 } @empty {
   <section class="card py-10 text-center text-sm text-muted">
-    Станом на обрану дату у списках нікого немає
+    @if (filtering()) {
+      Нікого не знайдено.
+      <button
+        type="button"
+        class="cursor-pointer font-medium text-brand-600 hover:underline"
+        (click)="resetFilters()"
+      >
+        Скинути фільтри
+      </button>
+    } @else {
+      Станом на обрану дату у цьому списку нікого немає
+    }
   </section>
 }

@@ -15,7 +15,12 @@
   <a class="btn btn-secondary" [href]="reportsService.operationalDocxUrl(date())" download
     ><app-icon name="download" /> .docx</a
   >
-  <button type="button" class="btn btn-primary cursor-pointer" [disabled]="busy()" (click)="register()">
+  <button
+    type="button"
+    class="btn btn-primary cursor-pointer"
+    [disabled]="busy()"
+    (click)="register()"
+  >
     <app-icon name="mail" /> Зареєструвати лист
   </button>
 </app-page-header>

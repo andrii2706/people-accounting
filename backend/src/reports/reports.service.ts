@@ -7,7 +7,7 @@ import { deriveEmployee, toMilitaryRecord } from '../employees/employee-view.js'
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { LIST_GROUPS, LIST_SECTIONS, listSection } from '../military/dictionaries.js';
-import { personalListCells } from '../military/personal-list.js';
+import { hasDeferralAt, listRowStatus, personalListCells } from '../military/personal-list.js';
 import {
   dutyCategory,
   hasMobilizationOrder,
@@ -52,7 +52,9 @@ export class ReportsService {
 
   /** Column 18: details of notices sent to the TCK about appointment / transfer / dismissal. */
   private async positionNotices(ids: string[]) {
-    if (!ids.length) return new Map<string, string>();
+    const texts = new Map<string, string>();
+    const lastDates = new Map<string, IsoDate>();
+    if (!ids.length) return { texts, lastDates };
     const rows = await this.changes.find({
       where: { employeeId: In(ids), type: In(['HIRE', 'POSITION', 'DISMISSAL']) },
       relations: { letter: true },
@@ -65,8 +67,23 @@ export class ReportsService {
         c.type === 'HIRE' ? 'про призначення' : c.type === 'POSITION' ? 'про переведення' : 'про звільнення';
       const text = `${about}: вих. № ${c.letter.number} від ${formatUa(c.letter.date)} р.`;
       map.set(c.employeeId, [...(map.get(c.employeeId) ?? []), text]);
+      const last = lastDates.get(c.employeeId);
+      if (!last || c.letter.date > last) lastDates.set(c.employeeId, c.letter.date);
     }
-    return new Map([...map].map(([k, v]) => [k, v.join('; ')]));
+    for (const [k, v] of map) texts.set(k, v.join('; '));
+    return { texts, lastDates };
+  }
+
+  /** Changes of each employee that are still waiting for a letter to the TCK. */
+  private async pendingNoticeCounts(ids: string[]) {
+    const counts = new Map<string, number>();
+    if (!ids.length) return counts;
+    const rows = await this.changes.find({
+      where: { employeeId: In(ids), letterId: IsNull(), skipped: false },
+      select: { id: true, employeeId: true },
+    });
+    for (const c of rows) counts.set(c.employeeId, (counts.get(c.employeeId) ?? 0) + 1);
+    return counts;
   }
 
   /**
@@ -79,7 +96,12 @@ export class ReportsService {
     const all = (await this.loadAll()).filter(
       (e) => (!onlyIds?.length || onlyIds.includes(e.id)) && isOnPersonalListsAt(toMilitaryRecord(e), date),
     );
-    const notices = await this.positionNotices(all.map((e) => e.id));
+    const ids = all.map((e) => e.id);
+    const [notices, pending, org] = await Promise.all([
+      this.positionNotices(ids),
+      this.pendingNoticeCounts(ids),
+      this.org.get(),
+    ]);
 
     const rows: ListRowView[] = [];
     const counts: Record<DutyCategory, number> = { LIABLE: 0, RESERVIST: 0, CONSCRIPT: 0 };
@@ -93,7 +115,13 @@ export class ReportsService {
         group,
         section: listSection(group),
         category,
-        cells: personalListCells(e, date, notices.get(e.id) ?? ''),
+        cells: personalListCells(e, date, notices.texts.get(e.id) ?? ''),
+        status: listRowStatus(e, date, {
+          mobilizationUntil: org.mobilizationUntil,
+          alertDays: org.alertDays,
+          pendingNotices: pending.get(e.id) ?? 0,
+          lastNoticeDate: notices.lastDates.get(e.id) ?? null,
+        }),
       });
       if (category) counts[category]++;
     }
@@ -220,11 +248,7 @@ export class ReportsService {
     }
 
     // deferrals in force on the date (a fixed date, or «до завершення мобілізації»)
-    const deferrals = employed.filter(({ e }) => {
-      if (e.deferralUntilMobilizationEnd) return !org.mobilizationUntil || org.mobilizationUntil >= date;
-      if (e.deferralUntil) return e.deferralUntil >= date;
-      return !!(e.deferralConscriptionBasis || e.deferralMobilizationBasis);
-    }).length;
+    const deferrals = employed.filter(({ e }) => hasDeferralAt(e, date, org.mobilizationUntil)).length;
 
     // reservation quota: only the company's own reservations count towards it
     const reserved = employed.filter((x) => x.d.reserved);

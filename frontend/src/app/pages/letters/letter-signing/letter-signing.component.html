@@ -16,7 +16,12 @@
       збережеться без змін, і саме цей файл буде підписано та передано в ТЦК. Перевірте реквізити та
       адресата — після першого підпису змінити їх не можна.
     </p>
-    <button type="button" class="btn btn-primary mt-4 cursor-pointer" [disabled]="busy()" (click)="freeze()">
+    <button
+      type="button"
+      class="btn btn-primary mt-4 cursor-pointer"
+      [disabled]="busy()"
+      (click)="freeze()"
+    >
       <app-icon name="lock" /> Зафіксувати документ для підпису
     </button>
   } @else {
@@ -166,12 +171,14 @@
               </button>
             }
             @case ('reading') {
-              <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetWidget()">Скасувати</button>
+              <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetWidget()">
+                Скасувати
+              </button>
             }
             @default {
               <button
                 type="button"
-                class="btn btn-primary"
+                class="btn btn-primary cursor-pointer"
                 [disabled]="busy()"
                 (click)="signWithWidget()"
               >

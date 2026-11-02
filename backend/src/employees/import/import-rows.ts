@@ -188,6 +188,13 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
         }
         case 'bool': {
           const b = parseBool(cell);
+          if (b === undefined && field === 'militaryRegistered') {
+            // 1C often puts the TCK into «Військовий облік»: a filled cell means the person is registered
+            values.militaryRegistered = true;
+            const id = matchTck(text, ctx.tcks);
+            if (id && !values.tckId) values.tckId = id;
+            break;
+          }
           if (b === undefined) issue(field, `Очікується «так» або «ні», а не «${text}»`);
           else if (b !== null) values[field] = b;
           break;
@@ -241,6 +248,8 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
       const g = genderByMiddleName(String(values.middleName ?? ''));
       if (g) values.gender = g;
     }
+    // men are on military registration by default; an explicit «ні» in the file is kept
+    if (values.militaryRegistered === undefined && values.gender === 'M') values.militaryRegistered = true;
     // TCK from «Ким виданий ВОД» when the TCK column is empty or not recognised
     if (!values.tckId && values.militaryDocIssuedBy) {
       const id = matchTck(String(values.militaryDocIssuedBy), ctx.tcks);

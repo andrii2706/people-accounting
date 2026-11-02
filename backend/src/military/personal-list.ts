@@ -9,8 +9,18 @@ import { formatUa, formatUaQuoted } from '../common/utils/dates.js';
 import type { Employee } from '../employees/entities/employee.entity.js';
 import { toMilitaryRecord } from '../employees/employee-view.js';
 import { fullName, militaryDocText, passportText, positionText, rankText } from './employee-format.js';
-import { dutyCategory, hasReachedAgeLimit, isConscript, isMobilizedAt, isReservist } from './military-logic.js';
+import {
+  dutyCategory,
+  hasMobilizationOrder,
+  hasReachedAgeLimit,
+  isConscript,
+  isMobilizedAt,
+  isReservedAt,
+  isReservist,
+  recordWarnings,
+} from './military-logic.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { ListRowStatus } from '../shared/interfaces/report.interface.js';
 
 const join = (parts: Array<string | null | undefined | false>, sep = ', ') =>
   parts.filter((p): p is string => !!p && !!p.trim()).join(sep);
@@ -156,4 +166,37 @@ export function personalListCells(e: Employee, date: IsoDate, notices: string): 
     positionText(e),
     noticesText(e, date, notices),
   ];
+}
+
+/** Deferral in force on the date: a fixed term, «до завершення мобілізації», or a basis without a term. */
+export function hasDeferralAt(e: Employee, date: IsoDate, mobilizationUntil: IsoDate | null): boolean {
+  if (e.deferralUntilMobilizationEnd) return !mobilizationUntil || mobilizationUntil >= date;
+  if (e.deferralUntil) return e.deferralUntil >= date;
+  return !!(e.deferralConscriptionBasis || e.deferralMobilizationBasis);
+}
+
+/** Statuses of one record for the on-screen list (badges and filters). */
+export function listRowStatus(
+  e: Employee,
+  date: IsoDate,
+  ctx: { mobilizationUntil: IsoDate | null; alertDays: number; pendingNotices: number; lastNoticeDate: IsoDate | null },
+): ListRowStatus {
+  const r = toMilitaryRecord(e);
+  const reserved = isReservedAt(r, date);
+  const deferral = !reserved && hasDeferralAt(e, date, ctx.mobilizationUntil);
+  return {
+    reserved,
+    reservedByOther: reserved && e.reservedBy === 'OTHER',
+    reservedUntil: reserved ? e.reservationUntil : null,
+    deferral,
+    deferralUntil: deferral ? e.deferralUntil : null,
+    deferralUntilMobilizationEnd: deferral && e.deferralUntilMobilizationEnd,
+    mobilized: isMobilizedAt(r, date),
+    mobilizationOrder: !isReservist(e) && hasMobilizationOrder(r, date),
+    pendingNotices: ctx.pendingNotices,
+    lastNoticeDate: ctx.lastNoticeDate,
+    warnings: recordWarnings(r, date, ctx.alertDays).filter((w) => w.level !== 'info').length,
+    position: e.position ?? '',
+    positionSince: e.positionSince ?? e.hireDate ?? null,
+  };
 }

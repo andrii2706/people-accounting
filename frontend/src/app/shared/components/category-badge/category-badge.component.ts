@@ -14,6 +14,8 @@ const CATEGORY: Record<DutyCategory, { label: string; cls: string }> = {
 })
 export class CategoryBadgeComponent {
   readonly category = input<DutyCategory | null>(null);
+  /** Text instead of the default one, e.g. «військовозобов’язана» from the list cell. */
+  readonly label = input('');
   protected readonly meta = computed(() => {
     const c = this.category();
     return c ? CATEGORY[c] : null;

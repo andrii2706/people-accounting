@@ -144,7 +144,7 @@ export const IMPORT_COLUMNS: readonly ImportColumn[] = [
     kind: 'bool',
     synonyms: ['перебуває на військовому обліку', 'військовий облік'],
     width: 12,
-    note: 'так / ні (порожньо — так)',
+    note: 'так / ні (порожньо: для чоловіків — так)',
   },
   {
     field: 'servedInArmy',

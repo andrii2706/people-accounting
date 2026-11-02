@@ -193,6 +193,17 @@ export class EmployeeFormComponent {
     });
   });
 
+  /** Men are on military registration by default: choosing «чоловіча» in a new card ticks the box. */
+  private lastGender: string | null = null;
+  private readonly menRegistered = effect(() => {
+    const gender = this.model().gender;
+    if (gender === this.lastGender) return;
+    const first = this.lastGender === null;
+    this.lastGender = gender;
+    if (first || this.isEdit() || gender !== 'M') return;
+    untracked(() => this.model.update((m) => ({ ...m, militaryRegistered: true })));
+  });
+
   protected readonly mobilization = httpResource<{
     mobilizationUntil: string | null;
     mobilizationDecree: string;

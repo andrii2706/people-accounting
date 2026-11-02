@@ -28,6 +28,34 @@ describe('employee import — reading values', () => {
     expect(parseDate('')).toBeNull();
   });
 
+  it('men are on military registration by default, an explicit «ні» is kept', () => {
+    const { rows } = convertRows(
+      {
+        headers: ['ПІБ', 'На військовому обліку'],
+        rows: [
+          { rowNumber: 2, cells: ['Приклад Петро Іванович', ''] },
+          { rowNumber: 3, cells: ['Приклад Павло Іванович', 'ні'] },
+          { rowNumber: 4, cells: ['Приклад Ганна Іванівна', ''] },
+        ],
+      },
+      ctx,
+    );
+    expect(rows.map((r) => r.values.militaryRegistered)).toEqual([true, false, undefined]);
+  });
+
+  it('«Військовий облік» with a TCK name instead of так/ні: registered, TCK is taken from it', () => {
+    const { rows } = convertRows(
+      {
+        headers: ['ПІБ', 'Військовий облік'],
+        rows: [{ rowNumber: 2, cells: ['Приклад Петро Іванович', 'Шевченківський РТЦК та СП м. Львова'] }],
+      },
+      ctx,
+    );
+    expect(rows[0].issues).toEqual([]);
+    expect(rows[0].values.militaryRegistered).toBe(true);
+    expect(rows[0].values.tckId).toBe(ctx.tcks[0].id);
+  });
+
   it('converts a row: full name, gender by patronymic, rank, TCK, passport', () => {
     const { rows, mapping } = convertRows(
       {

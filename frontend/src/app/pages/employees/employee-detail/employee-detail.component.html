@@ -55,7 +55,12 @@
         <h2 class="flex items-center gap-2 font-semibold text-warning">
           <app-icon name="bell" /> Не повідомлено ТЦК: {{ pendingChanges().length }}
         </h2>
-        <button type="button" class="btn btn-primary cursor-pointer" [disabled]="busy()" (click)="createNotice()">
+        <button
+          type="button"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="busy()"
+          (click)="createNotice()"
+        >
           <app-icon name="file" /> Сформувати повідомлення (Дод. 4)
         </button>
       </div>
@@ -225,7 +230,11 @@
   </section>
 
   <section class="mt-6">
-    <button type="button" class="btn btn-ghost px-0 cursor-pointer" (click)="showAudit.set(!showAudit())">
+    <button
+      type="button"
+      class="btn btn-ghost px-0 cursor-pointer"
+      (click)="showAudit.set(!showAudit())"
+    >
       <app-icon name="clock" />
       {{ showAudit() ? 'Сховати історію змін' : 'Історія змін картки (хто, коли, що змінив)' }}
     </button>
@@ -268,7 +277,9 @@
 
   @if (auth.isAdmin()) {
     <div class="mt-10 border-t border-line pt-4">
-      <button type="button" class="btn btn-danger cursor-pointer" (click)="remove()">Видалити картку</button>
+      <button type="button" class="btn btn-danger cursor-pointer" (click)="remove()">
+        Видалити картку
+      </button>
     </div>
   }
 }

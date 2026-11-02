@@ -18,7 +18,9 @@
         class="rounded-lg border border-line bg-surface px-3 py-2 font-mono text-base tracking-wider"
         >{{ issued.password }}</code
       >
-      <button type="button" class="btn btn-secondary cursor-pointer" (click)="copyPassword()">Копіювати</button>
+      <button type="button" class="btn btn-secondary cursor-pointer" (click)="copyPassword()">
+        Копіювати
+      </button>
       <button type="button" class="btn btn-ghost cursor-pointer" (click)="issuedPassword.set(null)">
         Сховати
       </button>
@@ -93,17 +95,25 @@
             </td>
             <td class="text-right whitespace-nowrap">
               @if (lockedIds().has(u.id)) {
-                <button type="button" class="btn btn-ghost py-1 text-xs" (click)="unlock(u)">
+                <button
+                  type="button"
+                  class="btn btn-ghost py-1 text-xs cursor-pointer"
+                  (click)="unlock(u)"
+                >
                   Розблокувати вхід
                 </button>
               }
-              <button type="button" class="btn btn-ghost py-1 text-xs" (click)="resetPassword(u)">
+              <button
+                type="button"
+                class="btn btn-ghost py-1 text-xs cursor-pointer"
+                (click)="resetPassword(u)"
+              >
                 Скинути пароль
               </button>
               @if (u.id !== auth.user()?.id) {
                 <button
                   type="button"
-                  class="btn py-1 text-xs"
+                  class="btn py-1 text-xs cursor-pointer"
                   [class]="u.isActive ? 'btn-danger' : 'btn-secondary'"
                   (click)="toggle(u)"
                 >
@@ -146,7 +156,11 @@
         [formField]="$any(userForm.role)"
       />
     </app-form-field>
-    <button type="submit" class="btn btn-primary w-full" [disabled]="userForm().submitting()">
+    <button
+      type="submit"
+      class="btn btn-primary w-full cursor-pointer"
+      [disabled]="userForm().submitting()"
+    >
       Створити
     </button>
   </form>

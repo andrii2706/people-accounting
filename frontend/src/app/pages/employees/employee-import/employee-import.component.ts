@@ -255,6 +255,10 @@ export class EmployeeImportComponent {
         const values = { ...r.values };
         if (value === undefined) delete values[key];
         else values[key] = value;
+        // men are on military registration by default
+        if (key === 'gender' && value === 'M' && values['militaryRegistered'] === undefined) {
+          values['militaryRegistered'] = true;
+        }
         return {
           ...r,
           values,
