@@ -39,7 +39,7 @@
     "@tailwindcss/postcss": "^4.1.12",
     "@types/compression": "^1.8.1",
     "@types/express": "^5.0.1",
-    "@types/node": "^22.12.0",
+    "@types/node": "^26.6.6",
     "jsdom": "^30.0.0",
     "postcss": "^8.5.3",
     "prettier": "^3.8.1",
