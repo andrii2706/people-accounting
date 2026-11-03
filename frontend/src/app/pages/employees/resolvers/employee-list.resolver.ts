@@ -18,6 +18,5 @@ export const employeeListResolver: ResolveFn<EmployeeList | never> = (route) => 
     const value = q.get(key);
     if (value) params[key] = value;
   }
-  if (q.get('warnings') === '1') params['withWarnings'] = 'true';
   return resolveOr(inject(EmployeesService).list(params), '/') as never;
 };

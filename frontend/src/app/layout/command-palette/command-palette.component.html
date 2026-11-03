@@ -1,0 +1,81 @@
+<div class="fixed inset-0 z-50 bg-black/30 p-4 pt-[12vh]" (click)="closed.emit()">
+  <section
+    class="mx-auto flex max-h-[70vh] w-[min(40rem,100%)] flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-2xl"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Пошук"
+    (click)="$event.stopPropagation()"
+  >
+    <label class="flex items-center gap-3 border-b border-line px-4">
+      <app-icon name="search" class="text-muted" />
+      <span class="sr-only">Пошук працівника або дії</span>
+      <input
+        #input
+        type="search"
+        class="min-w-0 flex-1 bg-transparent py-4 text-[15px] outline-none placeholder:text-muted/70"
+        placeholder="Знайти працівника (ПІБ, РНОКПП, табельний) або дію…"
+        autocomplete="off"
+        role="combobox"
+        aria-expanded="true"
+        aria-controls="palette-list"
+        [attr.aria-activedescendant]="entries()[active()] ? 'pe-' + entries()[active()].id : null"
+        [value]="query()"
+        (input)="onInput($any($event.target).value)"
+        (keydown)="onKeydown($event)"
+      />
+      @if (searching()) {
+        <span class="text-xs text-muted">шукаю…</span>
+      }
+      <kbd class="rounded-md border border-line px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
+    </label>
+    <ul id="palette-list" role="listbox" class="overflow-y-auto py-2">
+      @for (entry of entries(); track entry.id; let i = $index) {
+        @if (i === 0 && peopleCount()) {
+          <li
+            class="px-4 pt-1 pb-1 text-[11px] tracking-wider text-muted uppercase"
+            role="presentation"
+          >
+            Працівники
+          </li>
+        }
+        @if (i === peopleCount()) {
+          <li
+            class="px-4 pt-2 pb-1 text-[11px] tracking-wider text-muted uppercase"
+            role="presentation"
+          >
+            Дії
+          </li>
+        }
+        <li
+          [id]="'pe-' + entry.id"
+          role="option"
+          [attr.aria-selected]="i === active()"
+          class="mx-2 flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5"
+          [class.bg-brand-50]="i === active()"
+          (mouseenter)="active.set(i)"
+          (click)="pick(entry)"
+        >
+          <span
+            class="grid size-8 shrink-0 place-items-center rounded-lg bg-sunken text-muted"
+            [class.!bg-brand-100]="i === active()"
+            [class.!text-brand-700]="i === active()"
+            ><app-icon [name]="entry.icon" [size]="16"
+          /></span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-medium">{{ entry.title }}</span>
+            @if (entry.hint) {
+              <span class="block truncate text-xs text-muted">{{ entry.hint }}</span>
+            }
+          </span>
+          @if (i === active()) {
+            <kbd class="rounded-md border border-line px-1.5 py-0.5 text-[11px] text-muted"
+              >Enter</kbd
+            >
+          }
+        </li>
+      } @empty {
+        <li class="px-4 py-8 text-center text-sm text-muted">Нічого не знайдено</li>
+      }
+    </ul>
+  </section>
+</div>

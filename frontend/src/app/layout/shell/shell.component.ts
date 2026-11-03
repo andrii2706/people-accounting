@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { httpResource } from '@angular/common/http';
 import { filter, map } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AuthService } from '../../shared/services/auth.service';
@@ -19,13 +20,25 @@ import { InboxService } from '../../shared/services/inbox.service';
 import { InboxListComponent } from '../../shared/components/inbox-list/inbox-list.component';
 import type { InboxItem } from '../../shared/interfaces/inbox.interface';
 import { NavigationStateService } from '../../shared/services/navigation-state.service';
-import type { IconName, NavItem } from '../../shared/interfaces/ui.interface';
+import { CommandPaletteComponent } from '../command-palette/command-palette.component';
+import type { Organization } from '../../shared/interfaces/organization.interface';
+import type { NavItem } from '../../shared/interfaces/ui.interface';
 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, IconComponent, InboxListComponent],
-  host: { '(document:keydown.escape)': 'closeInbox()' },
+  imports: [
+    RouterOutlet,
+    RouterLink,
+    RouterLinkActive,
+    IconComponent,
+    InboxListComponent,
+    CommandPaletteComponent,
+  ],
+  host: {
+    '(document:keydown.escape)': 'closeInbox()',
+    '(document:keydown)': 'onShortcut($event)',
+  },
   templateUrl: './shell.component.html',
 })
 export class ShellComponent {
@@ -40,6 +53,24 @@ export class ShellComponent {
   protected readonly inbox = inject(InboxService);
   private readonly router = inject(Router);
   protected readonly inboxOpen = signal(false);
+  protected readonly paletteOpen = signal(false);
+  protected readonly profileOpen = signal(false);
+  protected readonly today = new Intl.DateTimeFormat('uk-UA', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date());
+  /** Company name under the app title (short name if set). */
+  private readonly org = httpResource<Organization>(() =>
+    this.auth.isAuthenticated() && !this.auth.mustChangePassword()
+      ? '/api/organization'
+      : undefined,
+  );
+  protected readonly orgName = computed(() => {
+    const o = this.org.hasValue() ? this.org.value() : null;
+    return o?.shortName || o?.fullName || '';
+  });
   protected readonly welcomeOpen = signal(false);
   protected readonly welcomeItems = computed(() => this.inbox.unread().slice(0, 6));
   protected readonly unreadByKind = computed(() => {
@@ -78,6 +109,20 @@ export class ShellComponent {
   protected closeInbox() {
     this.inboxOpen.set(false);
     this.welcomeOpen.set(false);
+    this.profileOpen.set(false);
+  }
+
+  /** Ctrl K / ⌘K — global search. */
+  protected onShortcut(event: KeyboardEvent) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      this.paletteOpen.set(true);
+    }
+  }
+
+  protected logout() {
+    this.profileOpen.set(false);
+    void this.auth.logout();
   }
 
   protected showAll() {
@@ -121,16 +166,28 @@ export class ShellComponent {
     this.pending.hasValue() ? this.pending.value().length : 0,
   );
 
-  private readonly items: NavItem[] = [
-    { path: '/', label: 'Огляд', icon: 'dashboard', exact: true },
-    { path: '/employees', label: 'Працівники', icon: 'users' },
-    { path: '/notifications', label: 'Повідомлення ТЦК', icon: 'send' },
-    { path: '/letters', label: 'Вихідні листи', icon: 'mail' },
-    { path: '/reports/lists', label: 'Списки (Дод. 5)', icon: 'table' },
-    { path: '/reports/operational', label: 'Відомість (Дод. 12)', icon: 'file' },
-    { path: '/settings', label: 'Налаштування', icon: 'settings' },
+  private readonly groups: { title: string; items: NavItem[] }[] = [
+    {
+      title: 'Робота',
+      items: [
+        { path: '/', label: 'Огляд', icon: 'dashboard', exact: true },
+        { path: '/employees', label: 'Працівники', icon: 'users' },
+        { path: '/notifications', label: 'Повідомлення ТЦК', icon: 'send' },
+        { path: '/letters', label: 'Вихідні листи', icon: 'mail' },
+      ],
+    },
+    {
+      title: 'Звітність',
+      items: [
+        { path: '/reports/lists', label: 'Списки (Дод. 5)', icon: 'table' },
+        { path: '/reports/operational', label: 'Відомість (Дод. 12)', icon: 'file' },
+      ],
+    },
   ];
-  protected readonly nav = computed(() =>
-    this.items.filter((i) => !i.adminOnly || this.auth.isAdmin()),
+  protected readonly navGroups = computed(() =>
+    this.groups.map((g) => ({
+      ...g,
+      items: g.items.filter((i) => !i.adminOnly || this.auth.isAdmin()),
+    })),
   );
 }

@@ -1,155 +1,320 @@
-<app-page-header title="Працівники" eyebrow="Персональний облік" [subtitle]="subtitle()">
-  <a class="btn btn-secondary" [href]="exportUrl()" download
-    ><app-icon name="download" /> Списки .docx</a
-  >
-  <a routerLink="/employees/import" class="btn btn-secondary"
-    ><app-icon name="upload" /> Імпорт з файлу</a
-  >
-  <a routerLink="/employees/new" class="btn btn-primary"><app-icon name="plus" /> Додати</a>
-</app-page-header>
+<div class="flex flex-col gap-4" [class.xl:pr-[396px]]="previewItem()">
+  <div class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h1 class="text-2xl font-semibold">Працівники</h1>
+      <p class="mt-0.5 text-muted">
+        @if (currentView() === 'dismissed') {
+          Звільнені: {{ list().total }}
+        } @else {
+          {{ list().total }} працюють · {{ onListsCount() }} у списках військового обліку
+        }
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <a class="btn btn-secondary" [href]="exportUrl()" download
+        ><app-icon name="download" /> Списки .docx</a
+      >
+      <a routerLink="/employees/import" class="btn btn-secondary"
+        ><app-icon name="upload" /> Імпорт</a
+      >
+      <a routerLink="/employees/new" class="btn btn-primary"><app-icon name="plus" /> Додати</a>
+    </div>
+  </div>
 
-<div class="card mb-4 flex flex-wrap items-end gap-3 p-3">
-  <div class="min-w-[240px] flex-1">
-    <label class="relative block">
+  <nav class="flex flex-wrap gap-1 border-b border-line" aria-label="Добірки">
+    @for (v of views; track v.value) {
+      <button
+        type="button"
+        class="-mb-px cursor-pointer border-b-2 px-3 py-2.5 text-sm transition-colors"
+        [class]="
+          currentView() === v.value
+            ? 'border-brand-600 font-semibold text-ink'
+            : 'border-transparent text-muted hover:text-ink'
+        "
+        [attr.aria-current]="currentView() === v.value ? 'page' : null"
+        (click)="setView(v.value)"
+      >
+        {{ v.label }}
+        @if (counts().get(v.value); as n) {
+          @if (v.value === 'attention') {
+            <span
+              class="ml-1 rounded-full bg-[#fbe9e7] px-1.5 text-[11px] font-semibold text-danger"
+              >{{ n }}</span
+            >
+          } @else {
+            <span class="ml-1 font-normal text-muted tabular-nums">{{ n }}</span>
+          }
+        }
+      </button>
+    }
+  </nav>
+
+  <div class="flex flex-wrap items-center gap-2">
+    <label
+      class="flex min-w-[240px] flex-[1_1_260px] items-center gap-2 rounded-[10px] border border-line bg-surface px-3 py-2 text-muted sm:max-w-sm"
+    >
+      <app-icon name="search" [size]="16" />
       <span class="sr-only">Пошук працівника</span>
-      <app-icon
-        name="search"
-        class="absolute top-1/2 left-3 -translate-y-1/2 text-muted"
-        [size]="16"
-      />
       <input
-        class="input pl-9"
+        class="min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-muted/70"
         type="search"
-        aria-describedby="search-hint"
+        placeholder="ПІБ, РНОКПП, табельний, посада…"
         [value]="searchText()"
         (input)="searchText.set($any($event.target).value)"
       />
     </label>
-    <p id="search-hint" class="mt-1 text-xs text-muted">
-      Шукає за прізвищем, ім’ям, по батькові, табельним номером, посадою або РНОКПП (усі 10 цифр)
-    </p>
-  </div>
 
-  <div
-    class="flex rounded-lg border border-line bg-sunken p-0.5 text-sm"
-    role="group"
-    aria-label="Статус"
-  >
-    @for (opt of statusOptions; track opt.value) {
-      <button
-        type="button"
-        class="rounded-md px-3 py-1.5 cursor-pointer"
-        [class]="
-          currentStatus() === opt.value
-            ? 'bg-surface font-medium shadow-sm'
-            : 'text-muted hover:text-ink'
-        "
-        (click)="setStatus(opt.value)"
+    <!-- filter chips: dashed «+ …» when empty, filled with «×» when set -->
+    @if (category()) {
+      <span
+        class="flex items-center gap-1 rounded-full border border-brand-500 bg-brand-100 py-1 pr-1 pl-3 text-[13px] text-brand-700"
       >
-        {{ opt.label }}
-      </button>
+        {{ categoryLabel() }}
+        <button
+          type="button"
+          class="grid size-5 cursor-pointer place-items-center rounded-full hover:bg-white/60"
+          aria-label="Прибрати фільтр категорії"
+          (click)="setCategory('')"
+        >
+          <app-icon name="x" [size]="12" />
+        </button>
+      </span>
+    } @else {
+      <label
+        class="relative cursor-pointer rounded-full border border-dashed border-[#c9c8bf] bg-surface px-3 py-1 text-[13px] text-[#3a3f34] hover:border-brand-500"
+      >
+        + Категорія
+        <select
+          class="absolute inset-0 cursor-pointer opacity-0"
+          aria-label="Категорія"
+          (change)="setCategory($any($event.target).value)"
+        >
+          <option value="">—</option>
+          @for (o of categoryOptions(); track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+      </label>
+    }
+    @if (group()) {
+      <span
+        class="flex max-w-[22rem] items-center gap-1 rounded-full border border-brand-500 bg-brand-100 py-1 pr-1 pl-3 text-[13px] text-brand-700"
+      >
+        <span class="truncate">{{ groupLabel() }}</span>
+        <button
+          type="button"
+          class="grid size-5 shrink-0 cursor-pointer place-items-center rounded-full hover:bg-white/60"
+          aria-label="Прибрати фільтр групи"
+          (click)="setGroup('')"
+        >
+          <app-icon name="x" [size]="12" />
+        </button>
+      </span>
+    } @else {
+      <label
+        class="relative cursor-pointer rounded-full border border-dashed border-[#c9c8bf] bg-surface px-3 py-1 text-[13px] text-[#3a3f34] hover:border-brand-500"
+      >
+        + Група списку
+        <select
+          class="absolute inset-0 cursor-pointer opacity-0"
+          aria-label="Група списку"
+          (change)="setGroup($any($event.target).value)"
+        >
+          <option value="">—</option>
+          @for (o of groupOptions(); track o.value) {
+            <option [value]="o.value">{{ o.label }}</option>
+          }
+        </select>
+      </label>
+    }
+    @if (isLoading()) {
+      <span class="text-xs text-muted">оновлення…</span>
     }
   </div>
 
-  <app-select
-    class="w-full sm:w-72"
-    ariaLabel="Група списку"
-    placeholder="Усі групи"
-    [options]="groupOptions()"
-    [value]="group()"
-    (valueChange)="setGroup($event)"
-  />
-  <app-select
-    class="w-full sm:w-56"
-    ariaLabel="Категорія"
-    placeholder="Усі категорії"
-    [options]="categoryOptions()"
-    [value]="category()"
-    (valueChange)="setCategory($event)"
-  />
+  @if (selected().size) {
+    <div class="flex flex-wrap items-center gap-3 rounded-xl bg-ink px-4 py-2.5 text-white">
+      <b class="font-semibold">Вибрано {{ selected().size }}</b>
+      <span class="flex-1"></span>
+      <a
+        routerLink="/notifications"
+        class="btn cursor-pointer bg-white px-3 py-1.5 text-[13px] text-ink hover:bg-white/90"
+      >
+        <app-icon name="send" [size]="15" /> Сформувати лист ТЦК
+      </a>
+      <a
+        [href]="selectedExtractUrl()"
+        download
+        class="btn cursor-pointer border border-white/30 px-3 py-1.5 text-[13px] text-white hover:bg-white/10"
+      >
+        <app-icon name="download" [size]="15" /> Витяг .docx
+      </a>
+      <button
+        type="button"
+        class="grid size-8 cursor-pointer place-items-center rounded-lg hover:bg-white/10"
+        aria-label="Скасувати вибір"
+        (click)="clearSelection()"
+      >
+        <app-icon name="x" [size]="16" />
+      </button>
+    </div>
+  }
 
-  <label class="flex items-center gap-2 px-1 py-2 text-sm text-muted">
-    <input
-      type="checkbox"
-      class="size-4 accent-brand-600"
-      [checked]="onlyWarnings()"
-      (change)="setOnlyWarnings($any($event.target).checked)"
-    />
-    Лише з попередженнями
-  </label>
-</div>
-
-<div class="card overflow-x-auto">
-  <table class="table-base">
-    <thead>
-      <tr>
-        <th>Працівник</th>
-        <th>Категорія</th>
-        <th class="hidden xl:table-cell">Група</th>
-        <th>Звання / ВОС</th>
-        <th>ТЦК та СП</th>
-        <th>Увага</th>
-        <th class="hidden text-right xl:table-cell">Прийнятий</th>
-      </tr>
-    </thead>
-    <tbody [class.opacity-50]="isLoading()">
-      @for (e of items(); track e.id) {
+  <div class="card overflow-x-auto">
+    <table class="table-base" [class]="previewItem() ? 'min-w-[640px]' : 'min-w-[860px]'">
+      <thead>
         <tr>
-          <td class="min-w-[200px]">
-            <a
-              [routerLink]="['/employees', e.id]"
-              class="font-medium text-ink hover:text-brand-600"
-              >{{ e.fullName }}</a
-            >
-            <p class="text-xs text-muted">
-              @if (e.personnelNumber) {
-                <span class="font-mono">№ {{ e.personnelNumber }}</span> ·
+          <th class="w-10">
+            <input
+              type="checkbox"
+              class="size-4 cursor-pointer accent-brand-600"
+              aria-label="Вибрати всіх"
+              [checked]="allSelected()"
+              (change)="toggleAll()"
+            />
+          </th>
+          <th>Працівник</th>
+          <th [class.hidden]="previewItem()">Посада</th>
+          <th>Звання · ВОС</th>
+          <th>Статус</th>
+          <th class="text-right">Увага</th>
+          <th class="w-[120px]"><span class="sr-only">Дії</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (e of items(); track e.id) {
+          @let active = previewId() === e.id;
+          <tr
+            class="cursor-pointer"
+            [class.!bg-brand-50]="active"
+            [style.box-shadow]="active ? 'inset 3px 0 0 var(--color-brand-600)' : null"
+            (click)="preview(e)"
+          >
+            <td (click)="$event.stopPropagation()">
+              <input
+                type="checkbox"
+                class="size-4 cursor-pointer accent-brand-600"
+                [attr.aria-label]="'Вибрати ' + e.fullName"
+                [checked]="selected().has(e.id)"
+                (change)="toggle(e.id)"
+              />
+            </td>
+            <td>
+              <div class="flex items-center gap-2.5">
+                <span
+                  class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold"
+                  [class]="active ? 'bg-brand-600 text-white' : 'bg-sunken text-[#3a3f34]'"
+                  >{{ initials(e) }}</span
+                >
+                <div class="min-w-0">
+                  <p class="font-semibold">{{ e.fullName }}</p>
+                  <p class="text-xs text-muted">
+                    @if (e.personnelNumber) {
+                      таб. {{ e.personnelNumber }} ·
+                    }
+                    {{ e.age !== null ? e.age + ' р.' : '' }}
+                  </p>
+                </div>
+              </div>
+            </td>
+            <td [class.hidden]="previewItem()">
+              <span class="first-letter:uppercase">{{ e.position || '—' }}</span>
+              @if (e.hireDate) {
+                <p class="text-xs text-muted">з {{ e.hireDate | uaDate }}</p>
               }
-              {{ e.position || 'посада не вказана' }}
-              @if (e.age !== null) {
-                · {{ e.age }} р.
+            </td>
+            <td>
+              {{ e.rankTitle || '—' }}
+              @if (e.vos) {
+                <p class="font-mono text-xs text-muted">{{ e.vos }}</p>
               }
-            </p>
-            @if (e.dismissalDate) {
-              <p class="text-xs text-danger">звільнений {{ e.dismissalDate | uaDate }}</p>
-            }
-            @if (e.mobilized) {
-              <p class="text-xs text-info">мобілізований</p>
-            }
-          </td>
-          <td><app-category-badge [category]="e.dutyCategory" /></td>
-          <td class="hidden xl:table-cell">
-            <app-group-badge [group]="e.listGroup" [title]="dict.groupTitle(e.listGroup)" />
-          </td>
-          <td class="text-sm">
-            {{ e.rankTitle || (e.rankCode === 0 ? 'призовник' : '—') }}
-            @if (e.vos) {
-              <p class="font-mono text-xs text-muted">ВОС {{ e.vos }}</p>
-            }
-          </td>
-          <td class="max-w-[220px] text-sm text-muted">{{ e.tckName || '—' }}</td>
-          <td class="min-w-[160px]">
-            @if (e.pendingChanges) {
-              <a
-                routerLink="/notifications"
-                class="mb-1 inline-flex items-center gap-1 rounded-full bg-[#f6ecdf] px-2 py-0.5 text-xs font-medium text-warning"
+            </td>
+            <td>
+              <div class="flex max-w-60 flex-wrap gap-1">
+                @for (b of statusBadges(e); track b.label) {
+                  <span
+                    class="badge"
+                    [class]="
+                      b.tone === 'ok'
+                        ? 'bg-ok/10 text-ok'
+                        : b.tone === 'warning'
+                          ? 'bg-warning/10 text-warning'
+                          : b.tone === 'info'
+                            ? 'bg-info/10 text-info'
+                            : 'bg-sunken text-muted'
+                    "
+                    >{{ b.label }}</span
+                  >
+                } @empty {
+                  <span class="text-muted">—</span>
+                }
+              </div>
+            </td>
+            <td class="text-right">
+              @if (warningCount(e); as n) {
+                <span
+                  class="text-xs font-semibold"
+                  [class]="hasDanger(e) ? 'text-danger' : 'text-warning'"
+                  >● {{ n }}</span
+                >
+              } @else {
+                <span class="text-muted">—</span>
+              }
+            </td>
+            <td class="text-right whitespace-nowrap" (click)="$event.stopPropagation()">
+              <button
+                type="button"
+                class="inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] hover:bg-sunken"
+                [class.!bg-brand-100]="active"
+                [class.!text-brand-700]="active"
+                title="Переглянути"
+                [attr.aria-label]="'Переглянути: ' + e.fullName"
+                [attr.aria-pressed]="active"
+                (click)="preview(e)"
               >
-                <app-icon name="bell" [size]="12" /> {{ e.pendingChanges }} до ТЦК
-              </a>
-            }
-            <app-warnings [warnings]="e.warnings" />
-          </td>
-          <td class="hidden text-right text-sm whitespace-nowrap tabular-nums xl:table-cell">
-            {{ e.hireDate | uaDate }}
-          </td>
-        </tr>
-      } @empty {
-        <tr>
-          <td colspan="7" class="py-12 text-center text-sm text-muted">
-            Нікого не знайдено за цими умовами.
-          </td>
-        </tr>
-      }
-    </tbody>
-  </table>
+                <app-icon name="eye" [size]="16" />
+              </button>
+              <button
+                type="button"
+                class="inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] hover:bg-sunken"
+                title="Редагувати"
+                [attr.aria-label]="'Редагувати: ' + e.fullName"
+                (click)="edit(e)"
+              >
+                <app-icon name="edit" [size]="16" />
+              </button>
+              <button
+                type="button"
+                class="inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] hover:bg-sunken"
+                title="Копіювати"
+                [attr.aria-label]="'Копіювати: ' + e.fullName"
+                (click)="copy(e)"
+              >
+                <app-icon name="copy" [size]="16" />
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="py-12 text-center text-sm text-muted">
+              @if (searchText() || group() || category() || currentView() !== 'all') {
+                Нікого не знайдено — змініть пошук чи фільтри
+              } @else {
+                Ще немає працівників.
+                <a routerLink="/employees/new" class="text-brand-600 hover:underline">Додайте</a>
+                або
+                <a routerLink="/employees/import" class="text-brand-600 hover:underline"
+                  >імпортуйте з файлу</a
+                >.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
 </div>
+
+@if (previewItem(); as item) {
+  <app-employee-preview [item]="item" (closed)="previewId.set(null)" />
+}

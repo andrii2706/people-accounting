@@ -41,12 +41,12 @@ import {
   normalizeTime,
   reportableChanges,
 } from './employee-form.model';
+import { changedCount, completion, sectionKeyFields } from './employee-form.sections';
 import { httpResource } from '@angular/common/http';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
-import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import type { FamilyRelation } from '../../../shared/interfaces/dictionary.interface';
 import type { EmployeeDetails } from '../../../shared/interfaces/employee.interface';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
@@ -102,7 +102,6 @@ const SPOUSES: FamilyRelation[] = ['WIFE', 'HUSBAND'];
   imports: [
     FormField,
     FormFieldComponent,
-    PageHeaderComponent,
     RouterLink,
     IconComponent,
     DateInputComponent,
@@ -660,6 +659,43 @@ export class EmployeeFormComponent {
     }
     return items;
   });
+
+  /** Section menu: errors, filled state, overall completion, unsaved changes. */
+  protected readonly sections = computed(() => {
+    const keys = sectionKeyFields(this.model());
+    const errors = new Map<string, number>();
+    for (const item of this.errorList()) {
+      if (item.tab === 'sidebar') continue;
+      if (this.submitAttempted() || this.itemField(item)?.().touched())
+        errors.set(item.tab, (errors.get(item.tab) ?? 0) + 1);
+    }
+    return TABS.map((t) => {
+      const fields = keys[t.id];
+      const missing = fields.filter((v) => !v).length;
+      return {
+        ...t,
+        errors: errors.get(t.id) ?? 0,
+        missing,
+        complete: fields.length > 0 && missing === 0,
+      };
+    });
+  });
+  protected readonly completion = computed(() => completion(this.model()));
+  protected readonly currentSectionLabel = computed(
+    () => TABS.find((t) => t.id === this.tab())?.label ?? '',
+  );
+  protected readonly unsaved = computed(() => changedCount(this.original(), this.model()));
+  protected readonly visibleErrors = computed(() =>
+    this.sections().reduce((sum, s) => sum + s.errors, 0),
+  );
+  protected readonly initials = computed(() =>
+    `${this.model().lastName.charAt(0)}${this.model().firstName.charAt(0)}`.toUpperCase(),
+  );
+
+  protected cancel() {
+    const e = this.employee();
+    void this.router.navigate(e ? ['/employees', e.id] : ['/employees']);
+  }
 
   /** Red dot on a tab with an error (after a save attempt or touching the field). */
   protected readonly tabErrors = computed(() => {

@@ -10,92 +10,68 @@
 <div class="flex min-h-screen">
   <!-- sidebar: drawer below 1024px, compact icon rail 1024–1279px, full panel from 1280px -->
   <aside
-    class="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-brand-900/40 bg-brand-900 text-brand-100 transition-transform lg:w-[72px] lg:translate-x-0 xl:w-64"
+    class="fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r border-line bg-[#fbfbf9] transition-transform lg:w-[72px] lg:translate-x-0 xl:w-64"
     [class.-translate-x-full]="!menuOpen()"
   >
     <div
       class="flex items-center gap-3 px-5 py-5 lg:justify-center lg:px-0 xl:justify-start xl:px-5"
     >
-      <span class="grid size-9 place-items-center rounded-lg bg-brand-500/30 text-brand-100"
-        ><app-icon name="shield" [size]="20"
+      <span class="grid size-9 shrink-0 place-items-center rounded-[10px] bg-brand-600 text-white"
+        ><app-icon name="shield" [size]="18"
       /></span>
-      <div class="leading-tight lg:hidden xl:block">
-        <p class="text-sm font-semibold text-white">Військовий облік</p>
-        <p class="text-[11px] tracking-wide text-brand-200/70 uppercase">персонал підприємства</p>
+      <div class="min-w-0 leading-tight lg:hidden xl:block">
+        <p class="text-sm font-semibold">Військовий облік</p>
+        <p class="truncate text-xs text-muted">{{ orgName() || 'персонал підприємства' }}</p>
       </div>
     </div>
 
-    <nav class="flex-1 space-y-0.5 px-3 py-2" aria-label="Головне меню">
-      @for (item of nav(); track item.path) {
-        <a
-          [routerLink]="item.path"
-          routerLinkActive="!bg-white/10 !text-white"
-          [routerLinkActiveOptions]="{ exact: !!item.exact }"
-          [attr.title]="item.label"
-          [attr.aria-label]="item.label"
-          class="relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-brand-100/80 transition-colors hover:bg-white/5 hover:text-white lg:justify-center xl:justify-start"
+    <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-1" aria-label="Головне меню">
+      @for (group of navGroups(); track group.title) {
+        <p
+          class="px-3 pt-4 pb-1.5 text-[11px] tracking-[0.08em] text-muted uppercase first:pt-1 lg:hidden xl:block"
         >
-          <app-icon [name]="item.icon" />
-          <span class="flex-1 lg:hidden xl:inline">{{ item.label }}</span>
-          @if (item.path === '/notifications' && pendingCount() > 0) {
-            <span
-              class="rounded-full bg-[#d9a441] px-1.5 text-[11px] font-semibold text-brand-900 lg:absolute lg:top-0.5 lg:right-1.5 xl:static"
-              >{{ pendingCount() }}</span
-            >
-          }
-        </a>
+          {{ group.title }}
+        </p>
+        @for (item of group.items; track item.path) {
+          <a
+            [routerLink]="item.path"
+            routerLinkActive="!bg-brand-100 !font-semibold !text-brand-700"
+            [routerLinkActiveOptions]="{ exact: !!item.exact }"
+            [attr.title]="item.label"
+            [attr.aria-label]="item.label"
+            class="relative flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[#3a3f34] transition-colors hover:bg-sunken lg:justify-center xl:justify-start"
+          >
+            <app-icon [name]="item.icon" [size]="17" />
+            <span class="flex-1 lg:hidden xl:inline">{{ item.label }}</span>
+            @if (item.path === '/notifications' && pendingCount() > 0) {
+              <span
+                class="rounded-full bg-[#fbe9e7] px-1.5 text-[11px] font-semibold text-danger lg:absolute lg:top-0.5 lg:right-1 xl:static"
+                >{{ pendingCount() }}</span
+              >
+            }
+          </a>
+        }
       }
     </nav>
 
-    <div class="border-t border-white/10 p-3">
-      <div
-        class="flex items-center gap-3 rounded-lg px-2 py-2 lg:flex-col lg:px-0 xl:flex-row xl:px-2"
+    <div class="border-t border-line p-3">
+      <a
+        routerLink="/settings"
+        routerLinkActive="!bg-brand-100 !font-semibold !text-brand-700"
+        title="Налаштування"
+        aria-label="Налаштування"
+        class="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm text-[#3a3f34] hover:bg-sunken lg:justify-center xl:justify-start"
       >
-        <span
-          class="grid size-8 place-items-center rounded-full bg-brand-500/40 text-xs font-semibold text-white"
-          >{{ auth.initials() }}</span
-        >
-        <div class="min-w-0 flex-1 leading-tight lg:hidden xl:block">
-          <p class="truncate text-sm text-white">{{ auth.user()?.fullName }}</p>
-          <p class="text-[11px] text-brand-200/70">
-            {{ auth.isAdmin() ? 'Адміністратор' : 'Кадровик' }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="relative cursor-pointer rounded-md p-1.5 text-brand-200/70 hover:bg-white/10 hover:text-white"
-          [class.!bg-white/10]="inboxOpen()"
-          [attr.aria-expanded]="inboxOpen()"
-          [attr.aria-label]="
-            'Сповіщення' + (inbox.unreadCount() ? ': ' + inbox.unreadCount() + ' нових' : '')
-          "
-          title="Сповіщення"
-          (click)="toggleInbox()"
-        >
-          <app-icon name="bell" />
-          @if (inbox.unreadCount()) {
-            <span
-              class="absolute -top-1 -right-1 min-w-4 rounded-full bg-[#d9a441] px-1 text-center text-[10px] leading-4 font-semibold text-brand-900"
-              >{{ inbox.unreadCount() > 99 ? '99+' : inbox.unreadCount() }}</span
-            >
-          }
-        </button>
-        <button
-          type="button"
-          class="rounded-md p-1.5 text-brand-200/70 hover:bg-white/10 hover:text-white cursor-pointer"
-          (click)="auth.logout()"
-          title="Вийти"
-        >
-          <app-icon name="logout" />
-        </button>
-      </div>
+        <app-icon name="settings" [size]="17" />
+        <span class="lg:hidden xl:inline">Налаштування</span>
+      </a>
     </div>
   </aside>
 
   @if (menuOpen()) {
     <button
       type="button"
-      class="fixed inset-0 z-20 bg-black/30 lg:hidden cursor-pointer"
+      class="fixed inset-0 z-20 cursor-pointer bg-black/30 lg:hidden"
       aria-label="Закрити меню"
       (click)="menuOpen.set(false)"
     ></button>
@@ -103,23 +79,103 @@
 
   <div class="flex min-w-0 flex-1 flex-col lg:pl-[72px] xl:pl-64">
     <header
-      class="sticky top-0 z-10 flex items-center gap-3 border-b border-line bg-canvas/90 px-4 py-3 backdrop-blur lg:hidden"
+      class="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur sm:px-6 xl:px-8"
     >
       <button
         type="button"
-        class="btn btn-ghost px-2 cursor-pointer"
+        class="btn btn-ghost cursor-pointer px-2 lg:hidden"
         (click)="menuOpen.set(true)"
         aria-label="Меню"
       >
-        ☰
+        <app-icon name="menu" />
       </button>
-      <span class="text-sm font-semibold">Військовий облік</span>
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 rounded-[10px] border border-line bg-canvas px-3 py-2 text-left text-sm text-muted transition-colors hover:border-[#d8d7cf] sm:max-w-[30rem]"
+        (click)="paletteOpen.set(true)"
+      >
+        <app-icon name="search" [size]="16" />
+        <span class="flex-1 truncate">Знайти працівника, РНОКПП, лист або дію…</span>
+        <kbd
+          class="hidden rounded-md border border-[#d8d7cf] bg-surface px-1.5 py-0.5 text-[11px] sm:inline"
+          >Ctrl K</kbd
+        >
+      </button>
+      <span class="ml-auto hidden text-sm whitespace-nowrap text-muted md:inline">{{ today }}</span>
+      <button
+        type="button"
+        class="relative grid size-9 shrink-0 cursor-pointer place-items-center rounded-[10px] border border-line bg-surface text-[#3a3f34] hover:bg-sunken"
+        [class.!bg-sunken]="inboxOpen()"
+        [attr.aria-expanded]="inboxOpen()"
+        [attr.aria-label]="
+          'Сповіщення' + (inbox.unreadCount() ? ': ' + inbox.unreadCount() + ' нових' : '')
+        "
+        title="Сповіщення"
+        (click)="toggleInbox()"
+      >
+        <app-icon name="bell" [size]="18" />
+        @if (inbox.unreadCount()) {
+          <span
+            class="absolute -top-1.5 -right-1.5 min-w-[18px] rounded-full bg-danger px-1 text-center text-[11px] leading-[18px] font-semibold text-white"
+            >{{ inbox.unreadCount() > 99 ? '99+' : inbox.unreadCount() }}</span
+          >
+        }
+      </button>
+      <div class="relative">
+        <button
+          type="button"
+          class="grid size-9 cursor-pointer place-items-center rounded-full bg-brand-100 text-xs font-semibold text-brand-700"
+          [attr.aria-expanded]="profileOpen()"
+          aria-label="Профіль"
+          (click)="profileOpen.set(!profileOpen())"
+        >
+          {{ auth.initials() }}
+        </button>
+        @if (profileOpen()) {
+          <button
+            type="button"
+            class="fixed inset-0 z-30 cursor-default"
+            aria-label="Закрити меню профілю"
+            (click)="profileOpen.set(false)"
+          ></button>
+          <div
+            class="absolute top-full right-0 z-40 mt-2 w-64 overflow-hidden rounded-xl border border-line bg-surface shadow-xl"
+            role="menu"
+          >
+            <div class="border-b border-line px-4 py-3">
+              <p class="truncate text-sm font-semibold">{{ auth.user()?.fullName }}</p>
+              <p class="truncate text-xs text-muted">
+                {{ auth.isAdmin() ? 'Адміністратор' : 'Кадровик' }} · {{ auth.user()?.email }}
+              </p>
+            </div>
+            <a
+              routerLink="/profile"
+              role="menuitem"
+              class="flex cursor-pointer items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-sunken"
+              (click)="profileOpen.set(false)"
+              ><app-icon name="key" [size]="16" /> Профіль і пароль</a
+            >
+            <button
+              type="button"
+              role="menuitem"
+              class="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left text-sm text-danger hover:bg-sunken"
+              (click)="logout()"
+            >
+              <app-icon name="logout" [size]="16" /> Вийти
+            </button>
+          </div>
+        }
+      </div>
     </header>
     <main class="mx-auto w-full max-w-[1400px] flex-1 px-4 py-6 sm:px-6 sm:py-8 xl:px-8">
       <router-outlet />
     </main>
   </div>
 </div>
+
+@if (paletteOpen()) {
+  <app-command-palette (closed)="paletteOpen.set(false)" />
+}
 
 @if (idle.secondsLeft(); as seconds) {
   <div
@@ -149,7 +205,7 @@
     (click)="closeInbox()"
   ></button>
   <section
-    class="fixed bottom-4 left-4 z-50 flex max-h-[75vh] w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-xl lg:left-[84px] xl:left-[268px]"
+    class="fixed top-16 right-4 z-50 flex max-h-[75vh] w-[min(30rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-xl sm:right-6"
     role="dialog"
     aria-label="Сповіщення"
   >

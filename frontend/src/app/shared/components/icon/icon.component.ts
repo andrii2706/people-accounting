@@ -22,6 +22,8 @@ export const PATHS = {
   x: 'M18 6 6 18M6 6l12 12',
   edit: 'M12 20h9M16.5 3.5a2.12 2.12 0 1 1 3 3L7 19l-4 1 1-4z',
   logout: 'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
+  menu: 'M3 6h18M3 12h18M3 18h18',
+  eye: 'M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6',
   copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
   chevronDown: 'm6 9 6 6 6-6',
   columns: 'M3 5h18v14H3zM9 5v14M15 5v14',

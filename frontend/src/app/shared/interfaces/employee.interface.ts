@@ -40,6 +40,9 @@ export interface EmployeeListItem extends EmployeeDerived {
   vos: string;
   tckName: string;
   reservationUntil: string | null;
+  /** Deferral in force on the date (not for reserved employees). */
+  deferral: boolean;
+  deferralUntil: string | null;
   pendingChanges: number;
 }
 

@@ -1,3 +1,4 @@
+import { hasDeferralAt } from '../military/personal-list.js';
 import { isElectronicDocType, normalizeVos } from '../military/employee-rules.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -293,6 +294,9 @@ export class EmployeesService {
       vos: e.vos,
       tckName: e.tck?.name ?? '',
       reservationUntil: e.reserved ? e.reservationUntil : null,
+      /** Deferral in force on the date (and the employee is not reserved). */
+      deferral: !e.reserved && hasDeferralAt(e, date, org.mobilizationUntil),
+      deferralUntil: e.deferralUntilMobilizationEnd ? null : e.deferralUntil,
       pendingChanges: pendingCounts.get(e.id) ?? 0,
       ...deriveEmployee(e, date, org.alertDays),
     }));

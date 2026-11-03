@@ -1,12 +1,25 @@
-<app-page-header
-  eyebrow="Огляд"
-  [title]="greeting()"
-  [subtitle]="'Стан військового обліку станом на ' + (data()?.date | uaDate)"
->
-  <a routerLink="/employees/new" class="btn btn-primary"
-    ><app-icon name="plus" /> Додати працівника</a
-  >
-</app-page-header>
+<div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+  <div>
+    <h1 class="text-[26px] font-semibold">{{ greeting() }}</h1>
+    <p class="mt-1 text-muted">
+      @if (!inboxLoaded()) {
+        Стан військового обліку станом на {{ data()?.date | uaDate }}
+      } @else if (tasks().length) {
+        {{ summary() }}
+      } @else {
+        Усе гаразд — термінових справ немає
+      }
+    </p>
+  </div>
+  <div class="flex flex-wrap gap-2">
+    <a routerLink="/employees/import" class="btn btn-secondary"
+      ><app-icon name="upload" /> Імпорт з файлу</a
+    >
+    <a routerLink="/employees/new" class="btn btn-primary"
+      ><app-icon name="plus" /> Додати працівника</a
+    >
+  </div>
+</div>
 
 @if (!data()) {
   <div class="card p-6 text-sm text-danger">Не вдалося завантажити дані.</div>
@@ -14,172 +27,170 @@
   @if (!d.organizationConfigured) {
     <a
       routerLink="/settings"
-      class="mb-6 flex items-center gap-3 rounded-xl border border-warning/30 bg-[#fdf6ec] px-4 py-3 text-sm text-warning"
+      class="mb-5 flex items-center gap-3 rounded-xl border border-warning/30 bg-[#fdf6ec] px-4 py-3 text-sm text-warning"
     >
       <app-icon name="alert" /> Заповніть реквізити підприємства — вони потрібні для всіх
       документів.
     </a>
   }
 
-  <section class="card mb-4 p-5" [class.border-danger]="d.reservation.exceeded">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <p class="label">Бронювання за квотою</p>
-        @if (d.reservation.quota !== null) {
-          <p class="text-sm text-muted">
-            {{ d.reservation.quotaBasis || 'Квота підприємства' }}
-          </p>
-        } @else {
-          <p class="text-sm text-muted">
-            Квоту не задано —
-            <a routerLink="/settings" class="text-brand-600 hover:underline"
-              >вкажіть у налаштуваннях</a
-            >
-          </p>
-        }
-      </div>
-      <dl class="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-4">
-        <div>
-          <dt class="text-xs text-muted">Квота</dt>
-          <dd class="text-2xl font-semibold tabular-nums">{{ d.reservation.quota ?? '—' }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs text-muted">Заброньовано підприємством</dt>
-          <dd
-            class="text-2xl font-semibold tabular-nums"
-            [class.text-danger]="d.reservation.exceeded"
-          >
-            {{ d.reservation.reservedCompany }}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs text-muted">Ще можна забронювати</dt>
-          <dd
-            class="text-2xl font-semibold tabular-nums"
-            [class.text-ok]="(d.reservation.available ?? 0) > 0"
-          >
-            {{ d.reservation.available ?? '—' }}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-xs text-muted">Заброньовані іншою юр. особою</dt>
-          <dd class="text-2xl font-semibold tabular-nums">{{ d.reservation.reservedOther }}</dd>
-        </div>
-      </dl>
-    </div>
-    @if (d.reservation.quota !== null) {
-      <div
-        class="mt-4 h-2 overflow-hidden rounded-full bg-sunken"
-        role="progressbar"
-        [attr.aria-valuenow]="d.reservation.reservedCompany"
-        [attr.aria-valuemax]="d.reservation.quota"
-        aria-label="Використання квоти"
-      >
-        <div
-          class="h-full rounded-full"
-          [class]="d.reservation.exceeded ? 'bg-danger' : 'bg-brand-500'"
-          [style.width.%]="quotaShare()"
-        ></div>
-      </div>
-      @if (d.reservation.exceeded) {
-        <p class="mt-2 text-sm text-danger">Кількість заброньованих перевищує квоту.</p>
-      }
-    }
-  </section>
-
-  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    <div class="card p-5">
-      <p class="label">Працюють</p>
-      <p class="text-3xl font-semibold tabular-nums">{{ d.employees.employed }}</p>
-      <p class="mt-1 text-xs text-muted">у списках обліку: {{ d.employees.onLists }}</p>
-    </div>
-    <a routerLink="/notifications" class="card group p-5 transition-colors hover:border-brand-500">
-      <p class="label">Очікують повідомлення ТЦК</p>
-      <p class="text-3xl font-semibold tabular-nums" [class.text-warning]="d.pendingChanges > 0">
-        {{ d.pendingChanges }}
-      </p>
-      <p class="mt-1 text-xs" [class]="d.overdueChanges ? 'text-danger' : 'text-muted'">
-        {{ d.overdueChanges ? 'прострочено: ' + d.overdueChanges : 'усе вчасно' }}
-      </p>
+  <div class="mb-5 grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+    <a
+      routerLink="/employees"
+      class="card flex flex-col gap-1.5 p-4 transition-colors hover:border-brand-500"
+    >
+      <span class="text-[13px] text-muted">Працюють</span>
+      <b class="text-[28px] leading-none font-semibold tabular-nums">{{ d.employees.employed }}</b>
+      <span class="text-xs text-muted">у списках обліку: {{ d.employees.onLists }}</span>
     </a>
-    <div class="card p-5">
-      <p class="label">Мають відстрочку</p>
-      <p class="text-3xl font-semibold tabular-nums">{{ d.deferrals }}</p>
-      <p class="mt-1 text-xs text-muted">
+    <a
+      routerLink="/notifications"
+      class="card flex flex-col gap-1.5 p-4 transition-colors hover:border-brand-500"
+    >
+      <span class="text-[13px] text-muted">Очікують повідомлення ТЦК</span>
+      <b
+        class="text-[28px] leading-none font-semibold tabular-nums"
+        [class.text-warning]="d.pendingChanges > 0"
+        >{{ d.pendingChanges }}</b
+      >
+      <span class="text-xs" [class]="d.overdueChanges ? 'text-danger' : 'text-muted'">
+        {{ d.overdueChanges ? 'прострочено: ' + d.overdueChanges : 'усе вчасно' }}
+      </span>
+    </a>
+    <div class="card flex flex-col gap-1.5 p-4">
+      <span class="text-[13px] text-muted">Мають відстрочку</span>
+      <b class="text-[28px] leading-none font-semibold tabular-nums">{{ d.deferrals }}</b>
+      <span class="text-xs text-muted">
         мобілізовано: {{ d.employees.mobilized }}
         @if (d.mobilizationUntil) {
           · мобілізація до {{ d.mobilizationUntil | uaDate }}
         }
-      </p>
+      </span>
     </div>
-    <div class="card p-5">
-      <p class="label">За категоріями</p>
-      <dl class="mt-2 space-y-1 text-sm">
-        <div class="flex justify-between">
-          <dt class="text-muted">Військовозобов’язані</dt>
-          <dd class="font-medium tabular-nums">{{ d.byCategory.LIABLE }}</dd>
+    <a
+      routerLink="/settings"
+      class="card flex flex-col gap-2 p-4 transition-colors hover:border-brand-500"
+      [class.!border-danger]="d.reservation.exceeded"
+    >
+      <span class="text-[13px] text-muted">Бронювання за квотою</span>
+      @if (d.reservation.quota !== null) {
+        <div class="flex items-baseline gap-1.5">
+          <b class="text-[28px] leading-none font-semibold tabular-nums">{{
+            d.reservation.reservedCompany
+          }}</b>
+          <span class="text-muted">з {{ d.reservation.quota }}</span>
         </div>
-        <div class="flex justify-between">
-          <dt class="text-muted">Резервісти</dt>
-          <dd class="font-medium tabular-nums">{{ d.byCategory.RESERVIST }}</dd>
+        <div class="h-1.5 rounded-full bg-sunken">
+          <div
+            class="h-1.5 rounded-full"
+            [class]="d.reservation.exceeded ? 'bg-danger' : 'bg-brand-600'"
+            [style.width.%]="quotaShare()"
+          ></div>
         </div>
-        <div class="flex justify-between">
-          <dt class="text-muted">Призовники</dt>
-          <dd class="font-medium tabular-nums">{{ d.byCategory.CONSCRIPT }}</dd>
-        </div>
-      </dl>
-    </div>
+        @if (d.reservation.exceeded) {
+          <span class="text-xs text-danger">Квоту перевищено</span>
+        }
+      } @else {
+        <b class="text-[28px] leading-none font-semibold tabular-nums">{{
+          d.reservation.reservedCompany
+        }}</b>
+        <span class="text-xs text-muted">квоту не задано — вкажіть у налаштуваннях</span>
+      }
+    </a>
   </div>
 
-  <div class="mt-6 grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-    <section class="card p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <h2 class="font-semibold">Списки персонального обліку</h2>
-        <a routerLink="/reports/lists" class="text-sm text-brand-600 hover:underline"
-          >Відкрити списки</a
-        >
-      </div>
-      <ul class="space-y-2.5">
-        @for (row of groups(); track row.group) {
-          <li>
-            <div class="mb-1 flex items-baseline justify-between gap-3 text-sm">
-              <span class="truncate first-letter:uppercase">{{ row.title }}</span>
-              <span class="font-medium tabular-nums">{{ row.count }}</span>
-            </div>
-            <div class="h-1.5 overflow-hidden rounded-full bg-sunken">
-              <div class="h-full rounded-full bg-brand-500" [style.width.%]="row.share"></div>
-            </div>
-          </li>
-        }
-      </ul>
-    </section>
-
-    <section class="card p-5">
-      <h2 class="mb-4 font-semibold">Потребують уваги</h2>
-      @if (d.attention.length) {
-        <ul class="divide-y divide-line">
-          @for (item of d.attention; track item.id) {
-            <li class="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+  <div class="flex flex-wrap items-start gap-5">
+    <section class="card min-w-0 flex-[3_1_460px] overflow-hidden">
+      <header class="flex items-center justify-between border-b border-line px-5 py-4">
+        <h2 class="text-base font-semibold">Що зробити сьогодні</h2>
+        <span class="text-xs text-muted">за терміновістю</span>
+      </header>
+      @if (!inboxLoaded()) {
+        <p class="px-5 py-8 text-center text-sm text-muted">Завантаження…</p>
+      } @else {
+        <ul>
+          @for (task of visibleTasks(); track task.key) {
+            <li
+              class="flex items-center gap-3.5 border-b border-line/70 px-5 py-3.5 last:border-b-0"
+            >
+              <span
+                class="size-2 shrink-0 rounded-full"
+                [class]="task.level === 'danger' ? 'bg-danger' : 'bg-warning'"
+                aria-hidden="true"
+              ></span>
+              <div class="min-w-0 flex-1">
+                <p class="font-semibold">{{ task.title }}</p>
+                <p class="text-[13px] text-muted">{{ task.detail }}</p>
+              </div>
               <a
-                [routerLink]="['/employees', item.id]"
-                class="text-sm font-medium hover:text-brand-600"
-                >{{ item.fullName }}</a
+                [routerLink]="task.link"
+                [queryParams]="task.query"
+                class="btn shrink-0 px-3 py-1.5 text-[13px] whitespace-nowrap"
+                [class]="task.key === 'TCK' ? 'btn-primary' : 'btn-secondary'"
+                >{{ task.action }}</a
               >
-              <app-warnings class="max-w-[60%]" [warnings]="item.warnings" />
+            </li>
+          } @empty {
+            <li class="px-5 py-10 text-center text-sm text-muted">
+              <app-icon name="check" class="mb-2 text-ok" /><br />
+              Термінових справ немає
             </li>
           }
         </ul>
-      } @else {
-        <p class="text-sm text-muted">
-          Немає попереджень: строки бронювання, відстрочки і граничний вік у нормі.
-        </p>
+        @if (tasks().length > visibleTasks().length) {
+          <p class="border-t border-line px-5 py-2.5 text-xs text-muted">
+            і ще {{ tasks().length - visibleTasks().length }} — у сповіщеннях (дзвіночок угорі)
+          </p>
+        }
       }
     </section>
-  </div>
-} @else {
-  <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-    @for (i of [1, 2, 3, 4]; track i) {
-      <div class="card h-28 animate-pulse bg-sunken/50"></div>
-    }
+
+    <div class="flex min-w-0 flex-[2_1_300px] flex-col gap-5">
+      <section class="card p-5">
+        <h2 class="mb-3.5 text-base font-semibold">Строки найближчим часом</h2>
+        <ul class="space-y-3">
+          @for (term of terms(); track term.key) {
+            <li>
+              <a
+                [routerLink]="['/employees', term.employeeId]"
+                class="group flex items-start gap-3"
+              >
+                <span
+                  class="w-12 shrink-0 rounded-lg bg-sunken py-1 text-center text-xs leading-tight text-muted"
+                  ><b class="block text-base text-ink">{{ day(term.date) }}</b
+                  >{{ month(term.date) }}</span
+                >
+                <span class="flex flex-col">
+                  <span class="font-medium group-hover:text-brand-600">{{ term.title }}</span>
+                  <span class="text-xs text-muted">{{ term.employeeName }}</span>
+                </span>
+              </a>
+            </li>
+          } @empty {
+            <li class="text-sm text-muted">На найближчий місяць строків немає</li>
+          }
+        </ul>
+      </section>
+
+      <section class="card p-5">
+        <div class="mb-3 flex items-baseline justify-between">
+          <h2 class="text-base font-semibold">Списки персонального обліку</h2>
+          <a routerLink="/reports/lists" class="text-sm text-brand-600 hover:underline">Відкрити</a>
+        </div>
+        <ul class="space-y-3">
+          @for (g of groups(); track g.group) {
+            <li>
+              <div class="mb-1 flex justify-between gap-3 text-sm">
+                <span class="truncate first-letter:uppercase">{{ g.title }}</span>
+                <span class="tabular-nums">{{ g.count }}</span>
+              </div>
+              <div class="h-1.5 rounded-full bg-sunken">
+                <div class="h-1.5 rounded-full bg-brand-600" [style.width.%]="g.share"></div>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
   </div>
 }

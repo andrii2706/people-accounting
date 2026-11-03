@@ -1,0 +1,128 @@
+<aside
+  class="fixed top-[61px] right-0 bottom-0 z-30 flex w-[min(380px,100vw)] flex-col gap-5 overflow-y-auto border-l border-line bg-surface px-6 py-5 shadow-xl xl:shadow-none"
+  [attr.aria-label]="item().fullName"
+>
+  <div class="flex items-start justify-between gap-3">
+    <div class="flex items-center gap-3">
+      <span
+        class="grid size-12 shrink-0 place-items-center rounded-full bg-brand-600 text-base font-semibold text-white"
+        >{{ initials() }}</span
+      >
+      <div>
+        <h2 class="text-[17px] font-semibold">{{ item().fullName }}</h2>
+        <p class="text-[13px] text-muted">
+          <span class="first-letter:uppercase">{{ item().position || 'посада не вказана' }}</span>
+          @if (item().hireDate) {
+            · з {{ item().hireDate | uaDate }}
+          }
+        </p>
+      </div>
+    </div>
+    <button
+      type="button"
+      class="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg bg-sunken hover:bg-line"
+      aria-label="Закрити панель"
+      (click)="closed.emit()"
+    >
+      <app-icon name="x" [size]="16" />
+    </button>
+  </div>
+
+  <div class="flex flex-wrap gap-1.5">
+    <app-category-badge [category]="item().dutyCategory" />
+    @for (b of badges(); track b.label) {
+      <span
+        class="badge"
+        [class]="
+          b.tone === 'ok'
+            ? 'bg-ok/10 text-ok'
+            : b.tone === 'warning'
+              ? 'bg-warning/10 text-warning'
+              : b.tone === 'info'
+                ? 'bg-info/10 text-info'
+                : 'bg-sunken text-muted'
+        "
+        >{{ b.label }}</span
+      >
+    }
+  </div>
+
+  @if (warnings().length || item().pendingChanges) {
+    <ul class="flex flex-col gap-2">
+      @for (w of warnings(); track w.code) {
+        <li
+          class="flex gap-2.5 rounded-[10px] px-3 py-2.5 text-[13px]"
+          [class]="
+            w.level === 'danger' ? 'bg-[#fdf1ef] text-danger' : 'bg-[#fdf4e8] text-[#8a3c06]'
+          "
+        >
+          <span aria-hidden="true">●</span><span>{{ w.message }}</span>
+        </li>
+      }
+      @if (item().pendingChanges) {
+        <li class="flex gap-2.5 rounded-[10px] bg-[#fdf4e8] px-3 py-2.5 text-[13px] text-[#8a3c06]">
+          <span aria-hidden="true">●</span>
+          <span
+            >Не повідомлено ТЦК: {{ item().pendingChanges }} —
+            <a routerLink="/notifications" class="underline">сформувати лист</a></span
+          >
+        </li>
+      }
+    </ul>
+  }
+
+  <dl class="grid grid-cols-2 gap-x-4 gap-y-3.5 text-[13px]">
+    <div>
+      <dt class="text-muted">РНОКПП</dt>
+      <dd class="mt-0.5 font-mono">{{ d()?.rnokpp || '—' }}</dd>
+    </div>
+    <div>
+      <dt class="text-muted">Дата народження</dt>
+      <dd class="mt-0.5">{{ (item().birthDate | uaDate) || '—' }}</dd>
+    </div>
+    <div>
+      <dt class="text-muted">Звання</dt>
+      <dd class="mt-0.5">{{ item().rankTitle || '—' }}</dd>
+    </div>
+    <div>
+      <dt class="text-muted">ВОС</dt>
+      <dd class="mt-0.5 font-mono">{{ item().vos || '—' }}</dd>
+    </div>
+    <div class="col-span-2">
+      <dt class="text-muted">ТЦК та СП</dt>
+      <dd class="mt-0.5">{{ item().tckName || '—' }}</dd>
+    </div>
+    <div class="col-span-2">
+      <dt class="text-muted">Військово-обліковий документ</dt>
+      <dd class="mt-0.5">
+        @for (doc of documents(); track $index) {
+          <span class="block">{{ doc }}</span>
+        } @empty {
+          {{ details.isLoading() ? '…' : '—' }}
+        }
+      </dd>
+    </div>
+    @if (d()?.phone) {
+      <div class="col-span-2">
+        <dt class="text-muted">Телефон</dt>
+        <dd class="mt-0.5">{{ d()?.phone }}</dd>
+      </div>
+    }
+  </dl>
+
+  @if (changes().length) {
+    <div class="flex flex-col gap-2 border-t border-line pt-4">
+      <p class="text-xs tracking-wider text-muted uppercase">Останні зміни</p>
+      @for (c of changes(); track c.id) {
+        <div class="flex justify-between gap-3 text-[13px]">
+          <span>{{ c.typeLabel }}</span>
+          <span class="shrink-0 text-muted">{{ c.effectiveDate | uaDate }}</span>
+        </div>
+      }
+    </div>
+  }
+
+  <div class="mt-auto flex gap-2 pt-2">
+    <a [routerLink]="['/employees', item().id]" class="btn btn-primary flex-1">Відкрити картку</a>
+  </div>
+</aside>

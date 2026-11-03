@@ -6,80 +6,134 @@ import {
   inject,
   input,
   linkedSignal,
+  signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
-import { CategoryBadgeComponent } from '../../../shared/components/category-badge/category-badge.component';
-import { GroupBadgeComponent } from '../../../shared/components/group-badge/group-badge.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
-import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import { WarningsListComponent } from '../../../shared/components/warnings-list/warnings-list.component';
-import type {
-  EmployeeList,
-  EmployeeStatusFilter,
-} from '../../../shared/interfaces/employee.interface';
+import type { EmployeeList, EmployeeListItem } from '../../../shared/interfaces/employee.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
-import { SelectComponent } from '../../../shared/components/select/select.component';
-import type { SelectOption } from '../../../shared/interfaces/ui.interface';
+import { EmployeePreviewComponent } from '../employee-preview/employee-preview.component';
+import {
+  EMPLOYEE_VIEWS,
+  type EmployeeView,
+  hasDanger,
+  initials,
+  matchesView,
+  statusBadges,
+  warningCount,
+} from './employee-list.utils';
 
 /**
- * Employee list. Data comes from employeeListResolver, filters live in URL query parameters:
- * changing a filter = a navigation that re-runs the resolver (a filtered list can be bookmarked).
+ * Employee list. Data comes from employeeListResolver; the search, group and category live in the URL
+ * (a filtered list can be bookmarked). The tabs «Потребують уваги / Відстрочка / Заброньовані» filter
+ * the loaded list in the browser; «Звільнені» asks the server for dismissed employees.
  */
 @Component({
   selector: 'app-employee-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    SelectComponent,
-    PageHeaderComponent,
-    RouterLink,
-    IconComponent,
-    CategoryBadgeComponent,
-    GroupBadgeComponent,
-    WarningsListComponent,
-    UaDatePipe,
-  ],
+  imports: [RouterLink, IconComponent, UaDatePipe, EmployeePreviewComponent],
   templateUrl: './employee-list.component.html',
 })
 export class EmployeeListComponent {
   protected readonly dict = inject(DictionariesService);
   private readonly reportsService = inject(ReportsService);
+  private readonly router = inject(Router);
   private readonly updateQuery = injectQueryParamsUpdate();
   protected readonly isLoading = inject(NavigationStateService).isNavigating;
 
   readonly list = input.required<EmployeeList>();
 
   readonly search = input<string, string | undefined>('', { transform: orEmpty });
-  readonly status = input<EmployeeStatusFilter | '', EmployeeStatusFilter | '' | undefined>('', {
-    transform: (v) => v ?? '',
-  });
+  readonly status = input<string, string | undefined>('', { transform: orEmpty });
   readonly group = input<string, string | undefined>('', { transform: orEmpty });
   readonly category = input<string, string | undefined>('', { transform: orEmpty });
+  readonly view = input<string, string | undefined>('', { transform: orEmpty });
+  /** Old links: ?warnings=1 is the «Потребують уваги» tab. */
   readonly warnings = input<string, string | undefined>('', { transform: orEmpty });
 
-  protected readonly statusOptions: { value: EmployeeStatusFilter; label: string }[] = [
-    { value: 'active', label: 'Працюють' },
-    { value: 'dismissed', label: 'Звільнені' },
-    { value: 'all', label: 'Усі' },
-  ];
-
-  protected readonly currentStatus = computed<EmployeeStatusFilter>(
-    () => this.status() || 'active',
-  );
-  protected readonly onlyWarnings = computed(() => this.warnings() === '1');
+  protected readonly views = EMPLOYEE_VIEWS;
+  protected readonly currentView = computed<EmployeeView>(() => {
+    if (this.status() === 'dismissed') return 'dismissed';
+    if (this.warnings() === '1') return 'attention';
+    const v = this.view() as EmployeeView;
+    return EMPLOYEE_VIEWS.some((x) => x.value === v) ? v : 'all';
+  });
 
   /** Search box text — local; it reaches the URL with a debounce. */
   protected readonly searchText = linkedSignal(() => this.search());
 
-  protected readonly items = computed(() => this.list().items);
-  protected readonly subtitle = computed(() => `Знайдено: ${this.list().total}`);
-  /** Annex 5 lists for today (one combined list for all categories). */
+  /** Employees of the current list (dismissed or working), before the tab filter. */
+  private readonly loaded = computed(() => this.list().items);
+  protected readonly items = computed(() =>
+    this.loaded().filter((e) => matchesView(e, this.currentView())),
+  );
+  protected readonly counts = computed(() => {
+    const all = this.loaded();
+    const working = this.currentView() !== 'dismissed';
+    return new Map<EmployeeView, number | null>(
+      EMPLOYEE_VIEWS.map((v) => [
+        v.value,
+        v.value === 'dismissed' || !working
+          ? null
+          : all.filter((e) => matchesView(e, v.value)).length,
+      ]),
+    );
+  });
+  protected readonly onListsCount = computed(() => this.loaded().filter((e) => e.onLists).length);
+
   protected readonly exportUrl = computed(() => this.reportsService.listsDocxUrl());
+
+  /** Selected rows (bulk actions); reset when the list changes. */
+  protected readonly selected = linkedSignal<EmployeeListItem[], ReadonlySet<string>>({
+    source: this.items,
+    computation: (items, previous) => {
+      const ids = new Set(items.map((i) => i.id));
+      return new Set([...(previous?.value ?? [])].filter((id) => ids.has(id)));
+    },
+  });
+  protected readonly allSelected = computed(
+    () => this.items().length > 0 && this.items().every((i) => this.selected().has(i.id)),
+  );
+  protected readonly selectedExtractUrl = computed(() =>
+    this.reportsService.listsDocxUrl(undefined, [...this.selected()]),
+  );
+
+  /** Employee shown in the side panel. */
+  protected readonly previewId = signal<string | null>(null);
+  protected readonly previewItem = computed(
+    () => this.loaded().find((e) => e.id === this.previewId()) ?? null,
+  );
+
+  protected readonly groupOptions = computed(() => [
+    ...(this.dict.dictionaries()?.listGroups ?? []).map((g) => ({
+      value: g.value,
+      label: `${g.value} — ${g.label}`,
+    })),
+    { value: 'NONE', label: 'Не на обліку / не заповнено' },
+  ]);
+  protected readonly categoryOptions = computed(() =>
+    (this.dict.dictionaries()?.dutyCategories ?? []).map((c) => ({
+      value: c.value,
+      label: c.label,
+    })),
+  );
+  protected readonly groupLabel = computed(
+    () => this.groupOptions().find((o) => o.value === this.group())?.label ?? '',
+  );
+  protected readonly categoryLabel = computed(
+    () => this.categoryOptions().find((o) => o.value === this.category())?.label ?? '',
+  );
+
+  protected readonly initials = initials;
+  protected readonly statusBadges = statusBadges;
+  protected readonly warningCount = warningCount;
+  protected readonly hasDanger = hasDanger;
 
   constructor() {
     toObservable(this.searchText)
@@ -94,23 +148,14 @@ export class EmployeeListComponent {
       });
   }
 
-  protected setStatus(status: EmployeeStatusFilter) {
-    void this.updateQuery({ status: status === 'active' ? '' : status });
+  protected setView(view: EmployeeView) {
+    this.previewId.set(null);
+    void this.updateQuery({
+      status: view === 'dismissed' ? 'dismissed' : '',
+      view: view === 'all' || view === 'dismissed' ? '' : view,
+      warnings: '',
+    });
   }
-
-  protected readonly groupOptions = computed<SelectOption[]>(() => [
-    ...(this.dict.dictionaries()?.listGroups ?? []).map((g) => ({
-      value: g.value,
-      label: `${g.value} — ${g.label}`,
-    })),
-    { value: 'NONE', label: 'Не на обліку / не заповнено' },
-  ]);
-  protected readonly categoryOptions = computed<SelectOption[]>(() =>
-    (this.dict.dictionaries()?.dutyCategories ?? []).map((c) => ({
-      value: c.value,
-      label: c.label,
-    })),
-  );
 
   protected setGroup(group: string) {
     void this.updateQuery({ group });
@@ -120,7 +165,31 @@ export class EmployeeListComponent {
     void this.updateQuery({ category });
   }
 
-  protected setOnlyWarnings(value: boolean) {
-    void this.updateQuery({ warnings: value ? '1' : '' });
+  protected toggle(id: string) {
+    this.selected.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  protected toggleAll() {
+    this.selected.set(this.allSelected() ? new Set() : new Set(this.items().map((i) => i.id)));
+  }
+
+  protected clearSelection() {
+    this.selected.set(new Set());
+  }
+
+  protected preview(item: EmployeeListItem) {
+    this.previewId.set(this.previewId() === item.id ? null : item.id);
+  }
+
+  protected edit(item: EmployeeListItem) {
+    void this.router.navigate(['/employees', item.id, 'edit']);
+  }
+
+  protected copy(item: EmployeeListItem) {
+    void this.router.navigate(['/employees', 'new'], { queryParams: { copy: item.id } });
   }
 }
