@@ -32,6 +32,15 @@
         Увійдіть обліковим записом, який видав адміністратор.
       </p>
 
+      @if (reason() === 'idle') {
+        <p
+          class="-mt-4 mb-6 rounded-lg border border-warning/30 bg-[#fdf9f2] px-3 py-2 text-sm text-warning"
+          role="status"
+        >
+          Ви не працювали в системі 10 хвилин, тому сеанс завершено. Увійдіть знову — відкриється
+          сторінка, на якій ви були.
+        </p>
+      }
       <div class="space-y-4">
         <app-form-field label="Email" [field]="loginForm.email" [required]="true">
           <input class="input" type="email" autocomplete="username" [formField]="loginForm.email" />

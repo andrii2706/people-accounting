@@ -8,6 +8,8 @@ import { ExplicitReservation1793180000000 } from './1793180000000-ExplicitReserv
 import { Feedback10281793190000000 } from './1793190000000-Feedback1028.js';
 import { Educations1793200000000 } from './1793200000000-Educations.js';
 import { TckDirectory1793220000000 } from './1793220000000-TckDirectory.js';
+import { NextVlk1793230000000 } from './1793230000000-NextVlk.js';
+import { InboxReads1793240000000 } from './1793240000000-InboxReads.js';
 
 /** Migration registry. Add a new migration here after generating it. */
 export const MIGRATIONS: Function[] = [
@@ -21,4 +23,6 @@ export const MIGRATIONS: Function[] = [
   Feedback10281793190000000,
   Educations1793200000000,
   TckDirectory1793220000000,
+  NextVlk1793230000000,
+  InboxReads1793240000000,
 ];

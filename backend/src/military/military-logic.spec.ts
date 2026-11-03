@@ -26,6 +26,7 @@ const base: MilitaryRecord = {
   reservationUntil: null,
   specialAccountingCertificate: null,
   deferralUntil: null,
+  nextVlkDate: null,
   mobilizedAt: null,
   demobilizedAt: null,
   registryNumber: '123',
@@ -46,6 +47,9 @@ describe('military logic', () => {
     expect(listGroup({ ...base, rankCode: 14, reserveTeamNumber: '0123' })).toBe('G1R');
     expect(listGroup({ ...base, rankCode: 0 })).toBe('G4');
     expect(listGroup({ ...base, gender: 'F', rankCode: null })).toBe('G3');
+    // women conscripts are counted in group 4 with all conscripts
+    expect(listGroup({ ...base, gender: 'F', rankCode: 0 })).toBe('G4');
+    expect(operationalRow(listGroup({ ...base, gender: 'F', rankCode: 0 })!)).toBe('2');
     expect(operationalRow('G3R')).toBe('1.3');
   });
 
@@ -92,12 +96,17 @@ describe('military logic', () => {
       recordWarnings({ ...base, rankCode: 2, ...r }, '2026-10-10').find((w) => w.code === code)?.message ?? '';
     expect(msg({ militaryDocNumber: null }, 'NO_MIL_DOC')).toContain('Не додано військово-обліковий документ');
     expect(msg({ militaryDocNumber: null, hasMilitaryDocument: true }, 'NO_MIL_DOC')).toContain('не вказано номер');
+    expect(msg({ militaryDocNumber: null, hasMilitaryDocument: true, hasElectronicDocument: true }, 'NO_MIL_DOC')).toBe(
+      '',
+    );
     expect(msg({ reserved: true, reservationUntil: '2026-10-11' }, 'RESERVATION_EXPIRING')).toContain(
       '11.10.2026 (через 1 день)',
     );
     expect(msg({ reserved: true, reservationUntil: '2026-10-13' }, 'RESERVATION_EXPIRING')).toContain('(через 3 дні)');
     expect(msg({ deferralUntil: '2026-10-21' }, 'DEFERRAL_EXPIRING')).toContain('(через 11 днів)');
     expect(msg({ deferralUntil: '2026-10-01' }, 'DEFERRAL_EXPIRED')).toContain('закінчилася 01.10.2026');
+    expect(msg({ nextVlkDate: '2026-10-21' }, 'VLK_SOON')).toContain('Наступна ВЛК 21.10.2026 (через 11 днів)');
+    expect(msg({ nextVlkDate: '2026-10-01' }, 'VLK_OVERDUE')).toContain('мала бути 01.10.2026');
   });
 
   it('treats an employee as reserved only when it is chosen explicitly', () => {

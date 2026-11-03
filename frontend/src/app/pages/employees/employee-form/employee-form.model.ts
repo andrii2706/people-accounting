@@ -1,7 +1,7 @@
 import type { Gender } from '../../../shared/interfaces/common.interface';
 import type { FamilyRelation } from '../../../shared/interfaces/dictionary.interface';
 import type { Employee, EmployeePayload } from '../../../shared/interfaces/employee.interface';
-import { normalizeVos } from '../../../shared/validators/employee-rules';
+import { isElectronicDocType, normalizeVos } from '../../../shared/validators/employee-rules';
 import type {
   FormTab,
   FamilyMemberForm,
@@ -23,6 +23,7 @@ export const DATE_FIELDS = [
   'dismissalOrderDate',
   'tckRegisteredAt',
   'fitnessDate',
+  'nextVlkDate',
   'reservationUntil',
   'deferralUntil',
   'mobilizationOrderDate',
@@ -110,6 +111,7 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     fitness: '',
     fitnessBasis: '',
     fitnessDate: '',
+    nextVlkDate: '',
     reserved: false,
     reservedBy: 'COMPANY',
     reservedByName: '',
@@ -131,6 +133,22 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     notes: '',
     changeEffectiveDate: today,
     changeBasis: '',
+  };
+}
+
+/**
+ * New card prefilled from an existing employee («Копіювати») — a full copy of all fields and lists;
+ * the user changes what differs before saving. Only the dismissal is not copied: a new card is a working employee.
+ */
+export function copyEmployeeToForm(e: Employee, today: string): EmployeeFormModel {
+  const copy = employeeToForm(e, today);
+  const empty = emptyEmployeeForm(today);
+  return {
+    ...copy,
+    dismissalDate: empty.dismissalDate,
+    dismissalOrderDocName: empty.dismissalOrderDocName,
+    dismissalOrderNumber: empty.dismissalOrderNumber,
+    dismissalOrderDate: empty.dismissalOrderDate,
   };
 }
 
@@ -244,8 +262,8 @@ export function formToPayload(
     .filter((d) => d.type || d.number || d.series)
     .map((d) => ({
       ...d,
-      series: d.series.trim().toUpperCase(),
-      number: d.number.trim(),
+      series: isElectronicDocType(d.type) ? '' : d.series.trim().toUpperCase(),
+      number: isElectronicDocType(d.type) ? '' : d.number.trim(),
       issuedAt: d.issuedAt || null,
       generatedDate: d.generatedDate || null,
       generatedTime: normalizeTime(d.generatedTime),
@@ -278,6 +296,8 @@ export function formToPayload(
   }
   delete payload['deferralKind'];
   Object.assign(payload, effectiveDeferral(model));
+  // the next ВЛК is kept only together with a deferral
+  if (!hasDeferral(model)) payload['nextVlkDate'] = null;
   // dismissal fields are sent only together with the date
   if (!model.dismissalDate) {
     payload['dismissalOrderDocName'] = '';
@@ -299,6 +319,17 @@ export function effectiveDeferral(m: EmployeeFormModel) {
     deferralUntil: kind === 'NONE' || untilEnd ? null : m.deferralUntil || null,
     deferralUntilMobilizationEnd: untilEnd,
   };
+}
+
+/** A deferral will be saved (any kind, the employee is not reserved). */
+export function hasDeferral(m: EmployeeFormModel): boolean {
+  const d = effectiveDeferral(m);
+  return !!(
+    d.deferralConscriptionBasis ||
+    d.deferralMobilizationBasis ||
+    d.deferralUntil ||
+    d.deferralUntilMobilizationEnd
+  );
 }
 
 const docsKey = (m: EmployeeFormModel) =>
@@ -424,7 +455,8 @@ export const FIELD_META: Partial<
   tckId: { tab: 'military', label: 'ТЦК та СП' },
   tckRegisteredAt: { tab: 'military', label: 'На обліку з' },
   fitness: { tab: 'military', label: 'Придатність' },
-  fitnessDate: { tab: 'military', label: 'Дата ВЛК' },
+  fitnessDate: { tab: 'military', label: 'Дата проходження ВЛК' },
+  nextVlkDate: { tab: 'military', label: 'Дата наступного ВЛК' },
   fitnessBasis: { tab: 'military', label: 'Графа, пункт наказу' },
   reserved: { tab: 'military', label: 'Заброньований' },
   reservedBy: { tab: 'military', label: 'Ким заброньовано' },

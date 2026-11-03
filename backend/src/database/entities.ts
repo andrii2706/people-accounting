@@ -1,3 +1,4 @@
+import { InboxRead } from '../inbox/inbox-read.entity.js';
 import { Tck } from '../dictionaries/tck.entity.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
@@ -33,4 +34,5 @@ export const ENTITIES = [
   LetterSignature,
   ChangeNotice,
   NotificationLog,
+  InboxRead,
 ];

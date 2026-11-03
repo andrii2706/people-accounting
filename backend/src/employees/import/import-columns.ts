@@ -205,6 +205,21 @@ export const IMPORT_COLUMNS: readonly ImportColumn[] = [
   },
   { field: 'fitness', header: 'Придатність', kind: 'text', synonyms: ['придатність до військової служби'], width: 24 },
   {
+    field: 'fitnessDate',
+    header: 'Дата проходження ВЛК',
+    kind: 'date',
+    synonyms: ['дата влк', 'влк', 'дата військово-лікарської комісії'],
+    width: 14,
+  },
+  {
+    field: 'nextVlkDate',
+    header: 'Дата наступного ВЛК',
+    kind: 'date',
+    synonyms: ['наступна влк', 'дата наступної влк', 'повторна влк'],
+    width: 14,
+    note: 'лише для працівників з відстрочкою',
+  },
+  {
     field: 'reserved',
     header: 'Заброньований',
     kind: 'bool',

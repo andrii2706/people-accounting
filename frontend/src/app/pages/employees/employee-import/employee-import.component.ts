@@ -9,6 +9,7 @@ import {
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { isElectronicDocType } from '../../../shared/validators/employee-rules';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import type {
   CheckedImportRow,
@@ -61,6 +62,8 @@ const EDIT_FIELDS: { key: string; label: string; kind: ImportFieldKind }[] = [
   { key: 'militaryDocIssuedAt', label: 'Дата видачі ВОД', kind: 'date' },
   { key: 'tckId', label: 'ТЦК та СП', kind: 'tck' },
   { key: 'fitness', label: 'Придатність', kind: 'text' },
+  { key: 'fitnessDate', label: 'Дата проходження ВЛК', kind: 'date' },
+  { key: 'nextVlkDate', label: 'Дата наступного ВЛК', kind: 'date' },
   { key: 'reserved', label: 'Заброньований', kind: 'bool' },
   { key: 'reservationUntil', label: 'Заброньовано до', kind: 'date' },
   { key: 'deferralUntil', label: 'Відстрочка до', kind: 'date' },
@@ -255,6 +258,11 @@ export class EmployeeImportComponent {
         const values = { ...r.values };
         if (value === undefined) delete values[key];
         else values[key] = value;
+        // electronic document (єВОД) has no series or number
+        if (key === 'militaryDocType' && isElectronicDocType(String(value ?? ''))) {
+          delete values['militaryDocNumber'];
+          delete values['militaryDocSeries'];
+        }
         // men are on military registration by default
         if (key === 'gender' && value === 'M' && values['militaryRegistered'] === undefined) {
           values['militaryRegistered'] = true;
@@ -271,6 +279,14 @@ export class EmployeeImportComponent {
       }),
     );
     this.dirty.set(true);
+  }
+
+  /** Series and number of an electronic document (єВОД) are not filled in. */
+  protected isLockedByDocType(row: CheckedImportRow, key: string) {
+    return (
+      (key === 'militaryDocNumber' || key === 'militaryDocSeries') &&
+      isElectronicDocType(String(row.values['militaryDocType'] ?? ''))
+    );
   }
 
   protected rankLabel(code: unknown, navy: unknown) {

@@ -1,3 +1,4 @@
+import { isElectronicDocType } from '../military/employee-rules.js';
 import { fullYears } from '../common/utils/dates.js';
 import { fullName } from '../military/employee-format.js';
 import {
@@ -32,12 +33,14 @@ export function toMilitaryRecord(e: Employee): MilitaryRecord {
     reservedBy: e.reservedBy,
     specialAccountingCertificate: s(e.specialAccountingCertificate),
     deferralUntil: e.deferralUntil,
+    nextVlkDate: e.nextVlkDate,
     mobilizedAt: e.mobilizedAt,
     demobilizedAt: e.demobilizedAt,
     registryNumber: s(e.registryNumber),
     tckId: e.tckId,
     militaryDocNumber: s((e.militaryDocuments ?? []).find((d) => d.number?.trim())?.number),
     hasMilitaryDocument: (e.militaryDocuments ?? []).some((d) => d.type?.trim() || d.series?.trim()),
+    hasElectronicDocument: (e.militaryDocuments ?? []).some((d) => isElectronicDocType(d.type)),
     trainingProfile: s(e.trainingProfile),
   };
 }

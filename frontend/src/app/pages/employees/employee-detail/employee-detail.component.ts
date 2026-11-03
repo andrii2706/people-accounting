@@ -113,7 +113,14 @@ export class EmployeeDetailComponent {
       { label: 'Військово-облікові документи', value: documents },
       {
         label: 'Придатність',
-        value: join(e.fitness, e.fitnessBasis, e.fitnessDate && `ВЛК ${d(e.fitnessDate)}`),
+        value: join(e.fitness, e.fitnessBasis),
+      },
+      {
+        label: 'ВЛК',
+        value: join(
+          e.fitnessDate && `пройдено ${d(e.fitnessDate)}`,
+          e.nextVlkDate && `наступна ${d(e.nextVlkDate)}`,
+        ),
       },
       {
         label: 'Бронювання',

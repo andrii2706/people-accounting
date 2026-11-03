@@ -7,7 +7,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { flattenValidationErrors } from '../../common/validators.js';
 import { MILITARY_DOCUMENT_TYPES } from '../../military/dictionaries.js';
-import { AFTER_BIRTH_DATES, MESSAGE } from '../../military/employee-rules.js';
+import { AFTER_BIRTH_DATES, MESSAGE, isElectronicDocType, splitDocNumber } from '../../military/employee-rules.js';
 import { RANKS } from '../../military/ranks.js';
 import { CreateEmployeeDto } from '../employees.dto.js';
 import { columnForHeader, normalizeKey } from './import-columns.js';
@@ -117,7 +117,7 @@ const DOC_TYPES = MILITARY_DOCUMENT_TYPES.map((t) => [normalizeKey(t), t] as con
 function parseMilitaryDocType(v: RawCell): string | null {
   const key = normalizeKey(str(v));
   if (!key) return null;
-  if (/електрон|е-вод|резерв\+/.test(key)) return 'військово-обліковий документ в електронній формі';
+  if (isElectronicDocType(key)) return 'військово-обліковий документ в електронній формі';
   if (/тимчасов/.test(key)) return 'тимчасове посвідчення військовозобов’язаного';
   if (/офіцер/.test(key)) return 'посвідчення особи офіцера';
   if (/припис/.test(key)) return 'посвідчення про приписку до призовної дільниці';
@@ -147,6 +147,7 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
     const values: ImportValues = {};
     const issues: FieldError[] = [];
     const issue = (field: string, message: string) => issues.push({ field, message });
+    let docTypeText = '';
 
     columns.forEach((column, i) => {
       if (!column) return;
@@ -223,6 +224,7 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
         case 'militaryDocType': {
           const t = parseMilitaryDocType(cell);
           if (t) values[field] = t;
+          docTypeText = text;
           break;
         }
         case 'fullName': {
@@ -255,12 +257,32 @@ export function convertRows(table: RawTable, ctx: ImportContext): { mapping: Col
       const id = matchTck(String(values.militaryDocIssuedBy), ctx.tcks);
       if (id) values.tckId = id;
     }
+    normalizeMilitaryDoc(values, docTypeText);
     if (values.passportType === undefined && values.passportNumber) {
       values.passportType = values.passportSeries || /^\d{6}$/.test(String(values.passportNumber)) ? 'BOOK' : 'ID_CARD';
     }
     return { rowNumber, values, issues };
   });
   return { mapping, rows };
+}
+
+/**
+ * Electronic document (єВОД, Резерв+) has no series or number — they are dropped.
+ * Paper document: «АА № 123456» in the number column is split into series and number;
+ * when the number column is empty, the number is taken from the type cell («військовий квиток АА 123456»).
+ */
+export function normalizeMilitaryDoc(values: ImportValues, docTypeText = ''): void {
+  if (isElectronicDocType(String(values.militaryDocType ?? ''))) {
+    delete values.militaryDocNumber;
+    delete values.militaryDocSeries;
+    return;
+  }
+  let raw = String(values.militaryDocNumber ?? '').trim();
+  if (!raw && docTypeText) raw = /(?:\p{L}{1,3}\s*)?№?\s*\d[\d\s]{4,}\d?\s*$/u.exec(docTypeText)?.[0]?.trim() ?? '';
+  if (!raw) return;
+  const { series, number } = splitDocNumber(raw);
+  values.militaryDocNumber = number;
+  if (series && !values.militaryDocSeries) values.militaryDocSeries = series;
 }
 
 /** One military document from the file is kept as flat fields on the preview (easy to edit). */
@@ -313,6 +335,13 @@ export async function validateValues(values: ImportValues): Promise<FieldError[]
     errors.push({
       field: 'deferralMobilizationBasis',
       message: 'Оберіть один вид відстрочки: від строкової служби або від мобілізації',
+    });
+  }
+  const hasDeferral = !!(conscription || mobilization || values.deferralUntil || values.deferralUntilMobilizationEnd);
+  if (values.nextVlkDate && (values.reserved === true || !hasDeferral)) {
+    errors.push({
+      field: 'nextVlkDate',
+      message: 'Дата наступного ВЛК — лише для працівників з відстрочкою (без бронювання)',
     });
   }
   const birth = values.birthDate as string | undefined;

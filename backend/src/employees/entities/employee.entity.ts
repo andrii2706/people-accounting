@@ -220,8 +220,13 @@ export class Employee {
   @Column({ type: 'varchar', length: 200, default: '' })
   fitnessBasis: string;
 
+  /** Date the military medical commission (ВЛК) was passed. */
   @Column({ type: 'date', nullable: true })
   fitnessDate: string | null;
+
+  /** Date of the next ВЛК — only for employees with a deferral (not reserved). */
+  @Column({ type: 'date', nullable: true })
+  nextVlkDate: string | null;
 
   /**
    * Reserved («заброньований») — chosen explicitly in the form. The reservation data below

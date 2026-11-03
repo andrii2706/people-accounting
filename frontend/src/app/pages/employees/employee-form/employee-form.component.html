@@ -1,5 +1,7 @@
 <app-page-header
-  [eyebrow]="isEdit() ? 'Редагування картки' : 'Новий працівник'"
+  [eyebrow]="
+    isEdit() ? 'Редагування картки' : source() ? 'Новий працівник · копія' : 'Новий працівник'
+  "
   [title]="
     isEdit()
       ? model().lastName + ' ' + model().firstName + ' ' + model().middleName
@@ -7,10 +9,28 @@
   "
   subtitle="Поля відповідають картці працівника з файлу обліку. Зміни, про які треба повідомити ТЦК, фіксуються автоматично."
 >
-  <a [routerLink]="isEdit() ? ['/employees', id()] : ['/employees']" class="btn btn-ghost"
+  <a
+    [routerLink]="
+      isEdit() ? ['/employees', id()] : source() ? ['/employees', source()!.id] : ['/employees']
+    "
+    class="btn btn-ghost"
     ><app-icon name="arrowLeft" /> Назад</a
   >
 </app-page-header>
+
+@if (source(); as s) {
+  <div
+    class="mb-5 flex items-start gap-3 rounded-xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm"
+    role="status"
+  >
+    <app-icon name="copy" class="mt-0.5 text-brand-600" />
+    <p>
+      Копія картки <b>{{ s.derived.fullName }}</b
+      >: перенесено всі дані. Змініть те, що відрізняється (ПІБ, РНОКПП, паспорт, документи…), і
+      створіть картку.
+    </p>
+  </div>
+}
 
 <datalist id="orderDocNames">
   @for (d of orderDocNames; track d) {
@@ -654,9 +674,6 @@
                   ariaLabel="Придатність"
                 />
               </app-form-field>
-              <app-form-field label="Дата ВЛК" [field]="f.fitnessDate">
-                <app-date-input [formField]="f.fitnessDate" ariaLabel="Дата ВЛК" />
-              </app-form-field>
               <app-form-field
                 class="sm:col-span-2"
                 label="Графа, пункт наказу"
@@ -664,6 +681,23 @@
               >
                 <input class="input" [formField]="f.fitnessBasis" />
               </app-form-field>
+            </div>
+          }
+
+          @if (showVlk()) {
+            <h3 class="mt-7 mb-1 text-sm font-semibold">Військово-лікарська комісія</h3>
+            <p class="mb-3 text-xs text-muted">
+              Для працівників з відстрочкою: коли пройшов ВЛК і коли наступна.
+            </p>
+            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <app-form-field label="Дата проходження ВЛК" [field]="f.fitnessDate">
+                <app-date-input [formField]="f.fitnessDate" ariaLabel="Дата проходження ВЛК" />
+              </app-form-field>
+              @if (withDeferral()) {
+                <app-form-field label="Дата наступного ВЛК" [field]="f.nextVlkDate">
+                  <app-date-input [formField]="f.nextVlkDate" ariaLabel="Дата наступного ВЛК" />
+                </app-form-field>
+              }
             </div>
           }
 

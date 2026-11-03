@@ -71,12 +71,15 @@ export function dutyCategory(r: MilitaryRecord): DutyCategory | null {
   return 'LIABLE';
 }
 
-/** List group (sheets G1…G4R). */
+/**
+ * List group (sheets G1…G4R). Conscripts go into group 4 regardless of gender —
+ * women conscripts are counted with all conscripts, not in the women's list (group 3).
+ */
 export function listGroup(r: MilitaryRecord): ListGroup | null {
   const reservist = isReservist(r);
+  if (isConscript(r)) return reservist ? 'G4R' : 'G4';
   if (r.gender === 'F') return reservist ? 'G3R' : 'G3';
   if (r.rankCode === null) return null;
-  if (isConscript(r)) return reservist ? 'G4R' : 'G4';
   if (isOfficer(r)) return reservist ? 'G1R' : 'G1';
   return reservist ? 'G2R' : 'G2';
 }
@@ -170,7 +173,8 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
       message: 'Не обрано ТЦК, де працівник стоїть на обліку, — без цього не вийде сформувати повідомлення в ТЦК.',
     });
   }
-  if (!r.militaryDocNumber && r.rankCode !== null) {
+  // an electronic document (єВОД) has no number — it is enough by itself
+  if (!r.militaryDocNumber && !r.hasElectronicDocument && r.rankCode !== null) {
     warnings.push({
       code: 'NO_MIL_DOC',
       level: 'warning',
@@ -182,6 +186,7 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
   if (rank && age !== null && age >= rank.ageLimit) {
     warnings.push({
       code: 'AGE_LIMIT',
+      ref: r.birthDate ?? undefined,
       level: 'danger',
       message: `Виповнилося ${rank.ageLimit} років — граничний вік перебування в запасі. Працівника потрібно зняти з військового обліку.`,
     });
@@ -191,12 +196,14 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
     if (left < 0) {
       warnings.push({
         code: 'RESERVATION_EXPIRED',
+        ref: r.reservationUntil,
         level: 'danger',
         message: `Бронювання закінчилося ${uaDate(r.reservationUntil)}. Продовжте бронювання або зніміть відмітку «Заброньований».`,
       });
     } else if (left <= reservationAlertDays) {
       warnings.push({
         code: 'RESERVATION_EXPIRING',
+        ref: r.reservationUntil,
         level: 'warning',
         message: `Бронювання закінчується ${uaDate(r.reservationUntil)} (${inDays(left)}) — подбайте про продовження.`,
       });
@@ -207,14 +214,34 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
     if (left < 0) {
       warnings.push({
         code: 'DEFERRAL_EXPIRED',
+        ref: r.deferralUntil,
         level: 'danger',
         message: `Відстрочка закінчилася ${uaDate(r.deferralUntil)}. Уточніть у працівника (Резерв+) і оновіть дані в картці.`,
       });
     } else if (left <= reservationAlertDays) {
       warnings.push({
         code: 'DEFERRAL_EXPIRING',
+        ref: r.deferralUntil,
         level: 'warning',
         message: `Відстрочка закінчується ${uaDate(r.deferralUntil)} (${inDays(left)}) — нагадайте працівнику оформити нову.`,
+      });
+    }
+  }
+  if (r.nextVlkDate && !r.reserved) {
+    const left = daysBetween(date, r.nextVlkDate);
+    if (left < 0) {
+      warnings.push({
+        code: 'VLK_OVERDUE',
+        ref: r.nextVlkDate,
+        level: 'danger',
+        message: `Наступна ВЛК мала бути ${uaDate(r.nextVlkDate)}. Уточніть у працівника результат і оновіть дати ВЛК.`,
+      });
+    } else if (left <= reservationAlertDays) {
+      warnings.push({
+        code: 'VLK_SOON',
+        ref: r.nextVlkDate,
+        level: 'warning',
+        message: `Наступна ВЛК ${uaDate(r.nextVlkDate)} (${inDays(left)}) — нагадайте працівнику.`,
       });
     }
   }

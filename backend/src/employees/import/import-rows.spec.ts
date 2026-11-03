@@ -56,6 +56,37 @@ describe('employee import — reading values', () => {
     expect(rows[0].values.tckId).toBe(ctx.tcks[0].id);
   });
 
+  it('єВОД: no series and number; paper document: number split into series and number', () => {
+    const { rows } = convertRows(
+      {
+        headers: ['ПІБ', 'Військово-обліковий документ', 'Серія ВОД', 'Номер ВОД'],
+        rows: [
+          { rowNumber: 2, cells: ['Приклад Петро Іванович', 'єВОД', 'АА', '0000000002'] },
+          { rowNumber: 3, cells: ['Приклад Павло Іванович', 'військовий квиток', '', 'НО № 000003'] },
+          { rowNumber: 4, cells: ['Приклад Іван Іванович', 'військовий квиток АА 123456', '', ''] },
+        ],
+      },
+      ctx,
+    );
+    const doc = (i: number) => {
+      const v = rows[i].values;
+      return [v.militaryDocType, v.militaryDocSeries, v.militaryDocNumber];
+    };
+    expect(doc(0)).toEqual(['військово-обліковий документ в електронній формі', undefined, undefined]);
+    expect(doc(1)).toEqual(['військовий квиток', 'НО', '000003']);
+    expect(doc(2)).toEqual(['військовий квиток', 'АА', '123456']);
+  });
+
+  it('дата наступного ВЛК — лише з відстрочкою', async () => {
+    const base = { lastName: 'Приклад', firstName: 'Петро', gender: 'M', nextVlkDate: '2027-01-15' };
+    const fields = async (v: Record<string, unknown>) =>
+      (await validateValues(v as never)).map((e) => e.field).filter((f) => f === 'nextVlkDate');
+    expect(await fields(base)).toEqual(['nextVlkDate']);
+    expect(
+      await fields({ ...base, deferralMobilizationBasis: 'п. 9 ч. 1 ст. 23', deferralUntil: '2027-02-01' }),
+    ).toEqual([]);
+  });
+
   it('converts a row: full name, gender by patronymic, rank, TCK, passport', () => {
     const { rows, mapping } = convertRows(
       {

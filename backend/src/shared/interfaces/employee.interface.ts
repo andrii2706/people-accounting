@@ -21,6 +21,7 @@ export interface MilitaryRecord {
   reservedBy?: 'COMPANY' | 'OTHER';
   specialAccountingCertificate: string | null;
   deferralUntil: IsoDate | null;
+  nextVlkDate: IsoDate | null;
   mobilizedAt: IsoDate | null;
   demobilizedAt: IsoDate | null;
   registryNumber: string | null;
@@ -28,6 +29,8 @@ export interface MilitaryRecord {
   militaryDocNumber: string | null;
   /** At least one military document is added (even without a number). */
   hasMilitaryDocument?: boolean;
+  /** Has an electronic document (єВОД, Резерв+) — it has no number, so none is asked for. */
+  hasElectronicDocument?: boolean;
   trainingProfile: string | null;
 }
 
@@ -40,6 +43,8 @@ export interface RecordWarning {
   code: string;
   level: WarningLevel;
   message: string;
+  /** Date the warning is about (term end, next ВЛК…): a new date makes it a new in-app notification. */
+  ref?: string;
 }
 
 export type MaxLengthField = keyof typeof MAX_LENGTH;

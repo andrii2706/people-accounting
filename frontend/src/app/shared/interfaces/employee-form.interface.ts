@@ -104,6 +104,7 @@ export interface EmployeeFormModel {
   fitness: string;
   fitnessBasis: string;
   fitnessDate: string;
+  nextVlkDate: string;
   reserved: boolean;
   reservedBy: 'COMPANY' | 'OTHER';
   reservedByName: string;

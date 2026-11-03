@@ -1,4 +1,4 @@
-import { normalizeVos } from '../military/employee-rules.js';
+import { isElectronicDocType, normalizeVos } from '../military/employee-rules.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'typeorm';
@@ -45,6 +45,7 @@ const NULLABLE_DATES = new Set<keyof Employee>([
   'dismissalOrderDate',
   'tckRegisteredAt',
   'fitnessDate',
+  'nextVlkDate',
   'reservationUntil',
   'deferralUntil',
   'mobilizationOrderDate',
@@ -153,6 +154,7 @@ function applyDeferral(e: Employee) {
     e.deferralMobilizationBasis = '';
     e.deferralUntil = null;
     e.deferralUntilMobilizationEnd = false;
+    e.nextVlkDate = null;
     return;
   }
   // one kind only: from conscript service OR from conscription during mobilization
@@ -167,6 +169,9 @@ function applyDeferral(e: Employee) {
   // «до завершення мобілізації» is only for the deferral from mobilization
   if (!e.deferralMobilizationBasis?.trim()) e.deferralUntilMobilizationEnd = false;
   if (e.deferralUntilMobilizationEnd) e.deferralUntil = null;
+  // the next ВЛК is tracked only for a deferral
+  const hasDeferral = !!(e.deferralConscriptionBasis?.trim() || e.deferralMobilizationBasis?.trim());
+  if (!hasDeferral && !e.deferralUntil && !e.deferralUntilMobilizationEnd) e.nextVlkDate = null;
 }
 
 /** The latest position (by date) is the current one; its data is mirrored into the employee card. */
@@ -637,19 +642,21 @@ export class EmployeesService {
   private documents(m: EntityManager, list: NonNullable<CreateEmployeeDto['militaryDocuments']>, employeeId?: string) {
     return list
       .filter((d) => d.type || d.number || d.series)
-      .map((d, i) =>
-        m.getRepository(MilitaryDocument).create({
+      .map((d, i) => {
+        // an electronic document is identified by the time it was generated, not by a number
+        const electronic = isElectronicDocType(d.type);
+        return m.getRepository(MilitaryDocument).create({
           ...(employeeId ? { employeeId } : {}),
           sortOrder: i,
           type: d.type?.trim() ?? '',
-          series: d.series?.trim().toUpperCase() ?? '',
-          number: d.number?.trim() ?? '',
+          series: electronic ? '' : (d.series?.trim().toUpperCase() ?? ''),
+          number: electronic ? '' : (d.number?.trim() ?? ''),
           issuedBy: d.issuedBy?.trim() ?? '',
           issuedAt: d.issuedAt || null,
           generatedDate: d.generatedDate || null,
           generatedTime: d.generatedTime?.trim() ?? '',
-        }),
-      );
+        });
+      });
   }
 
   private educationRows(m: EntityManager, list: NonNullable<CreateEmployeeDto['educations']>, employeeId?: string) {

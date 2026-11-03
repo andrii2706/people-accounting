@@ -13,6 +13,8 @@ export class AuthService {
   private readonly _user = signal<AuthUser | null>(null);
   private readonly _checked = signal(false);
   private pending: Promise<AuthUser | null> | null = null;
+  /** Set by a sign-in with the password; the shell shows the new notifications once and clears it. */
+  readonly justSignedIn = signal(false);
 
   readonly user = this._user.asReadonly();
   readonly isAuthenticated = computed(() => this._user() !== null);
@@ -51,6 +53,7 @@ export class AuthService {
     );
     this._user.set(user);
     this._checked.set(true);
+    this.justSignedIn.set(true);
     return user;
   }
 
@@ -68,9 +71,13 @@ export class AuthService {
     this._user.set(null);
   }
 
-  async logout(): Promise<void> {
+  /** `reason: 'idle'` — signed out after inactivity: the login page explains it and returns to `returnUrl`. */
+  async logout(opts: { reason?: 'idle'; returnUrl?: string } = {}): Promise<void> {
     await firstValueFrom(this.http.post<void>('/api/auth/logout', {})).catch(() => undefined);
     this._user.set(null);
-    await this.router.navigateByUrl('/login');
+    const returnUrl = opts.returnUrl && opts.returnUrl !== '/' ? opts.returnUrl : undefined;
+    await this.router.navigate(['/login'], {
+      queryParams: opts.reason ? { reason: opts.reason, returnUrl } : {},
+    });
   }
 }

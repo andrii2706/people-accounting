@@ -269,6 +269,12 @@ export class CreateEmployeeDto {
   @Str('fitness') fitness?: string;
   @Str('fitnessBasis') fitnessBasis?: string;
   @PastDate() fitnessDate?: string | null;
+  @DateField()
+  @Rule(
+    (v: string | null, dto) => !v || !dto.fitnessDate || v > dto.fitnessDate,
+    'Наступна ВЛК має бути пізніше за дату проходження',
+  )
+  nextVlkDate?: string | null;
   @IsOptional()
   @IsBoolean({ message: 'Вкажіть, чи заброньований працівник' })
   reserved?: boolean;

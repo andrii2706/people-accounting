@@ -26,6 +26,8 @@ export class LoginComponent {
 
   /** ?returnUrl=… from the URL (withComponentInputBinding). */
   readonly returnUrl = input<string>('/');
+  /** ?reason=idle — signed out after 10 minutes of inactivity. */
+  readonly reason = input<string>('');
 
   protected readonly error = signal('');
   protected readonly model = signal(this.prefilledBeforeHydration());

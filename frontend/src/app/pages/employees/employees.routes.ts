@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { employeeCopyResolver } from './resolvers/employee-copy.resolver';
 import { employeeDetailsResolver } from './resolvers/employee-details.resolver';
 import { employeeListResolver } from './resolvers/employee-list.resolver';
 import { employeeNoticesResolver } from './resolvers/employee-notices.resolver';
@@ -15,6 +16,8 @@ export const EMPLOYEES_ROUTES: Routes = [
   {
     path: 'new',
     title: 'Новий працівник · Військовий облік',
+    resolve: { source: employeeCopyResolver },
+    runGuardsAndResolvers: 'paramsOrQueryParamsChange',
     loadComponent: () =>
       import('./employee-form/employee-form.component').then((m) => m.EmployeeFormComponent),
   },

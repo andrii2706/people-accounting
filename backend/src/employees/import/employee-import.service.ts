@@ -12,7 +12,7 @@ import { EmployeesService } from '../employees.service.js';
 import { Employee } from '../entities/employee.entity.js';
 import { TEMPLATE_COLUMNS } from './import-columns.js';
 import { readTable } from './import-reader.js';
-import { convertRows, fullNameOf, toDtoValues, validateValues } from './import-rows.js';
+import { convertRows, fullNameOf, normalizeMilitaryDoc, toDtoValues, validateValues } from './import-rows.js';
 import type { AuthUser } from '../../shared/interfaces/auth.interface.js';
 import type { ImportValues, ImportRow, CheckedRow, ImportPreview } from '../../shared/interfaces/import.interface.js';
 
@@ -52,6 +52,8 @@ export class EmployeeImportService {
         const id = matchTck(String(row.values.militaryDocIssuedBy), tcks);
         if (id) row.values.tckId = id;
       }
+      // document type changed to electronic on the preview → no number; «АА 123456» typed into the number → split
+      normalizeMilitaryDoc(row.values);
       const errors = [...row.issues];
       for (const e of await validateValues(row.values)) {
         if (!errors.some((x) => x.field === e.field)) errors.push(e);

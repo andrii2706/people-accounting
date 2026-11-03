@@ -1,4 +1,11 @@
-import { MESSAGE, normalizeVos, PATTERN, rnokppMismatch } from './employee-rules';
+import {
+  isElectronicDocType,
+  MESSAGE,
+  normalizeVos,
+  PATTERN,
+  rnokppMismatch,
+  splitDocNumber,
+} from './employee-rules';
 
 describe('employee rules', () => {
   describe('ВОС', () => {
@@ -63,5 +70,28 @@ describe('employee rules', () => {
     expect(PATTERN.docGeneratedTime.test('23:59')).toBe(true);
     expect(PATTERN.docGeneratedTime.test('24:00')).toBe(false);
     expect(PATTERN.docGeneratedTime.test('9:05')).toBe(false);
+  });
+
+  describe('військово-обліковий документ', () => {
+    it('електронний: єВОД, е-ВОД, Резерв+, повна назва', () => {
+      for (const t of [
+        'єВОД',
+        'еВОД',
+        'е-ВОД',
+        'Резерв+',
+        'військово-обліковий документ в електронній формі',
+      ]) {
+        expect(isElectronicDocType(t)).toBe(true);
+      }
+      for (const t of ['військовий квиток', 'ВОД', '', 'водійське посвідчення']) {
+        expect(isElectronicDocType(t)).toBe(false);
+      }
+    });
+
+    it('номер паперового документа: серія окремо, лише цифри', () => {
+      expect(splitDocNumber('НО № 000003')).toEqual({ series: 'НО', number: '000003' });
+      expect(splitDocNumber('№ 123 456')).toEqual({ series: '', number: '123456' });
+      expect(splitDocNumber('АБ-12/3')).toEqual({ series: '', number: 'АБ-12/3' });
+    });
   });
 });

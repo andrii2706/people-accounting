@@ -147,6 +147,7 @@ export interface Employee {
   fitness: string;
   fitnessBasis: string;
   fitnessDate: string | null;
+  nextVlkDate: string | null;
   reserved: boolean;
   reservationBasis: string;
   specialAccountingCertificate: string;

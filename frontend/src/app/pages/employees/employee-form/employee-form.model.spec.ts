@@ -1,6 +1,7 @@
 import type { Employee } from '../../../shared/interfaces/employee.interface';
 import type { EmployeeFormModel } from '../../../shared/interfaces/employee-form.interface';
 import {
+  copyEmployeeToForm,
   effectiveDeferral,
   emptyEducation,
   emptyEmployeeForm,
@@ -28,6 +29,24 @@ describe('employee form model', () => {
       expect(p['birthDate']).toBeNull();
       expect(p['rankCode']).toBe(2);
       expect(p['vos']).toBe('100915А');
+    });
+
+    it('наступна ВЛК — лише разом з відстрочкою', () => {
+      const vlk = { fitnessDate: '2026-05-01', nextVlkDate: '2026-11-01' };
+      expect(payload(vlk)['nextVlkDate']).toBeNull();
+      expect(
+        payload({ ...vlk, deferralKind: 'MOBILIZATION', deferralMobilizationBasis: 'п. 9' })[
+          'nextVlkDate'
+        ],
+      ).toBe('2026-11-01');
+      expect(
+        payload({
+          ...vlk,
+          reserved: true,
+          deferralKind: 'MOBILIZATION',
+          deferralMobilizationBasis: 'п. 9',
+        })['nextVlkDate'],
+      ).toBeNull();
     });
 
     it('ID-картка не має серії', () => {
@@ -152,6 +171,19 @@ describe('employee form model', () => {
 
     it('вид відстрочки визначається з заповненої підстави', () => {
       expect(employeeToForm(employee, TODAY).deferralKind).toBe('MOBILIZATION');
+    });
+
+    it('копія картки — усі дані, крім звільнення', () => {
+      const m = copyEmployeeToForm(
+        { ...employee, rnokpp: '3287300019', dismissalDate: '2026-10-01' } as Employee,
+        TODAY,
+      );
+      expect(m.lastName).toBe('Тестенко');
+      expect(m.rnokpp).toBe('3287300019');
+      expect(m.rankCode).toBe('14');
+      expect(m.deferralKind).toBe('MOBILIZATION');
+      expect(m.positions[0]).toMatchObject({ position: 'інженер' });
+      expect(m.dismissalDate).toBe('');
     });
   });
 

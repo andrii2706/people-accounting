@@ -159,3 +159,23 @@ export function rnokppMismatch(rnokpp: string, birthDate: string, gender: 'M' | 
 export function normalizeVos(value: string): string {
   return value.replace(/[\s-]/g, '').toUpperCase();
 }
+
+/**
+ * Military document in electronic form (Резерв+, «єВОД», «е-ВОД»): it has no series or number —
+ * it is identified by the date and time it was generated.
+ */
+export function isElectronicDocType(type: string | null | undefined): boolean {
+  const t = (type ?? '').trim().toLowerCase();
+  return /електрон|резерв\s*\+/u.test(t) || /^[еєe][-\s]?вод(?!\p{L})/u.test(t);
+}
+
+/**
+ * Number of a paper document from free text: «№ 123456», «АА 123456», «АА№123456» →
+ * series and number separately. Unrecognised text is returned as it is.
+ */
+export function splitDocNumber(text: string): { series: string; number: string } {
+  const compact = text.trim().replace(/^№\s*/u, '');
+  const m = /^(\p{L}{1,3})?\s*№?\s*(\d[\d\s/-]*\d|\d)$/u.exec(compact);
+  if (!m) return { series: '', number: compact };
+  return { series: (m[1] ?? '').toUpperCase(), number: m[2].replace(/\s/g, '') };
+}

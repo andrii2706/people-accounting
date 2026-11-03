@@ -336,11 +336,20 @@
                             </select>
                           }
                           @default {
-                            <input
-                              class="input"
-                              [value]="text(row, f.key)"
-                              (change)="setValue(row, f.key, $any($event.target).value)"
-                            />
+                            @if (isLockedByDocType(row, f.key)) {
+                              <input
+                                class="input"
+                                disabled
+                                value=""
+                                placeholder="немає — електронний документ"
+                              />
+                            } @else {
+                              <input
+                                class="input"
+                                [value]="text(row, f.key)"
+                                (change)="setValue(row, f.key, $any($event.target).value)"
+                              />
+                            }
                           }
                         }
                         @for (message of errorsOf(row, f.key); track message) {

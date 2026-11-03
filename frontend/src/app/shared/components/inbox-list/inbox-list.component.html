@@ -1,0 +1,39 @@
+<ul class="divide-y divide-line">
+  @for (item of items(); track item.key) {
+    <li class="flex gap-3 px-4 py-3" [class.bg-brand-50]="!item.read">
+      <span
+        class="mt-1.5 size-2 shrink-0 rounded-full"
+        [class]="item.read ? 'bg-line' : item.level === 'danger' ? 'bg-danger' : 'bg-warning'"
+        aria-hidden="true"
+      ></span>
+      <div class="min-w-0 flex-1">
+        <p class="flex flex-wrap items-baseline gap-x-2 text-sm">
+          <button
+            type="button"
+            class="cursor-pointer text-left font-semibold hover:text-brand-600 hover:underline"
+            (click)="open.emit(item)"
+          >
+            {{ item.employeeName }}
+          </button>
+          <span class="text-[11px] tracking-wide text-muted uppercase">{{
+            kindLabels[item.kind]
+          }}</span>
+        </p>
+        <p class="mt-0.5 text-sm" [class.text-muted]="item.read">{{ item.message }}</p>
+      </div>
+      @if (!item.read) {
+        <button
+          type="button"
+          class="h-fit shrink-0 cursor-pointer rounded-md p-1 text-muted hover:bg-sunken hover:text-ink"
+          title="Позначити прочитаним"
+          aria-label="Позначити прочитаним"
+          (click)="markRead.emit(item)"
+        >
+          <app-icon name="check" [size]="16" />
+        </button>
+      }
+    </li>
+  } @empty {
+    <li class="px-4 py-8 text-center text-sm text-muted">Сповіщень немає</li>
+  }
+</ul>

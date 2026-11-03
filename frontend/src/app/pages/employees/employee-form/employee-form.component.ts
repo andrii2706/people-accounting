@@ -35,6 +35,8 @@ import {
   emptyPosition,
   FIELD_META,
   formToPayload,
+  copyEmployeeToForm,
+  hasDeferral,
   LIST_ITEM_FIELDS,
   normalizeTime,
   reportableChanges,
@@ -60,6 +62,7 @@ import {
   NOT_FUTURE_DATES,
   PATTERN,
   rnokppMismatch,
+  isElectronicDocType,
 } from '../../../shared/validators/employee-rules';
 import type { SelectOption } from '../../../shared/interfaces/ui.interface';
 import type {
@@ -134,9 +137,15 @@ export class EmployeeFormComponent {
     const e = this.employee();
     return e ? employeeToForm(e, this.today) : null;
   });
-  protected readonly model = linkedSignal<EmployeeFormModel>(
-    () => this.original() ?? emptyEmployeeForm(this.today),
-  );
+  /** «Копіювати»: the card the new one is prefilled from (employeeCopyResolver). */
+  readonly source = input<EmployeeDetails | null>(null);
+  protected readonly model = linkedSignal<EmployeeFormModel>(() => {
+    const source = this.source();
+    return (
+      this.original() ??
+      (source ? copyEmployeeToForm(source, this.today) : emptyEmployeeForm(this.today))
+    );
+  });
 
   protected readonly changedLabels = computed(() =>
     reportableChanges(this.original(), this.model()),
@@ -149,6 +158,10 @@ export class EmployeeFormComponent {
   protected readonly isOfficer = computed(() => (this.rank()?.code ?? -1) >= 12);
   protected readonly isConscript = computed(() => this.rank()?.code === 0);
   protected readonly isReservist = computed(() => !!this.model().reserveTeamNumber.trim());
+  /** ВЛК dates are kept for employees with a deferral (not for reserved ones). */
+  protected readonly withDeferral = computed(() => hasDeferral(this.model()));
+  /** The ВЛК block is also shown when a ВЛК date was filled in earlier, so it is not hidden. */
+  protected readonly showVlk = computed(() => this.withDeferral() || !!this.model().fitnessDate);
   protected readonly isIdCard = computed(() => this.model().passportType === 'ID_CARD');
   /** VOS depends on the rank: 6 characters for officers, 3 for the others, none for conscripts. */
   protected readonly vosHint = computed(() =>
@@ -204,6 +217,27 @@ export class EmployeeFormComponent {
     untracked(() => this.model.update((m) => ({ ...m, militaryRegistered: true })));
   });
 
+  /** Choosing an electronic document type clears its series and number (they are locked). */
+  private lastDocTypes: string | null = null;
+  private readonly electronicDocs = effect(() => {
+    const types = this.model().militaryDocuments.map((d) => d.type);
+    const key = types.join('\n');
+    const first = this.lastDocTypes === null;
+    if (key === this.lastDocTypes) return;
+    this.lastDocTypes = key;
+    if (first) return;
+    untracked(() => {
+      const docs = this.model().militaryDocuments;
+      if (!docs.some((d) => isElectronicDocType(d.type) && (d.number || d.series))) return;
+      this.model.update((m) => ({
+        ...m,
+        militaryDocuments: m.militaryDocuments.map((d) =>
+          isElectronicDocType(d.type) ? { ...d, number: '', series: '' } : d,
+        ),
+      }));
+    });
+  });
+
   protected readonly mobilization = httpResource<{
     mobilizationUntil: string | null;
     mobilizationDecree: string;
@@ -254,14 +288,14 @@ export class EmployeeFormComponent {
       : this.isConscript()
         ? 'Призовник'
         : 'Військовозобов’язаний';
-    const section =
-      m.gender === 'F'
+    // conscripts — group 4 regardless of gender (women conscripts are counted with all conscripts)
+    const section = this.isConscript()
+      ? 'CONSCRIPTS'
+      : m.gender === 'F'
         ? 'WOMEN'
-        : this.isConscript()
-          ? 'CONSCRIPTS'
-          : this.isOfficer()
-            ? 'OFFICERS'
-            : 'SOLDIERS';
+        : this.isOfficer()
+          ? 'OFFICERS'
+          : 'SOLDIERS';
     const title =
       this.dict.dictionaries()?.listSections?.find((s) => s.value === section)?.label ?? section;
     return { category, group: `Списки ${title}` };
@@ -396,6 +430,13 @@ export class EmployeeFormComponent {
       isOfficer(valueOf(p.rankCode)) ? false : 'Лише для офіцерів',
     );
     applyEach(p.militaryDocuments, (doc) => {
+      for (const f of [doc.series, doc.number]) {
+        disabled(f, ({ valueOf }) =>
+          isElectronicDocType(valueOf(doc.type))
+            ? 'Електронний документ не має серії й номера'
+            : false,
+        );
+      }
       maxLength(doc.type, MAX_LENGTH.docType, { message: MESSAGE.tooLong(MAX_LENGTH.docType) });
       maxLength(doc.series, MAX_LENGTH.docSeries, {
         message: MESSAGE.tooLong(MAX_LENGTH.docSeries),
@@ -491,6 +532,26 @@ export class EmployeeFormComponent {
           : undefined;
       });
     }
+
+    // a full copy keeps РНОКПП — saving it unchanged would create a second card of the same person
+    validate(p.rnokpp, ({ value }) => {
+      const source = this.source();
+      return source?.rnokpp && value().trim() === source.rnokpp
+        ? {
+            kind: 'copyDuplicate',
+            message: 'РНОКПП як у картки, яку копіюєте, — вкажіть РНОКПП нового працівника',
+          }
+        : undefined;
+    });
+    disabled(p.nextVlkDate, () =>
+      this.withDeferral() ? false : 'Лише для працівників з відстрочкою',
+    );
+    validate(p.nextVlkDate, ({ value, valueOf }) => {
+      const passed = valueOf(p.fitnessDate);
+      return value() && passed && value() <= passed
+        ? { kind: 'order', message: 'Наступна ВЛК має бути пізніше за дату проходження' }
+        : undefined;
+    });
 
     required(p.changeEffectiveDate, {
       message: 'Вкажіть дату, з якої діють зміни',
@@ -700,7 +761,7 @@ export class EmployeeFormComponent {
   }
 
   protected isElectronic(type: string) {
-    return /електрон/i.test(type);
+    return isElectronicDocType(type);
   }
 
   protected relationLabel(relation: FamilyRelation) {

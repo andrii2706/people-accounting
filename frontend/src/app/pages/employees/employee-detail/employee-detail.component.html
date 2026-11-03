@@ -43,6 +43,13 @@
           ><app-icon name="download" /> Витяг зі списків</a
         >
       }
+      <a
+        [routerLink]="['/employees', 'new']"
+        [queryParams]="{ copy: e.id }"
+        class="btn btn-secondary cursor-pointer"
+        title="Нова картка з тією ж посадою, званням, ВОС і ТЦК"
+        ><app-icon name="copy" /> Копіювати</a
+      >
       <a [routerLink]="['/employees', e.id, 'edit']" class="btn btn-primary"
         ><app-icon name="edit" /> Редагувати</a
       >
