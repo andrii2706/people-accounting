@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fullYears } from '../common/utils/dates.js';
+import { fullYears } from '../common/utils/dates.utils.js';
 import {
   dutyCategory,
   hasMobilizationOrder,

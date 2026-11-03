@@ -1,15 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
+import {
+  form,
+  FormField,
+  maxLength,
+  pattern,
+  required,
+  submit,
+  validate,
+} from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import type { ManagedUser, UserRole } from '../../../shared/interfaces/auth.interface';
+import type {
+  IssuedPassword,
+  ManagedUser,
+  UserRole,
+} from '../../../shared/interfaces/auth.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { UsersService } from '../../../shared/services/users.service';
-import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
+import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
+import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { passwordProblems } from '../../../shared/validators/password.validators';
 import { SelectComponent } from '../../../shared/components/select/select.component';
@@ -39,7 +52,7 @@ export class UsersComponent {
   readonly users = input.required<ManagedUser[]>();
 
   /** Temporary password after a reset — shown once. */
-  protected readonly issuedPassword = signal<{ user: string; password: string } | null>(null);
+  protected readonly issuedPassword = signal<IssuedPassword | null>(null);
   protected readonly now = signal(Date.now());
   protected readonly lockedIds = computed(() => {
     const now = this.now();
@@ -55,16 +68,12 @@ export class UsersComponent {
   protected readonly userForm = form(this.userModel, (p) => {
     required(p.fullName, { message: 'Вкажіть ім’я' });
     required(p.email, { message: 'Вкажіть email' });
-    validate(p.email, ({ value }) =>
-      value() && !/^\S+@\S+\.\S+$/.test(value())
-        ? { kind: 'email', message: 'Некоректний email' }
-        : undefined,
-    );
+    pattern(p.email, PATTERN.email, { message: MESSAGE.email });
     required(p.password, { message: 'Вкажіть тимчасовий пароль' });
     validate(p.password, ({ value, valueOf }) => {
       const problems = passwordProblems(value(), valueOf(p.email));
       return problems.length
-        ? { kind: 'policy', message: `Пароль: ${problems.join(', ')}` }
+        ? { kind: 'policy', message: `Потрібно: ${problems.join(', ')}` }
         : undefined;
     });
     maxLength(p.fullName, 200, { message: 'Не більше 200 символів' });
@@ -81,10 +90,10 @@ export class UsersComponent {
         this.userForm().reset();
         this.toast.success('Користувача створено. При першому вході він змінить пароль.');
         await this.refresh();
+        return undefined;
       } catch (err) {
-        this.toast.error(apiErrorMessage(err));
+        return formSubmitErrors(err, this.userForm, (m) => this.toast.error(m));
       }
-      return undefined;
     });
   }
 

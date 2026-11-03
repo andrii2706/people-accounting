@@ -8,8 +8,9 @@ import type {
   OrganizationHead,
   ResponsiblePerson,
   TckImportItem,
+  TckImportResult,
+  TestMailResult,
 } from '../interfaces/organization.interface';
-import type { Tck } from '../interfaces/dictionary.interface';
 
 @Injectable({ providedIn: 'root' })
 export class OrganizationService {
@@ -54,7 +55,7 @@ export class OrganizationService {
   }
 
   testMail() {
-    return firstValueFrom(this.http.post<{ sent: boolean }>('/api/notifications/test', {}));
+    return firstValueFrom(this.http.post<TestMailResult>('/api/notifications/test', {}));
   }
 
   checkDecrees() {
@@ -64,8 +65,6 @@ export class OrganizationService {
   }
 
   importTck(items: TckImportItem[]) {
-    return firstValueFrom(
-      this.http.post<{ created: number; updated: number }>('/api/tck/import', { items }),
-    );
+    return firstValueFrom(this.http.post<TckImportResult>('/api/tck/import', { items }));
   }
 }

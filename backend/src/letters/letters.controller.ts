@@ -14,8 +14,8 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { isUUID } from 'class-validator';
 import { AuditService } from '../audit/audit.service.js';
-import { CurrentUser } from '../common/auth.js';
-import { docxFile } from '../reports/reports.controller.js';
+import { CurrentUser } from '../common/decorators/auth.decorators.js';
+import { docxFile } from '../common/utils/file-response.utils.js';
 import {
   CreateChangeNoticeDto,
   CreateChangeNoticesDto,

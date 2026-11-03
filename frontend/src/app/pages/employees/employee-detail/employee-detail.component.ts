@@ -18,7 +18,8 @@ import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
-import type { InfoRow } from '../../../shared/interfaces/ui.interface';
+import type { InfoRow, InfoSection } from '../../../shared/interfaces/ui.interface';
+import type { NotificationStatus } from '../../../shared/interfaces/organization.interface';
 
 @Component({
   selector: 'app-employee-detail',
@@ -68,11 +69,11 @@ export class EmployeeDetailComponent {
   });
 
   /** Mobilization term — for deferrals «до завершення мобілізації». */
-  protected readonly mobilization = httpResource<{ mobilizationUntil: string | null }>(
+  protected readonly mobilization = httpResource<NotificationStatus>(
     () => '/api/notifications/status',
   );
 
-  protected readonly sections = computed<{ title: string; rows: InfoRow[] }[]>(() => {
+  protected readonly sections = computed<InfoSection[]>(() => {
     const e = this.e();
     if (!e) return [];
     const d = (v: string | null | undefined) => (v ? v.split('-').reverse().join('.') : '');

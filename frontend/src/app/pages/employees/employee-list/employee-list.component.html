@@ -182,7 +182,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (e of items(); track e.id) {
+        @for (e of shown(); track e.id) {
           @let active = previewId() === e.id;
           <tr
             class="cursor-pointer"
@@ -313,6 +313,21 @@
       </tbody>
     </table>
   </div>
+  <!-- the sentinel is re-created for every portion, so it reports again if it is still in view -->
+  @for (portion of [shownCount()]; track portion) {
+    @if (hasMore()) {
+      <div class="py-3 text-center text-sm text-muted" (appInView)="showMore()">
+        Показано {{ shown().length }} з {{ items().length }} ·
+        <button
+          type="button"
+          class="cursor-pointer text-brand-600 hover:underline"
+          (click)="showMore()"
+        >
+          показати ще
+        </button>
+      </div>
+    }
+  }
 </div>
 
 @if (previewItem(); as item) {

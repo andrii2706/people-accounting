@@ -1,24 +1,14 @@
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { inject, Injectable, PLATFORM_ID, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import {
+  IDLE_ACTIVITY_EVENTS,
+  IDLE_ACTIVITY_KEY,
+  IDLE_SIGNED_OUT_KEY,
+  IDLE_TIMEOUT_MS,
+  IDLE_WARNING_MS,
+} from '../constants/auth.constants';
 import { AuthService } from './auth.service';
-
-/** Sign-out after this long without mouse or keyboard activity. */
-export const IDLE_TIMEOUT_MS = 10 * 60_000;
-/** The warning with a countdown appears this long before the sign-out. */
-export const IDLE_WARNING_MS = 60_000;
-
-const ACTIVITY_EVENTS = [
-  'mousemove',
-  'mousedown',
-  'keydown',
-  'wheel',
-  'touchstart',
-  'scroll',
-] as const;
-/** Activity and sign-out are shared between tabs: working in one tab keeps the others signed in. */
-const ACTIVITY_KEY = 'mr.lastActivity';
-const SIGNED_OUT_KEY = 'mr.idleSignedOut';
 
 /**
  * Idle timeout: when the user does not move the mouse or press keys for 10 minutes, the session is ended
@@ -43,11 +33,11 @@ export class IdleTimeoutService {
 
   private readonly onActivity = () => this.touch();
   private readonly onStorage = (e: StorageEvent) => {
-    if (e.key === ACTIVITY_KEY && e.newValue) {
+    if (e.key === IDLE_ACTIVITY_KEY && e.newValue) {
       this.lastActivity = Math.max(this.lastActivity, Number(e.newValue) || 0);
       this.check();
     }
-    if (e.key === SIGNED_OUT_KEY && e.newValue) void this.signOut(false);
+    if (e.key === IDLE_SIGNED_OUT_KEY && e.newValue) void this.signOut(false);
   };
 
   start(): void {
@@ -55,7 +45,7 @@ export class IdleTimeoutService {
     const win = this.document.defaultView!;
     this.signingOut = false;
     this.lastActivity = Date.now();
-    for (const name of ACTIVITY_EVENTS) {
+    for (const name of IDLE_ACTIVITY_EVENTS) {
       win.addEventListener(name, this.onActivity, { capture: true, passive: true });
     }
     win.addEventListener('storage', this.onStorage);
@@ -65,7 +55,7 @@ export class IdleTimeoutService {
   stop(): void {
     if (!this.isBrowser) return;
     const win = this.document.defaultView!;
-    for (const name of ACTIVITY_EVENTS)
+    for (const name of IDLE_ACTIVITY_EVENTS)
       win.removeEventListener(name, this.onActivity, { capture: true });
     win.removeEventListener('storage', this.onStorage);
     if (this.timer) clearInterval(this.timer);
@@ -82,7 +72,7 @@ export class IdleTimeoutService {
     // tell the other tabs, but not on every mouse move
     if (now - this.lastShared > 5000) {
       this.lastShared = now;
-      this.share(ACTIVITY_KEY, String(now));
+      this.share(IDLE_ACTIVITY_KEY, String(now));
     }
   }
 
@@ -99,7 +89,7 @@ export class IdleTimeoutService {
     this.signingOut = true;
     const returnUrl = this.router.url;
     this.stop();
-    if (notifyTabs) this.share(SIGNED_OUT_KEY, String(Date.now()));
+    if (notifyTabs) this.share(IDLE_SIGNED_OUT_KEY, String(Date.now()));
     await this.auth.logout({ reason: 'idle', returnUrl });
   }
 

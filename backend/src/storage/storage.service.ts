@@ -3,6 +3,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, normalize, resolve, sep } from 'node:path';
 import { loadEnv } from '../config/env.js';
 import type { StoredObject, StorageDriver } from '../shared/interfaces/storage.interface.js';
+import type { StorageApiError } from '../shared/interfaces/storage.interface.js';
 
 /**
  * Storage for files that must outlive a request: frozen (signed) documents and signature files.
@@ -67,7 +68,7 @@ class GcsDriver implements StorageDriver {
       const [buf] = await bucket.file(key).download();
       return buf;
     } catch (err) {
-      if ((err as { code?: number }).code === 404) throw new NotFoundException('Файл не знайдено у сховищі');
+      if ((err as StorageApiError).code === 404) throw new NotFoundException('Файл не знайдено у сховищі');
       throw err;
     }
   }

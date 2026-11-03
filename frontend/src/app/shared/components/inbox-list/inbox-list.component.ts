@@ -1,12 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import type { InboxItem, InboxKind } from '../../interfaces/inbox.interface';
+import type { InboxItem } from '../../interfaces/inbox.interface';
+import { INBOX_KIND_LABELS } from '../../constants/badges.constants';
 import { IconComponent } from '../icon/icon.component';
-
-const KIND_LABELS: Record<InboxKind, string> = {
-  DEADLINE: 'Строки',
-  TCK: 'Повідомлення ТЦК',
-  CARD: 'Дані картки',
-};
 
 /** List of in-app notifications: used in the bell panel and in the window after login. */
 @Component({
@@ -21,5 +16,5 @@ export class InboxListComponent {
   readonly open = output<InboxItem>();
   readonly markRead = output<InboxItem>();
 
-  protected readonly kindLabels = KIND_LABELS;
+  protected readonly kindLabels = INBOX_KIND_LABELS;
 }

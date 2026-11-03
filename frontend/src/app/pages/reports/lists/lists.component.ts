@@ -23,6 +23,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
 import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
+import { InViewDirective } from '../../../shared/directives/in-view.directive';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { CategoryBadgeComponent } from '../../../shared/components/category-badge/category-badge.component';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
@@ -30,20 +31,23 @@ import {
   COL,
   DETAIL_GROUPS,
   LIST_COLUMNS,
+  LIST_ROWS_PAGE,
+  LIST_SECTION_ORDER,
+  LIST_TABS,
   QUICK_FILTERS,
+} from '../../../shared/constants/lists.constants';
+import {
   filterRows,
   maskTaxNumber,
   matchesQuickFilter,
   splitTck,
-} from './lists-view.utils';
-
-/** Four lists: officers; rank-and-file, sergeants, petty officers; women; conscripts. */
-const SECTIONS: ListSection[] = ['OFFICERS', 'SOLDIERS', 'WOMEN', 'CONSCRIPTS'];
+} from '../../../shared/utils/lists-view.utils';
 
 @Component({
   selector: 'app-lists',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    InViewDirective,
     DateInputComponent,
     PageHeaderComponent,
     IconComponent,
@@ -86,14 +90,7 @@ export class ListsComponent {
     return this.titles().get(section) ?? section;
   }
 
-  /** Short tab names; the full official title stays above the table. */
-  protected readonly tabs: { value: ListSection | 'ALL'; label: string }[] = [
-    { value: 'ALL', label: 'Усі' },
-    { value: 'OFFICERS', label: 'Офіцери' },
-    { value: 'SOLDIERS', label: 'Рядові, сержанти, старшини' },
-    { value: 'WOMEN', label: 'Жінки' },
-    { value: 'CONSCRIPTS', label: 'Призовники' },
-  ];
+  protected readonly tabs = LIST_TABS;
   protected readonly sectionCounts = computed(() => {
     const counts = new Map<ListSection | 'ALL', number>([['ALL', this.total()]]);
     for (const r of this.report().rows) counts.set(r.section, (counts.get(r.section) ?? 0) + 1);
@@ -128,11 +125,27 @@ export class ListsComponent {
   /** Non-empty lists after the tab, search and quick filters. */
   protected readonly visibleGroups = computed(() => {
     const rows = filterRows(this.tabRows(), this.query(), this.quick());
-    return SECTIONS.map((group) => ({
+    return LIST_SECTION_ORDER.map((group) => ({
       group,
       rows: rows.filter((r) => r.section === group),
     })).filter((g) => g.rows.length);
   });
+
+  /** Rows drawn per list at once; more are added when the end of the list scrolls into view. */
+  private readonly limits = linkedSignal<unknown, Partial<Record<ListSection, number>>>({
+    source: this.visibleGroups,
+    computation: () => ({}),
+  });
+  protected readonly shownGroups = computed(() =>
+    this.visibleGroups().map((g) => {
+      const limit = this.limits()[g.group] ?? LIST_ROWS_PAGE;
+      return { ...g, shown: g.rows.slice(0, limit), hasMore: g.rows.length > limit };
+    }),
+  );
+
+  protected showMore(group: ListSection) {
+    this.limits.update((l) => ({ ...l, [group]: (l[group] ?? LIST_ROWS_PAGE) + LIST_ROWS_PAGE }));
+  }
 
   protected toggleQuick(filter: ListQuickFilter) {
     this.quick.update((set) => {

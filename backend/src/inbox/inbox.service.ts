@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
-import { formatUa, todayIso } from '../common/utils/dates.js';
-import { deriveEmployee } from '../employees/employee-view.js';
+import { formatUa, todayIso } from '../common/utils/dates.utils.js';
+import { deriveEmployee } from '../employees/utils/employee-view.utils.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { CHANGE_TYPE_LABELS } from '../military/dictionaries.js';
@@ -10,21 +10,11 @@ import { fullName } from '../military/employee-format.js';
 import { notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
-import type { InboxItem, InboxKind, InboxView } from '../shared/interfaces/inbox.interface.js';
-import type { WarningLevel } from '../shared/interfaces/employee.interface.js';
+import type { InboxItem, InboxView } from '../shared/interfaces/inbox.interface.js';
 import { InboxRead } from './inbox-read.entity.js';
-
-/** Warnings about terms; the rest of the card warnings are «card data». */
-const DEADLINE_CODES = new Set([
-  'RESERVATION_EXPIRED',
-  'RESERVATION_EXPIRING',
-  'DEFERRAL_EXPIRED',
-  'DEFERRAL_EXPIRING',
-  'VLK_OVERDUE',
-  'VLK_SOON',
-]);
-const LEVEL_ORDER: Record<WarningLevel, number> = { danger: 0, warning: 1, info: 2 };
-const KIND_ORDER: Record<InboxKind, number> = { DEADLINE: 0, TCK: 1, CARD: 2 };
+import { INBOX_DEADLINE_CODES } from './inbox.constants.js';
+import { INBOX_KIND_ORDER } from './inbox.constants.js';
+import { INBOX_LEVEL_ORDER } from './inbox.constants.js';
 
 /**
  * In-app notifications about employees: deadlines, unreported changes for the TCK, problems in the card.
@@ -51,8 +41,8 @@ export class InboxService {
     items.sort(
       (a, b) =>
         Number(a.read) - Number(b.read) ||
-        LEVEL_ORDER[a.level] - LEVEL_ORDER[b.level] ||
-        KIND_ORDER[a.kind] - KIND_ORDER[b.kind] ||
+        INBOX_LEVEL_ORDER[a.level] - INBOX_LEVEL_ORDER[b.level] ||
+        INBOX_KIND_ORDER[a.kind] - INBOX_KIND_ORDER[b.kind] ||
         a.employeeName.localeCompare(b.employeeName, 'uk'),
     );
     return { items, unread: items.filter((i) => !i.read).length, date };
@@ -95,7 +85,7 @@ export class InboxService {
         if (w.level === 'info') continue;
         items.push({
           key: `${w.code}:${e.id}:${w.ref ?? ''}`,
-          kind: DEADLINE_CODES.has(w.code) ? 'DEADLINE' : 'CARD',
+          kind: INBOX_DEADLINE_CODES.has(w.code) ? 'DEADLINE' : 'CARD',
           level: w.level,
           employeeId: e.id,
           employeeName: d.fullName,

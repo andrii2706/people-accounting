@@ -1,4 +1,4 @@
-import { HttpBackend } from '@angular/common/http';
+import { HttpBackend, ɵHTTP_FETCH_MAX_RESPONSE_SIZE } from '@angular/common/http';
 import { type ApplicationConfig, mergeApplicationConfig } from '@angular/core';
 import { provideServerRendering, withRoutes } from '@angular/ssr';
 import { appConfig } from './app.config';
@@ -11,6 +11,11 @@ const serverConfig: ApplicationConfig = {
     provideServerRendering(withRoutes(serverRoutes)),
     // SSR requests to the API go to the internal address with the user's cookie (see SsrApiBackend)
     { provide: HttpBackend, useClass: SsrApiBackend },
+    /**
+     * Angular caps an SSR fetch at 1 MB; the employee list or Annex 5 of a big company is larger, and the page
+     * then fails to render on the server. The answers come from our own API, so the cap is raised.
+     */
+    { provide: ɵHTTP_FETCH_MAX_RESPONSE_SIZE, useValue: 16 * 1024 * 1024 },
     {
       provide: API_INTERNAL_URL,
       /**

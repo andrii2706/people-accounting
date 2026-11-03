@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateTemporaryPassword, passwordProblems } from '../password-policy.js';
+import { generateTemporaryPassword, passwordProblems } from '../utils/password-policy.utils.js';
 import { blindIndex, decryptField, encryptField, isEncrypted } from './field-encryption.js';
 import { randomBytes } from 'node:crypto';
 

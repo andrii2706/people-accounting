@@ -2,7 +2,7 @@
  * Text representations of employee fields for documents and lists.
  * They reproduce the CONCATENATE formulas of the employee card (columns FM–GE) and sheet «список».
  */
-import { formatUa } from '../common/utils/dates.js';
+import { formatUa } from '../common/utils/dates.utils.js';
 import { FAMILY_RELATION_LABELS, maritalStatusLabel } from './dictionaries.js';
 import { compositionText, isConscript, isOfficer } from './military-logic.js';
 import { rankTitle } from './ranks.js';

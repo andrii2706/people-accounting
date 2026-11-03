@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { toPlainImportRow } from '../utils/employee-import.utils';
 import type {
   CheckedImportRow,
   HireNoticesMode,
@@ -25,23 +26,19 @@ export class EmployeeImportService {
 
   check(rows: ImportRow[]) {
     return firstValueFrom(
-      this.http.post<CheckedImportRow[]>('/api/employees/import/check', { rows: rows.map(plain) }),
+      this.http.post<CheckedImportRow[]>('/api/employees/import/check', {
+        rows: rows.map(toPlainImportRow),
+      }),
     );
   }
 
   commit(rows: ImportRow[], hireNotices: HireNoticesMode, fileName?: string) {
     return firstValueFrom(
       this.http.post<ImportResult>('/api/employees/import/commit', {
-        rows: rows.map(plain),
+        rows: rows.map(toPlainImportRow),
         hireNotices,
         fileName,
       }),
     );
   }
 }
-
-const plain = ({ rowNumber, values, issues }: ImportRow): ImportRow => ({
-  rowNumber,
-  values,
-  issues,
-});

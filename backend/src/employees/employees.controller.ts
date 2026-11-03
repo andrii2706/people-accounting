@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { CurrentUser, Roles } from '../common/auth.js';
+import { CurrentUser, Roles } from '../common/decorators/auth.decorators.js';
 import {
   CreateEmployeeDto,
   DismissEmployeeDto,

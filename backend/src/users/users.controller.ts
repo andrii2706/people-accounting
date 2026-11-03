@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { CurrentUser, Roles } from '../common/auth.js';
+import { CurrentUser, Roles } from '../common/decorators/auth.decorators.js';
 import { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { UsersService } from './users.service.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';

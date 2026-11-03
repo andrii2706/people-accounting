@@ -1,20 +1,23 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
-import { passwordProblems } from '../common/password-policy.js';
-import { Rule } from '../common/validators.js';
+import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { passwordProblems } from '../common/utils/password-policy.utils.js';
+import { Rule } from '../common/validators/validators.js';
+import { MESSAGE, PATTERN } from '../military/employee-rules.js';
 import type { UserRole } from '../shared/interfaces/auth.interface.js';
-
-const ROLES: UserRole[] = ['ADMIN', 'HR'];
+import { USER_ROLES } from './users.constants.js';
 
 export class CreateUserDto {
-  @IsEmail({}, { message: 'Некоректний email' })
-  @MaxLength(200)
+  @IsString()
+  @IsNotEmpty({ message: 'Вкажіть email' })
+  @MaxLength(200, { message: 'Не більше 200 символів' })
+  @Rule((v: string) => PATTERN.email.test(v), MESSAGE.email)
   email: string;
 
   /** Temporary password — the user changes it on first sign-in. */
   @IsString()
-  @MaxLength(200)
-  @Rule((v: string) => passwordProblems(v).length === 0, 'Пароль: щонайменше 12 символів, літери й цифри')
+  @IsNotEmpty({ message: 'Вкажіть тимчасовий пароль' })
+  @MaxLength(200, { message: 'Не більше 200 символів' })
+  @Rule((v: string) => passwordProblems(v).length === 0, (v: string) => `Потрібно: ${passwordProblems(v).join(', ')}`)
   password: string;
 
   @IsString()
@@ -22,9 +25,9 @@ export class CreateUserDto {
   @MaxLength(200, { message: 'Не більше 200 символів' })
   fullName: string;
 
-  @ApiPropertyOptional({ enum: ROLES })
+  @ApiPropertyOptional({ enum: USER_ROLES })
   @IsOptional()
-  @IsIn(ROLES)
+  @IsIn(USER_ROLES)
   role?: UserRole;
 }
 
@@ -35,7 +38,7 @@ export class UpdateUserDto {
   fullName?: string;
 
   @IsOptional()
-  @IsIn(ROLES)
+  @IsIn(USER_ROLES)
   role?: UserRole;
 
   @IsOptional()

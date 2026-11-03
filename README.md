@@ -87,15 +87,23 @@ npm start                       # http://localhost:4200 (SSR + проксі /api
 backend/src
 ├── military/          ← доменна логіка (без БД): звання, категорії, групи, попередження, форматування текстів
 ├── employees/         ← картки, відстеження змін, звільнення, аудит переглядів
+│   ├── utils/         ← хелпери модуля (*.utils.ts): тексти, нормалізація, історія, вигляд картки
+│   ├── import/        ← імпорт з Excel/CSV: utils/ (читання, розбір рядків), import.constants.ts, *.dto.ts
+│   └── employees.constants.ts · employees.dto.ts
 ├── letters/           ← журнал вихідних, формування повідомлень, позначка «передано в ТЦК»
-├── signatures/        ← КЕП: фіксація документа, розбір і перевірка CMS (.p7s), пакет для ТЦК
+├── signatures/        ← КЕП: фіксація документа, розбір і перевірка CMS (.p7s, utils/cms.utils.ts), пакет для ТЦК
 ├── storage/           ← файлове сховище write-once (локально / Cloud Storage)
 ├── reports/           ← списки (Дод. 5), відомість (Дод. 12), дашборд
 ├── documents/         ← генерація DOCX (docx-kit + builders)
 ├── audit/             ← журнал дій з маскуванням чутливих полів
-├── common/crypto/     ← AES-256-GCM для полів, HMAC-індекс РНОКПП
+├── common/
+│   ├── constants/     ← спільні константи (MIME, HTTP-тексти, назви полів для помилок, ключі auth)
+│   ├── decorators/ guards/ filters/ middleware/ validators/
+│   ├── utils/         ← спільні хелпери (*.utils.ts): дати, тексти, хеш, файли-відповіді, паролі
+│   └── crypto/        ← AES-256-GCM для полів, HMAC-індекс РНОКПП
+├── shared/interfaces/ ← УСІ інтерфейси й типи бекенду (*.interface.ts)
 ├── auth/ users/       ← сесії в httpOnly cookie, блокування, політика паролів
-├── organization/ dictionaries/ mail/ config/
+├── organization/ dictionaries/ inbox/ notifications/ config/
 └── database/          ← data-source, міграції, сід, migrate.ts (Cloud Run Job)
 
 frontend/src/app
@@ -106,8 +114,23 @@ frontend/src/app
 │   ├── employees/     ← employee-list · employee-detail · employee-form · resolvers/
 │   ├── letters/       ← letter-list · letter-detail · letter-signing · resolvers/
 │   ├── notifications/ reports/ settings/
-└── shared/            ← components · interfaces · services · guards · interceptors · pipes · resolvers · utils · validators · tokens · constants
+└── shared/
+    ├── interfaces/    ← УСІ інтерфейси й типи (*.interface.ts)
+    ├── constants/     ← таблиці й константи (*.constants.ts): вкладки, підписи, бейджі, розміри сторінок
+    ├── utils/         ← чисті хелпери (*.utils.ts) + їхні *.spec.ts
+    ├── validators/    ← правила валідації форм
+    └── components · services · directives · guards · interceptors · pipes · resolvers · tokens · backends
 ```
+
+### Правила розміщення коду
+- **Інтерфейси й типи** — лише в `shared/interfaces` (фронт) і `backend/src/shared/interfaces` (бек). Жодних
+  інлайнових `{ a: string; b: number }` у компонентах, сервісах, контролерах чи DTO — для кожної форми даних є
+  названий інтерфейс.
+- **Хелпери** (чисті функції) — у `utils/` (`*.utils.ts`): на фронті `shared/utils`, на бекенді `common/utils`
+  або `<модуль>/utils`. У файлах компонентів, сервісів, контролерів і DTO немає функцій поза класом.
+- **Константи й таблиці** — у `shared/constants` (фронт), `common/constants` або `<модуль>/<модуль>.constants.ts` (бек).
+- **DTO** — лише в `*.dto.ts`, не в контролерах.
+- Компонент містить лише стан і обробники подій; логіку, яку можна перевірити без Angular, винесено в utils і покрито тестами.
 
 ### Frontend: Angular-патерни
 - **Lazy loading** — кожен розділ (`employees`, `letters`, …) завантажується окремим чанком через `loadChildren`.

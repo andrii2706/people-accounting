@@ -2,7 +2,7 @@ import { Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CurrentUser, Roles } from '../common/auth.js';
+import { CurrentUser, Roles } from '../common/decorators/auth.decorators.js';
 import { Organization } from '../organization/organization.entity.js';
 import { DailyJobService } from './daily-job.service.js';
 import { NotificationsService } from './notifications.service.js';

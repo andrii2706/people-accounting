@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { describe, expect, it } from 'vitest';
-import { flattenValidationErrors } from '../common/validators.js';
+import { flattenValidationErrors } from '../common/validators/validators.js';
 import { CreateEmployeeDto, UpdateEmployeeDto } from './employees.dto.js';
 import { MESSAGE, normalizeVos } from '../military/employee-rules.js';
 
@@ -36,7 +36,7 @@ describe('валідація картки працівника', () => {
       expect.arrayContaining([
         { field: 'lastName', message: 'Вкажіть прізвище' },
         { field: 'rnokpp', message: 'РНОКПП — рівно 10 цифр' },
-        { field: 'email', message: 'Некоректний email' },
+        { field: 'email', message: MESSAGE.email },
       ]),
     );
   });
@@ -98,6 +98,6 @@ describe('валідація картки працівника', () => {
 
   it('невідомі поля відхиляються', async () => {
     const errors = await errorsOf(CreateEmployeeDto, { ...valid, hack: 1 });
-    expect(errors).toContainEqual({ field: 'hack', message: 'Невідоме поле' });
+    expect(errors).toContainEqual({ field: 'hack', message: expect.stringContaining('не можна змінювати') });
   });
 });

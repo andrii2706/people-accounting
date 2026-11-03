@@ -8,7 +8,7 @@ import type {
   EmployeeListItem,
 } from '../../../shared/interfaces/employee.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
-import { initials, statusBadges } from '../employee-list/employee-list.utils';
+import { initials, statusBadges } from '../../../shared/utils/employee-list.utils';
 
 /** Side panel of the employee list: the main facts of a card without leaving the list. */
 @Component({
@@ -28,8 +28,9 @@ export class EmployeePreviewComponent {
   );
   protected readonly d = computed(() => (this.details.hasValue() ? this.details.value() : null));
 
+  /** Texts of the warnings come with the card (the list carries only codes). */
   protected readonly warnings = computed(() =>
-    this.item().warnings.filter((w) => w.level !== 'info'),
+    (this.d()?.derived.warnings ?? []).filter((w) => w.level !== 'info'),
   );
   protected readonly badges = computed(() => statusBadges(this.item()));
   protected readonly initials = computed(() => initials(this.item()));

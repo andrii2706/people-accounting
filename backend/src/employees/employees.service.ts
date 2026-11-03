@@ -5,17 +5,21 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service.js';
 import { blindIndex } from '../common/crypto/field-encryption.js';
-import { fieldErrors } from '../common/validators.js';
-import { addDays, formatUa, todayIso } from '../common/utils/dates.js';
+import { fieldErrors } from '../common/validators/validators.js';
+import { addDays, formatUa, todayIso } from '../common/utils/dates.utils.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
-import type { HireNoticesMode } from '../shared/interfaces/import.interface.js';
-import { CHANGE_TYPE_LABELS, EDUCATION_LEVELS } from '../military/dictionaries.js';
-import { familyText, militaryDocText, passportText, rankText } from '../military/employee-format.js';
-import { isConscript, notificationDeadline } from '../military/military-logic.js';
+import type { CreateEmployeeOptions, CreateManyOptions } from '../shared/interfaces/import.interface.js';
+import { CHANGE_TYPE_LABELS } from '../military/dictionaries.js';
+import { familyText, militaryDocText } from '../military/employee-format.js';
+import { notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { Tck } from '../dictionaries/tck.entity.js';
-import { deriveEmployee } from './employee-view.js';
-import { historyEntries } from './history.js';
+import { deriveEmployee } from './utils/employee-view.utils.js';
+import { historyEntries } from './utils/history.utils.js';
+import { CHANGE_RULES, NULLABLE_DATES, RECENT_NOTICE_DAYS } from './employees.constants.js';
+import { summarizeWarnings } from './utils/employee-list.utils.js';
+import { applyDeferral, applyEducations, applyPositions, applyReservation } from './utils/employee-normalize.utils.js';
+import { capitalizeName, educationsText, positionsText } from './utils/employee-text.utils.js';
 import type {
   CreateEmployeeDto,
   DismissEmployeeDto,
@@ -33,202 +37,7 @@ import { MilitaryDocument } from './entities/military-document.entity.js';
 import type { AuditAction } from '../shared/interfaces/common.interface.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 import type { ChangeType } from '../shared/interfaces/dictionary.interface.js';
-import type { ChangeRule } from '../shared/interfaces/employee.interface.js';
-
-/** Import: hiring / dismissal notices are queued for dates within this many days back (mode RECENT). */
-export const RECENT_NOTICE_DAYS = 30;
-
-const NULLABLE_DATES = new Set<keyof Employee>([
-  'birthDate',
-  'passportIssuedAt',
-  'foreignPassportIssuedAt',
-  'foreignPassportValidUntil',
-  'educationDocumentDate',
-  'positionSince',
-  'hireDate',
-  'hireOrderDate',
-  'dismissalDate',
-  'dismissalOrderDate',
-  'tckRegisteredAt',
-  'fitnessDate',
-  'nextVlkDate',
-  'reservationUntil',
-  'deferralUntil',
-  'mobilizationOrderDate',
-  'mobilizedAt',
-  'demobilizedAt',
-]);
-
-const date = (d: string | null | undefined) => (d ? `${formatUa(d)} р.` : '');
-const join = (parts: (string | false | null | undefined)[], sep = ', ') => parts.filter(Boolean).join(sep);
-
-export function deferralText(e: Employee): string {
-  const until = e.deferralUntilMobilizationEnd
-    ? 'до завершення мобілізації'
-    : e.deferralUntil
-      ? `до ${date(e.deferralUntil)}`
-      : '';
-  return join([e.deferralConscriptionBasis, e.deferralMobilizationBasis, until]);
-}
-
-/** Reserved by another legal entity: the mark plus whatever details are filled in (all optional). */
-export function otherReservationText(
-  e: Pick<Employee, 'reservedByName' | 'reservedByEdrpou' | 'reservationUntil' | 'specialAccountingCertificate'>,
-): string {
-  return join([
-    'заброньований іншою юридичною особою',
-    e.reservedByName?.trim()
-      ? `${e.reservedByName.trim()}${e.reservedByEdrpou ? ` (ЄДРПОУ ${e.reservedByEdrpou})` : ''}`
-      : e.reservedByEdrpou
-        ? `ЄДРПОУ ${e.reservedByEdrpou}`
-        : '',
-    e.reservationUntil ? `до ${date(e.reservationUntil)}` : '',
-    e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
-  ]);
-}
-
-export function reservationText(e: Employee): string {
-  if (!e.reserved) return '';
-  if (e.reservedBy === 'OTHER') return otherReservationText(e);
-  return join([
-    e.reservationUntil ? `до ${date(e.reservationUntil)}` : '',
-    e.specialAccountingCertificate ? `посвідчення № ${e.specialAccountingCertificate}` : '',
-  ]);
-}
-
-const CHANGE_RULES: ChangeRule[] = [
-  { type: 'LAST_NAME', value: (e) => e.lastName },
-  { type: 'FIRST_NAME', value: (e) => e.firstName },
-  { type: 'MIDDLE_NAME', value: (e) => e.middleName },
-  { type: 'POSITION', value: (e) => e.position, requireValue: true },
-  { type: 'REGISTERED_ADDRESS', value: (e) => e.registeredAddress, requireValue: true },
-  { type: 'ACTUAL_ADDRESS', value: (e) => e.actualAddress, requireValue: true },
-  { type: 'PASSPORT', value: passportText, requireValue: true },
-  { type: 'REGISTRY_NUMBER', value: (e) => e.registryNumber ?? '', requireValue: true },
-  { type: 'RANK', value: (e) => rankText(e) },
-  { type: 'VOS', value: (e) => e.vos ?? '' },
-  { type: 'MILITARY_DOC', value: (e) => militaryDocText(e) },
-  { type: 'TCK', value: (e) => e.tck?.name ?? '', requireValue: true },
-  { type: 'FITNESS', value: (e) => join([e.fitness, e.fitnessBasis], ' ') },
-  {
-    type: 'MILITARY_SERVICE',
-    value: (e) =>
-      join([
-        e.servedInArmy ? 'проходив(-ла) військову службу' : '',
-        e.mobilizedAt ? `призван${e.gender === 'F' ? 'а' : 'ий'} на військову службу з ${date(e.mobilizedAt)}` : '',
-      ]),
-  },
-  { type: 'DEFERRAL', value: deferralText },
-  { type: 'RESERVATION', value: reservationText },
-  { type: 'RESERVE_SERVICE', value: (e) => (e.reserveTeamNumber ? `команда № ${e.reserveTeamNumber}` : '') },
-  { type: 'MOBILIZATION_ORDER', value: (e) => (e.mobilizationOrderDate ? `від ${date(e.mobilizationOrderDate)}` : '') },
-  // Foreign passport, education and marital status are no longer reported (Resolution No. 812 of 10.06.2026);
-  // the types stay in ChangeType for the history of earlier notices.
-];
-
-/**
- * Reservation is used only when "Заброньований" is chosen explicitly: then its term is required
- * (same rule as on the frontend), otherwise the reservation data is cleared.
- */
-function applyReservation(e: Employee) {
-  // «пункт, розділ, номер переліку» is no longer kept (feedback 28.10.2026)
-  e.reservationBasis = '';
-  if (e.reserved && isConscript(e)) e.reserved = false;
-  if (!e.reserved) {
-    e.reserved = false;
-    e.reservationBasis = '';
-    e.reservationUntil = null;
-    e.specialAccountingCertificate = '';
-    e.reservedBy = 'COMPANY';
-    e.reservedByName = '';
-    e.reservedByEdrpou = '';
-    return;
-  }
-  // reserved by another legal entity: the mark is enough, name / EDRPOU / term / certificate are optional
-  if (e.reservedBy === 'OTHER') return;
-  e.reservedBy = 'COMPANY';
-  e.reservedByName = '';
-  e.reservedByEdrpou = '';
-  if (!e.reservationUntil) throw fieldErrors([{ field: 'reservationUntil', message: 'Вкажіть строк бронювання' }]);
-}
-
-/** A deferral «до завершення мобілізації» has no fixed date. */
-function applyDeferral(e: Employee) {
-  // a reserved employee has no deferral (feedback 30.10.2026)
-  if (e.reserved) {
-    e.deferralConscriptionBasis = '';
-    e.deferralMobilizationBasis = '';
-    e.deferralUntil = null;
-    e.deferralUntilMobilizationEnd = false;
-    e.nextVlkDate = null;
-    return;
-  }
-  // one kind only: from conscript service OR from conscription during mobilization
-  if (e.deferralConscriptionBasis?.trim() && e.deferralMobilizationBasis?.trim()) {
-    throw fieldErrors([
-      {
-        field: 'deferralMobilizationBasis',
-        message: 'Оберіть один вид відстрочки: від строкової служби або від мобілізації',
-      },
-    ]);
-  }
-  // «до завершення мобілізації» is only for the deferral from mobilization
-  if (!e.deferralMobilizationBasis?.trim()) e.deferralUntilMobilizationEnd = false;
-  if (e.deferralUntilMobilizationEnd) e.deferralUntil = null;
-  // the next ВЛК is tracked only for a deferral
-  const hasDeferral = !!(e.deferralConscriptionBasis?.trim() || e.deferralMobilizationBasis?.trim());
-  if (!hasDeferral && !e.deferralUntil && !e.deferralUntilMobilizationEnd) e.nextVlkDate = null;
-}
-
-/** The latest position (by date) is the current one; its data is mirrored into the employee card. */
-function applyPositions(e: Employee) {
-  const positions = [...(e.positions ?? [])].sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''));
-  const current = positions.at(-1);
-  if (!current) return;
-  e.position = current.position;
-  e.department = current.department ?? '';
-  e.positionSince = current.since ?? null;
-  e.positionOrder = join(
-    [
-      current.orderDocName || current.orderNumber || current.orderDate ? current.orderDocName || 'наказ' : '',
-      current.orderNumber ? `№ ${current.orderNumber}` : '',
-      current.orderDate ? `від ${date(current.orderDate)}` : '',
-    ],
-    ' ',
-  );
-}
-
-/** The highest level (by the dictionary order) is mirrored into the card fields — lists, import, documents. */
-function applyEducations(e: Employee) {
-  const list = e.educations ?? [];
-  const rank = (level: string) => {
-    const i = (EDUCATION_LEVELS as readonly string[]).indexOf(level);
-    return i < 0 ? EDUCATION_LEVELS.length : i;
-  };
-  const best = [...list].sort(
-    (a, b) => rank(a.level) - rank(b.level) || (b.documentDate ?? '').localeCompare(a.documentDate ?? ''),
-  )[0];
-  e.educationLevel = best?.level ?? '';
-  e.educationSpecialty = best?.specialty ?? '';
-  e.educationDocument = best ? join([best.institution, best.document], ', ') : '';
-  e.educationDocumentDate = best?.documentDate ?? null;
-}
-
-const educationsText = (e: Employee) =>
-  [...(e.educations ?? [])]
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((d) =>
-      join([d.level, d.institution, d.specialty, d.document, d.documentDate ? `від ${date(d.documentDate)}` : '']),
-    )
-    .join('; ');
-
-const positionsText = (e: Employee) =>
-  [...(e.positions ?? [])]
-    .sort((a, b) => (a.since ?? '').localeCompare(b.since ?? ''))
-    .map((p) =>
-      join([p.position, p.department, p.since ? `з ${date(p.since)}` : '', p.orderNumber ? `№ ${p.orderNumber}` : '']),
-    )
-    .join('; ');
+import type { EmployeeCountRow } from '../shared/interfaces/letter.interface.js';
 
 @Injectable()
 export class EmployeesService {
@@ -265,10 +74,12 @@ export class EmployeesService {
       );
     }
     const status = query.status ?? 'active';
+    // the list moves an employee to «Звільнені» on the dismissal day itself; the registration lists keep the
+    // person until the end of that day (isEmployedAt), as the last working day still counts
     if (status === 'active') {
-      qb.andWhere('(e.dismissalDate IS NULL OR e.dismissalDate >= :date)', { date });
+      qb.andWhere('(e.dismissalDate IS NULL OR e.dismissalDate > :date)', { date });
     } else if (status === 'dismissed') {
-      qb.andWhere('e.dismissalDate < :date', { date });
+      qb.andWhere('e.dismissalDate <= :date', { date });
     }
     if (query.tckId) qb.andWhere('e.tckId = :tckId', { tckId: query.tckId });
 
@@ -298,7 +109,7 @@ export class EmployeesService {
       deferral: !e.reserved && hasDeferralAt(e, date, org.mobilizationUntil),
       deferralUntil: e.deferralUntilMobilizationEnd ? null : e.deferralUntil,
       pendingChanges: pendingCounts.get(e.id) ?? 0,
-      ...deriveEmployee(e, date, org.alertDays),
+      ...summarizeWarnings(deriveEmployee(e, date, org.alertDays)),
     }));
 
     if (query.group) items = items.filter((i) => (query.group === 'NONE' ? !i.listGroup : i.listGroup === query.group));
@@ -354,7 +165,7 @@ export class EmployeesService {
    * `hireNotices` — which hiring / dismissal notices to queue: RECENT — only when the date is within
    * the last RECENT_NOTICE_DAYS days (people hired long ago were reported before), ALL, NONE.
    */
-  async createMany(dtos: CreateEmployeeDto[], user: AuthUser, opts: { hireNotices: HireNoticesMode; source: string }) {
+  async createMany(dtos: CreateEmployeeDto[], user: AuthUser, opts: CreateManyOptions) {
     return this.dataSource.transaction(async (m) => {
       const ids: string[] = [];
       let notices = 0;
@@ -370,12 +181,7 @@ export class EmployeesService {
     });
   }
 
-  private async createIn(
-    m: EntityManager,
-    dto: CreateEmployeeDto,
-    user: AuthUser,
-    opts: { wantsNotice?: (date: IsoDate | null) => boolean; source?: string } = {},
-  ) {
+  private async createIn(m: EntityManager, dto: CreateEmployeeDto, user: AuthUser, opts: CreateEmployeeOptions = {}) {
     // a card created by hand always queues its notices; the import decides per date
     const wantsNotice = opts.wantsNotice ?? ((date: IsoDate | null) => !!date);
     let notices = 0;
@@ -597,7 +403,7 @@ export class EmployeesService {
 
   async updateChange(changeId: string, dto: UpdateChangeDto) {
     const change = await this.changeRepo.findOneBy({ id: changeId });
-    if (!change) throw new NotFoundException();
+    if (!change) throw new NotFoundException('Зміну не знайдено — можливо, її вже повідомлено');
     if (change.letterId) throw new BadRequestException('Зміна вже включена до листа');
     Object.assign(change, dto);
     return this.changeRepo.save(change);
@@ -736,7 +542,7 @@ export class EmployeesService {
       .addSelect('COUNT(*)::int', 'count')
       .where('c.letterId IS NULL AND c.skipped = false')
       .groupBy('c.employeeId')
-      .getRawMany<{ employeeId: string; count: number }>();
+      .getRawMany<EmployeeCountRow>();
     return new Map(rows.map((r) => [r.employeeId, r.count]));
   }
 
@@ -749,14 +555,4 @@ export class EmployeesService {
   ) {
     return this.auditService.log('employee', entityId, action, diff, user, m);
   }
-}
-
-/** «шевченко-ковальська» → «Шевченко-Ковальська» (like UPPER(MID(...,1,1)) in the formulas). */
-function capitalizeName(value: string) {
-  return value
-    .split(/([-\s’'])/)
-    .map((part) =>
-      part.length > 1 || /[a-zа-яіїєґ]/i.test(part) ? part.charAt(0).toUpperCase() + part.slice(1) : part,
-    )
-    .join('');
 }

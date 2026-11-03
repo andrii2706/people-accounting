@@ -55,7 +55,7 @@ API віджета належить ІІТ — після оновлення й�
 
 ## Що перевіряє сервер
 
-`backend/src/signatures/cms.ts`:
+`backend/src/signatures/utils/cms.utils.ts`:
 
 | Перевірка | ДСТУ 4145 (класичні ключі) | ECDSA / RSA |
 |---|---|---|

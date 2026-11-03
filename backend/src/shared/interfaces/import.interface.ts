@@ -82,3 +82,46 @@ export interface UploadedTable {
  * for everyone, or none (the notices for people hired long ago were sent before).
  */
 export type HireNoticesMode = 'RECENT' | 'ALL' | 'NONE';
+
+/** Options of an import commit. */
+export interface ImportCommitOptions {
+  hireNotices: HireNoticesMode;
+  fileName?: string;
+}
+
+/** Options of a bulk creation from a file. */
+export interface CreateManyOptions {
+  hireNotices: HireNoticesMode;
+  /** Shown in the history of the card: «імпорт з файлу …». */
+  source: string;
+}
+
+/** Options of creating one card: whether to queue a TCK notice for a hiring / dismissal date. */
+export interface CreateEmployeeOptions {
+  wantsNotice?: (date: string | null) => boolean;
+  source?: string;
+}
+
+/** A rank cell of the import file: rank code and whether the rank is a naval one. */
+export interface ParsedRank {
+  code: number;
+  navy: boolean;
+}
+
+/** Header → column mapping of an uploaded table. */
+export interface ColumnMappingResult {
+  mapping: ColumnMapping[];
+  columns: (ImportColumn | undefined)[];
+}
+
+/** Rows of an uploaded table converted to employee values. */
+export interface ConvertedRows {
+  mapping: ColumnMapping[];
+  rows: ImportRow[];
+}
+
+/** A non-empty row of the uploaded sheet with its number as in Excel. */
+export interface RawRow {
+  rowNumber: number;
+  cells: RawCell[];
+}

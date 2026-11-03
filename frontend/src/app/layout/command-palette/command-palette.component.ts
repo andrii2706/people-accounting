@@ -13,16 +13,8 @@ import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import type { EmployeeListItem } from '../../shared/interfaces/employee.interface';
-import type { IconName } from '../../shared/interfaces/ui.interface';
+import type { IconName, PaletteEntry } from '../../shared/interfaces/ui.interface';
 import { EmployeesService } from '../../shared/services/employees.service';
-
-interface PaletteEntry {
-  id: string;
-  icon: IconName;
-  title: string;
-  hint: string;
-  go: () => unknown;
-}
 
 /** Global search (Ctrl K): employees by name, РНОКПП, personnel number, plus quick actions. */
 @Component({

@@ -1,24 +1,21 @@
-import { applyDecorators } from '@nestjs/common';
 import { PartialType } from '@nestjs/swagger';
-import { IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateIf } from 'class-validator';
-import { IsIsoDate, Rule } from '../common/validators.js';
+import { IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import { IsIsoDate, Rule } from '../common/validators/validators.js';
 import { MESSAGE, PATTERN } from '../military/employee-rules.js';
-
-const Str = (max: number) =>
-  applyDecorators(IsOptional(), IsString(), MaxLength(max, { message: MESSAGE.tooLong(max) }));
+import { OptionalStr } from '../common/validators/validators.js';
 
 export class UpdateOrganizationDto {
-  @Str(500) fullName?: string;
-  @Str(500) nameLocative?: string;
-  @Str(300) shortName?: string;
-  @Str(20) @Rule((v: string) => /^\d{8,10}$/.test(v), '8 цифр (ЄДРПОУ) або 10 (РНОКПП ФОП)') edrpou?: string;
-  @Str(500) address?: string;
-  @IsOptional() @Matches(/^(\d{5})?$/, { message: 'Поштовий індекс — 5 цифр' }) postalCode?: string;
-  @Str(100) phone?: string;
-  @Str(200) @Rule((v: string) => PATTERN.email.test(v), MESSAGE.email) email?: string;
-  @Str(200) headPosition?: string;
-  @Str(200) headName?: string;
-  @Str(30) letterNumberPrefix?: string;
+  @OptionalStr(500) fullName?: string;
+  @OptionalStr(500) nameLocative?: string;
+  @OptionalStr(300) shortName?: string;
+  @OptionalStr(20) @Rule((v: string) => PATTERN.companyCode.test(v), MESSAGE.companyCode) edrpou?: string;
+  @OptionalStr(500) address?: string;
+  @OptionalStr(5) @Rule((v: string) => PATTERN.postalCode.test(v), MESSAGE.postalCode) postalCode?: string;
+  @OptionalStr(100) phone?: string;
+  @OptionalStr(200) @Rule((v: string) => PATTERN.email.test(v), MESSAGE.email) email?: string;
+  @OptionalStr(200) headPosition?: string;
+  @OptionalStr(200) headName?: string;
+  @OptionalStr(30) letterNumberPrefix?: string;
   @IsOptional()
   @IsInt()
   @Min(1, { message: 'Щонайменше 1 день' })
@@ -35,16 +32,16 @@ export class UpdateOrganizationDto {
   @ValidateIf((o: UpdateOrganizationDto) => o.reservationQuota !== null)
   @IsInt({ message: 'Квота — ціле число' })
   @Min(0, { message: 'Не менше 0' })
-  @Max(100000)
+  @Max(100000, { message: 'Не більше 100 000' })
   reservationQuota?: number | null;
-  @Str(300) reservationQuotaBasis?: string;
+  @OptionalStr(300) reservationQuotaBasis?: string;
 
   /** Manual override of the mobilization end (normally filled from the presidential decrees). */
   @IsOptional() @IsIsoDate({ nullable: true }) mobilizationUntil?: string | null;
-  @Str(300) mobilizationDecree?: string;
+  @OptionalStr(300) mobilizationDecree?: string;
 
   /** Extra e-mail addresses for reminders, comma-separated. */
-  @Str(500)
+  @OptionalStr(500)
   @Rule(
     (v: string) =>
       v
@@ -52,7 +49,7 @@ export class UpdateOrganizationDto {
         .map((x) => x.trim())
         .filter(Boolean)
         .every((x) => PATTERN.email.test(x)),
-    'Перелік email через кому',
+    MESSAGE.emailList,
   )
   notifyEmails?: string;
 }
@@ -67,7 +64,7 @@ export class CreateOrganizationHeadDto {
   @IsNotEmpty({ message: 'Вкажіть ім’я та ПРІЗВИЩЕ' })
   @MaxLength(200, { message: MESSAGE.tooLong(200) })
   fullName: string;
-  @Str(50) orderNumber?: string;
+  @OptionalStr(50) orderNumber?: string;
   @IsIsoDate() validFrom: string;
   @IsOptional()
   @IsIsoDate({ nullable: true })
@@ -82,9 +79,9 @@ export class CreateResponsiblePersonDto {
   @IsNotEmpty({ message: 'Вкажіть ім’я та прізвище' })
   @MaxLength(200, { message: MESSAGE.tooLong(200) })
   fullName: string;
-  @Str(200) position?: string;
-  @Str(100) phone?: string;
-  @Str(50) orderNumber?: string;
+  @OptionalStr(200) position?: string;
+  @OptionalStr(100) phone?: string;
+  @OptionalStr(50) orderNumber?: string;
   @IsIsoDate() validFrom: string;
   @IsOptional()
   @IsIsoDate({ nullable: true })

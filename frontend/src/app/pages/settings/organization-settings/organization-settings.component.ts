@@ -10,6 +10,7 @@ import {
 import {
   form,
   FormField,
+  max,
   maxLength,
   min,
   pattern,
@@ -25,6 +26,8 @@ import type { Tck } from '../../../shared/interfaces/dictionary.interface';
 import type {
   NotificationStatus,
   Organization,
+  PendingTckImport,
+  TckImportFile,
   TckImportItem,
   OrganizationExtraForm,
   OrganizationSettingsData,
@@ -34,27 +37,13 @@ import { AuthService } from '../../../shared/services/auth.service';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { OrganizationService } from '../../../shared/services/organization.service';
 import { ToastService } from '../../../shared/services/toast.service';
-import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
+import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
+import { wholeDays } from '../../../shared/validators/organization.validators';
+import { EMPTY_ORG, REQUISITE_FIELDS } from '../../../shared/constants/organization.constants';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
-
-const EMPTY_ORG: Organization = {
-  fullName: '',
-  nameLocative: '',
-  shortName: '',
-  edrpou: '',
-  address: '',
-  postalCode: '',
-  phone: '',
-  email: '',
-  headPosition: 'Директор',
-  headName: '',
-  letterNumberPrefix: '',
-  alertDays: 30,
-  notifyDeadlineDays: 7,
-};
 
 @Component({
   selector: 'app-organization-settings',
@@ -77,6 +66,8 @@ export class OrganizationSettingsComponent {
   protected readonly dict = inject(DictionariesService);
 
   private readonly refresh = injectRouteRefresh();
+  /** API errors that have no field on the form go to a toast. */
+  private readonly notifyError = (message: string) => this.toast.error(message);
 
   /** Company details and responsible persons — from organizationSettingsResolver (parallel requests). */
   readonly settings = input.required<OrganizationSettingsData>();
@@ -106,43 +97,44 @@ export class OrganizationSettingsComponent {
     len(p.shortName, 300);
     len(p.edrpou, 10);
     len(p.address, 500);
-    validate(p.postalCode, ({ value }) =>
-      value() && !/^\d{5}$/.test(value())
-        ? { kind: 'postalCode', message: 'Поштовий індекс — 5 цифр' }
-        : undefined,
-    );
+    pattern(p.postalCode, PATTERN.postalCode, { message: MESSAGE.postalCode });
     len(p.phone, 100);
     len(p.email, 200);
     len(p.headPosition, 200);
     len(p.headName, 200);
     len(p.letterNumberPrefix, 30);
     pattern(p.email, PATTERN.email, { message: MESSAGE.email });
+    required(p.alertDays, { message: 'Вкажіть кількість днів' });
+    required(p.notifyDeadlineDays, { message: 'Вкажіть кількість днів' });
     min(p.alertDays, 1, { message: 'Щонайменше 1 день' });
+    max(p.alertDays, 365, { message: 'Не більше 365 днів' });
     min(p.notifyDeadlineDays, 1, { message: 'Щонайменше 1 день' });
-    validate(p.edrpou, ({ value }) =>
-      value() && !/^\d{8,10}$/.test(value())
-        ? { kind: 'edrpou', message: '8 цифр (ЄДРПОУ) або 10 (РНОКПП ФОП)' }
-        : undefined,
-    );
+    max(p.notifyDeadlineDays, 60, { message: 'Не більше 60 днів' });
+    validate(p.alertDays, ({ value }) => wholeDays(value()));
+    validate(p.notifyDeadlineDays, ({ value }) => wholeDays(value()));
+    pattern(p.edrpou, PATTERN.companyCode, { message: MESSAGE.companyCode });
   });
 
   protected async saveOrg(event: Event) {
     event.preventDefault();
     await submit(this.orgForm, async () => {
       try {
-        // The head is managed in «Керівник підприємства» (with history), not here.
-        const { headName: _n, headPosition: _p, ...m } = this.orgModel();
+        // Only the requisites of this card are sent: the head has its own card (with history), quota,
+        // mobilization and e-mails are saved by theirs, and server fields (id, updatedAt…) are not editable.
+        const m = this.orgModel();
+        const body: Partial<Organization> = {};
+        for (const key of REQUISITE_FIELDS) body[key] = (m[key] ?? '').trim();
         await this.organizationService.update({
-          ...m,
+          ...body,
           alertDays: Number(m.alertDays),
           notifyDeadlineDays: Number(m.notifyDeadlineDays),
         });
         this.toast.success('Реквізити збережено');
         await this.refresh();
+        return undefined;
       } catch (err) {
-        this.toast.error(apiErrorMessage(err));
+        return formSubmitErrors(err, this.orgForm, this.notifyError);
       }
-      return undefined;
     });
   }
 
@@ -185,10 +177,10 @@ export class OrganizationSettingsComponent {
         this.personForm().reset();
         await this.refresh();
         this.toast.success('Додано');
+        return undefined;
       } catch (err) {
-        this.toast.error(apiErrorMessage(err));
+        return formSubmitErrors(err, this.personForm, this.notifyError);
       }
-      return undefined;
     });
   }
 
@@ -223,10 +215,10 @@ export class OrganizationSettingsComponent {
         this.headForm().reset();
         await this.refresh();
         this.toast.success('Керівника змінено. Користувачам надіслано сповіщення.');
+        return undefined;
       } catch (err) {
-        this.toast.error(apiErrorMessage(err));
+        return formSubmitErrors(err, this.headForm, this.notifyError);
       }
-      return undefined;
     });
   }
 
@@ -250,11 +242,12 @@ export class OrganizationSettingsComponent {
     };
   });
   protected readonly extraForm = form(this.extraModel, (p) => {
-    validate(p.reservationQuota, ({ value }) =>
-      value() && !/^\d{1,6}$/.test(value().trim())
-        ? { kind: 'quota', message: 'Ціле число, не менше 0' }
-        : undefined,
-    );
+    validate(p.reservationQuota, ({ value }) => {
+      const v = value().trim();
+      if (!v) return undefined;
+      if (!/^\d+$/.test(v)) return { kind: 'quota', message: 'Ціле число без пробілів, напр. 25' };
+      return Number(v) > 100_000 ? { kind: 'quota', message: 'Не більше 100 000' } : undefined;
+    });
     maxLength(p.reservationQuotaBasis, 300, { message: MESSAGE.tooLong(300) });
     maxLength(p.mobilizationDecree, 300, { message: MESSAGE.tooLong(300) });
     maxLength(p.notifyEmails, 500, { message: MESSAGE.tooLong(500) });
@@ -265,7 +258,7 @@ export class OrganizationSettingsComponent {
         .filter(Boolean)
         .every((x) => PATTERN.email.test(x))
         ? undefined
-        : { kind: 'emails', message: 'Перелік email через кому' },
+        : { kind: 'emails', message: MESSAGE.emailList },
     );
   });
   protected readonly savingExtra = signal(false);
@@ -347,7 +340,7 @@ export class OrganizationSettingsComponent {
   }
 
   // TCK import file is produced by `npm run tck:export`
-  protected readonly tckImport = signal<{ file: string; items: TckImportItem[] } | null>(null);
+  protected readonly tckImport = signal<PendingTckImport | null>(null);
   protected readonly importingTck = signal(false);
 
   protected async pickTckFile(event: Event) {
@@ -358,7 +351,7 @@ export class OrganizationSettingsComponent {
     try {
       if (file.size > 2_000_000) throw new Error('Файл завеликий (понад 2 МБ)');
       const data: unknown = JSON.parse(await file.text());
-      const raw = Array.isArray(data) ? data : (data as { items?: unknown }).items;
+      const raw = Array.isArray(data) ? data : (data as TckImportFile).items;
       if (!Array.isArray(raw)) throw new Error('У файлі немає переліку ТЦК (items)');
       const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
       const items: TckImportItem[] = raw
@@ -411,18 +404,10 @@ export class OrganizationSettingsComponent {
     maxLength(p.name, 300, { message: MESSAGE.tooLong(300) });
     maxLength(p.nameGenitive, 300, { message: MESSAGE.tooLong(300) });
     maxLength(p.address, 300, { message: MESSAGE.tooLong(300) });
-    validate(p.postalCode, ({ value }) =>
-      value() && !/^\d{5}$/.test(value())
-        ? { kind: 'postalCode', message: 'Поштовий індекс — 5 цифр' }
-        : undefined,
-    );
+    pattern(p.postalCode, PATTERN.postalCode, { message: MESSAGE.postalCode });
     maxLength(p.phone, 200, { message: MESSAGE.tooLong(200) });
     maxLength(p.email, 200, { message: MESSAGE.tooLong(200) });
-    validate(p.email, ({ value }) =>
-      value() && !/^\S+@\S+\.\S+$/.test(value())
-        ? { kind: 'email', message: 'Некоректний email' }
-        : undefined,
-    );
+    pattern(p.email, PATTERN.email, { message: MESSAGE.email });
   });
 
   protected editTck(t: Tck | null) {
@@ -451,10 +436,10 @@ export class OrganizationSettingsComponent {
         this.editingTck.set(null);
         await this.dict.reloadTcks();
         this.toast.success('ТЦК збережено');
+        return undefined;
       } catch (err) {
-        this.toast.error(apiErrorMessage(err));
+        return formSubmitErrors(err, this.tckForm, this.notifyError);
       }
-      return undefined;
     });
   }
 }

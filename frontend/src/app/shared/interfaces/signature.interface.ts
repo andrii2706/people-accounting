@@ -81,3 +81,8 @@ export interface EndUserConstructor {
 }
 
 export type SigningMode = 'widget' | 'upload';
+
+/** `window` with the IIT library loaded (eusign.js defines a global EndUser). */
+export interface WindowWithEndUser {
+  EndUser?: EndUserConstructor;
+}

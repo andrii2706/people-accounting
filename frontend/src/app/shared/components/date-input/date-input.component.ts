@@ -11,53 +11,9 @@ import {
   viewChild,
 } from '@angular/core';
 import type { FormValueControl } from '@angular/forms/signals';
-
-const MONTHS = [
-  'Січень',
-  'Лютий',
-  'Березень',
-  'Квітень',
-  'Травень',
-  'Червень',
-  'Липень',
-  'Серпень',
-  'Вересень',
-  'Жовтень',
-  'Листопад',
-  'Грудень',
-];
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'];
-
-const pad = (n: number) => String(n).padStart(2, '0');
-const toIso = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
-const isIso = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
-
-/** «2026-10-28» → «28.10.2026»; anything else is shown as typed. */
-function display(value: string): string {
-  if (!value) return '';
-  if (!isIso(value)) return value;
-  const [y, m, d] = value.split('-');
-  return `${d}.${m}.${y}`;
-}
-
-/** «28.10.2026» → ISO if it is a real date, otherwise the text itself (the form shows «Некоректна дата»). */
-function parse(text: string): string {
-  const m = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text);
-  if (!m) return text;
-  const [d, mo, y] = [Number(m[1]), Number(m[2]), Number(m[3])];
-  const date = new Date(Date.UTC(y, mo - 1, d));
-  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d
-    ? toIso(y, mo, d)
-    : text;
-}
-
-/** Digits → «ДД.ММ.РРРР» while typing. */
-function mask(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
-}
+import { MONTH_NAMES, WEEKDAY_NAMES } from '../../constants/date.constants';
+import type { CalendarCell } from '../../interfaces/ui.interface';
+import { displayToIso, isIso, isoToDisplay, maskDateInput, toIso } from '../../utils/date.utils';
 
 /**
  * Date field in the Ukrainian format ДД.ММ.РРРР with a calendar — the same on every browser
@@ -87,10 +43,10 @@ export class DateInputComponent implements FormValueControl<string> {
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('root');
   private readonly textInput = viewChild.required<ElementRef<HTMLInputElement>>('textField');
 
-  protected readonly weekdays = WEEKDAYS;
-  protected readonly months = MONTHS;
+  protected readonly weekdays = WEEKDAY_NAMES;
+  protected readonly months = MONTH_NAMES;
   protected readonly open = signal(false);
-  protected readonly text = linkedSignal(() => display(this.value()));
+  protected readonly text = linkedSignal(() => isoToDisplay(this.value()));
 
   /** Month shown in the calendar: of the value, otherwise the current one. */
   protected readonly view = linkedSignal(() => {
@@ -111,7 +67,7 @@ export class DateInputComponent implements FormValueControl<string> {
     const total = new Date(Date.UTC(year, month, 0)).getUTCDate();
     const today = new Date();
     const todayIso = toIso(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    const cells: { day: number; iso: string; today: boolean; selected: boolean }[] = [];
+    const cells: CalendarCell[] = [];
     for (let d = 1; d <= total; d++) {
       const iso = toIso(year, month, d);
       cells.push({ day: d, iso, today: iso === todayIso, selected: iso === this.value() });
@@ -125,10 +81,10 @@ export class DateInputComponent implements FormValueControl<string> {
 
   protected onInput(event: Event) {
     const input = event.target as HTMLInputElement;
-    const masked = mask(input.value);
+    const masked = maskDateInput(input.value);
     input.value = masked;
     this.text.set(masked);
-    this.value.set(masked ? parse(masked) : '');
+    this.value.set(masked ? displayToIso(masked) : '');
   }
 
   protected onBlur() {

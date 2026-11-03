@@ -39,6 +39,12 @@ export type OperationalRow = '1.1' | '1.2' | '1.3' | '2';
 
 export type WarningLevel = 'danger' | 'warning' | 'info';
 
+/** A warning in the employee list: what and how serious, without the text. */
+export interface WarningSummary {
+  code: string;
+  level: WarningLevel;
+}
+
 export interface RecordWarning {
   code: string;
   level: WarningLevel;
@@ -89,3 +95,20 @@ export interface EmployeeDerived {
   reserved: boolean;
   warnings: RecordWarning[];
 }
+
+/** «АА 123456» split into series and number. */
+export interface DocNumberParts {
+  series: string;
+  number: string;
+}
+
+/** A deferral that ends soon — one line of the reminder letter. */
+export interface DueDeferral {
+  e: Employee;
+  end: IsoDate;
+}
+
+/** A list item whose warnings are reduced to code + level. */
+export type WithWarningSummary<T extends { warnings: RecordWarning[] }> = Omit<T, 'warnings'> & {
+  warnings: WarningSummary[];
+};

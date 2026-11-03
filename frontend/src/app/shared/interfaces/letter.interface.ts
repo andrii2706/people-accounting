@@ -74,3 +74,10 @@ export interface PendingChangesGroup {
   overdue: boolean;
   changes: PendingChange[];
 }
+
+/** PATCH /api/letters/:id — editable requisites of a draft. */
+export interface LetterUpdate {
+  number?: string;
+  date?: string;
+  tckId?: string;
+}

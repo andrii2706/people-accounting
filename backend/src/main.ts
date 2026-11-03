@@ -1,14 +1,15 @@
 import 'reflect-metadata';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
-import { DbExceptionFilter } from './common/db-exception.filter.js';
-import { csrfGuard, noStore } from './common/security.js';
-import { validationExceptionFactory } from './common/validators.js';
+import { DbExceptionFilter } from './common/filters/db-exception.filter.js';
+import { csrfGuard, noStore } from './common/middleware/security.middleware.js';
+import { validationExceptionFactory } from './common/validators/validators.js';
 import { loadEnv } from './config/env.js';
 import { UsersService } from './users/users.service.js';
 
@@ -45,10 +46,12 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      // the request class names the fields in messages; values are never echoed back
+      validationError: { target: true, value: false },
       exceptionFactory: validationExceptionFactory,
     }),
   );
-  app.useGlobalFilters(new DbExceptionFilter());
+  app.useGlobalFilters(new HttpExceptionFilter(), new DbExceptionFilter());
 
   // CORS only for local development; in production the frontend goes through the proxy on the same origin
   if (env.corsOrigins.length) app.enableCors({ origin: env.corsOrigins, credentials: true });

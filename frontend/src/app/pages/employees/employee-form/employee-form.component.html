@@ -41,8 +41,7 @@
     <app-icon name="copy" class="mt-0.5 text-brand-600" />
     <p>
       Копія картки <b>{{ s.derived.fullName }}</b
-      >: перенесено всі дані. Змініть те, що відрізняється (ПІБ, РНОКПП, паспорт, документи…), і
-      створіть картку.
+      >: перенесено всі дані. Змініть потрібне й створіть картку.
     </p>
   </div>
 }
@@ -196,13 +195,23 @@
         @switch (tab()) {
           @case ('personal') {
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <app-form-field label="Прізвище" [required]="true" [field]="f.lastName">
+              <app-form-field
+                label="Прізвище"
+                [required]="true"
+                hint="Як у паспорті; лише літери, апостроф, дефіс"
+                [field]="f.lastName"
+              >
                 <input class="input" [formField]="f.lastName" autocomplete="off" />
               </app-form-field>
-              <app-form-field label="Ім’я" [required]="true" [field]="f.firstName">
+              <app-form-field
+                label="Ім’я"
+                [required]="true"
+                hint="Як у паспорті"
+                [field]="f.firstName"
+              >
                 <input class="input" [formField]="f.firstName" autocomplete="off" />
               </app-form-field>
-              <app-form-field label="По батькові" [field]="f.middleName">
+              <app-form-field label="По батькові" hint="Якщо є" [field]="f.middleName">
                 <input class="input" [formField]="f.middleName" autocomplete="off" />
               </app-form-field>
               <app-form-field label="Стать">
@@ -213,7 +222,7 @@
                   ariaLabel="Стать"
                 />
               </app-form-field>
-              <app-form-field label="Дата народження" [field]="f.birthDate">
+              <app-form-field label="Дата народження" hint="Як у паспорті" [field]="f.birthDate">
                 <app-date-input [formField]="f.birthDate" ariaLabel="Дата народження" />
               </app-form-field>
               <app-form-field
@@ -224,18 +233,23 @@
               >
                 <input class="input font-mono" inputmode="numeric" [formField]="f.rnokpp" />
               </app-form-field>
-              <app-form-field label="Табельний номер" [field]="f.personnelNumber">
+              <app-form-field
+                label="Табельний номер"
+                hint="Як у кадровому обліку, до 30 символів"
+                [field]="f.personnelNumber"
+              >
                 <input class="input font-mono" [formField]="f.personnelNumber" />
               </app-form-field>
               <app-form-field label="Телефон" [field]="f.phone" hint="+380 67 123 45 67">
                 <input class="input" type="tel" [formField]="f.phone" />
               </app-form-field>
-              <app-form-field label="Email" [field]="f.email">
+              <app-form-field label="Email" hint="напр. name@gmail.com" [field]="f.email">
                 <input class="input" type="email" [formField]="f.email" />
               </app-form-field>
               <app-form-field
                 class="sm:col-span-2 lg:col-span-3"
                 label="Адреса задекларованого (зареєстрованого) місця проживання"
+                hint="Область, населений пункт, вулиця, будинок, квартира"
                 [field]="f.registeredAddress"
               >
                 <input class="input" [formField]="f.registeredAddress" />
@@ -320,6 +334,7 @@
               <app-form-field
                 class="sm:col-span-2 lg:col-span-4"
                 label="Ким виданий"
+                hint="напр. 4610 або назва органу"
                 [field]="f.foreignPassportIssuedBy"
               >
                 <input class="input" [formField]="f.foreignPassportIssuedBy" />
@@ -471,7 +486,11 @@
                   <app-form-field label="По батькові" [field]="member.middleName">
                     <input class="input" [formField]="member.middleName" />
                   </app-form-field>
-                  <app-form-field label="Дата народження" [field]="member.birthDate">
+                  <app-form-field
+                    label="Дата народження"
+                    hint="Для дітей — обов’язково (впливає на відстрочку)"
+                    [field]="member.birthDate"
+                  >
                     <app-date-input [formField]="member.birthDate" ariaLabel="Дата народження" />
                   </app-form-field>
                   <button
@@ -506,7 +525,7 @@
               >
                 <input class="input" list="orderDocNames" [formField]="f.hireOrderDocName" />
               </app-form-field>
-              <app-form-field label="Номер документа" [field]="f.hireOrderNumber">
+              <app-form-field label="Номер документа" hint="напр. 15-к" [field]="f.hireOrderNumber">
                 <input class="input" [formField]="f.hireOrderNumber" />
               </app-form-field>
               <app-form-field label="Дата документа" [field]="f.hireOrderDate">
@@ -575,7 +594,12 @@
                     >
                       <input class="input" [formField]="pos.department" />
                     </app-form-field>
-                    <app-form-field class="lg:col-span-2" label="На посаді з" [field]="pos.since">
+                    <app-form-field
+                      class="lg:col-span-2"
+                      label="На посаді з"
+                      hint="Дата наказу про призначення чи переведення"
+                      [field]="pos.since"
+                    >
                       <app-date-input [formField]="pos.since" ariaLabel="На посаді з" />
                     </app-form-field>
                     <app-form-field
@@ -606,7 +630,11 @@
               звільнення, а у списках — відмітка «Звільнено з роботи».
             </p>
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <app-form-field label="Дата звільнення" [field]="f.dismissalDate">
+              <app-form-field
+                label="Дата звільнення"
+                hint="Останній робочий день"
+                [field]="f.dismissalDate"
+              >
                 <app-date-input [formField]="f.dismissalDate" ariaLabel="Дата звільнення" />
               </app-form-field>
               @if (model().dismissalDate) {
@@ -687,6 +715,7 @@
               <app-form-field
                 class="sm:col-span-2"
                 label="Номер облікового запису в реєстрі «Оберіг»"
+                hint="З «Резерв+» або витягу з «Оберегу»: цифри, літери, «-», «/»"
                 [field]="f.registryNumber"
               >
                 <input class="input font-mono" [formField]="f.registryNumber" />
@@ -694,6 +723,7 @@
               <app-form-field
                 class="sm:col-span-2"
                 label="ТЦК та СП, де перебуває на обліку"
+                hint="Почніть вводити назву або місто"
                 [field]="f.tckId"
                 [required]="model().militaryRegistered && model().rankCode !== ''"
               >
@@ -751,10 +781,20 @@
                         ariaLabel="Тип документа"
                       />
                     </app-form-field>
-                    <app-form-field class="lg:col-span-1" label="Серія" [field]="doc.series">
+                    <app-form-field
+                      class="lg:col-span-1"
+                      label="Серія"
+                      hint="1–3 літери, напр. АА; для єВОД — порожньо"
+                      [field]="doc.series"
+                    >
                       <input class="input font-mono uppercase" [formField]="doc.series" />
                     </app-form-field>
-                    <app-form-field class="lg:col-span-3" label="Номер" [field]="doc.number">
+                    <app-form-field
+                      class="lg:col-span-3"
+                      label="Номер"
+                      hint="Літери, цифри, «-» та «/»"
+                      [field]="doc.number"
+                    >
                       <input class="input font-mono" [formField]="doc.number" />
                     </app-form-field>
                     <app-form-field
@@ -842,11 +882,19 @@
                 Для працівників з відстрочкою: коли пройшов ВЛК і коли наступна.
               </p>
               <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <app-form-field label="Дата проходження ВЛК" [field]="f.fitnessDate">
+                <app-form-field
+                  label="Дата проходження ВЛК"
+                  hint="Дата з довідки ВЛК"
+                  [field]="f.fitnessDate"
+                >
                   <app-date-input [formField]="f.fitnessDate" ariaLabel="Дата проходження ВЛК" />
                 </app-form-field>
                 @if (withDeferral()) {
-                  <app-form-field label="Дата наступного ВЛК" [field]="f.nextVlkDate">
+                  <app-form-field
+                    label="Дата наступного ВЛК"
+                    hint="Якщо ВЛК призначила повторний огляд"
+                    [field]="f.nextVlkDate"
+                  >
                     <app-date-input [formField]="f.nextVlkDate" ariaLabel="Дата наступного ВЛК" />
                   </app-form-field>
                 }
@@ -906,7 +954,11 @@
                           Достатньо відмітки. Поля нижче — необов’язкові, заповніть, коли будуть
                           відомості. Працівник не враховується у квоті підприємства.
                         </p>
-                        <app-form-field label="Юридична особа" [field]="f.reservedByName">
+                        <app-form-field
+                          label="Юридична особа"
+                          hint="Хто бронював, якщо не ваше підприємство"
+                          [field]="f.reservedByName"
+                        >
                           <input class="input" [formField]="f.reservedByName" />
                         </app-form-field>
                         <app-form-field label="ЄДРПОУ" hint="8 цифр" [field]="f.reservedByEdrpou">
@@ -920,6 +972,7 @@
                       <app-form-field
                         label="Заброньовано до"
                         [required]="model().reservedBy !== 'OTHER'"
+                        hint="Строк із рішення про бронювання"
                         [field]="f.reservationUntil"
                       >
                         <app-date-input
@@ -1088,7 +1141,11 @@
 
             <h3 class="mt-7 mb-3 text-sm font-semibold">Мобілізація</h3>
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <app-form-field label="Дата мобілізації" [field]="f.mobilizedAt">
+              <app-form-field
+                label="Дата мобілізації"
+                hint="Дата зарахування до військової частини"
+                [field]="f.mobilizedAt"
+              >
                 <app-date-input [formField]="f.mobilizedAt" ariaLabel="Дата мобілізації" />
               </app-form-field>
               <app-form-field label="Наказ про увільнення №" [field]="f.mobilizationReleaseOrder">

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThanOrEqual, MoreThanOrEqual, Repository } from 'typeorm';
-import { addDays, todayIso } from '../common/utils/dates.js';
+import { addDays, todayIso } from '../common/utils/dates.utils.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type {
   CreateOrganizationHeadDto,
@@ -68,7 +68,7 @@ export class OrganizationService {
 
   async updateHead(id: string, dto: UpdateOrganizationHeadDto) {
     const head = await this.headRepo.findOneBy({ id });
-    if (!head) throw new NotFoundException();
+    if (!head) throw new NotFoundException('Керівника не знайдено');
     Object.assign(head, dto);
     if (head.validTo === '') head.validTo = null;
     await this.headRepo.save(head);
@@ -113,7 +113,7 @@ export class OrganizationService {
 
   async updateResponsible(id: string, dto: UpdateResponsiblePersonDto) {
     const person = await this.personRepo.findOneBy({ id });
-    if (!person) throw new NotFoundException();
+    if (!person) throw new NotFoundException('Відповідальну особу не знайдено');
     Object.assign(person, dto);
     if (person.validTo === '') person.validTo = null;
     return this.personRepo.save(person);

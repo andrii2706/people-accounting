@@ -1,15 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../../shared/components/icon/icon.component';
-import type { ListSection } from '../../shared/interfaces/dictionary.interface';
+import { LIST_SECTION_ORDER } from '../../shared/constants/lists.constants';
 import type { Dashboard } from '../../shared/interfaces/report.interface';
 import { UaDatePipe } from '../../shared/pipes/ua-date.pipe';
 import { AuthService } from '../../shared/services/auth.service';
 import { DictionariesService } from '../../shared/services/dictionaries.service';
 import { InboxService } from '../../shared/services/inbox.service';
-import { buildTasks, upcomingTerms } from './dashboard-tasks';
-
-const SECTION_ORDER: ListSection[] = ['OFFICERS', 'SOLDIERS', 'WOMEN', 'CONSCRIPTS'];
+import { buildTasks, upcomingTerms } from '../../shared/utils/dashboard-tasks.utils';
 
 @Component({
   selector: 'app-dashboard',
@@ -75,11 +73,11 @@ export class DashboardComponent {
   protected readonly groups = computed(() => {
     const d = this.data();
     if (!d) return [];
-    const max = Math.max(1, ...SECTION_ORDER.map((g) => d.bySection[g]));
+    const max = Math.max(1, ...LIST_SECTION_ORDER.map((g) => d.bySection[g]));
     const titles = new Map(
       (this.dict.dictionaries()?.listSections ?? []).map((s) => [s.value, s.label]),
     );
-    return SECTION_ORDER.map((section) => ({
+    return LIST_SECTION_ORDER.map((section) => ({
       group: section,
       title: titles.get(section) ?? section,
       count: d.bySection[section],

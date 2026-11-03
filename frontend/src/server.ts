@@ -4,6 +4,7 @@ import {
   isMainModule,
   writeResponseToNodeResponse,
 } from '@angular/ssr/node';
+import compression from 'compression';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import helmet from 'helmet';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -88,6 +89,11 @@ const allowedNetworks = (() => {
 
 const app = express();
 app.disable('x-powered-by');
+/**
+ * gzip for pages, static files and API answers (proxied below): the employee list of a thousand people
+ * is ~1.5 MB of JSON, ~0.1 MB compressed. Server-sent events and already compressed files are skipped.
+ */
+app.use(compression({ threshold: 1024 }));
 /**
  * How many proxies are in front of this server (Cloud Run / App Hosting — 1). It determines req.ip,
  * which we pass to the API as the client IP (for sign-in throttling and the audit log).
@@ -218,7 +224,7 @@ app.use(
     redirect: false,
     setHeaders(res, path) {
       // files with a hash in the name (main-ABCD1234.js) are immutable — cache for a year; others briefly
-      const hashed = /-[A-Z0-9]{8}\.(js|css|mjs)$/.test(path);
+      const hashed = /-[A-Za-z0-9_-]{8}\.(js|css|mjs|woff2)$/.test(path);
       res.setHeader(
         'Cache-Control',
         hashed ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',

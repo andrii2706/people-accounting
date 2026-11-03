@@ -104,7 +104,7 @@
   }
 </div>
 
-@for (g of visibleGroups(); track g.group) {
+@for (g of shownGroups(); track g.group) {
   <section class="card mb-5 overflow-hidden">
     <header class="flex items-baseline justify-between gap-3 border-b border-line px-4 py-3">
       <h2 class="text-sm font-semibold first-letter:uppercase">{{ title(g.group) }}</h2>
@@ -131,7 +131,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of g.rows; track row.employeeId) {
+            @for (row of g.shown; track row.employeeId) {
               <tr>
                 @for (cell of row.cells; track $index) {
                   <td
@@ -187,7 +187,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of g.rows; track row.employeeId) {
+            @for (row of g.shown; track row.employeeId) {
               @let open = isExpanded(row);
               @let s = row.status;
               <tr
@@ -354,6 +354,23 @@
           </tbody>
         </table>
       </div>
+    }
+    @for (portion of [g.shown.length]; track portion) {
+      @if (g.hasMore) {
+        <div
+          class="border-t border-line py-3 text-center text-sm text-muted"
+          (appInView)="showMore(g.group)"
+        >
+          Показано {{ g.shown.length }} з {{ g.rows.length }} ·
+          <button
+            type="button"
+            class="cursor-pointer text-brand-600 hover:underline"
+            (click)="showMore(g.group)"
+          >
+            показати ще
+          </button>
+        </div>
+      }
     }
   </section>
 } @empty {

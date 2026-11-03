@@ -8,3 +8,8 @@ export interface StorageDriver {
   get(key: string): Promise<Buffer>;
   exists(key: string): Promise<boolean>;
 }
+
+/** Error of the Cloud Storage client: HTTP status in `code`. */
+export interface StorageApiError {
+  code?: number;
+}

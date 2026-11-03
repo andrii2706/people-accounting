@@ -33,7 +33,7 @@ export class LoginComponent {
   protected readonly model = signal(this.prefilledBeforeHydration());
   protected readonly loginForm = form(this.model, (p) => {
     required(p.email, { message: 'Вкажіть email' });
-    email(p.email, { message: 'Некоректний email' });
+    email(p.email, { message: 'Вкажіть email у форматі name@company.ua' });
     required(p.password, { message: 'Вкажіть пароль' });
   });
 

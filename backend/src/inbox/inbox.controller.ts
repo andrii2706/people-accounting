@@ -1,17 +1,9 @@
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsString, MaxLength } from 'class-validator';
-import { CurrentUser } from '../common/auth.js';
+import { CurrentUser } from '../common/decorators/auth.decorators.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 import { InboxService } from './inbox.service.js';
-
-class MarkReadDto {
-  @IsArray()
-  @ArrayMaxSize(2000)
-  @IsString({ each: true })
-  @MaxLength(200, { each: true })
-  keys: string[];
-}
+import { MarkReadDto } from './inbox.dto.js';
 
 /** In-app notifications of the signed-in user (bell in the menu and the window after login). */
 @ApiTags('inbox')

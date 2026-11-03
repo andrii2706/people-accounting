@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -27,21 +26,31 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import {
   apiPathToFormPath,
-  DATE_FIELDS,
   emptyDocument,
   employeeToForm,
   emptyEmployeeForm,
   emptyEducation,
   emptyPosition,
-  FIELD_META,
   formToPayload,
   copyEmployeeToForm,
   hasDeferral,
-  LIST_ITEM_FIELDS,
   normalizeTime,
   reportableChanges,
-} from './employee-form.model';
-import { changedCount, completion, sectionKeyFields } from './employee-form.sections';
+} from '../../../shared/utils/employee-form.utils';
+import {
+  changedCount,
+  completion,
+  sectionKeyFields,
+} from '../../../shared/utils/employee-form-sections.utils';
+import {
+  ALL_DATE_FIELDS,
+  FIELD_META,
+  FORM_TABS,
+  LIST_ITEM_FIELDS,
+  ORDER_DOC_NAMES,
+  SPOUSES,
+} from '../../../shared/constants/employee-form.constants';
+import { sensibleDate } from '../../../shared/utils/date.utils';
 import { httpResource } from '@angular/common/http';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
@@ -52,9 +61,13 @@ import type { EmployeeDetails } from '../../../shared/interfaces/employee.interf
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { EmployeesService } from '../../../shared/services/employees.service';
 import { ToastService } from '../../../shared/services/toast.service';
-import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
+import {
+  apiErrorMessage,
+  apiFieldErrors,
+  bindApiErrors,
+} from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
-import { matchTck } from '../../../shared/utils/tck-match';
+import { matchTck } from '../../../shared/utils/tck-match.utils';
 import {
   AFTER_BIRTH_DATES,
   MAX_LENGTH,
@@ -69,32 +82,11 @@ import type {
   FormTab,
   DeferralKind,
   EmployeeFormModel,
-  FormFieldState,
   FormFieldRef,
   FormListKey,
   FormErrorItem,
 } from '../../../shared/interfaces/employee-form.interface';
-
-const TABS: { id: FormTab; label: string }[] = [
-  { id: 'personal', label: 'Особисті дані' },
-  { id: 'passport', label: 'Паспорти' },
-  { id: 'education', label: 'Освіта' },
-  { id: 'family', label: 'Сімейний стан' },
-  { id: 'work', label: 'Робота' },
-  { id: 'military', label: 'Військово-облікові дані' },
-  { id: 'notes', label: 'Примітки' },
-];
-
-const ALL_DATE_FIELDS = [...DATE_FIELDS, 'changeEffectiveDate'] as const;
-
-/** Document names for the hire / transfer / dismissal (free text is allowed too). */
-export const ORDER_DOC_NAMES = ['наказ', 'розпорядження', 'рішення', 'постанова', 'протокол'];
-
-/** Protection against «0002-05-12» from typing the year by hand in a date input. */
-const sensibleDate = (v: string) =>
-  !v || (/^\d{4}-\d{2}-\d{2}$/.test(v) && v >= '1900-01-01' && v <= '2100-12-31');
-
-const SPOUSES: FamilyRelation[] = ['WIFE', 'HUSBAND'];
+import type { NotificationStatus } from '../../../shared/interfaces/organization.interface';
 
 @Component({
   selector: 'app-employee-form',
@@ -119,7 +111,7 @@ export class EmployeeFormComponent {
   /** :id from the route; undefined for /employees/new. */
   readonly id = input<string>();
 
-  protected readonly tabs = TABS;
+  protected readonly tabs = FORM_TABS;
   protected readonly tab = signal<FormTab>('personal');
   protected readonly saveError = signal('');
   /** Server errors that could not be bound to a specific field. */
@@ -237,10 +229,9 @@ export class EmployeeFormComponent {
     });
   });
 
-  protected readonly mobilization = httpResource<{
-    mobilizationUntil: string | null;
-    mobilizationDecree: string;
-  }>(() => '/api/notifications/status');
+  protected readonly mobilization = httpResource<NotificationStatus>(
+    () => '/api/notifications/status',
+  );
 
   protected readonly rankOptions = computed<SelectOption[]>(() =>
     this.dict.ranks().map((r) => ({
@@ -532,16 +523,6 @@ export class EmployeeFormComponent {
       });
     }
 
-    // a full copy keeps РНОКПП — saving it unchanged would create a second card of the same person
-    validate(p.rnokpp, ({ value }) => {
-      const source = this.source();
-      return source?.rnokpp && value().trim() === source.rnokpp
-        ? {
-            kind: 'copyDuplicate',
-            message: 'РНОКПП як у картки, яку копіюєте, — вкажіть РНОКПП нового працівника',
-          }
-        : undefined;
-    });
     disabled(p.nextVlkDate, () =>
       this.withDeferral() ? false : 'Лише для працівників з відстрочкою',
     );
@@ -669,7 +650,7 @@ export class EmployeeFormComponent {
       if (this.submitAttempted() || this.itemField(item)?.().touched())
         errors.set(item.tab, (errors.get(item.tab) ?? 0) + 1);
     }
-    return TABS.map((t) => {
+    return FORM_TABS.map((t) => {
       const fields = keys[t.id];
       const missing = fields.filter((v) => !v).length;
       return {
@@ -682,7 +663,7 @@ export class EmployeeFormComponent {
   });
   protected readonly completion = computed(() => completion(this.model()));
   protected readonly currentSectionLabel = computed(
-    () => TABS.find((t) => t.id === this.tab())?.label ?? '',
+    () => FORM_TABS.find((t) => t.id === this.tab())?.label ?? '',
   );
   protected readonly unsaved = computed(() => changedCount(this.original(), this.model()));
   protected readonly visibleErrors = computed(() =>
@@ -699,7 +680,10 @@ export class EmployeeFormComponent {
 
   /** Red dot on a tab with an error (after a save attempt or touching the field). */
   protected readonly tabErrors = computed(() => {
-    const result = Object.fromEntries(TABS.map((t) => [t.id, false])) as Record<FormTab, boolean>;
+    const result = Object.fromEntries(FORM_TABS.map((t) => [t.id, false])) as Record<
+      FormTab,
+      boolean
+    >;
     for (const item of this.errorList()) {
       if (item.tab === 'sidebar') continue;
       if (this.submitAttempted() || this.itemField(item)?.().touched()) result[item.tab] = true;
@@ -838,27 +822,11 @@ export class EmployeeFormComponent {
 
   /** API validation errors → errors of specific form fields (shown under the field). */
   private mapServerErrors(err: unknown) {
-    const body =
-      err instanceof HttpErrorResponse
-        ? (err.error as { errors?: { field: string; message: string }[] } | null)
-        : null;
-    if (!body?.errors?.length) {
+    if (!apiFieldErrors(err).length) {
       this.saveError.set(apiErrorMessage(err));
       return undefined;
     }
-    const fieldErrors = [];
-    const unmatched: string[] = [];
-    for (const e of body.errors) {
-      let node: unknown = this.f;
-      for (const segment of apiPathToFormPath(e.field)) {
-        node = (node as Record<string, unknown> | undefined)?.[
-          /^\d+$/.test(segment) ? Number(segment) : segment
-        ];
-      }
-      if (typeof node === 'function')
-        fieldErrors.push({ fieldTree: node as never, kind: 'server', message: e.message });
-      else unmatched.push(e.message);
-    }
+    const { fieldErrors, unmatched } = bindApiErrors<never>(err, this.f, apiPathToFormPath);
     this.serverErrors.set(unmatched);
     this.saveError.set('Сервер не прийняв дані — перевірте позначені поля.');
     return fieldErrors;

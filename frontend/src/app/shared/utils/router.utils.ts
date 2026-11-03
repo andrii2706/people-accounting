@@ -1,6 +1,12 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { ActivatedRoute, type Params, RedirectCommand, Router } from '@angular/router';
+import {
+  ActivatedRoute,
+  type ActivatedRouteSnapshot,
+  type Params,
+  RedirectCommand,
+  Router,
+} from '@angular/router';
 import { catchError, EMPTY, type Observable, of } from 'rxjs';
 import { ToastService } from '../services/toast.service';
 
@@ -63,4 +69,10 @@ export function injectQueryParamsUpdate() {
  */
 export function orEmpty(value: string | null | undefined): string {
   return value ?? '';
+}
+
+/** Query parameters the employee list resolver sends to the server (everything except ?view=). */
+export function employeeListQueryKey(route: ActivatedRouteSnapshot): string {
+  const q = route.queryParamMap;
+  return ['search', 'status', 'group', 'category'].map((k) => q.get(k) ?? '').join('|');
 }

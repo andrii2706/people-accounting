@@ -10,25 +10,10 @@ import {
   Patch,
   Post,
 } from '@nestjs/common';
-import { ApiTags, PartialType } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Type } from 'class-transformer';
-import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsArray,
-  IsBoolean,
-  IsEmail,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-  Matches,
-  MaxLength,
-  ValidateIf,
-  ValidateNested,
-} from 'class-validator';
 import { Repository } from 'typeorm';
-import { AllowPendingPasswordChange, Roles } from '../common/auth.js';
+import { AllowPendingPasswordChange, Roles } from '../common/decorators/auth.decorators.js';
 import {
   CHANGE_TYPE_LABELS,
   DUTY_CATEGORY_LABELS,
@@ -42,34 +27,9 @@ import {
 } from '../military/dictionaries.js';
 import { COMPOSITION_LABELS, RANKS } from '../military/ranks.js';
 import { Tck } from './tck.entity.js';
-
-class CreateTckDto {
-  @IsString()
-  @IsNotEmpty({ message: 'Вкажіть назву' })
-  @MaxLength(300, { message: 'Не більше 300 символів' })
-  name: string;
-  @IsOptional() @IsString() @MaxLength(300, { message: 'Не більше 300 символів' }) nameGenitive?: string;
-  @IsOptional() @IsString() @MaxLength(300, { message: 'Не більше 300 символів' }) address?: string;
-  @IsOptional() @Matches(/^(\d{5})?$/, { message: 'Поштовий індекс — 5 цифр' }) postalCode?: string;
-  @IsOptional() @IsString() @MaxLength(200, { message: 'Не більше 200 символів' }) phone?: string;
-  @IsOptional()
-  @ValidateIf((o: CreateTckDto) => !!o.email)
-  @IsEmail({}, { message: 'Некоректний email' })
-  @MaxLength(200)
-  email?: string;
-  @IsOptional() @IsBoolean() isActive?: boolean;
-}
-class UpdateTckDto extends PartialType(CreateTckDto) {}
-
-/** TCK directory moved from another database (npm run tck:export → Налаштування → ТЦК → Імпорт). */
-class ImportTckDto {
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(2000)
-  @ValidateNested({ each: true })
-  @Type(() => CreateTckDto)
-  items: CreateTckDto[];
-}
+import { CreateTckDto } from './dictionaries.dto.js';
+import { ImportTckDto } from './dictionaries.dto.js';
+import { UpdateTckDto } from './dictionaries.dto.js';
 
 @ApiTags('dictionaries')
 @Controller()
@@ -143,7 +103,7 @@ export class DictionariesController {
   @Patch('tck/:id')
   async updateTck(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTckDto) {
     const tck = await this.tckRepo.findOneBy({ id });
-    if (!tck) throw new NotFoundException();
+    if (!tck) throw new NotFoundException('ТЦК не знайдено в довіднику');
     Object.assign(tck, dto);
     return this.tckRepo.save(tck);
   }

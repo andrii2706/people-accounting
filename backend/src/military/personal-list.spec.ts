@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Employee } from '../employees/entities/employee.entity.js';
 import { postalCodeOf } from '../documents/builders.js';
-import { employeesCount } from '../letters/letters.service.js';
+import { employeesCount } from '../letters/utils/letters.utils.js';
 import { LIST_TITLES, LIST_WIDTHS, personalListCells } from './personal-list.js';
 import { notificationDeadline } from './military-logic.js';
 

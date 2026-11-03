@@ -1,7 +1,3 @@
-import type {
-  formToPayload,
-  LIST_ITEM_FIELDS,
-} from '../../pages/employees/employee-form/employee-form.model';
 import type { FamilyRelation } from './dictionary.interface';
 import type { Gender } from './common.interface';
 
@@ -141,7 +137,32 @@ export interface FormFieldState {
 
 export type FormFieldRef = () => FormFieldState;
 
-export type FormListKey = keyof typeof LIST_ITEM_FIELDS;
+/** A tab of the employee form. */
+export interface FormTabOption {
+  id: FormTab;
+  label: string;
+}
+
+/** List fields of the form (each item has its own sub-fields). */
+export type FormListKey = 'familyMembers' | 'militaryDocuments' | 'positions' | 'educations';
+
+/** Where a field lives on the form and what it is called — for error navigation. */
+export interface FieldMeta {
+  tab: FormTab | 'sidebar';
+  label: string;
+}
+
+/** Name of a list item and its sub-fields (for the «what to fix» list). */
+export interface ListItemFields {
+  item: string;
+  fields: string[];
+}
+
+/** Registration data whose change produces a TCK notice: label and comparison key. */
+export interface ReportableField {
+  label: string;
+  key: (m: EmployeeFormModel) => string;
+}
 
 export interface FormErrorItem {
   key: string;

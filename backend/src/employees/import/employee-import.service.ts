@@ -1,4 +1,4 @@
-import type { HireNoticesMode } from '../../shared/interfaces/import.interface.js';
+import type { ImportCommitOptions } from '../../shared/interfaces/import.interface.js';
 import { matchTck } from '../../military/tck-match.js';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,9 +11,15 @@ import { RANKS } from '../../military/ranks.js';
 import type { CreateEmployeeDto } from '../employees.dto.js';
 import { EmployeesService } from '../employees.service.js';
 import { Employee } from '../entities/employee.entity.js';
-import { TEMPLATE_COLUMNS } from './import-columns.js';
-import { readTable } from './import-reader.js';
-import { convertRows, fullNameOf, normalizeMilitaryDoc, toDtoValues, validateValues } from './import-rows.js';
+import { TEMPLATE_COLUMNS } from './import.constants.js';
+import { readTable } from './utils/import-reader.utils.js';
+import {
+  convertRows,
+  fullNameOf,
+  normalizeMilitaryDoc,
+  toDtoValues,
+  validateValues,
+} from './utils/import-rows.utils.js';
 import type { AuthUser } from '../../shared/interfaces/auth.interface.js';
 import type { ImportValues, ImportRow, CheckedRow, ImportPreview } from '../../shared/interfaces/import.interface.js';
 
@@ -71,7 +77,7 @@ export class EmployeeImportService {
   }
 
   /** Creates the employees from the rows that passed the check — all or nothing. */
-  async commit(rows: ImportRow[], opts: { hireNotices: HireNoticesMode; fileName?: string }, user: AuthUser) {
+  async commit(rows: ImportRow[], opts: ImportCommitOptions, user: AuthUser) {
     const checked = await this.check(rows);
     const bad = checked.filter((r) => r.errors.length || r.duplicate);
     if (bad.length) {

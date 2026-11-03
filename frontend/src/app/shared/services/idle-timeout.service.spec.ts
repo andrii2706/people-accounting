@@ -2,7 +2,8 @@ import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { AuthService } from './auth.service';
-import { IDLE_TIMEOUT_MS, IDLE_WARNING_MS, IdleTimeoutService } from './idle-timeout.service';
+import { IDLE_TIMEOUT_MS, IDLE_WARNING_MS } from '../constants/auth.constants';
+import { IdleTimeoutService } from './idle-timeout.service';
 
 describe('IdleTimeoutService', () => {
   let logout: ReturnType<typeof vi.fn>;

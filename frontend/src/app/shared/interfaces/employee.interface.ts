@@ -24,7 +24,12 @@ export interface EmployeeDerived {
   warnings: Warning[];
 }
 
-export interface EmployeeListItem extends EmployeeDerived {
+/** A warning in the employee list: what and how serious; the text is in the card. */
+export type WarningSummary = Pick<Warning, 'code' | 'level'>;
+
+export interface EmployeeListItem extends Omit<EmployeeDerived, 'warnings'> {
+  /** Warnings and errors (not info), without texts. */
+  warnings: WarningSummary[];
   id: string;
   personnelNumber: string;
   gender: Gender;
@@ -221,3 +226,25 @@ export type EmployeePayload = Partial<Omit<Employee, 'id' | 'tck' | 'createdAt' 
 export type MaxLengthField = keyof typeof MAX_LENGTH;
 
 export type EmployeeStatusFilter = 'active' | 'dismissed' | 'all';
+
+/** Tabs of the employee list. */
+export type EmployeeView = 'all' | 'attention' | 'deferral' | 'reserved' | 'dismissed';
+
+/** Coloured status label in the employee list and the side panel. */
+export interface StatusBadge {
+  label: string;
+  tone: 'ok' | 'warning' | 'info' | 'muted';
+}
+
+/** PATCH /api/employees/changes/:id — a queued TCK change. */
+export interface EmployeeChangeUpdate {
+  effectiveDate?: string;
+  basis?: string;
+  skipped?: boolean;
+}
+
+/** «АА 123456» split into series and number. */
+export interface DocNumberParts {
+  series: string;
+  number: string;
+}

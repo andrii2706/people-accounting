@@ -3,6 +3,7 @@ import type { ChangeType, ListSection } from './dictionary.interface.js';
 import type { Tck } from '../../dictionaries/tck.entity.js';
 import type { Organization } from '../../organization/organization.entity.js';
 import type { ResponsiblePerson } from '../../organization/responsible-person.entity.js';
+import type { LetterNumberDate } from './letter.interface.js';
 export interface MobilizationTerm {
   /** Start of the latest extension. */
   from: IsoDate;
@@ -88,7 +89,7 @@ export interface ListsInput {
   /** The four lists (officers, soldiers, women, conscripts); every row has 18 cells (see military/personal-list.ts). */
   sections: { section: ListSection; rows: string[][] }[];
   org: Organization;
-  letter?: { number: string; date: IsoDate } | null;
+  letter?: LetterNumberDate | null;
 }
 
 export interface OperationalRowData {
@@ -120,4 +121,17 @@ export interface LabelParty {
 export interface EnvelopeLabel {
   sender: LabelParty;
   recipient: LabelParty;
+}
+
+/** Inventory of the envelope contents (form 107). */
+export interface InventoryInput {
+  org: Organization;
+  tck: Tck | null | undefined;
+  items: string[];
+}
+
+/** The operational report rows on a date. */
+export interface OperationalReportData {
+  date: IsoDate;
+  rows: OperationalRowData[];
 }

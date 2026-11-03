@@ -64,3 +64,8 @@ export interface ParsedSignatureFile {
   detached: boolean;
   signers: ParsedSigner[];
 }
+
+/** An ASN.1 value with a string inside (pkijs/asn1js objects are untyped here). */
+export interface Asn1ValueBlock {
+  valueBlock?: { value?: unknown };
+}

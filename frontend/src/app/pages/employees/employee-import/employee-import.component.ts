@@ -13,10 +13,9 @@ import { isElectronicDocType } from '../../../shared/validators/employee-rules';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import type {
   CheckedImportRow,
+  ImportCommitErrorBody,
   ImportPreview,
   ImportValues,
-  ImportFieldKind,
-  ImportRowStatus,
   ImportRowFilter,
   HireNoticesMode,
 } from '../../../shared/interfaces/employee-import.interface';
@@ -26,73 +25,13 @@ import { EmployeeImportService } from '../../../shared/services/employee-import.
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
-import { todayIso } from '../../../shared/utils/date.utils';
-
-/** Fields editable on the preview — the most common ones plus any field that came from the file or has an error. */
-const EDIT_FIELDS: { key: string; label: string; kind: ImportFieldKind }[] = [
-  { key: 'lastName', label: 'Прізвище', kind: 'text' },
-  { key: 'firstName', label: 'Ім’я', kind: 'text' },
-  { key: 'middleName', label: 'По батькові', kind: 'text' },
-  { key: 'gender', label: 'Стать', kind: 'gender' },
-  { key: 'birthDate', label: 'Дата народження', kind: 'date' },
-  { key: 'rnokpp', label: 'РНОКПП', kind: 'text' },
-  { key: 'personnelNumber', label: 'Табельний номер', kind: 'text' },
-  { key: 'phone', label: 'Телефон', kind: 'text' },
-  { key: 'email', label: 'Email', kind: 'text' },
-  { key: 'registeredAddress', label: 'Адреса реєстрації', kind: 'text' },
-  { key: 'actualAddress', label: 'Фактична адреса', kind: 'text' },
-  { key: 'passportType', label: 'Тип паспорта', kind: 'passportType' },
-  { key: 'passportSeries', label: 'Серія паспорта', kind: 'text' },
-  { key: 'passportNumber', label: 'Номер паспорта', kind: 'text' },
-  { key: 'passportIssuedBy', label: 'Ким виданий паспорт', kind: 'text' },
-  { key: 'passportIssuedAt', label: 'Дата видачі паспорта', kind: 'date' },
-  { key: 'position', label: 'Посада', kind: 'text' },
-  { key: 'department', label: 'Підрозділ', kind: 'text' },
-  { key: 'hireDate', label: 'Дата прийняття', kind: 'date' },
-  { key: 'hireOrderDocName', label: 'Документ про прийняття', kind: 'text' },
-  { key: 'hireOrderNumber', label: 'Наказ про прийняття №', kind: 'text' },
-  { key: 'hireOrderDate', label: 'Дата наказу', kind: 'date' },
-  { key: 'militaryRegistered', label: 'На військовому обліку', kind: 'bool' },
-  { key: 'servedInArmy', label: 'Проходив військову службу', kind: 'bool' },
-  { key: 'rankCode', label: 'Військове звання', kind: 'rank' },
-  { key: 'vos', label: 'ВОС', kind: 'text' },
-  { key: 'registryNumber', label: 'Номер у реєстрі «Оберіг»', kind: 'text' },
-  { key: 'militaryDocType', label: 'Військово-обліковий документ', kind: 'docType' },
-  { key: 'militaryDocSeries', label: 'Серія ВОД', kind: 'text' },
-  { key: 'militaryDocNumber', label: 'Номер ВОД', kind: 'text' },
-  { key: 'militaryDocIssuedBy', label: 'Ким виданий ВОД', kind: 'text' },
-  { key: 'militaryDocIssuedAt', label: 'Дата видачі ВОД', kind: 'date' },
-  { key: 'tckId', label: 'ТЦК та СП', kind: 'tck' },
-  { key: 'fitness', label: 'Придатність', kind: 'text' },
-  { key: 'fitnessDate', label: 'Дата проходження ВЛК', kind: 'date' },
-  { key: 'nextVlkDate', label: 'Дата наступного ВЛК', kind: 'date' },
-  { key: 'reserved', label: 'Заброньований', kind: 'bool' },
-  { key: 'reservationUntil', label: 'Заброньовано до', kind: 'date' },
-  { key: 'deferralUntil', label: 'Відстрочка до', kind: 'date' },
-  {
-    key: 'deferralUntilMobilizationEnd',
-    label: 'Відстрочка до завершення мобілізації',
-    kind: 'bool',
-  },
-  { key: 'deferralMobilizationBasis', label: 'Підстава відстрочки', kind: 'text' },
-  { key: 'notes', label: 'Примітки', kind: 'text' },
-];
-/** Always shown in the row editor, even when empty. */
-const ALWAYS = new Set([
-  'lastName',
-  'firstName',
-  'middleName',
-  'gender',
-  'birthDate',
-  'rnokpp',
-  'position',
-  'hireDate',
-  'rankCode',
-  'tckId',
-]);
-
-const statusOf = (r: CheckedImportRow): ImportRowStatus =>
-  r.errors.length ? 'error' : r.duplicate ? 'duplicate' : 'ready';
+import { addDaysIso, todayIso } from '../../../shared/utils/date.utils';
+import {
+  IMPORT_ALWAYS_SHOWN,
+  IMPORT_EDIT_FIELDS,
+  IMPORT_RECENT_NOTICE_DAYS,
+} from '../../../shared/constants/employee-import.constants';
+import { importRowStatus } from '../../../shared/utils/employee-import.utils';
 
 /**
  * Import of many employees from a file (.xlsx / .csv, e.g. a 1C report).
@@ -100,15 +39,6 @@ const statusOf = (r: CheckedImportRow): ImportRowStatus =>
  * 2) the user reviews, fixes rows and checks again;
  * 3) only the selected rows without errors are created — all at once.
  */
-/** Import: hiring notices are queued for hire dates within this many days back (as on the server). */
-const RECENT_NOTICE_DAYS = 30;
-
-function addDaysIso(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
 @Component({
   selector: 'app-employee-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -132,12 +62,12 @@ export class EmployeeImportComponent {
   protected readonly filter = signal<ImportRowFilter>('all');
   /** TCK notices about hiring: only the recently hired by default (people hired long ago were reported). */
   protected readonly hireNotices = signal<HireNoticesMode>('RECENT');
-  protected readonly recentDays = RECENT_NOTICE_DAYS;
-  private readonly recentSince = addDaysIso(todayIso(), -RECENT_NOTICE_DAYS);
+  protected readonly recentDays = IMPORT_RECENT_NOTICE_DAYS;
+  private readonly recentSince = addDaysIso(todayIso(), -IMPORT_RECENT_NOTICE_DAYS);
   /** How many of the selected rows will get a notice in each mode. */
   protected readonly noticeCounts = computed(() => {
     const rows = this.rows().filter(
-      (r) => statusOf(r) === 'ready' && this.selected().has(r.rowNumber),
+      (r) => importRowStatus(r) === 'ready' && this.selected().has(r.rowNumber),
     );
     const dated = rows.filter((r) => r.values['hireDate']);
     return {
@@ -149,32 +79,33 @@ export class EmployeeImportComponent {
   protected readonly selected = linkedSignal<CheckedImportRow[], Set<number>>({
     source: this.rows,
     computation: (rows, previous) => {
-      const ready = rows.filter((r) => statusOf(r) === 'ready').map((r) => r.rowNumber);
+      const ready = rows.filter((r) => importRowStatus(r) === 'ready').map((r) => r.rowNumber);
       if (!previous) return new Set(ready);
       // keep the user's choice; rows that just became ready are selected
       const before = new Set(
-        previous.source.filter((r) => statusOf(r) === 'ready').map((r) => r.rowNumber),
+        previous.source.filter((r) => importRowStatus(r) === 'ready').map((r) => r.rowNumber),
       );
       return new Set(ready.filter((n) => previous.value.has(n) || !before.has(n)));
     },
   });
 
-  protected readonly status = statusOf;
+  protected readonly status = importRowStatus;
   protected readonly counts = computed(() => {
     const c = { all: 0, ready: 0, error: 0, duplicate: 0 };
     for (const r of this.rows()) {
       c.all++;
-      c[statusOf(r)]++;
+      c[importRowStatus(r)]++;
     }
     return c;
   });
   protected readonly visibleRows = computed(() => {
     const f = this.filter();
-    return f === 'all' ? this.rows() : this.rows().filter((r) => statusOf(r) === f);
+    return f === 'all' ? this.rows() : this.rows().filter((r) => importRowStatus(r) === f);
   });
   protected readonly selectedCount = computed(
     () =>
-      this.rows().filter((r) => statusOf(r) === 'ready' && this.selected().has(r.rowNumber)).length,
+      this.rows().filter((r) => importRowStatus(r) === 'ready' && this.selected().has(r.rowNumber))
+        .length,
   );
   protected readonly recognized = computed(() =>
     (this.preview()?.mapping ?? []).filter((m) => m.field),
@@ -243,7 +174,7 @@ export class EmployeeImportComponent {
       new Set(
         checked
           ? this.rows()
-              .filter((r) => statusOf(r) === 'ready')
+              .filter((r) => importRowStatus(r) === 'ready')
               .map((r) => r.rowNumber)
           : [],
       ),
@@ -257,8 +188,8 @@ export class EmployeeImportComponent {
   /** Fields shown in the editor of a row. */
   protected fieldsOf(row: CheckedImportRow) {
     const withError = new Set(row.errors.map((e) => e.field));
-    return EDIT_FIELDS.filter(
-      (f) => ALWAYS.has(f.key) || f.key in row.values || withError.has(f.key),
+    return IMPORT_EDIT_FIELDS.filter(
+      (f) => IMPORT_ALWAYS_SHOWN.has(f.key) || f.key in row.values || withError.has(f.key),
     );
   }
 
@@ -337,7 +268,7 @@ export class EmployeeImportComponent {
 
   protected async commit() {
     const rows = this.rows().filter(
-      (r) => statusOf(r) === 'ready' && this.selected().has(r.rowNumber),
+      (r) => importRowStatus(r) === 'ready' && this.selected().has(r.rowNumber),
     );
     if (!rows.length || this.dirty()) return;
     this.busy.set(true);
@@ -350,8 +281,7 @@ export class EmployeeImportComponent {
       await this.router.navigate(['/employees']);
     } catch (err) {
       // the server re-checks everything; on a conflict it returns the checked rows
-      const body =
-        err instanceof HttpErrorResponse ? (err.error as { rows?: CheckedImportRow[] }) : null;
+      const body = err instanceof HttpErrorResponse ? (err.error as ImportCommitErrorBody) : null;
       if (body?.rows) {
         const fresh = new Map(body.rows.map((r) => [r.rowNumber, r]));
         this.rows.update((all) => all.map((r) => fresh.get(r.rowNumber) ?? r));

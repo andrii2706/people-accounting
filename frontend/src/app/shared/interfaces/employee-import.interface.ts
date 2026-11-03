@@ -48,3 +48,15 @@ export type ImportFieldKind =
 export type ImportRowStatus = 'ready' | 'error' | 'duplicate';
 
 export type ImportRowFilter = 'all' | ImportRowStatus;
+
+/** A field editable in the import preview. */
+export interface ImportEditField {
+  key: string;
+  label: string;
+  kind: ImportFieldKind;
+}
+
+/** Body of a 400 from the import commit: rows re-checked by the server. */
+export interface ImportCommitErrorBody {
+  rows?: CheckedImportRow[];
+}

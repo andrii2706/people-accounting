@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   AuditEntry,
+  EmployeeChangeUpdate,
   EmployeeDetails,
   EmployeeList,
   EmployeePayload,
@@ -67,7 +68,7 @@ export class EmployeesService {
     return firstValueFrom(this.http.delete<void>(`/api/employees/${id}`));
   }
 
-  updateChange(id: string, body: { effectiveDate?: string; basis?: string; skipped?: boolean }) {
+  updateChange(id: string, body: EmployeeChangeUpdate) {
     return firstValueFrom(this.http.patch(`/api/employees/changes/${id}`, body));
   }
 }

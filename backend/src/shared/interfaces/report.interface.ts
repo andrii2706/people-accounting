@@ -29,3 +29,11 @@ export interface ListRowStatus {
   position: string;
   positionSince: IsoDate | null;
 }
+
+/** Data from outside the card needed for the statuses of a list row. */
+export interface ListRowStatusContext {
+  mobilizationUntil: IsoDate | null;
+  alertDays: number;
+  pendingNotices: number;
+  lastNoticeDate: IsoDate | null;
+}

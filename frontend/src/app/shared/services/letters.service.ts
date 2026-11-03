@@ -2,7 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type { ListGroup } from '../interfaces/dictionary.interface';
-import type { EmployeeNotice, Letter, LetterDetails } from '../interfaces/letter.interface';
+import type {
+  EmployeeNotice,
+  Letter,
+  LetterDetails,
+  LetterUpdate,
+} from '../interfaces/letter.interface';
 
 /** Register of outgoing letters to the TCK, documents and hand-over. */
 @Injectable({ providedIn: 'root' })
@@ -58,7 +63,7 @@ export class LettersService {
     return firstValueFrom(this.http.post<LetterDetails>('/api/letters/report', body));
   }
 
-  update(id: string, body: { number?: string; date?: string; tckId?: string }) {
+  update(id: string, body: LetterUpdate) {
     return firstValueFrom(this.http.patch<LetterDetails>(`/api/letters/${id}`, body));
   }
 

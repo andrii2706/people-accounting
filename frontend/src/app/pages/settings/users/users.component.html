@@ -129,17 +129,27 @@
 
   <form class="card space-y-4 p-5" (submit)="create($event)" novalidate>
     <h2 class="font-semibold">Новий користувач</h2>
-    <app-form-field label="Ім’я та прізвище" [required]="true" [field]="userForm.fullName">
+    <app-form-field
+      label="Ім’я та прізвище"
+      [required]="true"
+      hint="Видно в журналі дій і в листах"
+      [field]="userForm.fullName"
+    >
       <input class="input" [formField]="userForm.fullName" />
     </app-form-field>
-    <app-form-field label="Email" [required]="true" [field]="userForm.email">
-      <input class="input" type="email" [formField]="userForm.email" />
+    <app-form-field
+      label="Email"
+      [required]="true"
+      hint="Логін для входу, напр. hr@company.ua"
+      [field]="userForm.email"
+    >
+      <input class="input" type="email" autocomplete="off" [formField]="userForm.email" />
     </app-form-field>
     <app-form-field
       label="Тимчасовий пароль"
       [required]="true"
       [field]="userForm.password"
-      hint="12+ символів, літери й цифри. Користувач змінить його при першому вході."
+      hint="Щонайменше 12 символів, літери й цифри, без частини email. Користувач змінить його при першому вході."
     >
       <input
         class="input"
@@ -148,7 +158,10 @@
         [formField]="userForm.password"
       />
     </app-form-field>
-    <app-form-field label="Роль">
+    <app-form-field
+      label="Роль"
+      hint="Адміністратор керує користувачами й реквізитами; кадровик — працівниками"
+    >
       <app-select
         ariaLabel="Роль"
         [clearable]="false"

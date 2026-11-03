@@ -11,7 +11,6 @@ import {
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import type { LetterStatus } from '../../../shared/interfaces/letter.interface';
 import type {
-  SignatureVerification,
   SigningConfig,
   SigningState,
   SigningMode,
@@ -21,35 +20,9 @@ import { IitSignWidgetService } from '../../../shared/services/iit-sign-widget.s
 import { SignaturesService } from '../../../shared/services/signatures.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
-
-const MAX_SIGNATURE_BYTES = 700 * 1024;
-
-const VERIFICATION: Record<SignatureVerification, { label: string; cls: string; hint: string }> = {
-  VALID: {
-    label: 'Підпис дійсний',
-    cls: 'bg-[#e3f1e5] text-ok',
-    hint: 'Документ збігається, підпис перевірено криптографічно.',
-  },
-  DIGEST_MATCH: {
-    label: 'Документ збігається',
-    cls: 'bg-[#e8f0f8] text-info',
-    hint: 'Підпис зроблено саме під цей документ. Підпис ДСТУ 4145 і статус сертифіката остаточно перевіряє сервіс ЦЗО.',
-  },
-  UNVERIFIED: {
-    label: 'Не перевірено',
-    cls: 'bg-[#fdf6ec] text-warning',
-    hint: 'Алгоритм не підтримується сервером — перевірте підпис на сервісі ЦЗО.',
-  },
-};
-
-function toBase64(buffer: ArrayBuffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
-}
+import { SIGNATURE_VERIFICATION_BADGES } from '../../../shared/constants/badges.constants';
+import { MAX_SIGNATURE_BYTES } from '../../../shared/constants/signature.constants';
+import { toBase64 } from '../../../shared/utils/file.utils';
 
 /**
  * Qualified e-signature panel of a letter.
@@ -74,7 +47,7 @@ export class LetterSigningComponent implements OnDestroy {
   /** State changed — the parent page re-runs its resolvers. */
   readonly changed = output<void>();
 
-  protected readonly verification = VERIFICATION;
+  protected readonly verification = SIGNATURE_VERIFICATION_BADGES;
   protected readonly widgetContainerId = 'iit-sign-widget';
   protected readonly busy = signal(false);
   protected readonly selectedMode = signal<SigningMode | null>(null);

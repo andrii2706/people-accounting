@@ -1,8 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { createHash } from 'node:crypto';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, In, IsNull, Repository } from 'typeorm';
-import { formatUa, todayIso, yearOf } from '../common/utils/dates.js';
+import { formatUa, todayIso, yearOf } from '../common/utils/dates.utils.js';
 import { Tck } from '../dictionaries/tck.entity.js';
 import {
   buildChangeNotice,
@@ -33,42 +32,15 @@ import type {
   LetterQueryDto,
   UpdateLetterDto,
 } from './letters.dto.js';
-import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { FileResult, IsoDate } from '../shared/interfaces/common.interface.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
-import type { ListGroup } from '../shared/interfaces/dictionary.interface.js';
 import type { NoticeSnapshot } from '../shared/interfaces/document.interface.js';
-
-export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-export const P7S_MIME = 'application/pkcs7-signature';
-const sha256 = (data: Buffer) => createHash('sha256').update(data).digest('hex');
-
-/** "2 працівники", "5 працівників", "21 працівник" — Ukrainian plural forms. */
-export function employeesCount(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  const word =
-    mod10 === 1 && mod100 !== 11
-      ? 'працівник'
-      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
-        ? 'працівники'
-        : 'працівників';
-  return `${n} ${word}`;
-}
-
-const TYPE_TITLES = {
-  CHANGE_NOTICE: 'Повідомлення про зміну облікових даних',
-  LISTS: 'Списки персонального військового обліку',
-  OPERATIONAL_REPORT: 'Відомість оперативного обліку',
-  OTHER: 'Лист',
-} as const;
-
-/** Splits the pending changes of one person into notices: hiring, combined data changes, dismissal. */
-export function noticeBatches(changes: EmployeeChange[]): EmployeeChange[][] {
-  const hires = changes.filter((c) => c.type === 'HIRE').map((c) => [c]);
-  const data = changes.filter((c) => c.type !== 'HIRE' && c.type !== 'DISMISSAL');
-  const dismissals = changes.filter((c) => c.type === 'DISMISSAL').map((c) => [c]);
-  return [...hires, ...(data.length ? [data] : []), ...dismissals];
-}
+import type { MaxNumberRow } from '../shared/interfaces/letter.interface.js';
+import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
+import { sha256 } from '../common/utils/hash.utils.js';
+import { LETTER_TYPE_TITLES } from './letters.constants.js';
+import { employeesCount, noticeBatches } from './utils/letters.utils.js';
+import type { LetterParams } from '../shared/interfaces/letter.interface.js';
 
 @Injectable()
 export class LettersService {
@@ -130,8 +102,8 @@ export class LettersService {
           date: dto.date ?? todayIso(),
           number: groups.size === 1 ? number : undefined,
           subject: single
-            ? `${TYPE_TITLES.CHANGE_NOTICE}: ${fullName(group[0])}`
-            : `${TYPE_TITLES.CHANGE_NOTICE}: ${employeesCount(group.length)}`,
+            ? `${LETTER_TYPE_TITLES.CHANGE_NOTICE}: ${fullName(group[0])}`
+            : `${LETTER_TYPE_TITLES.CHANGE_NOTICE}: ${employeesCount(group.length)}`,
           employeeId: single ? group[0].id : null,
           tckId: group[0].tckId,
           createdById: user.id,
@@ -274,7 +246,7 @@ export class LettersService {
         type: dto.type,
         date: dto.date ?? todayIso(),
         number: dto.number,
-        subject: `${TYPE_TITLES[dto.type]}${dto.employeeIds?.length ? ' (витяг)' : ''} станом на ${formatUa(dto.reportDate)}`,
+        subject: `${LETTER_TYPE_TITLES[dto.type]}${dto.employeeIds?.length ? ' (витяг)' : ''} станом на ${formatUa(dto.reportDate)}`,
         tckId: tck?.id ?? null,
         params: { reportDate: dto.reportDate, groups: dto.groups ?? null, employeeIds: dto.employeeIds ?? null },
         createdById: user.id,
@@ -293,7 +265,7 @@ export class LettersService {
       .createQueryBuilder('l')
       .select('COALESCE(MAX(l.sequence), 0)', 'max')
       .where('l.year = :year', { year })
-      .getRawOne<{ max: number }>())!;
+      .getRawOne<MaxNumberRow>())!;
     const sequence = Number(max) + 1;
     const org = await this.org.get();
     const number = data.number?.trim() || `${org.letterNumberPrefix}${sequence}`;
@@ -349,7 +321,7 @@ export class LettersService {
 
   async update(id: string, dto: UpdateLetterDto) {
     const letter = await this.repo.findOneBy({ id });
-    if (!letter) throw new NotFoundException();
+    if (!letter) throw new NotFoundException('Лист не знайдено');
     if (letter.status === 'SENT') throw new BadRequestException('Надісланий лист змінювати не можна');
     if (letter.documentKey) {
       const changesContent = (['number', 'date', 'subject', 'tckId'] as const).some(
@@ -374,7 +346,7 @@ export class LettersService {
 
   async remove(id: string) {
     const letter = await this.repo.findOneBy({ id });
-    if (!letter) throw new NotFoundException();
+    if (!letter) throw new NotFoundException('Лист не знайдено');
     if (letter.status === 'SENT') throw new BadRequestException('Надісланий лист видаляти не можна');
     if (await this.signatureRepo.countBy({ letterId: id }))
       throw new BadRequestException('Підписаний лист видаляти не можна');
@@ -386,7 +358,7 @@ export class LettersService {
 
   async markSent(id: string, user: AuthUser) {
     const letter = await this.repo.findOneBy({ id });
-    if (!letter) throw new NotFoundException();
+    if (!letter) throw new NotFoundException('Лист не знайдено');
     letter.status = 'SENT';
     letter.sentAt = new Date();
     await this.repo.save(letter);
@@ -394,9 +366,9 @@ export class LettersService {
     return this.get(id);
   }
 
-  async document(id: string): Promise<{ buffer: Buffer; filename: string }> {
+  async document(id: string): Promise<FileResult> {
     const letter = await this.repo.findOne({ where: { id }, relations: { changes: true } });
-    if (!letter) throw new NotFoundException();
+    if (!letter) throw new NotFoundException('Лист не знайдено');
     // a document frozen for signing is never regenerated
     if (letter.documentKey) {
       const { buffer, filename } = await this.frozenDocument(id);
@@ -424,7 +396,7 @@ export class LettersService {
       return { buffer, filename: `Повідомлення ${safeNumber} ${who}.docx` };
     }
 
-    const params = letter.params as { reportDate?: string; groups?: ListGroup[] | null; employeeIds?: string[] | null };
+    const params = letter.params as LetterParams;
     const reportDate = params.reportDate ?? letter.date;
     if (letter.type === 'LISTS') {
       const buffer = await this.reports.listsDocx(

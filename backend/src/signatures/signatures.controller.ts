@@ -1,18 +1,12 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { CurrentUser } from '../common/auth.js';
-import { DOCX_MIME, P7S_MIME } from '../letters/letters.service.js';
+import { CurrentUser } from '../common/decorators/auth.decorators.js';
+import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
+import { attachmentFile } from '../common/utils/file-response.utils.js';
 import { AddSignatureDto } from './signatures.dto.js';
 import { SignaturesService } from './signatures.service.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
-
-function file(buffer: Buffer, filename: string, type: string) {
-  return new StreamableFile(buffer, {
-    type,
-    disposition: `attachment; filename="file"; filename*=UTF-8''${encodeURIComponent(filename)}`,
-  });
-}
 
 @ApiTags('signatures')
 @Controller()
@@ -50,7 +44,7 @@ export class SignaturesController {
   async signingFile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     const { buffer, filename } = await this.signatures.frozenDocument(id);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
-    return file(buffer, filename, DOCX_MIME);
+    return attachmentFile(buffer, filename, DOCX_MIME);
   }
 
   @Post('letters/:id/signatures')
@@ -64,13 +58,13 @@ export class SignaturesController {
     @Param('signatureId', ParseUUIDPipe) signatureId: string,
   ) {
     const { buffer, filename } = await this.signatures.signatureFile(id, signatureId);
-    return file(buffer, filename, P7S_MIME);
+    return attachmentFile(buffer, filename, P7S_MIME);
   }
 
   @Get('letters/:id/signed-package')
   async signedPackage(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
     const { buffer, filename } = await this.signatures.signedPackage(id);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
-    return file(buffer, filename, 'application/zip');
+    return attachmentFile(buffer, filename, 'application/zip');
   }
 }

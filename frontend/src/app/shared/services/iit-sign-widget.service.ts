@@ -2,9 +2,11 @@ import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import { inject, Injectable, PLATFORM_ID } from '@angular/core';
 import type {
   EndUserCertificate,
-  EndUserInstance,
   EndUserConstructor,
+  EndUserInstance,
+  WindowWithEndUser,
 } from '../interfaces/signature.interface';
+import { CERT_KEY_TYPE, CERT_KEY_USAGE_SIGNATURE } from '../constants/signature.constants';
 
 /**
  * Adapter for the IIT signing widget («Віджет підпису», eusign.js library).
@@ -23,11 +25,6 @@ import type {
  * the constant names (EndUser.FormType / SignAlgo / SignType) in the documentation of the new version.
  */
 
-/** Public key types in a certificate (EU_CERT_KEY_TYPE_*). */
-const KEY_TYPE = { DSTU4145: 1, RSA: 2, ECDSA: 4 } as const;
-/** EU_KEY_USAGE_DIGITAL_SIGNATURE — a signing certificate (not an encryption one). */
-const KEY_USAGE_SIGNATURE = 1;
-
 @Injectable({ providedIn: 'root' })
 export class IitSignWidgetService {
   private readonly document = inject(DOCUMENT);
@@ -38,7 +35,7 @@ export class IitSignWidgetService {
 
   private loadScript(url: string): Promise<EndUserConstructor> {
     if (!this.isBrowser) return Promise.reject(new Error('Віджет працює лише в браузері'));
-    const win = this.document.defaultView as unknown as { EndUser?: EndUserConstructor };
+    const win = this.document.defaultView as unknown as WindowWithEndUser;
     if (win.EndUser) return Promise.resolve(win.EndUser);
     this.scriptPromise ??= new Promise<EndUserConstructor>((resolve, reject) => {
       const script = this.document.createElement('script');
@@ -72,17 +69,16 @@ export class IitSignWidgetService {
   /** Detached CAdES signature in base64 for the document bytes. */
   async signDetached(data: Uint8Array): Promise<string> {
     if (!this.instance) throw new Error('Спершу зчитайте ключ');
-    const EndUser = (this.document.defaultView as unknown as { EndUser: EndUserConstructor })
-      .EndUser;
+    const EndUser = (this.document.defaultView as unknown as Required<WindowWithEndUser>).EndUser;
     const signing =
-      this.certificates.find((c) => (c.infoEx?.keyUsageType ?? 0) & KEY_USAGE_SIGNATURE) ??
+      this.certificates.find((c) => (c.infoEx?.keyUsageType ?? 0) & CERT_KEY_USAGE_SIGNATURE) ??
       this.certificates[0];
-    const keyType = signing?.infoEx?.publicKeyType ?? KEY_TYPE.DSTU4145;
+    const keyType = signing?.infoEx?.publicKeyType ?? CERT_KEY_TYPE.DSTU4145;
     const algo = EndUser.SignAlgo ?? {};
     const signAlgo =
-      keyType === KEY_TYPE.ECDSA
+      keyType === CERT_KEY_TYPE.ECDSA
         ? (algo['ECDSAWithSHA'] ?? 3)
-        : keyType === KEY_TYPE.RSA
+        : keyType === CERT_KEY_TYPE.RSA
           ? (algo['RSAWithSHA'] ?? 2)
           : (algo['DSTU4145WithGOST34311'] ?? 1);
     // CAdES-X Long: signature + timestamp + certificate status data — suitable for archiving

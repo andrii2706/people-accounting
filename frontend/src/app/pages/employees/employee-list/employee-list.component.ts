@@ -12,32 +12,34 @@ import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
-import type { EmployeeList, EmployeeListItem } from '../../../shared/interfaces/employee.interface';
+import type {
+  EmployeeList,
+  EmployeeListItem,
+  EmployeeView,
+} from '../../../shared/interfaces/employee.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
 import { EmployeePreviewComponent } from '../employee-preview/employee-preview.component';
+import { InViewDirective } from '../../../shared/directives/in-view.directive';
 import {
+  EMPLOYEE_LIST_PAGE_SIZE,
   EMPLOYEE_VIEWS,
-  type EmployeeView,
+} from '../../../shared/constants/employee.constants';
+import {
   hasDanger,
   initials,
   matchesView,
   statusBadges,
   warningCount,
-} from './employee-list.utils';
+} from '../../../shared/utils/employee-list.utils';
 
-/**
- * Employee list. Data comes from employeeListResolver; the search, group and category live in the URL
- * (a filtered list can be bookmarked). The tabs «Потребують уваги / Відстрочка / Заброньовані» filter
- * the loaded list in the browser; «Звільнені» asks the server for dismissed employees.
- */
 @Component({
   selector: 'app-employee-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, UaDatePipe, EmployeePreviewComponent],
+  imports: [RouterLink, IconComponent, UaDatePipe, EmployeePreviewComponent, InViewDirective],
   templateUrl: './employee-list.component.html',
 })
 export class EmployeeListComponent {
@@ -73,6 +75,21 @@ export class EmployeeListComponent {
   protected readonly items = computed(() =>
     this.loaded().filter((e) => matchesView(e, this.currentView())),
   );
+  /**
+   * Rows are drawn in portions of EMPLOYEE_LIST_PAGE_SIZE: a thousand rows at once is ~30 000 DOM nodes and seconds of work
+   * on an office laptop. The next portion is added when the end of the table scrolls into view.
+   */
+  protected readonly shownCount = linkedSignal({
+    source: this.items,
+    computation: () => EMPLOYEE_LIST_PAGE_SIZE,
+  });
+  protected readonly shown = computed(() => this.items().slice(0, this.shownCount()));
+  protected readonly hasMore = computed(() => this.shownCount() < this.items().length);
+
+  protected showMore() {
+    if (this.hasMore()) this.shownCount.update((n) => n + EMPLOYEE_LIST_PAGE_SIZE);
+  }
+
   protected readonly counts = computed(() => {
     const all = this.loaded();
     const working = this.currentView() !== 'dismissed';

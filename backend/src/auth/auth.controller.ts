@@ -1,43 +1,18 @@
 import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { IsEmail, IsString, MaxLength } from 'class-validator';
 import type { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
-import { AllowPendingPasswordChange, CurrentUser, Public } from '../common/auth.js';
-import { passwordMessage, passwordProblems } from '../common/password-policy.js';
-import { Rule } from '../common/validators.js';
+import { AllowPendingPasswordChange, CurrentUser, Public } from '../common/decorators/auth.decorators.js';
+import { passwordProblems } from '../common/utils/password-policy.utils.js';
+import { fieldErrors } from '../common/validators/validators.js';
 import { UpdatePreferencesDto } from '../users/users.dto.js';
 import { UsersService } from '../users/users.service.js';
 import { SessionService } from './session.service.js';
-import type { AuthUser } from '../shared/interfaces/auth.interface.js';
-
-class LoginDto {
-  @IsEmail({}, { message: 'Некоректний email' }) @MaxLength(200) email: string;
-  @IsString() @MaxLength(200) password: string;
-}
-
-class ChangePasswordDto {
-  @IsString() @MaxLength(200) currentPassword: string;
-  @IsString()
-  @MaxLength(200)
-  @Rule((v: string) => passwordProblems(v).length === 0, 'Пароль: щонайменше 12 символів, літери й цифри')
-  newPassword: string;
-}
-
-const toAuthUser = (u: {
-  id: string;
-  email: string;
-  fullName: string;
-  role: AuthUser['role'];
-  mustChangePassword: boolean;
-}): AuthUser => ({
-  id: u.id,
-  email: u.email,
-  fullName: u.fullName,
-  role: u.role,
-  mustChangePassword: u.mustChangePassword,
-});
+import type { AuthUser, SessionResponse } from '../shared/interfaces/auth.interface.js';
+import { ChangePasswordDto } from './auth.dto.js';
+import { LoginDto } from './auth.dto.js';
+import { toAuthUser } from './utils/auth.utils.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -90,7 +65,7 @@ export class AuthController {
   /** Session check without a 401: { user: null } when not signed in. Used by the frontend (and SSR). */
   @Public()
   @Get('session')
-  async session(@Req() req: Request): Promise<{ user: AuthUser | null }> {
+  async session(@Req() req: Request): Promise<SessionResponse> {
     const token = (req.cookies as Record<string, string> | undefined)?.[this.sessions.cookieName];
     if (!token) return { user: null };
     const payload = await this.sessions.verify(token).catch(() => null);
@@ -116,7 +91,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const problems = passwordProblems(dto.newPassword, current.email);
-    if (problems.length) throw new UnauthorizedException(passwordMessage(problems));
+    if (problems.length) throw fieldErrors([{ field: 'newPassword', message: `Потрібно: ${problems.join(', ')}` }]);
     const user = await this.users.changeOwnPassword(current.id, dto.currentPassword, dto.newPassword);
     await this.sessions.issue(res, user);
     await this.audit.log('auth', user.id, 'PASSWORD_CHANGED', {}, current);

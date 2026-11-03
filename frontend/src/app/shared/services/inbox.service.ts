@@ -16,7 +16,22 @@ export class InboxService {
   readonly unread = computed(() => this._items().filter((i) => !i.read));
   readonly unreadCount = computed(() => this.unread().length);
 
+  private loadedAt = 0;
+  private pending: Promise<void> | null = null;
+
+  /**
+   * Reloads only when the data is older than `maxAgeMs` (navigation between pages does not re-fetch
+   * a list that can be a megabyte for a big company); `maxAgeMs = 0` — always.
+   */
+  refresh(maxAgeMs = 60_000): Promise<void> {
+    if (this.pending) return this.pending;
+    if (this._loaded() && Date.now() - this.loadedAt < maxAgeMs) return Promise.resolve();
+    this.pending = this.load().finally(() => (this.pending = null));
+    return this.pending;
+  }
+
   async load(): Promise<void> {
+    this.loadedAt = Date.now();
     try {
       const view = await firstValueFrom(this.http.get<InboxView>('/api/inbox'));
       this._items.set(view.items);
@@ -45,6 +60,7 @@ export class InboxService {
   reset(): void {
     this._items.set([]);
     this._loaded.set(false);
+    this.loadedAt = 0;
   }
 
   /** Optimistic: the mark is shown at once, the request goes in the background. */

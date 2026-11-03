@@ -2,13 +2,7 @@ import { inject } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import type { ManagedUser } from '../../../shared/interfaces/auth.interface';
-import type {
-  NotificationStatus,
-  Organization,
-  OrganizationHead,
-  ResponsiblePerson,
-  OrganizationSettingsData,
-} from '../../../shared/interfaces/organization.interface';
+import type { OrganizationSettingsData } from '../../../shared/interfaces/organization.interface';
 import { OrganizationService } from '../../../shared/services/organization.service';
 import { UsersService } from '../../../shared/services/users.service';
 import { resolveOr } from '../../../shared/utils/router.utils';

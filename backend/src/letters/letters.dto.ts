@@ -1,5 +1,5 @@
 import { ArrayMaxSize, ArrayMinSize, IsArray, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
-import { IsIsoDate } from '../common/validators.js';
+import { IsIsoDate } from '../common/validators/validators.js';
 import type { ListGroup } from '../shared/interfaces/dictionary.interface.js';
 import type { LetterType, LetterStatus } from '../shared/interfaces/letter.interface.js';
 

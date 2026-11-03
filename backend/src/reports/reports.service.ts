@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
-import { formatUa, todayIso } from '../common/utils/dates.js';
+import { formatUa, todayIso } from '../common/utils/dates.utils.js';
 import { buildLists, buildOperationalReport } from '../documents/builders.js';
-import { deriveEmployee, toMilitaryRecord } from '../employees/employee-view.js';
+import { deriveEmployee, toMilitaryRecord } from '../employees/utils/employee-view.utils.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { LIST_GROUPS, LIST_SECTIONS, listSection } from '../military/dictionaries.js';
@@ -24,16 +24,10 @@ import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import type { ListGroup, ListSection, DutyCategory } from '../shared/interfaces/dictionary.interface.js';
 import type { ListRowView } from '../shared/interfaces/report.interface.js';
 import type { OperationalRowData } from '../shared/interfaces/document.interface.js';
-
-const SINCE_2020 = '2020-01-01';
-
-const OPERATIONAL_TITLES: Record<string, string> = {
-  '1.': 'Військовозобов’язані (у тому числі резервісти), із них:',
-  '1.1': 'Військовозобов’язані офіцерського складу (у тому числі резервісти)',
-  '1.2': 'Військовозобов’язані рядового, сержантського та старшинського складу (у тому числі резервісти)',
-  '1.3': 'Військовозобов’язані-жінки (у тому числі резервісти)',
-  '2.': 'Призовники',
-};
+import type { LetterNumberDate } from '../shared/interfaces/letter.interface.js';
+import { OPERATIONAL_REPORT_SINCE } from './reports.constants.js';
+import { OPERATIONAL_REPORT_TITLES } from './reports.constants.js';
+import type { OperationalReportData } from '../shared/interfaces/document.interface.js';
 
 @Injectable()
 export class ReportsService {
@@ -136,12 +130,7 @@ export class ReportsService {
     return { date, rows, counts };
   }
 
-  async listsDocx(
-    date: IsoDate,
-    groups: ListGroup[],
-    extractIds?: string[],
-    letter?: { number: string; date: IsoDate } | null,
-  ) {
+  async listsDocx(date: IsoDate, groups: ListGroup[], extractIds?: string[], letter?: LetterNumberDate | null) {
     const data = await this.lists(date, groups, extractIds);
     const org = await this.org.getAt(letter?.date ?? date);
     return buildLists({
@@ -157,14 +146,14 @@ export class ReportsService {
   }
 
   /** Operational registration report (Annex 12) — formulas OCL!D12:I16. */
-  async operational(date: IsoDate = todayIso()): Promise<{ date: IsoDate; rows: OperationalRowData[] }> {
+  async operational(date: IsoDate = todayIso()): Promise<OperationalReportData> {
     const all = await this.loadAll();
     const rows = new Map<string, OperationalRowData>(
       ['1.1', '1.2', '1.3', '2.'].map((code) => [
         code,
         {
           code,
-          title: OPERATIONAL_TITLES[code],
+          title: OPERATIONAL_REPORT_TITLES[code],
           total: 0,
           mobilizationOrders: 0,
           reserved: 0,
@@ -183,8 +172,9 @@ export class ReportsService {
       const code = operationalRow(group);
       const row = rows.get(code === '2' ? '2.' : code)!;
 
-      if (e.hireDate && e.hireDate >= SINCE_2020 && e.hireDate <= date) row.hiredSince2020++;
-      if (e.dismissalDate && e.dismissalDate >= SINCE_2020 && e.dismissalDate <= date) row.dismissedSince2020++;
+      if (e.hireDate && e.hireDate >= OPERATIONAL_REPORT_SINCE && e.hireDate <= date) row.hiredSince2020++;
+      if (e.dismissalDate && e.dismissalDate >= OPERATIONAL_REPORT_SINCE && e.dismissalDate <= date)
+        row.dismissedSince2020++;
 
       if (!isEmployedAt(r, date)) continue;
       if (isReservedAt(r, date)) row.reserved++;
@@ -197,7 +187,7 @@ export class ReportsService {
     const sum = (k: keyof OperationalRowData) => sub.reduce((a, r) => a + (r[k] as number), 0);
     const head: OperationalRowData = {
       code: '1.',
-      title: OPERATIONAL_TITLES['1.'],
+      title: OPERATIONAL_REPORT_TITLES['1.'],
       total: sum('total'),
       mobilizationOrders: sum('mobilizationOrders'),
       reserved: sum('reserved'),

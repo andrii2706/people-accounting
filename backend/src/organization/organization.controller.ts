@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Roles } from '../common/auth.js';
+import { Roles } from '../common/decorators/auth.decorators.js';
 import {
   CreateOrganizationHeadDto,
   CreateResponsiblePersonDto,

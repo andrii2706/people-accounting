@@ -4,6 +4,7 @@ import { isPlatformServer } from '@angular/common';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import type { ApiError } from '../interfaces/common.interface';
 
 /**
  * All requests go to the relative `/api` of the same origin (dev proxy or the Express proxy in server.ts),
@@ -29,7 +30,7 @@ export const apiInterceptor: HttpInterceptorFn = (req, next) => {
       // temporary password not changed yet
       if (
         error.status === 403 &&
-        (error.error as { code?: string } | null)?.code === 'PASSWORD_CHANGE_REQUIRED'
+        (error.error as ApiError | null)?.code === 'PASSWORD_CHANGE_REQUIRED'
       ) {
         void router.navigate(['/profile']);
       }

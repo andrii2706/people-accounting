@@ -5,8 +5,7 @@ import { Organization } from '../organization/organization.entity.js';
 import { User } from '../users/user.entity.js';
 import { MailService } from './mail.service.js';
 import { NotificationLog } from './notification-log.entity.js';
-
-export const NIL_REF = '00000000-0000-0000-0000-000000000000';
+import type { NotificationRef } from '../shared/interfaces/inbox.interface.js';
 
 /** Who gets reminders: active users who have not turned them off, plus extra addresses from the settings. */
 @Injectable()
@@ -60,7 +59,7 @@ export class NotificationsService {
     return this.log.existsBy({ kind, refId, refDate });
   }
 
-  async markSent(kind: string, refs: { refId: string; refDate: string }[], recipients: number) {
+  async markSent(kind: string, refs: NotificationRef[], recipients: number) {
     if (!refs.length) return;
     await this.log
       .createQueryBuilder()

@@ -3,7 +3,7 @@
  * and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
 import { BorderStyle, HeightRule, type Paragraph, Table, TableCell, TableLayoutType, TableRow, WidthType } from 'docx';
-import { formatUa, formatUaLong } from '../common/utils/dates.js';
+import { formatUa, formatUaLong } from '../common/utils/dates.utils.js';
 import type { Tck } from '../dictionaries/tck.entity.js';
 import { CHANGE_TYPE_LABELS, LIST_SECTION_TITLES } from '../military/dictionaries.js';
 import { LIST_TITLES, LIST_WIDTHS } from '../military/personal-list.js';
@@ -35,6 +35,7 @@ import type {
   LabelParty,
   EnvelopeLabel,
 } from '../shared/interfaces/document.interface.js';
+import type { InventoryInput } from '../shared/interfaces/document.interface.js';
 
 const blank = (v: string | null | undefined, filler = '________________') => (v && v.trim() ? v : filler);
 
@@ -226,11 +227,7 @@ export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffe
 
 // Inventory of contents, form 107
 
-function inventoryPage(input: {
-  org: Organization;
-  tck: Tck | null | undefined;
-  items: string[];
-}): (Paragraph | Table)[] {
+function inventoryPage(input: InventoryInput): (Paragraph | Table)[] {
   const w = CONTENT_WIDTH.portrait;
   return [
     p('ф. 107', { align: 'right' }),

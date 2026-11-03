@@ -32,22 +32,40 @@
       >
         <input class="input" [formField]="orgForm.nameLocative" />
       </app-form-field>
-      <app-form-field label="Скорочена назва" [required]="true" [field]="orgForm.shortName">
+      <app-form-field
+        label="Скорочена назва"
+        [required]="true"
+        hint="Для підписів і наклейок: ТОВ «…»"
+        [field]="orgForm.shortName"
+      >
         <input class="input" [formField]="orgForm.shortName" />
       </app-form-field>
-      <app-form-field label="Код ЄДРПОУ" [field]="orgForm.edrpou">
-        <input class="input font-mono" [formField]="orgForm.edrpou" />
+      <app-form-field
+        label="Код ЄДРПОУ"
+        hint="8 цифр; для ФОП — РНОКПП, 10 цифр"
+        [field]="orgForm.edrpou"
+      >
+        <input class="input font-mono" inputmode="numeric" [formField]="orgForm.edrpou" />
       </app-form-field>
-      <app-form-field class="sm:col-span-2" label="Місцезнаходження" [field]="orgForm.address">
+      <app-form-field
+        class="sm:col-span-2"
+        label="Місцезнаходження"
+        hint="Область, місто, вулиця, будинок"
+        [field]="orgForm.address"
+      >
         <input class="input" [formField]="orgForm.address" />
       </app-form-field>
-      <app-form-field label="Поштовий індекс (для наклейок)" [field]="orgForm.postalCode">
+      <app-form-field
+        label="Поштовий індекс (для наклейок)"
+        hint="5 цифр, напр. 79000"
+        [field]="orgForm.postalCode"
+      >
         <input class="input font-mono" inputmode="numeric" [formField]="orgForm.postalCode" />
       </app-form-field>
-      <app-form-field label="Телефон" [field]="orgForm.phone">
-        <input class="input" [formField]="orgForm.phone" />
+      <app-form-field label="Телефон" hint="напр. +380 32 123 45 67" [field]="orgForm.phone">
+        <input class="input" type="tel" [formField]="orgForm.phone" />
       </app-form-field>
-      <app-form-field label="Email" [field]="orgForm.email">
+      <app-form-field label="Email" hint="напр. hr@company.ua" [field]="orgForm.email">
         <input class="input" type="email" [formField]="orgForm.email" />
       </app-form-field>
       <app-form-field
@@ -60,14 +78,14 @@
       <div class="grid grid-cols-2 gap-4">
         <app-form-field
           label="Попереджати за, днів"
-          hint="бронювання, відстрочка"
+          hint="про кінець бронювання, відстрочки; 1–365"
           [field]="orgForm.alertDays"
         >
           <input class="input" type="number" [formField]="orgForm.alertDays" />
         </app-form-field>
         <app-form-field
           label="Строк повідомлення про прийняття/звільнення"
-          hint="днів від дати наказу; інші зміни — щомісяця до 5 числа"
+          hint="днів від дати наказу, 1–60; інші зміни — щомісяця до 5 числа"
           [field]="orgForm.notifyDeadlineDays"
         >
           <input class="input" type="number" [formField]="orgForm.notifyDeadlineDays" />
@@ -127,14 +145,19 @@
         (submit)="addPerson($event)"
         novalidate
       >
-        <app-form-field label="Ім’я та ПРІЗВИЩЕ" [required]="true" [field]="personForm.fullName">
+        <app-form-field
+          label="Ім’я та ПРІЗВИЩЕ"
+          [required]="true"
+          hint="Як у підписі: Олена КОВАЛЬ"
+          [field]="personForm.fullName"
+        >
           <input class="input" [formField]="personForm.fullName" />
         </app-form-field>
         <app-form-field label="Посада" [field]="personForm.position">
           <input class="input" [formField]="personForm.position" />
         </app-form-field>
-        <app-form-field label="Телефон" [field]="personForm.phone">
-          <input class="input" [formField]="personForm.phone" />
+        <app-form-field label="Телефон" hint="напр. +380 67 123 45 67" [field]="personForm.phone">
+          <input class="input" type="tel" [formField]="personForm.phone" />
         </app-form-field>
         <app-form-field label="Наказ №" [field]="personForm.orderNumber">
           <input class="input" [formField]="personForm.orderNumber" />
@@ -142,7 +165,11 @@
         <app-form-field label="З дати" [required]="true" [field]="personForm.validFrom">
           <app-date-input [formField]="personForm.validFrom" ariaLabel="З дати" />
         </app-form-field>
-        <app-form-field label="По дату" [field]="personForm.validTo">
+        <app-form-field
+          label="По дату"
+          hint="Порожньо — призначено дотепер"
+          [field]="personForm.validTo"
+        >
           <app-date-input [formField]="personForm.validTo" ariaLabel="По дату" />
         </app-form-field>
         <button type="submit" class="btn btn-secondary sm:col-span-2 cursor-pointer">
@@ -213,7 +240,12 @@
         novalidate
       >
         <p class="text-sm font-medium sm:col-span-2">Зміна керівника</p>
-        <app-form-field label="Посада" [required]="true" [field]="headForm.position">
+        <app-form-field
+          label="Посада"
+          [required]="true"
+          hint="Як у підписі: Директор, Генеральний директор"
+          [field]="headForm.position"
+        >
           <input class="input" [formField]="headForm.position" />
         </app-form-field>
         <app-form-field
@@ -227,7 +259,12 @@
         <app-form-field label="Наказ про призначення №" [field]="headForm.orderNumber">
           <input class="input" [formField]="headForm.orderNumber" />
         </app-form-field>
-        <app-form-field label="Підписує з" [required]="true" [field]="headForm.validFrom">
+        <app-form-field
+          label="Підписує з"
+          [required]="true"
+          hint="Листи від цієї дати підпише новий керівник"
+          [field]="headForm.validFrom"
+        >
           <app-date-input [formField]="headForm.validFrom" ariaLabel="Підписує з" />
         </app-form-field>
         <button
@@ -249,7 +286,11 @@
         заброньовано і скільки ще можна.
       </p>
       <fieldset class="grid gap-3 sm:grid-cols-[10rem_1fr]" [disabled]="!auth.isAdmin()">
-        <app-form-field label="Квота, осіб" [field]="extraForm.reservationQuota">
+        <app-form-field
+          label="Квота, осіб"
+          hint="Ціле число; порожньо — не задано"
+          [field]="extraForm.reservationQuota"
+        >
           <input class="input" inputmode="numeric" [formField]="extraForm.reservationQuota" />
         </app-form-field>
         <app-form-field
@@ -323,7 +364,11 @@
             новий указ.
           </p>
           <div class="mt-3 grid gap-3 sm:grid-cols-[11rem_1fr]">
-            <app-form-field label="До дати" [field]="extraForm.mobilizationUntil">
+            <app-form-field
+              label="До дати"
+              hint="Порожньо — береться з указів"
+              [field]="extraForm.mobilizationUntil"
+            >
               <app-date-input [formField]="extraForm.mobilizationUntil" ariaLabel="До дати" />
             </app-form-field>
             <app-form-field
@@ -468,22 +513,32 @@
       >
         <input class="input" [formField]="tckForm.nameGenitive" />
       </app-form-field>
-      <app-form-field label="Адреса" [field]="tckForm.address">
+      <app-form-field label="Адреса" hint="Для конверта й наклейки" [field]="tckForm.address">
         <input class="input" [formField]="tckForm.address" />
       </app-form-field>
-      <app-form-field label="Поштовий індекс" [field]="tckForm.postalCode">
+      <app-form-field
+        label="Поштовий індекс"
+        hint="5 цифр, напр. 01001"
+        [field]="tckForm.postalCode"
+      >
         <input class="input font-mono" inputmode="numeric" [formField]="tckForm.postalCode" />
       </app-form-field>
       <div class="grid grid-cols-2 gap-3">
         <app-form-field label="Телефон" [field]="tckForm.phone">
-          <input class="input" [formField]="tckForm.phone" />
+          <input class="input" type="tel" [formField]="tckForm.phone" />
         </app-form-field>
-        <app-form-field label="Email" [field]="tckForm.email">
+        <app-form-field label="Email" hint="Для листів ТЦК" [field]="tckForm.email">
           <input class="input" type="email" [formField]="tckForm.email" />
         </app-form-field>
       </div>
       <div class="flex gap-2 md:col-span-2">
-        <button type="submit" class="btn btn-primary cursor-pointer">Зберегти</button>
+        <button
+          type="submit"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="tckForm().submitting()"
+        >
+          Зберегти
+        </button>
         <button type="button" class="btn btn-ghost cursor-pointer" (click)="editingTck.set(null)">
           Скасувати
         </button>

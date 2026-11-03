@@ -87,3 +87,49 @@ export interface OperationalReport {
   date: string;
   rows: OperationalRow[];
 }
+
+/** One line of «Що зробити сьогодні»: several notifications can be one task (e.g. all TCK notices). */
+export interface DashboardTask {
+  key: string;
+  level: 'danger' | 'warning';
+  title: string;
+  detail: string;
+  action: string;
+  link: string[];
+  query?: Record<string, string>;
+}
+
+/** An upcoming term for «Строки найближчим часом». */
+export interface UpcomingTerm {
+  key: string;
+  date: string;
+  title: string;
+  employeeName: string;
+  employeeId: string;
+}
+
+/** A group of card problems on the dashboard: one task with a count. */
+export interface DashboardCardGroup {
+  title: (count: number) => string;
+  detail: string;
+}
+
+/** A per-employee task on the dashboard. */
+export interface DashboardTaskMeta {
+  title: (name: string) => string;
+  action: string;
+  /** Opens the edit form instead of the card. */
+  edit?: boolean;
+}
+
+/** Parts of an inbox key «CODE:employeeId:ref». */
+export interface InboxKeyParts {
+  code: string;
+  ref: string;
+}
+
+/** A TCK name split for the table: «Шевченківський РТЦК та СП» + «м. Київ». */
+export interface TckNameParts {
+  name: string;
+  place: string;
+}

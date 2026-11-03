@@ -23,3 +23,9 @@ export interface InboxView {
   unread: number;
   date: IsoDate;
 }
+
+/** A notification already sent (to send each reminder once). */
+export interface NotificationRef {
+  refId: string;
+  refDate: string;
+}

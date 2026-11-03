@@ -1,4 +1,3 @@
-import { applyDecorators } from '@nestjs/common';
 import { ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -17,30 +16,20 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { IsIsoDate, NotFuture, Rule } from '../common/validators.js';
+import { IsIsoDate, Rule } from '../common/validators/validators.js';
 import { MAX_LENGTH, MESSAGE, PATTERN } from '../military/employee-rules.js';
 import type { MaritalStatus, FamilyRelation, ChangeType } from '../shared/interfaces/dictionary.interface.js';
-import type { MaxLengthField } from '../shared/interfaces/employee.interface.js';
-
-/** Optional string with a length limit, as in the DB column. */
-const Str = (field: MaxLengthField) =>
-  applyDecorators(
-    IsOptional(),
-    IsString({ message: 'Очікується текст' }),
-    MaxLength(MAX_LENGTH[field], { message: MESSAGE.tooLong(MAX_LENGTH[field]) }),
-  );
-const DateField = () => applyDecorators(IsOptional(), IsIsoDate({ nullable: true }));
-const PastDate = () => applyDecorators(DateField(), NotFuture());
-const Pattern = (re: RegExp, message: string) => Rule((v: string) => re.test(v), message);
-
-const MARITAL: MaritalStatus[] = ['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED', 'OTHER'];
-const RELATIONS: FamilyRelation[] = ['HUSBAND', 'WIFE', 'SON', 'DAUGHTER'];
-
-const passportType = (dto: Record<string, unknown>) => (dto.passportType as string | undefined) ?? 'ID_CARD';
-const rankOf = (dto: Record<string, unknown>) => dto.rankCode as number | null | undefined;
+import { DateField } from '../common/validators/validators.js';
+import { EmployeeStr } from './utils/employee-dto.utils.js';
+import { FAMILY_RELATIONS } from './employees.constants.js';
+import { PastDate } from '../common/validators/validators.js';
+import { Pattern } from '../common/validators/validators.js';
+import { passportType } from './utils/employee-dto.utils.js';
+import { rankOf } from './utils/employee-dto.utils.js';
+import { MARITAL_STATUS_CODES } from './employees.constants.js';
 
 export class FamilyMemberDto {
-  @IsIn(RELATIONS, { message: 'Невідомий ступінь спорідненості' }) relation: FamilyRelation;
+  @IsIn(FAMILY_RELATIONS, { message: 'Невідомий ступінь спорідненості' }) relation: FamilyRelation;
   @IsString()
   @IsNotEmpty({ message: 'Вкажіть прізвище' })
   @MaxLength(100, { message: MESSAGE.tooLong(100) })
@@ -94,29 +83,29 @@ export class EmployeePositionDto {
   @IsNotEmpty({ message: 'Вкажіть посаду' })
   @MaxLength(MAX_LENGTH.position, { message: MESSAGE.tooLong(MAX_LENGTH.position) })
   position: string;
-  @Str('department') department?: string;
+  @EmployeeStr('department') department?: string;
   @DateField() since?: string | null;
-  @Str('orderDocName') orderDocName?: string;
-  @Str('orderNumber') orderNumber?: string;
+  @EmployeeStr('orderDocName') orderDocName?: string;
+  @EmployeeStr('orderNumber') orderNumber?: string;
   @DateField() orderDate?: string | null;
 }
 
 export class EmployeeEducationDto {
-  @Str('educationLevel') level?: string;
-  @Str('educationInstitution') institution?: string;
-  @Str('educationSpecialty') specialty?: string;
-  @Str('educationDocument') document?: string;
+  @EmployeeStr('educationLevel') level?: string;
+  @EmployeeStr('educationInstitution') institution?: string;
+  @EmployeeStr('educationSpecialty') specialty?: string;
+  @EmployeeStr('educationDocument') document?: string;
   @PastDate() documentDate?: string | null;
 }
 
 /** Change metadata for the TCK notice: effective date and grounds. */
 export class ChangeMetaDto {
   @IsOptional() @IsIsoDate() effectiveDate?: string;
-  @Str('changeBasis') basis?: string;
+  @EmployeeStr('changeBasis') basis?: string;
 }
 
 export class CreateEmployeeDto {
-  @Str('personnelNumber') personnelNumber?: string;
+  @EmployeeStr('personnelNumber') personnelNumber?: string;
   @IsIn(['M', 'F'], { message: 'Стать: M або F' }) gender: 'M' | 'F';
 
   @IsString()
@@ -131,39 +120,43 @@ export class CreateEmployeeDto {
   @Pattern(PATTERN.name, MESSAGE.name)
   firstName: string;
 
-  @Str('middleName') @Pattern(PATTERN.name, MESSAGE.name) middleName?: string;
-  @Str('rnokpp') @Pattern(PATTERN.rnokpp, MESSAGE.rnokpp) rnokpp?: string;
+  @EmployeeStr('middleName') @Pattern(PATTERN.name, MESSAGE.name) middleName?: string;
+  @EmployeeStr('rnokpp') @Pattern(PATTERN.rnokpp, MESSAGE.rnokpp) rnokpp?: string;
   @PastDate() birthDate?: string | null;
-  @Str('phone') @Pattern(PATTERN.phone, MESSAGE.phone) phone?: string;
-  @Str('email') @Pattern(PATTERN.email, MESSAGE.email) email?: string;
-  @Str('registeredAddress') registeredAddress?: string;
-  @Str('actualAddress') actualAddress?: string;
+  @EmployeeStr('phone') @Pattern(PATTERN.phone, MESSAGE.phone) phone?: string;
+  @EmployeeStr('email') @Pattern(PATTERN.email, MESSAGE.email) email?: string;
+  @EmployeeStr('registeredAddress') registeredAddress?: string;
+  @EmployeeStr('actualAddress') actualAddress?: string;
 
   // passport: the format depends on the type
   @IsOptional() @IsIn(['ID_CARD', 'BOOK'], { message: 'Тип паспорта: ID_CARD або BOOK' }) passportType?:
     'ID_CARD' | 'BOOK';
-  @Str('passportSeries')
+  @EmployeeStr('passportSeries')
   @Rule((_v: string, dto) => passportType(dto) === 'BOOK', 'У ID-картки серії немає')
   @Rule(
     (v: string, dto) => passportType(dto) !== 'BOOK' || PATTERN.passportBookSeries.test(v),
     MESSAGE.passportBookSeries,
   )
   passportSeries?: string;
-  @Str('passportNumber')
+  @EmployeeStr('passportNumber')
   @Rule((v: string, dto) => passportType(dto) !== 'ID_CARD' || PATTERN.idCardNumber.test(v), MESSAGE.idCardNumber)
   @Rule(
     (v: string, dto) => passportType(dto) !== 'BOOK' || PATTERN.passportBookNumber.test(v),
     MESSAGE.passportBookNumber,
   )
   passportNumber?: string;
-  @Str('passportIssuedBy')
+  @EmployeeStr('passportIssuedBy')
   @Rule((v: string, dto) => passportType(dto) !== 'ID_CARD' || PATTERN.idCardIssuer.test(v), MESSAGE.idCardIssuer)
   passportIssuedBy?: string;
   @PastDate() passportIssuedAt?: string | null;
 
-  @Str('foreignPassportSeries') @Pattern(PATTERN.foreignSeries, MESSAGE.foreignSeries) foreignPassportSeries?: string;
-  @Str('foreignPassportNumber') @Pattern(PATTERN.foreignNumber, MESSAGE.foreignNumber) foreignPassportNumber?: string;
-  @Str('foreignPassportIssuedBy') foreignPassportIssuedBy?: string;
+  @EmployeeStr('foreignPassportSeries')
+  @Pattern(PATTERN.foreignSeries, MESSAGE.foreignSeries)
+  foreignPassportSeries?: string;
+  @EmployeeStr('foreignPassportNumber')
+  @Pattern(PATTERN.foreignNumber, MESSAGE.foreignNumber)
+  foreignPassportNumber?: string;
+  @EmployeeStr('foreignPassportIssuedBy') foreignPassportIssuedBy?: string;
   @PastDate() foreignPassportIssuedAt?: string | null;
   @DateField()
   @Rule(
@@ -172,9 +165,9 @@ export class CreateEmployeeDto {
   )
   foreignPassportValidUntil?: string | null;
 
-  @Str('educationLevel') educationLevel?: string;
-  @Str('educationSpecialty') educationSpecialty?: string;
-  @Str('educationDocument') educationDocument?: string;
+  @EmployeeStr('educationLevel') educationLevel?: string;
+  @EmployeeStr('educationSpecialty') educationSpecialty?: string;
+  @EmployeeStr('educationDocument') educationDocument?: string;
   @PastDate() educationDocumentDate?: string | null;
   @IsOptional()
   @IsArray()
@@ -183,10 +176,10 @@ export class CreateEmployeeDto {
   @Type(() => EmployeeEducationDto)
   educations?: EmployeeEducationDto[];
 
-  @ApiPropertyOptional({ enum: MARITAL, nullable: true })
+  @ApiPropertyOptional({ enum: MARITAL_STATUS_CODES, nullable: true })
   @IsOptional()
   @ValidateIf((o: CreateEmployeeDto) => o.maritalStatus !== null)
-  @IsIn(MARITAL, { message: 'Невідомий сімейний стан' })
+  @IsIn(MARITAL_STATUS_CODES, { message: 'Невідомий сімейний стан' })
   maritalStatus?: MaritalStatus | null;
 
   @IsOptional()
@@ -200,9 +193,9 @@ export class CreateEmployeeDto {
   )
   familyMembers?: FamilyMemberDto[];
 
-  @Str('position') position?: string;
-  @Str('department') department?: string;
-  @Str('positionOrder') positionOrder?: string;
+  @EmployeeStr('position') position?: string;
+  @EmployeeStr('department') department?: string;
+  @EmployeeStr('positionOrder') positionOrder?: string;
   @DateField()
   @Rule((v: string, dto) => !dto.hireDate || v >= (dto.hireDate as string), 'Раніше за дату прийняття')
   positionSince?: string | null;
@@ -214,20 +207,20 @@ export class CreateEmployeeDto {
   positions?: EmployeePositionDto[];
 
   @DateField() hireDate?: string | null;
-  @Str('hireOrderDocName') hireOrderDocName?: string;
-  @Str('hireOrderNumber') hireOrderNumber?: string;
+  @EmployeeStr('hireOrderDocName') hireOrderDocName?: string;
+  @EmployeeStr('hireOrderNumber') hireOrderNumber?: string;
   @DateField() hireOrderDate?: string | null;
 
   /** Dismissal is entered in the edit form as well (a TCK notice is created). */
   @DateField()
   @Rule((v: string, dto) => !dto.hireDate || v >= (dto.hireDate as string), 'Раніше за дату прийняття')
   dismissalDate?: string | null;
-  @Str('dismissalOrderDocName') dismissalOrderDocName?: string;
-  @Str('dismissalOrderNumber') dismissalOrderNumber?: string;
+  @EmployeeStr('dismissalOrderDocName') dismissalOrderDocName?: string;
+  @EmployeeStr('dismissalOrderNumber') dismissalOrderNumber?: string;
   @DateField() dismissalOrderDate?: string | null;
 
   @IsOptional() @IsBoolean() militaryRegistered?: boolean;
-  @Str('registryNumber') @Pattern(PATTERN.registryNumber, MESSAGE.registryNumber) registryNumber?: string;
+  @EmployeeStr('registryNumber') @Pattern(PATTERN.registryNumber, MESSAGE.registryNumber) registryNumber?: string;
 
   @IsOptional()
   @ValidateIf((o: CreateEmployeeDto) => o.rankCode !== null)
@@ -237,7 +230,7 @@ export class CreateEmployeeDto {
   rankCode?: number | null;
 
   @IsOptional() @IsBoolean() navy?: boolean;
-  @Str('vos')
+  @EmployeeStr('vos')
   @Rule((v: string, dto) => {
     const r = rankOf(dto);
     return r === null || r === undefined || r < 12 || PATTERN.vosOfficer.test(v);
@@ -247,8 +240,8 @@ export class CreateEmployeeDto {
     return r === null || r === undefined || r === 0 || r >= 12 || PATTERN.vosOther.test(v);
   }, MESSAGE.vosOther)
   vos?: string;
-  @Str('trainingProfile') trainingProfile?: string;
-  @Str('accountingCategory')
+  @EmployeeStr('trainingProfile') trainingProfile?: string;
+  @EmployeeStr('accountingCategory')
   @Pattern(PATTERN.accountingCategory, MESSAGE.accountingCategory)
   accountingCategory?: string;
   @IsOptional()
@@ -266,8 +259,8 @@ export class CreateEmployeeDto {
   tckId?: string | null;
 
   @PastDate() tckRegisteredAt?: string | null;
-  @Str('fitness') fitness?: string;
-  @Str('fitnessBasis') fitnessBasis?: string;
+  @EmployeeStr('fitness') fitness?: string;
+  @EmployeeStr('fitnessBasis') fitnessBasis?: string;
   @PastDate() fitnessDate?: string | null;
   @DateField()
   @Rule(
@@ -278,30 +271,30 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsBoolean({ message: 'Вкажіть, чи заброньований працівник' })
   reserved?: boolean;
-  @Str('reservationBasis') reservationBasis?: string;
-  @Str('specialAccountingCertificate') specialAccountingCertificate?: string;
+  @EmployeeStr('reservationBasis') reservationBasis?: string;
+  @EmployeeStr('specialAccountingCertificate') specialAccountingCertificate?: string;
   @DateField()
   reservationUntil?: string | null;
   @IsOptional()
   @IsIn(['COMPANY', 'OTHER'], { message: 'Ким заброньовано: COMPANY або OTHER' })
   reservedBy?: 'COMPANY' | 'OTHER';
-  @Str('reservedByName') reservedByName?: string;
-  @Str('reservedByEdrpou') @Pattern(PATTERN.edrpou, MESSAGE.edrpou) reservedByEdrpou?: string;
-  @Str('deferralConscriptionBasis') deferralConscriptionBasis?: string;
-  @Str('deferralMobilizationBasis') deferralMobilizationBasis?: string;
+  @EmployeeStr('reservedByName') reservedByName?: string;
+  @EmployeeStr('reservedByEdrpou') @Pattern(PATTERN.edrpou, MESSAGE.edrpou) reservedByEdrpou?: string;
+  @EmployeeStr('deferralConscriptionBasis') deferralConscriptionBasis?: string;
+  @EmployeeStr('deferralMobilizationBasis') deferralMobilizationBasis?: string;
   @DateField() deferralUntil?: string | null;
   /** Deferral «до завершення мобілізації» instead of a date. */
   @IsOptional() @IsBoolean() deferralUntilMobilizationEnd?: boolean;
-  @Str('reserveTeamNumber') reserveTeamNumber?: string;
+  @EmployeeStr('reserveTeamNumber') reserveTeamNumber?: string;
   @PastDate() mobilizationOrderDate?: string | null;
-  @Str('militaryServiceInfo') militaryServiceInfo?: string;
+  @EmployeeStr('militaryServiceInfo') militaryServiceInfo?: string;
   @PastDate() mobilizedAt?: string | null;
-  @Str('mobilizationReleaseOrder') mobilizationReleaseOrder?: string;
+  @EmployeeStr('mobilizationReleaseOrder') mobilizationReleaseOrder?: string;
   @PastDate()
   @Rule((v: string, dto) => !dto.mobilizedAt || v >= (dto.mobilizedAt as string), 'Раніше за дату мобілізації')
   demobilizedAt?: string | null;
-  @Str('readmissionOrder') readmissionOrder?: string;
-  @Str('notes') notes?: string;
+  @EmployeeStr('readmissionOrder') readmissionOrder?: string;
+  @EmployeeStr('notes') notes?: string;
 
   @IsOptional()
   @ValidateNested()
@@ -315,10 +308,10 @@ export class UpdateEmployeeDto extends PartialType(OmitType(CreateEmployeeDto, [
 
 export class DismissEmployeeDto {
   @IsIsoDate() dismissalDate: string;
-  @Str('dismissalOrderDocName') dismissalOrderDocName?: string;
+  @EmployeeStr('dismissalOrderDocName') dismissalOrderDocName?: string;
   @IsOptional() @IsString() @MaxLength(50, { message: MESSAGE.tooLong(50) }) dismissalOrderNumber?: string;
   @DateField() dismissalOrderDate?: string | null;
-  @Str('changeBasis') basis?: string;
+  @EmployeeStr('changeBasis') basis?: string;
 }
 
 export class EmployeeQueryDto {
@@ -336,7 +329,7 @@ export class EmployeeQueryDto {
 
 export class UpdateChangeDto {
   @IsOptional() @IsIsoDate() effectiveDate?: string;
-  @Str('changeBasis') basis?: string;
+  @EmployeeStr('changeBasis') basis?: string;
   @IsOptional() @IsBoolean() skipped?: boolean;
 }
 

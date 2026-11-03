@@ -5,9 +5,9 @@
  * Layout follows sheets GN1…GN4R of the Excel file: a separate list per group, one row per record.
  * Column meanings follow the official "ПЕРЕЛІК інформації" that accompanies the form.
  */
-import { formatUa, formatUaQuoted } from '../common/utils/dates.js';
+import { formatUa, formatUaQuoted } from '../common/utils/dates.utils.js';
 import type { Employee } from '../employees/entities/employee.entity.js';
-import { toMilitaryRecord } from '../employees/employee-view.js';
+import { toMilitaryRecord } from '../employees/utils/employee-view.utils.js';
 import { fullName, militaryDocText, passportText, positionText, rankText } from './employee-format.js';
 import {
   dutyCategory,
@@ -20,7 +20,7 @@ import {
   recordWarnings,
 } from './military-logic.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
-import type { ListRowStatus } from '../shared/interfaces/report.interface.js';
+import type { ListRowStatus, ListRowStatusContext } from '../shared/interfaces/report.interface.js';
 
 const join = (parts: Array<string | null | undefined | false>, sep = ', ') =>
   parts.filter((p): p is string => !!p && !!p.trim()).join(sep);
@@ -176,11 +176,7 @@ export function hasDeferralAt(e: Employee, date: IsoDate, mobilizationUntil: Iso
 }
 
 /** Statuses of one record for the on-screen list (badges and filters). */
-export function listRowStatus(
-  e: Employee,
-  date: IsoDate,
-  ctx: { mobilizationUntil: IsoDate | null; alertDays: number; pendingNotices: number; lastNoticeDate: IsoDate | null },
-): ListRowStatus {
+export function listRowStatus(e: Employee, date: IsoDate, ctx: ListRowStatusContext): ListRowStatus {
   const r = toMilitaryRecord(e);
   const reserved = isReservedAt(r, date);
   const deferral = !reserved && hasDeferralAt(e, date, ctx.mobilizationUntil);

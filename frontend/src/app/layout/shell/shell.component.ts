@@ -5,6 +5,7 @@ import {
   computed,
   DestroyRef,
   effect,
+  untracked,
   inject,
   signal,
 } from '@angular/core';
@@ -22,7 +23,7 @@ import type { InboxItem } from '../../shared/interfaces/inbox.interface';
 import { NavigationStateService } from '../../shared/services/navigation-state.service';
 import { CommandPaletteComponent } from '../command-palette/command-palette.component';
 import type { Organization } from '../../shared/interfaces/organization.interface';
-import type { NavItem } from '../../shared/interfaces/ui.interface';
+import type { NavGroup } from '../../shared/interfaces/ui.interface';
 
 @Component({
   selector: 'app-shell',
@@ -89,9 +90,11 @@ export class ShellComponent {
       this.inbox.reset();
     });
     // refresh after every navigation — the data could have changed (a card saved, a letter sent)
+    // refreshed at most once a minute while moving between pages; always fresh on the dashboard
     effect(() => {
       this.navigationTick();
-      if (this.auth.isAuthenticated() && !this.auth.mustChangePassword()) void this.inbox.load();
+      if (!this.auth.isAuthenticated() || this.auth.mustChangePassword()) return;
+      void this.inbox.refresh(untracked(() => this.router.url) === '/' ? 0 : 60_000);
     });
     // right after a sign-in: show the new notifications once
     effect(() => {
@@ -166,7 +169,7 @@ export class ShellComponent {
     this.pending.hasValue() ? this.pending.value().length : 0,
   );
 
-  private readonly groups: { title: string; items: NavItem[] }[] = [
+  private readonly groups: NavGroup[] = [
     {
       title: 'Робота',
       items: [

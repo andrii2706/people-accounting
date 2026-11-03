@@ -7,8 +7,9 @@ import { FormFieldComponent } from '../../shared/components/form-field/form-fiel
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { AuthService } from '../../shared/services/auth.service';
 import { ToastService } from '../../shared/services/toast.service';
-import { apiErrorMessage } from '../../shared/utils/api-error.utils';
+import { apiErrorMessage, bindApiErrors } from '../../shared/utils/api-error.utils';
 import { passwordProblems } from '../../shared/validators/password.validators';
+import type { UserPreferences } from '../../shared/interfaces/auth.interface';
 
 /** Profile: change own password (mandatory while the password is temporary). */
 @Component({
@@ -24,7 +25,7 @@ export class ProfileComponent {
   private readonly http = inject(HttpClient);
 
   /** E-mail reminders on / off (not available until the temporary password is changed). */
-  protected readonly preferences = httpResource<{ notify: boolean }>(() =>
+  protected readonly preferences = httpResource<UserPreferences>(() =>
     this.auth.mustChangePassword() ? undefined : '/api/auth/preferences',
   );
   protected readonly savingNotify = signal(false);
@@ -33,7 +34,7 @@ export class ProfileComponent {
     this.savingNotify.set(true);
     try {
       const value = await firstValueFrom(
-        this.http.patch<{ notify: boolean }>('/api/auth/preferences', { notify }),
+        this.http.patch<UserPreferences>('/api/auth/preferences', { notify }),
       );
       this.preferences.set(value);
       this.toast.success(notify ? 'Сповіщення на пошту увімкнено' : 'Сповіщення вимкнено');
@@ -53,12 +54,12 @@ export class ProfileComponent {
     validate(p.newPassword, ({ value }) => {
       const problems = passwordProblems(value(), this.auth.user()?.email);
       return problems.length
-        ? { kind: 'policy', message: `Пароль: ${problems.join(', ')}` }
+        ? { kind: 'policy', message: `Потрібно: ${problems.join(', ')}` }
         : undefined;
     });
     validate(p.newPassword, ({ value, valueOf }) =>
       value() && value() === valueOf(p.currentPassword)
-        ? { kind: 'same', message: 'Новий пароль має відрізнятися від поточного' }
+        ? { kind: 'same', message: 'Має відрізнятися від поточного' }
         : undefined,
     );
     validate(p.confirmPassword, ({ value, valueOf }) =>
@@ -81,10 +82,12 @@ export class ProfileComponent {
         this.passwordForm().reset();
         this.toast.success('Пароль змінено. Інші сесії завершено.');
         if (forced) await this.router.navigateByUrl('/');
+        return undefined;
       } catch (err) {
-        this.error.set(apiErrorMessage(err));
+        const { fieldErrors, unmatched } = bindApiErrors<never>(err, this.passwordForm);
+        this.error.set(unmatched.join('; '));
+        return fieldErrors;
       }
-      return undefined;
     });
   }
 }

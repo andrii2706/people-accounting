@@ -1,20 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { addDays, formatUa, todayIso } from '../common/utils/dates.js';
+import { addDays, formatUa, todayIso } from '../common/utils/dates.utils.js';
 import { loadEnv } from '../config/env.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { Organization } from '../organization/organization.entity.js';
-import { htmlToText, parseMobilizationTerm } from './decree-parser.js';
-import { NIL_REF, NotificationsService } from './notifications.service.js';
-import type { IsoDate } from '../shared/interfaces/common.interface.js';
-
-/** How many days before the end of a deferral / reservation the reminder is sent. */
-export const REMIND_DAYS_BEFORE = 5;
-/** Remind to check the decrees this many days before the mobilization term ends. */
-const MOBILIZATION_REMIND_DAYS = 14;
-
-const fullName = (e: Employee) => `${e.lastName} ${e.firstName} ${e.middleName}`.trim();
+import { htmlToText, parseMobilizationTerm } from './utils/decree-parser.utils.js';
+import { NotificationsService } from './notifications.service.js';
+import type { ErrorWithCause, IsoDate } from '../shared/interfaces/common.interface.js';
+import type { DueDeferral } from '../shared/interfaces/employee.interface.js';
+import { MOBILIZATION_REMIND_DAYS } from './notifications.constants.js';
+import { NIL_UUID } from '../common/constants/common.constants.js';
+import { REMIND_DAYS_BEFORE } from './notifications.constants.js';
+import { employeeFullName } from '../employees/utils/employee-text.utils.js';
 
 /**
  * Runs once a day (Cloud Scheduler → Cloud Run Job «military-registry-daily»):
@@ -84,7 +82,7 @@ export class DailyJobService {
       return { ok: true, until: term.until, decree: org.mobilizationDecree, changed };
     } catch (err) {
       this.logger.error(`Не вдалося перевірити укази (${source})`, err as Error);
-      const cause = (err as { cause?: { code?: string } }).cause?.code;
+      const cause = (err as ErrorWithCause).cause?.code;
       const reason =
         err instanceof Error && err.name === 'TimeoutError'
           ? 'сайт не відповідає'
@@ -102,20 +100,20 @@ export class DailyJobService {
   private async mobilizationEndingReminder(org: Organization, today: IsoDate) {
     const until = org.mobilizationUntil;
     if (!until || until < today || until > addDays(today, MOBILIZATION_REMIND_DAYS)) return 0;
-    if (await this.notifications.wasSent('MOBILIZATION_ENDING', NIL_REF, until)) return 0;
+    if (await this.notifications.wasSent('MOBILIZATION_ENDING', NIL_UUID, until)) return 0;
     const sent = await this.notifications.notifyUsers(
       `Строк мобілізації спливає ${formatUa(until)}`,
       `За останнім відомим указом загальна мобілізація триває до ${formatUa(until)}. Новий указ про продовження поки не знайдено — ` +
         'система перевіряє щодня. Після продовження строки відстрочок «до завершення мобілізації» оновляться автоматично.',
     );
-    await this.notifications.markSent('MOBILIZATION_ENDING', [{ refId: NIL_REF, refDate: until }], sent);
+    await this.notifications.markSent('MOBILIZATION_ENDING', [{ refId: NIL_UUID, refDate: until }], sent);
     return sent;
   }
 
   /** Deferrals that end in ≤ 5 days — one digest letter, each person once per end date. */
   private async deferralReminders(org: Organization, today: IsoDate) {
     const limit = addDays(today, REMIND_DAYS_BEFORE);
-    const due: { e: Employee; end: IsoDate }[] = [];
+    const due: DueDeferral[] = [];
     for (const e of await this.activeEmployees(today)) {
       const end = e.deferralUntilMobilizationEnd ? org.mobilizationUntil : e.deferralUntil;
       if (!end || end < today || end > limit) continue;
@@ -125,7 +123,7 @@ export class DailyJobService {
     if (!due.length) return 0;
     const lines = due.map(
       ({ e, end }) =>
-        `• ${fullName(e)} — відстрочка до ${formatUa(end)}${e.deferralUntilMobilizationEnd ? ' (до завершення мобілізації)' : ''}` +
+        `• ${employeeFullName(e)} — відстрочка до ${formatUa(end)}${e.deferralUntilMobilizationEnd ? ' (до завершення мобілізації)' : ''}` +
         `${e.deferralMobilizationBasis || e.deferralConscriptionBasis ? `, підстава: ${e.deferralMobilizationBasis || e.deferralConscriptionBasis}` : ''}\n  ${this.env.appUrl}/employees/${e.id}`,
     );
     const sent = await this.notifications.notifyUsers(
@@ -156,7 +154,7 @@ export class DailyJobService {
         due
           .map(
             (e) =>
-              `• ${fullName(e)} — заброньовано до ${formatUa(e.reservationUntil!)}\n  ${this.env.appUrl}/employees/${e.id}`,
+              `• ${employeeFullName(e)} — заброньовано до ${formatUa(e.reservationUntil!)}\n  ${this.env.appUrl}/employees/${e.id}`,
           )
           .join('\n'),
     );

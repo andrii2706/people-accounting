@@ -2,11 +2,12 @@
  * Pure functions without DB dependencies — ports of the formulas of the employee card
  * (sheets 01–21, columns FD–GT) and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
-import { addDays, daysBetween, fifthOfNextMonth, fullYears, yearOf } from '../common/utils/dates.js';
+import { addDays, daysBetween, fifthOfNextMonth, fullYears, yearOf } from '../common/utils/dates.utils.js';
 import { COMPOSITION_LABELS, findRank, OFFICER_MIN_CODE } from './ranks.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import type { ChangeType, ListGroup, DutyCategory, RankDef } from '../shared/interfaces/dictionary.interface.js';
 import type { MilitaryRecord, OperationalRow, RecordWarning } from '../shared/interfaces/employee.interface.js';
+import type { ChangeOrderDates } from '../shared/interfaces/letter.interface.js';
 
 export function isOfficer(r: Pick<MilitaryRecord, 'rankCode'>): boolean {
   return r.rankCode !== null && r.rankCode >= OFFICER_MIN_CODE;
@@ -256,7 +257,7 @@ export function recordWarnings(r: MilitaryRecord, date: IsoDate, reservationAler
 export function notificationDeadline(
   type: ChangeType,
   effectiveDate: IsoDate,
-  orders?: { hireOrderDate: IsoDate | null; dismissalOrderDate: IsoDate | null } | null,
+  orders?: ChangeOrderDates | null,
   days = 7,
 ): IsoDate {
   if (type === 'HIRE' || type === 'DISMISSAL') {

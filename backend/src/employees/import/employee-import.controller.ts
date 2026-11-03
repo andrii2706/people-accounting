@@ -1,4 +1,3 @@
-import type { HireNoticesMode } from '../../shared/interfaces/import.interface.js';
 import {
   BadRequestException,
   Body,
@@ -12,55 +11,15 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsArray,
-  IsIn,
-  IsInt,
-  IsObject,
-  IsOptional,
-  IsString,
-  MaxLength,
-  ValidateNested,
-} from 'class-validator';
 import type { Response } from 'express';
 import { AuditService } from '../../audit/audit.service.js';
-import { CurrentUser } from '../../common/auth.js';
+import { CurrentUser } from '../../common/decorators/auth.decorators.js';
 import { EmployeeImportService } from './employee-import.service.js';
-import { MAX_IMPORT_ROWS } from './import-reader.js';
 import type { AuthUser } from '../../shared/interfaces/auth.interface.js';
-import type { ImportValues, UploadedTable } from '../../shared/interfaces/import.interface.js';
-
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-
-class ImportIssueDto {
-  @IsString() @MaxLength(100) field: string;
-  @IsString() @MaxLength(500) message: string;
-}
-
-class ImportRowDto {
-  @IsInt() rowNumber: number;
-  /** CreateEmployeeDto values — validated by the service with the same DTO. */
-  @IsObject() values: ImportValues;
-  @IsArray() @ArrayMaxSize(100) @ValidateNested({ each: true }) @Type(() => ImportIssueDto) issues: ImportIssueDto[];
-}
-
-class ImportRowsDto {
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(MAX_IMPORT_ROWS)
-  @ValidateNested({ each: true })
-  @Type(() => ImportRowDto)
-  rows: ImportRowDto[];
-}
-
-class ImportCommitDto extends ImportRowsDto {
-  /** RECENT (default) / ALL / NONE; true / false are accepted as ALL / NONE for older clients. */
-  @IsOptional() @IsIn([true, false, 'RECENT', 'ALL', 'NONE']) hireNotices?: boolean | HireNoticesMode;
-  @IsOptional() @IsString() @MaxLength(255) fileName?: string;
-}
+import type { UploadedTable } from '../../shared/interfaces/import.interface.js';
+import { MAX_IMPORT_FILE_BYTES } from './import.constants.js';
+import { ImportCommitDto } from './employee-import.dto.js';
+import { ImportRowsDto } from './employee-import.dto.js';
 
 @ApiTags('employees')
 @Controller('employees/import')
@@ -84,7 +43,7 @@ export class EmployeeImportController {
   /** Reads the file and returns the checked rows — nothing is saved. The file itself is not stored. */
   @Post('preview')
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_FILE_BYTES, files: 1 } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMPORT_FILE_BYTES, files: 1 } }))
   preview(@UploadedFile() file: UploadedTable | undefined) {
     if (!file) throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: ['Оберіть файл'] });
     // multer gives the name in latin1

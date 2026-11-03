@@ -3,7 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthGuard } from '../common/auth.js';
+import { AuthGuard } from '../common/guards/auth.guard.js';
 import { loadEnv } from '../config/env.js';
 import { User } from '../users/user.entity.js';
 import { UsersModule } from '../users/users.module.js';

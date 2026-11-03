@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { employeeListQueryKey } from '../../shared/utils/router.utils';
 import { employeeCopyResolver } from './resolvers/employee-copy.resolver';
 import { employeeDetailsResolver } from './resolvers/employee-details.resolver';
 import { employeeListResolver } from './resolvers/employee-list.resolver';
@@ -9,7 +10,9 @@ export const EMPLOYEES_ROUTES: Routes = [
     path: '',
     title: 'Працівники · Військовий облік',
     resolve: { list: employeeListResolver },
-    runGuardsAndResolvers: 'paramsOrQueryParamsChange',
+    // the tabs «Потребують уваги / Відстрочка / Заброньовані» (?view=) filter the loaded list in the
+    // browser — switching them must not download the whole list again
+    runGuardsAndResolvers: (from, to) => employeeListQueryKey(from) !== employeeListQueryKey(to),
     loadComponent: () =>
       import('./employee-list/employee-list.component').then((m) => m.EmployeeListComponent),
   },

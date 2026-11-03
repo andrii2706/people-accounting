@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuditModule } from './audit/audit.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { loadEnv, validateEnv } from './config/env.js';
-import { Public } from './common/auth.js';
+import { Public } from './common/decorators/auth.decorators.js';
 import { buildDataSourceOptions } from './database/data-source.js';
 import { DictionariesModule } from './dictionaries/dictionaries.module.js';
 import { EmployeesModule } from './employees/employees.module.js';

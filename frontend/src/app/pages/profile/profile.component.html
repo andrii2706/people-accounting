@@ -27,7 +27,7 @@
     label="Новий пароль"
     [required]="true"
     [field]="passwordForm.newPassword"
-    hint="Щонайменше 12 символів, літери й цифри. Краще — фраза з кількох слів."
+    hint="Щонайменше 12 символів, літери й цифри, без частини email. Краще — фраза з кількох слів."
   >
     <input
       class="input"
@@ -40,6 +40,7 @@
     label="Повторіть новий пароль"
     [required]="true"
     [field]="passwordForm.confirmPassword"
+    hint="Ще раз той самий новий пароль"
   >
     <input
       class="input"

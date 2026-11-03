@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { CookieOptions, Response } from 'express';
 import { loadEnv } from '../config/env.js';
-import type { SessionPayload, UserRole } from '../shared/interfaces/auth.interface.js';
+import type { SessionPayload, SessionSubject } from '../shared/interfaces/auth.interface.js';
 
 /**
  * Issues and extends the session in an httpOnly cookie.
@@ -29,7 +29,7 @@ export class SessionService {
     };
   }
 
-  async issue(res: Response, user: { id: string; role: UserRole; tokenVersion: number }, sessionStart?: number) {
+  async issue(res: Response, user: SessionSubject, sessionStart?: number) {
     const payload: SessionPayload = {
       sub: user.id,
       ver: user.tokenVersion,

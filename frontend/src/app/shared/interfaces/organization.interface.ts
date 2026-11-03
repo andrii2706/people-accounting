@@ -79,3 +79,25 @@ export interface OrganizationSettingsData {
   heads: OrganizationHead[];
   status: NotificationStatus;
 }
+
+/** POST /api/notifications/test */
+export interface TestMailResult {
+  sent: boolean;
+}
+
+/** POST /api/tck/import */
+export interface TckImportResult {
+  created: number;
+  updated: number;
+}
+
+/** A TCK export file picked for import, before confirmation. */
+export interface PendingTckImport {
+  file: string;
+  items: TckImportItem[];
+}
+
+/** Shape of a TCK export file: an array or { items: [...] }. */
+export interface TckImportFile {
+  items?: unknown;
+}

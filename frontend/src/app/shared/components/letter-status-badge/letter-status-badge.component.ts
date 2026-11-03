@@ -1,10 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { LETTER_STATUS_BADGES } from '../../constants/badges.constants';
 import type { LetterStatus } from '../../interfaces/letter.interface';
-
-const STATUS: Record<LetterStatus, { label: string; cls: string }> = {
-  DRAFT: { label: 'Чернетка', cls: 'bg-sunken text-muted' },
-  SENT: { label: 'Надіслано', cls: 'bg-[#e3f1e5] text-ok' },
-};
 
 @Component({
   selector: 'app-letter-status',
@@ -13,5 +9,5 @@ const STATUS: Record<LetterStatus, { label: string; cls: string }> = {
 })
 export class LetterStatusBadgeComponent {
   readonly status = input.required<LetterStatus>();
-  protected readonly meta = computed(() => STATUS[this.status()]);
+  protected readonly meta = computed(() => LETTER_STATUS_BADGES[this.status()]);
 }

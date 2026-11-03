@@ -1,18 +1,22 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { Repository } from 'typeorm';
-import { generateTemporaryPassword, passwordMessage, passwordProblems } from '../common/password-policy.js';
+import { generateTemporaryPassword, passwordProblems } from '../common/utils/password-policy.utils.js';
+import { fieldErrors } from '../common/validators/validators.js';
 import { loadEnv } from '../config/env.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { User } from './user.entity.js';
-import type { UserRole, CredentialsResult } from '../shared/interfaces/auth.interface.js';
-
-const BCRYPT_ROUNDS = 12;
-/** Hash used to equalize response time when the email does not exist (protection against email enumeration). */
-const DUMMY_HASH = bcrypt.hashSync('timing-equalizer-not-a-password', BCRYPT_ROUNDS);
+import type {
+  CreateUserOptions,
+  CredentialsResult,
+  UserLookup,
+  UserRole,
+} from '../shared/interfaces/auth.interface.js';
+import { BCRYPT_ROUNDS } from './users.constants.js';
+import { DUMMY_HASH } from './users.constants.js';
 
 @Injectable()
 export class UsersService {
@@ -41,7 +45,7 @@ export class UsersService {
     return this.repo.createQueryBuilder('u').addSelect('u.tokenVersion').where('u.id = :id', { id }).getOne();
   }
 
-  private findWithSecrets(where: { id?: string; email?: string }) {
+  private findWithSecrets(where: UserLookup) {
     const qb = this.repo.createQueryBuilder('u').addSelect(['u.passwordHash', 'u.tokenVersion', 'u.failedLoginCount']);
     if (where.id) qb.where('u.id = :id', { id: where.id });
     else qb.where('LOWER(u.email) = LOWER(:email)', { email: where.email });
@@ -72,9 +76,10 @@ export class UsersService {
     return { status: 'ok', user };
   }
 
-  async create(dto: CreateUserDto, opts: { mustChangePassword?: boolean; silent?: boolean } = {}) {
+  async create(dto: CreateUserDto, opts: CreateUserOptions = {}) {
     const email = dto.email.toLowerCase();
-    if (await this.repo.exists({ where: { email } })) throw new ConflictException('Користувач з таким email вже існує');
+    if (await this.repo.exists({ where: { email } }))
+      throw fieldErrors([{ field: 'email', message: 'Користувач з таким email уже існує' }]);
     this.assertPolicy(dto.password, email);
     const saved = await this.repo.save(
       this.repo.create({
@@ -181,12 +186,12 @@ export class UsersService {
 
   async changeOwnPassword(id: string, currentPassword: string, newPassword: string) {
     const user = await this.findWithSecrets({ id });
-    if (!user) throw new NotFoundException();
+    if (!user) throw new NotFoundException('Користувача не знайдено');
     if (!(await bcrypt.compare(currentPassword, user.passwordHash)))
-      throw new BadRequestException('Поточний пароль невірний');
+      throw fieldErrors([{ field: 'currentPassword', message: 'Поточний пароль невірний' }]);
     if (await bcrypt.compare(newPassword, user.passwordHash))
-      throw new BadRequestException('Новий пароль має відрізнятися від поточного');
-    this.assertPolicy(newPassword, user.email);
+      throw fieldErrors([{ field: 'newPassword', message: 'Має відрізнятися від поточного' }]);
+    this.assertPolicy(newPassword, user.email, 'newPassword');
     await this.repo.update(id, {
       passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS),
       mustChangePassword: false,
@@ -211,8 +216,8 @@ export class UsersService {
     );
   }
 
-  private assertPolicy(password: string, email: string) {
+  private assertPolicy(password: string, email: string, field = 'password') {
     const problems = passwordProblems(password, email);
-    if (problems.length) throw new BadRequestException(passwordMessage(problems));
+    if (problems.length) throw fieldErrors([{ field, message: `Потрібно: ${problems.join(', ')}` }]);
   }
 }

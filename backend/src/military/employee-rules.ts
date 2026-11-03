@@ -1,9 +1,11 @@
 /**
  * Employee card validation rules — the SINGLE source for the frontend and backend.
  * Copies: frontend/src/app/shared/validators/employee-rules.ts and backend/src/military/employee-rules.ts — keep them identical
+ * (apart from the import path of the shared interfaces)
  * (after moving to a monorepo — one package @military/shared).
  * No dependencies on Angular/NestJS.
  */
+import type { DocNumberParts } from '../shared/interfaces/employee.interface.js';
 
 /** Maximum length of string fields = column length in the DB. */
 export const MAX_LENGTH = {
@@ -85,6 +87,9 @@ export const PATTERN = {
   /** Time the e-document was generated: HH:MM. */
   docGeneratedTime: /^([01]\d|2[0-3]):[0-5]\d$/,
   edrpou: /^\d{8}$/,
+  /** Company code: ЄДРПОУ (8 digits) or РНОКПП of a sole proprietor (10 digits). */
+  companyCode: /^(\d{8}|\d{10})$/,
+  postalCode: /^\d{5}$/,
   registryNumber: /^[\p{L}\d\-/ ]{1,50}$/u,
 } as const;
 
@@ -94,7 +99,10 @@ export const MESSAGE = {
   name: 'Лише літери, апостроф і дефіс',
   rnokpp: 'РНОКПП — рівно 10 цифр',
   phone: 'Формат: +380 67 123 45 67',
-  email: 'Некоректний email',
+  email: 'Некоректний email — приклад: name@company.ua',
+  emailList: 'Перелік email через кому, напр. hr@company.ua, boss@company.ua',
+  postalCode: 'Поштовий індекс — 5 цифр, напр. 79000',
+  companyCode: 'ЄДРПОУ — 8 цифр або РНОКПП ФОП — 10 цифр',
   passportBookSeries: 'Серія — дві літери кирилицею, напр. КС',
   passportBookNumber: 'Номер паспорта-книжечки — 6 цифр',
   idCardNumber: 'Номер ID-картки — 9 цифр',
@@ -107,7 +115,7 @@ export const MESSAGE = {
   vosOther: 'ВОС — 3 або 6 цифр, можна з літерою в кінці: 100, 100915 або 837А',
   accountingCategory: 'Категорія обліку / розряд — 1 або 2',
   docGeneratedTime: 'Час у форматі ГГ:ХХ, напр. 10:15',
-  edrpou: 'Код ЄДРПОУ — 8 цифр',
+  edrpou: 'Код ЄДРПОУ — 8 цифр, напр. 12345678',
   registryNumber: 'Лише цифри, літери, «-» та «/»',
   futureDate: 'Дата не може бути в майбутньому',
   beforeBirth: 'Раніше за дату народження',
@@ -173,7 +181,7 @@ export function isElectronicDocType(type: string | null | undefined): boolean {
  * Number of a paper document from free text: «№ 123456», «АА 123456», «АА№123456» →
  * series and number separately. Unrecognised text is returned as it is.
  */
-export function splitDocNumber(text: string): { series: string; number: string } {
+export function splitDocNumber(text: string): DocNumberParts {
   const compact = text.trim().replace(/^№\s*/u, '');
   const m = /^(\p{L}{1,3})?\s*№?\s*(\d[\d\s/-]*\d|\d)$/u.exec(compact);
   if (!m) return { series: '', number: compact };

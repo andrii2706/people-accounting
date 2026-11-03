@@ -1,47 +1,20 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import JSZip from 'jszip';
-import { createHash } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service.js';
 import { loadEnv } from '../config/env.js';
 import { LetterSignature } from '../letters/entities/letter-signature.entity.js';
 import { OutgoingLetter } from '../letters/entities/outgoing-letter.entity.js';
-import { DOCX_MIME, LettersService, P7S_MIME } from '../letters/letters.service.js';
+import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
+import { LettersService } from '../letters/letters.service.js';
 import { StorageService } from '../storage/storage.service.js';
-import { parseAndVerifySignature, SignatureFileError } from './cms.js';
+import { parseAndVerifySignature, SignatureFileError } from './utils/cms.utils.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
-import type {
-  SignatureMethod,
-  SignerSummary,
-  ParsedSigner,
-  SignatureVerification,
-} from '../shared/interfaces/signature.interface.js';
-
-const sha256 = (data: Buffer) => createHash('sha256').update(data).digest('hex');
-const RANK: Record<SignatureVerification, number> = { UNVERIFIED: 0, DIGEST_MATCH: 1, VALID: 2 };
-
-function summary(s: ParsedSigner): SignerSummary {
-  const c = s.certificate;
-  const name = c ? c.commonName || [c.surname, c.givenName].filter(Boolean).join(' ') : '';
-  return {
-    name: name || 'Невідомий підписувач',
-    title: c?.title ?? '',
-    organization: c?.organization ?? '',
-    edrpou: c?.edrpou ?? '',
-    drfoMasked: c?.drfoMasked ?? '',
-    issuer: c?.issuer ?? '',
-    certificateSerial: c?.serialNumber ?? '',
-    certificateValidFrom: c?.validFrom.toISOString() ?? '',
-    certificateValidTo: c?.validTo.toISOString() ?? '',
-    signingTime: s.signingTime?.toISOString() ?? null,
-    hasTimestamp: s.hasTimestamp,
-    digestAlgorithm: s.digestAlgorithm,
-    signatureAlgorithm: s.signatureAlgorithm,
-    verification: s.verification,
-    notes: s.notes,
-  };
-}
+import type { SignatureMethod, SignatureVerification } from '../shared/interfaces/signature.interface.js';
+import { sha256 } from '../common/utils/hash.utils.js';
+import { VERIFICATION_RANK } from './signatures.constants.js';
+import { signerSummary } from './utils/signature-summary.utils.js';
 
 /**
  * Qualified e-signing of letters.
@@ -163,9 +136,9 @@ export class SignaturesService {
     if (await this.signatures.existsBy({ letterId: id, fileSha256: fileHash })) {
       throw new ConflictException('Цей файл підпису вже додано');
     }
-    const signers = parsed.signers.map(summary);
+    const signers = parsed.signers.map(signerSummary);
     const verification = signers.reduce<SignatureVerification>(
-      (worst, s) => (RANK[s.verification] < RANK[worst] ? s.verification : worst),
+      (worst, s) => (VERIFICATION_RANK[s.verification] < VERIFICATION_RANK[worst] ? s.verification : worst),
       'VALID',
     );
 
