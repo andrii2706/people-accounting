@@ -5,7 +5,9 @@ import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'ty
 import { AuditService } from '../audit/audit.service.js';
 import { blindIndex } from '../common/crypto/field-encryption.js';
 import { fieldErrors } from '../common/validators.js';
-import { formatUa, todayIso } from '../common/utils/dates.js';
+import { addDays, formatUa, todayIso } from '../common/utils/dates.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { HireNoticesMode } from '../shared/interfaces/import.interface.js';
 import { CHANGE_TYPE_LABELS, EDUCATION_LEVELS } from '../military/dictionaries.js';
 import { familyText, militaryDocText, passportText, rankText } from '../military/employee-format.js';
 import { isConscript, notificationDeadline } from '../military/military-logic.js';
@@ -31,6 +33,9 @@ import type { AuditAction } from '../shared/interfaces/common.interface.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 import type { ChangeType } from '../shared/interfaces/dictionary.interface.js';
 import type { ChangeRule } from '../shared/interfaces/employee.interface.js';
+
+/** Import: hiring / dismissal notices are queued for dates within this many days back (mode RECENT). */
+export const RECENT_NOTICE_DAYS = 30;
 
 const NULLABLE_DATES = new Set<keyof Employee>([
   'birthDate',
@@ -336,19 +341,28 @@ export class EmployeesService {
   }
 
   async create(dto: CreateEmployeeDto, user: AuthUser) {
-    const id = await this.dataSource.transaction((m) => this.createIn(m, dto, user));
+    const { id } = await this.dataSource.transaction((m) => this.createIn(m, dto, user));
     return this.get(id);
   }
 
   /**
    * Bulk creation (import from a file) — all or nothing, in one transaction.
-   * `hireNotices: false` — do not queue "прийняття на роботу" notices (people hired long ago).
+   * `hireNotices` — which hiring / dismissal notices to queue: RECENT — only when the date is within
+   * the last RECENT_NOTICE_DAYS days (people hired long ago were reported before), ALL, NONE.
    */
-  async createMany(dtos: CreateEmployeeDto[], user: AuthUser, opts: { hireNotices: boolean; source: string }) {
+  async createMany(dtos: CreateEmployeeDto[], user: AuthUser, opts: { hireNotices: HireNoticesMode; source: string }) {
     return this.dataSource.transaction(async (m) => {
       const ids: string[] = [];
-      for (const dto of dtos) ids.push(await this.createIn(m, dto, user, opts));
-      return ids;
+      let notices = 0;
+      const since = opts.hireNotices === 'RECENT' ? addDays(todayIso(), -RECENT_NOTICE_DAYS) : null;
+      const wants = (date: IsoDate | null) =>
+        !!date && (opts.hireNotices === 'ALL' || (opts.hireNotices === 'RECENT' && date >= since!));
+      for (const dto of dtos) {
+        const created = await this.createIn(m, dto, user, { source: opts.source, wantsNotice: wants });
+        ids.push(created.id);
+        notices += created.notices;
+      }
+      return { ids, notices };
     });
   }
 
@@ -356,8 +370,11 @@ export class EmployeesService {
     m: EntityManager,
     dto: CreateEmployeeDto,
     user: AuthUser,
-    opts: { hireNotices?: boolean; source?: string } = {},
+    opts: { wantsNotice?: (date: IsoDate | null) => boolean; source?: string } = {},
   ) {
+    // a card created by hand always queues its notices; the import decides per date
+    const wantsNotice = opts.wantsNotice ?? ((date: IsoDate | null) => !!date);
+    let notices = 0;
     const { changeMeta, familyMembers, militaryDocuments, positions, educations, ...data } = dto;
     const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
     // without an educations list (e.g. import) the education fields of the card become the first entry
@@ -398,7 +415,8 @@ export class EmployeesService {
     applyPositions(employee);
     const saved = await m.getRepository(Employee).save(employee);
 
-    if (saved.hireDate && opts.hireNotices !== false) {
+    if (saved.hireDate && wantsNotice(saved.hireDate)) {
+      notices++;
       await this.addChange(
         m,
         saved,
@@ -410,7 +428,8 @@ export class EmployeesService {
         user,
       );
     }
-    if (saved.dismissalDate && opts.hireNotices !== false) {
+    if (saved.dismissalDate && wantsNotice(saved.dismissalDate)) {
+      notices++;
       await this.addChange(
         m,
         saved,
@@ -425,7 +444,7 @@ export class EmployeesService {
     const diff: Record<string, [unknown, unknown]> = { fullName: [null, `${saved.lastName} ${saved.firstName}`] };
     if (opts.source) diff.source = [null, opts.source];
     await this.log(m, saved.id, 'CREATE', diff, user);
-    return saved.id;
+    return { id: saved.id, notices };
   }
 
   async update(id: string, dto: UpdateEmployeeDto, user: AuthUser) {

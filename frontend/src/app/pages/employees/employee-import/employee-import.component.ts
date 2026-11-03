@@ -18,6 +18,7 @@ import type {
   ImportFieldKind,
   ImportRowStatus,
   ImportRowFilter,
+  HireNoticesMode,
 } from '../../../shared/interfaces/employee-import.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
@@ -25,6 +26,7 @@ import { EmployeeImportService } from '../../../shared/services/employee-import.
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { todayIso } from '../../../shared/utils/date.utils';
 
 /** Fields editable on the preview — the most common ones plus any field that came from the file or has an error. */
 const EDIT_FIELDS: { key: string; label: string; kind: ImportFieldKind }[] = [
@@ -98,6 +100,15 @@ const statusOf = (r: CheckedImportRow): ImportRowStatus =>
  * 2) the user reviews, fixes rows and checks again;
  * 3) only the selected rows without errors are created — all at once.
  */
+/** Import: hiring notices are queued for hire dates within this many days back (as on the server). */
+const RECENT_NOTICE_DAYS = 30;
+
+function addDaysIso(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 @Component({
   selector: 'app-employee-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -119,7 +130,21 @@ export class EmployeeImportComponent {
   protected readonly dirty = signal(false);
   protected readonly expanded = signal<number | null>(null);
   protected readonly filter = signal<ImportRowFilter>('all');
-  protected readonly hireNotices = signal(false);
+  /** TCK notices about hiring: only the recently hired by default (people hired long ago were reported). */
+  protected readonly hireNotices = signal<HireNoticesMode>('RECENT');
+  protected readonly recentDays = RECENT_NOTICE_DAYS;
+  private readonly recentSince = addDaysIso(todayIso(), -RECENT_NOTICE_DAYS);
+  /** How many of the selected rows will get a notice in each mode. */
+  protected readonly noticeCounts = computed(() => {
+    const rows = this.rows().filter(
+      (r) => statusOf(r) === 'ready' && this.selected().has(r.rowNumber),
+    );
+    const dated = rows.filter((r) => r.values['hireDate']);
+    return {
+      ALL: dated.length,
+      RECENT: dated.filter((r) => String(r.values['hireDate']) >= this.recentSince).length,
+    };
+  });
   /** Selected rows (by row number); by default — every row that is ready. */
   protected readonly selected = linkedSignal<CheckedImportRow[], Set<number>>({
     source: this.rows,
@@ -318,7 +343,10 @@ export class EmployeeImportComponent {
     this.busy.set(true);
     try {
       const result = await this.importer.commit(rows, this.hireNotices(), this.preview()?.fileName);
-      this.toast.success(`Імпортовано працівників: ${result.created}`);
+      this.toast.success(
+        `Імпортовано працівників: ${result.created}` +
+          (result.notices ? `, створено повідомлень ТЦК: ${result.notices}` : ''),
+      );
       await this.router.navigate(['/employees']);
     } catch (err) {
       // the server re-checks everything; on a conflict it returns the checked rows

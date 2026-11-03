@@ -35,7 +35,12 @@ export interface ImportPreview {
 export interface ImportResult {
   created: number;
   ids: string[];
+  /** TCK notices about hiring / dismissal queued by the import. */
+  notices: number;
 }
+
+/** Which hiring / dismissal notices the import queues: recent ones (default), all, none. */
+export type HireNoticesMode = 'RECENT' | 'ALL' | 'NONE';
 
 export type ImportFieldKind =
   'text' | 'date' | 'gender' | 'rank' | 'tck' | 'passportType' | 'bool' | 'docType';

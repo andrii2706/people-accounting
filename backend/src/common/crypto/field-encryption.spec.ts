@@ -23,7 +23,10 @@ describe('шифрування полів', () => {
 
   it('виявляє підміну шифротексту', () => {
     const enc = encryptField('АА000001')!;
-    const tampered = enc.slice(0, -2) + (enc.endsWith('A') ? 'B' : 'A') + enc.slice(-1);
+    // the replaced character must differ from the original one (the ciphertext is random — IV)
+    const at = enc.length - 2;
+    const tampered = enc.slice(0, at) + (enc[at] === 'A' ? 'B' : 'A') + enc.slice(at + 1);
+    expect(tampered).not.toBe(enc);
     expect(() => decryptField(tampered)).toThrow();
   });
 

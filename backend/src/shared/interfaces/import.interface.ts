@@ -76,3 +76,9 @@ export interface UploadedTable {
   originalname: string;
   buffer: Buffer;
 }
+
+/**
+ * TCK notices about hiring / dismissal on import: only for the recently hired (default),
+ * for everyone, or none (the notices for people hired long ago were sent before).
+ */
+export type HireNoticesMode = 'RECENT' | 'ALL' | 'NONE';

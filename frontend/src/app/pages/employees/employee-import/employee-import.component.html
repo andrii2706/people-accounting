@@ -385,20 +385,46 @@
     class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur lg:pl-[88px] xl:pl-[272px]"
   >
     <div class="flex flex-wrap items-center gap-3">
-      <label class="mr-auto flex items-start gap-2 text-sm">
-        <input
-          type="checkbox"
-          class="mt-0.5 size-4 accent-brand-600"
-          [checked]="hireNotices()"
-          (change)="hireNotices.set($any($event.target).checked)"
-        />
-        <span>
-          Створити повідомлення ТЦК про прийняття на роботу
-          <span class="block text-xs text-muted"
-            >Лише для щойно прийнятих — для давніх працівників повідомлення вже надсилались</span
-          >
-        </span>
-      </label>
+      <fieldset class="mr-auto text-sm">
+        <legend class="mb-1 font-medium">Повідомлення ТЦК про прийняття на роботу</legend>
+        <div class="flex flex-wrap gap-x-5 gap-y-1">
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="hireNotices"
+              class="size-4 accent-brand-600"
+              [checked]="hireNotices() === 'RECENT'"
+              (change)="hireNotices.set('RECENT')"
+            />
+            Прийнятим за останні {{ recentDays }} днів
+            <span class="text-muted tabular-nums">({{ noticeCounts().RECENT }})</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="hireNotices"
+              class="size-4 accent-brand-600"
+              [checked]="hireNotices() === 'ALL'"
+              (change)="hireNotices.set('ALL')"
+            />
+            Усім <span class="text-muted tabular-nums">({{ noticeCounts().ALL }})</span>
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="radio"
+              name="hireNotices"
+              class="size-4 accent-brand-600"
+              [checked]="hireNotices() === 'NONE'"
+              (change)="hireNotices.set('NONE')"
+            />
+            Не створювати
+          </label>
+        </div>
+        <p class="mt-0.5 text-xs text-muted">
+          Давнім працівникам повідомлення вже надсилали, тож за замовчуванням — лише нещодавно
+          прийнятим (за датою прийняття).
+        </p>
+      </fieldset>
       @if (dirty()) {
         <span class="text-sm text-warning">Є зміни — перевірте ще раз</span>
         <button

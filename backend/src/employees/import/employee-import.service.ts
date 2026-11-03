@@ -1,3 +1,4 @@
+import type { HireNoticesMode } from '../../shared/interfaces/import.interface.js';
 import { matchTck } from '../../military/tck-match.js';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -70,7 +71,7 @@ export class EmployeeImportService {
   }
 
   /** Creates the employees from the rows that passed the check — all or nothing. */
-  async commit(rows: ImportRow[], opts: { hireNotices: boolean; fileName?: string }, user: AuthUser) {
+  async commit(rows: ImportRow[], opts: { hireNotices: HireNoticesMode; fileName?: string }, user: AuthUser) {
     const checked = await this.check(rows);
     const bad = checked.filter((r) => r.errors.length || r.duplicate);
     if (bad.length) {
@@ -82,12 +83,12 @@ export class EmployeeImportService {
       });
     }
     const source = `імпорт з файлу${opts.fileName ? ` «${opts.fileName}»` : ''}`;
-    const ids = await this.employeesService.createMany(
+    const { ids, notices } = await this.employeesService.createMany(
       checked.map((r) => toDtoValues(r.values) as unknown as CreateEmployeeDto),
       user,
       { hireNotices: opts.hireNotices, source },
     );
-    return { created: ids.length, ids };
+    return { created: ids.length, ids, notices };
   }
 
   /** Lookup of employees that already exist: by RNOKPP (blind index) or full name + date of birth. */

@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import type {
   CheckedImportRow,
+  HireNoticesMode,
   ImportPreview,
   ImportResult,
   ImportRow,
@@ -28,7 +29,7 @@ export class EmployeeImportService {
     );
   }
 
-  commit(rows: ImportRow[], hireNotices: boolean, fileName?: string) {
+  commit(rows: ImportRow[], hireNotices: HireNoticesMode, fileName?: string) {
     return firstValueFrom(
       this.http.post<ImportResult>('/api/employees/import/commit', {
         rows: rows.map(plain),

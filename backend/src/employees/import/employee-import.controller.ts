@@ -1,3 +1,4 @@
+import type { HireNoticesMode } from '../../shared/interfaces/import.interface.js';
 import {
   BadRequestException,
   Body,
@@ -16,7 +17,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
-  IsBoolean,
+  IsIn,
   IsInt,
   IsObject,
   IsOptional,
@@ -56,7 +57,8 @@ class ImportRowsDto {
 }
 
 class ImportCommitDto extends ImportRowsDto {
-  @IsOptional() @IsBoolean() hireNotices?: boolean;
+  /** RECENT (default) / ALL / NONE; true / false are accepted as ALL / NONE for older clients. */
+  @IsOptional() @IsIn([true, false, 'RECENT', 'ALL', 'NONE']) hireNotices?: boolean | HireNoticesMode;
   @IsOptional() @IsString() @MaxLength(255) fileName?: string;
 }
 
@@ -100,7 +102,11 @@ export class EmployeeImportController {
   async commit(@Body() dto: ImportCommitDto, @CurrentUser() user: AuthUser) {
     const result = await this.importer.commit(
       dto.rows,
-      { hireNotices: dto.hireNotices ?? false, fileName: dto.fileName },
+      {
+        hireNotices:
+          dto.hireNotices === true ? 'ALL' : dto.hireNotices === false ? 'NONE' : (dto.hireNotices ?? 'RECENT'),
+        fileName: dto.fileName,
+      },
       user,
     );
     await this.audit.log(
