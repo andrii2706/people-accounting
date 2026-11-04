@@ -109,7 +109,7 @@
                 <span class="text-xs text-muted">оберіть юрособу</span>
               } @else {
                 <a
-                  class="btn btn-ghost px-2 cursor-pointer"
+                  class="btn btn-ghost btn-sm"
                   [href]="docxUrl(r.item.tckId)"
                   download
                   title="Витяг .docx без реєстрації"
@@ -118,7 +118,7 @@
                 @if (auth.canEdit()) {
                   <button
                     type="button"
-                    class="btn btn-secondary px-3 py-1.5 text-[13px] cursor-pointer"
+                    class="btn btn-secondary btn-sm cursor-pointer"
                     [disabled]="busyTck() === r.item.tckId"
                     (click)="register(r.item)"
                   >

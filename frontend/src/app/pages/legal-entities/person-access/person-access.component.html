@@ -3,8 +3,16 @@
     <div class="mb-4 rounded-xl border border-warning/40 bg-[#fdf9f2] p-4" role="alert">
       <p class="text-sm font-semibold text-warning">Тимчасовий пароль для {{ i.user }}</p>
       <p class="mt-1 text-xs text-muted">
-        Показується лише зараз. Логін — цей email. Передайте пароль особисто або телефоном, не
-        поштою; під час першого входу система попросить встановити свій.
+        @if (i.mailedTo) {
+          Лист з логіном і паролем надіслано на <b>{{ i.mailedTo }}</b
+          >. Тут пароль показується лише зараз — на випадок, якщо лист не дійде.
+        } @else {
+          Пошту для доступів не налаштовано — лист не надіслано. Пароль показується лише зараз:
+          передайте його особисто або телефоном.
+        }
+        @if (i.expiresAt) {
+          Діє до {{ i.expiresAt | uaDateTime }}; під час першого входу людина встановить свій.
+        }
       </p>
       <div class="mt-2 flex flex-wrap items-center gap-2">
         <code
@@ -43,7 +51,7 @@
       </div>
       <button
         type="button"
-        class="btn btn-danger px-3 py-1.5 text-[13px] cursor-pointer"
+        class="btn btn-danger btn-sm cursor-pointer"
         [disabled]="busy()"
         (click)="revoke()"
       >
@@ -53,7 +61,13 @@
   } @else if (changing()) {
     <p class="text-xs text-muted">Немає — можна надати новому нижче.</p>
   } @else if (personName()) {
-    <form class="grid gap-3 sm:grid-cols-[1fr_auto]" (submit)="grant($event)" novalidate>
+    <!-- not a <form>: the block sits inside the legal entity form, and nested forms are invalid HTML -->
+    <div
+      class="grid gap-3 sm:grid-cols-[1fr_auto]"
+      role="group"
+      aria-label="Надати доступ"
+      (keydown.enter)="grant($event)"
+    >
       <app-form-field
         label="Email (логін)"
         hint="На нього прийде лист про доступ; пароль — тимчасовий, ви передасте його особисто"
@@ -73,24 +87,26 @@
       </app-form-field>
       <div>
         <button
-          type="submit"
+          type="button"
+          (click)="grant($event)"
           class="btn btn-secondary cursor-pointer"
           [disabled]="grantForm().submitting()"
         >
           <app-icon name="key" /> Надати доступ
         </button>
       </div>
-    </form>
+    </div>
   } @else {
     <p class="text-xs text-muted">Спершу вкажіть і збережіть ім’я {{ text().whom }}.</p>
   }
 
   @if (personName()) {
     @if (changing()) {
-      <form
+      <div
         class="mt-4 grid gap-3 rounded-xl border border-line bg-sunken/40 p-4"
-        (submit)="change($event)"
-        novalidate
+        role="group"
+        [attr.aria-label]="'Новий ' + text().who.toLowerCase()"
+        (keydown.enter)="change($event)"
       >
         <p class="text-sm font-semibold">Новий {{ text().who.toLowerCase() }}</p>
         <p class="-mt-2 text-xs text-muted">
@@ -147,7 +163,8 @@
         </div>
         <div class="flex gap-2">
           <button
-            type="submit"
+            type="button"
+            (click)="change($event)"
             class="btn btn-primary cursor-pointer"
             [disabled]="changeForm().submitting()"
           >
@@ -157,13 +174,9 @@
             Скасувати
           </button>
         </div>
-      </form>
+      </div>
     } @else {
-      <button
-        type="button"
-        class="btn btn-ghost mt-3 px-0 text-[13px] cursor-pointer"
-        (click)="startChange()"
-      >
+      <button type="button" class="btn btn-ghost btn-sm mt-3 -ml-3" (click)="startChange()">
         <app-icon name="users" [size]="15" /> Змінити {{ text().whom }}
       </button>
     }

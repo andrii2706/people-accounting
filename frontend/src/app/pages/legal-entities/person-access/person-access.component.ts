@@ -21,6 +21,7 @@ import type {
   ChangePersonForm,
   EntityPerson,
   GrantAccessRequest,
+  GrantAccessResult,
   PersonAccess,
 } from '../../../shared/interfaces/legal-entity.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
@@ -90,7 +91,7 @@ export class PersonAccessComponent {
           email: m.email.trim(),
           role: m.role,
         });
-        this.showResult(result.access.email, result.temporaryPassword);
+        this.showResult(result);
         this.grantModel.set({ email: '', role: this.defaultRole() });
         this.grantForm().reset();
         this.changed.emit();
@@ -184,7 +185,7 @@ export class PersonAccessComponent {
         });
         this.changing.set(false);
         if (result.granted) {
-          this.showResult(result.granted.access.email, result.granted.temporaryPassword);
+          this.showResult(result.granted);
         } else {
           this.toast.success(`${this.text().who} — ${m.fullName.trim()}`);
         }
@@ -196,9 +197,18 @@ export class PersonAccessComponent {
     });
   }
 
-  private showResult(email: string, password: string | null) {
-    if (password) this.issued.set({ user: email, password });
-    else this.toast.success(`Доступ надано: ${email} (наявний обліковий запис, пароль не змінено)`);
+  private showResult(result: GrantAccessResult) {
+    const email = result.access.email;
+    if (result.temporaryPassword) {
+      this.issued.set({
+        user: email,
+        password: result.temporaryPassword,
+        mailedTo: result.mailSent ? email : '',
+        expiresAt: result.expiresAt,
+      });
+    } else {
+      this.toast.success(`Доступ надано: ${email} (наявний обліковий запис, пароль не змінено)`);
+    }
   }
 
   protected async copyPassword() {

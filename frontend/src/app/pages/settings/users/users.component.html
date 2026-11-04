@@ -10,8 +10,16 @@
   <section class="mb-6 rounded-xl border border-warning/40 bg-[#fdf9f2] p-5" role="alert">
     <p class="font-semibold text-warning">Тимчасовий пароль для «{{ issued.user }}»</p>
     <p class="mt-1 text-sm text-muted">
-      Показується лише зараз. Передайте його особисто або телефоном, не електронною поштою.
-      Користувач змінить його при першому вході.
+      @if (issued.mailedTo) {
+        Лист з паролем надіслано на <b>{{ issued.mailedTo }}</b
+        >. Тут пароль показується лише зараз — на випадок, якщо лист не дійде.
+      } @else {
+        Пошту для доступів не налаштовано — лист не надіслано. Пароль показується лише зараз:
+        передайте його особисто або телефоном.
+      }
+      @if (issued.expiresAt) {
+        Діє до {{ issued.expiresAt | uaDateTime }}; при першому вході користувач змінить пароль.
+      }
     </p>
     <div class="mt-3 flex flex-wrap items-center gap-2">
       <code
@@ -97,7 +105,7 @@
               @if (lockedIds().has(u.id)) {
                 <button
                   type="button"
-                  class="btn btn-ghost py-1 text-xs cursor-pointer"
+                  class="btn btn-ghost btn-sm cursor-pointer"
                   (click)="unlock(u)"
                 >
                   Розблокувати вхід
@@ -105,7 +113,7 @@
               }
               <button
                 type="button"
-                class="btn btn-ghost py-1 text-xs cursor-pointer"
+                class="btn btn-ghost btn-sm cursor-pointer"
                 (click)="resetPassword(u)"
               >
                 Скинути пароль
@@ -113,7 +121,7 @@
               @if (u.id !== auth.user()?.id) {
                 <button
                   type="button"
-                  class="btn py-1 text-xs cursor-pointer"
+                  class="btn btn-sm cursor-pointer"
                   [class]="u.isActive ? 'btn-danger' : 'btn-secondary'"
                   (click)="toggle(u)"
                 >

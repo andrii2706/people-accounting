@@ -96,6 +96,9 @@ export type EntityPeople = Record<EntityPerson, PersonAccess | null>;
 export interface GrantAccessResult {
   access: PersonAccess;
   temporaryPassword: string | null;
+  /** The temporary password was e-mailed to the person. */
+  mailSent: boolean;
+  expiresAt: string | null;
 }
 
 /** DELETE …/people/:person/access */

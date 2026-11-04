@@ -122,6 +122,16 @@ if [ -n "${SMTP_URL:-}" ]; then
   fi
 fi
 
+# Optional: a separate mailbox for the letters with a temporary password (ACCESS_SMTP_URL)
+if [ -n "${ACCESS_SMTP_URL:-}" ]; then
+  if exists gcloud secrets describe ACCESS_SMTP_URL; then
+    printf '%s' "$ACCESS_SMTP_URL" | gcloud secrets versions add ACCESS_SMTP_URL --data-file=- >/dev/null
+    echo "  • ACCESS_SMTP_URL — оновлено"
+  else
+    create_secret ACCESS_SMTP_URL "$ACCESS_SMTP_URL"
+  fi
+fi
+
 say "Бакет для підписаних документів: без публічного доступу, write-once (retention $RETENTION)"
 if ! exists gcloud storage buckets describe "gs://$BUCKET"; then
   gcloud storage buckets create "gs://$BUCKET" --location="$REGION" \
@@ -135,7 +145,7 @@ exists gcloud iam service-accounts describe "$API_SA" ||
   gcloud iam service-accounts create "$API_SA_NAME" --display-name="Military registry API (runtime)"
 gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:$API_SA" \
   --role=roles/cloudsql.client --condition=None >/dev/null
-for s in DATABASE_URL JWT_SECRET DATA_ENCRYPTION_KEY BLIND_INDEX_KEY ADMIN_PASSWORD $(exists gcloud secrets describe SMTP_URL && echo SMTP_URL); do
+for s in DATABASE_URL JWT_SECRET DATA_ENCRYPTION_KEY BLIND_INDEX_KEY ADMIN_PASSWORD $(exists gcloud secrets describe SMTP_URL && echo SMTP_URL) $(exists gcloud secrets describe ACCESS_SMTP_URL && echo ACCESS_SMTP_URL); do
   gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$API_SA" \
     --role=roles/secretmanager.secretAccessor >/dev/null
 done

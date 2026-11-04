@@ -83,7 +83,7 @@
     >
       <button
         type="button"
-        class="btn btn-ghost cursor-pointer px-2 lg:hidden"
+        class="icon-btn size-9 lg:hidden"
         (click)="menuOpen.set(true)"
         aria-label="Меню"
       >
@@ -218,20 +218,11 @@
       </h2>
       <div class="flex items-center gap-1">
         @if (inbox.unreadCount()) {
-          <button
-            type="button"
-            class="btn btn-ghost cursor-pointer px-2 py-1 text-xs"
-            (click)="markAllRead()"
-          >
+          <button type="button" class="btn btn-ghost btn-sm" (click)="markAllRead()">
             Прочитати все
           </button>
         }
-        <button
-          type="button"
-          class="btn btn-ghost cursor-pointer px-2 py-1"
-          aria-label="Закрити"
-          (click)="closeInbox()"
-        >
+        <button type="button" class="icon-btn" aria-label="Закрити" (click)="closeInbox()">
           <app-icon name="x" [size]="16" />
         </button>
       </div>

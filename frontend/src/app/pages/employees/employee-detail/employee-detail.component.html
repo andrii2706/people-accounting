@@ -99,7 +99,7 @@
             @if (auth.canEdit()) {
               <button
                 type="button"
-                class="btn btn-ghost py-1 text-xs cursor-pointer"
+                class="btn btn-ghost btn-sm cursor-pointer"
                 (click)="skipChange(c.id)"
                 title="Не включати в повідомлення"
               >
@@ -201,7 +201,7 @@
       @if (!externalOpen() && auth.canEdit()) {
         <button
           type="button"
-          class="btn btn-ghost px-3 py-1.5 text-[13px] cursor-pointer"
+          class="btn btn-ghost btn-sm cursor-pointer"
           title="Повідомлення, надіслане до ТЦК ще до системи: номер і дата — як на папері"
           (click)="openExternal()"
         >
@@ -363,11 +363,7 @@
   </section>
 
   <section class="mt-6">
-    <button
-      type="button"
-      class="btn btn-ghost px-0 cursor-pointer"
-      (click)="showAudit.set(!showAudit())"
-    >
+    <button type="button" class="btn btn-ghost -ml-3.5" (click)="showAudit.set(!showAudit())">
       <app-icon name="clock" />
       {{ showAudit() ? 'Сховати історію змін' : 'Історія змін картки (хто, коли, що змінив)' }}
     </button>

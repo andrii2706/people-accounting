@@ -89,7 +89,9 @@ export class UsersComponent {
         await this.usersService.create(this.userModel());
         this.userModel.set({ ...this.blank });
         this.userForm().reset();
-        this.toast.success('Користувача створено. При першому вході він змінить пароль.');
+        this.toast.success(
+          'Користувача створено. Лист з паролем надіслано на його email (якщо пошту налаштовано); при першому вході він змінить пароль.',
+        );
         await this.refresh();
         return undefined;
       } catch (err) {
@@ -129,8 +131,15 @@ export class UsersComponent {
     )
       return;
     try {
-      const { temporaryPassword } = await this.usersService.resetPassword(u.id);
-      this.issuedPassword.set({ user: u.fullName, password: temporaryPassword });
+      const { temporaryPassword, mailSent, expiresAt } = await this.usersService.resetPassword(
+        u.id,
+      );
+      this.issuedPassword.set({
+        user: u.fullName,
+        password: temporaryPassword,
+        mailedTo: mailSent ? u.email : '',
+        expiresAt,
+      });
       await this.refresh();
     } catch (err) {
       this.toast.error(apiErrorMessage(err));

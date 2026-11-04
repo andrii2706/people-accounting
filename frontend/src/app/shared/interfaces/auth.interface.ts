@@ -57,12 +57,18 @@ export interface UpdateUserRequest {
 /** POST /api/users/:id/reset-password */
 export interface PasswordResetResult {
   temporaryPassword: string;
+  /** The password was also e-mailed to the user (from the access mailbox). */
+  mailSent: boolean;
+  expiresAt: string;
 }
 
 /** A temporary password shown once to the administrator. */
 export interface IssuedPassword {
   user: string;
   password: string;
+  /** E-mailed to this address; empty — not sent (mail is not set), hand it over yourself. */
+  mailedTo?: string;
+  expiresAt?: string | null;
 }
 
 /** GET/PATCH /api/auth/preferences */
