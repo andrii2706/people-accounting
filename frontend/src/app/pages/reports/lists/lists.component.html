@@ -12,54 +12,69 @@
       (valueChange)="setDate($event)"
     />
   </label>
-  <a class="btn btn-secondary cursor-pointer" [href]="downloadUrl()" download
-    ><app-icon name="download" /> Списки .docx</a
-  >
-  <button
-    type="button"
-    class="btn btn-primary cursor-pointer"
-    [disabled]="busy()"
-    (click)="register()"
-  >
-    <app-icon name="mail" /> Зареєструвати лист
-  </button>
+  <app-legal-entity-filter [value]="entity()" (changed)="setEntity($event)" />
+  @if (needsEntity()) {
+    <button
+      type="button"
+      class="btn btn-secondary cursor-pointer"
+      disabled
+      title="Оберіть юридичну особу — документ формується від її імені"
+    >
+      <app-icon name="download" /> Списки .docx
+    </button>
+  } @else {
+    <a class="btn btn-secondary cursor-pointer" [href]="downloadUrl()" download
+      ><app-icon name="download" /> Списки .docx</a
+    >
+  }
+  @if (auth.canEdit()) {
+    <button
+      type="button"
+      class="btn btn-primary cursor-pointer"
+      [disabled]="busy() || needsEntity()"
+      [title]="needsEntity() ? 'Оберіть юридичну особу' : ''"
+      (click)="register()"
+    >
+      <app-icon name="mail" /> Зареєструвати лист
+    </button>
+  }
 </app-page-header>
 
+<div class="mb-4">
+  <app-report-switch />
+</div>
+
 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-  <div
-    class="flex w-full max-w-max flex-wrap gap-1 rounded-xl bg-sunken p-1"
-    role="tablist"
-    aria-label="Список"
-  >
+  <div class="segmented" role="tablist" aria-label="Список">
     @for (t of tabs; track t.value) {
       <button
         type="button"
         role="tab"
-        class="cursor-pointer rounded-lg px-3.5 py-1.5 text-sm transition-colors"
+        class="segmented-item"
         [attr.aria-selected]="tab() === t.value"
-        [class]="
-          tab() === t.value
-            ? 'bg-surface font-semibold text-ink shadow-sm'
-            : 'text-muted hover:text-ink'
-        "
         (click)="tab.set(t.value)"
       >
         {{ t.label }}
-        <span class="ml-1 text-xs text-muted tabular-nums">{{
+        <span class="text-xs font-normal text-muted tabular-nums">{{
           sectionCounts().get(t.value) ?? 0
         }}</span>
       </button>
     }
   </div>
-  <button
-    type="button"
-    class="btn btn-ghost cursor-pointer px-2.5 py-1.5 text-xs"
-    [attr.aria-pressed]="wide()"
-    (click)="wide.set(!wide())"
-  >
-    <app-icon name="columns" />
-    {{ wide() ? 'Коротка таблиця' : 'Показати всі 18 граф' }}
-  </button>
+  <div class="segmented" role="group" aria-label="Графи таблиці">
+    @for (m of columnModes; track m.value) {
+      <button
+        type="button"
+        class="segmented-item"
+        [attr.aria-pressed]="(m.value === 'wide') === wide()"
+        [title]="m.hint ?? ''"
+        (click)="wide.set(m.value === 'wide')"
+      >
+        <app-icon [name]="m.value === 'wide' ? 'columns' : 'table'" [size]="15" />
+        {{ m.label }}
+      </button>
+    }
+  </div>
 </div>
 
 <div class="mb-4 flex flex-wrap items-center gap-2">

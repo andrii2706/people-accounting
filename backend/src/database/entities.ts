@@ -1,3 +1,5 @@
+import { BillingStatusEntity } from '../billing/billing-status.entity.js';
+import { LegalEntity } from '../legal-entities/legal-entity.entity.js';
 import { InboxRead } from '../inbox/inbox-read.entity.js';
 import { Tck } from '../dictionaries/tck.entity.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
@@ -35,4 +37,6 @@ export const ENTITIES = [
   ChangeNotice,
   NotificationLog,
   InboxRead,
+  BillingStatusEntity,
+  LegalEntity,
 ];

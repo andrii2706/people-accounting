@@ -13,6 +13,8 @@ import { MOBILIZATION_REMIND_DAYS } from './notifications.constants.js';
 import { NIL_UUID } from '../common/constants/common.constants.js';
 import { REMIND_DAYS_BEFORE } from './notifications.constants.js';
 import { employeeFullName } from '../employees/utils/employee-text.utils.js';
+import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
+import { groupByEntity } from './utils/group-by-entity.utils.js';
 
 /**
  * Runs once a day (Cloud Scheduler → Cloud Run Job «military-registry-daily»):
@@ -30,6 +32,7 @@ export class DailyJobService {
     @InjectRepository(Employee) private readonly employees: Repository<Employee>,
     @InjectRepository(Organization) private readonly orgRepo: Repository<Organization>,
     private readonly notifications: NotificationsService,
+    private readonly legalEntities: LegalEntitiesService,
   ) {}
 
   async run(today: IsoDate = todayIso()) {
@@ -120,22 +123,25 @@ export class DailyJobService {
       if (await this.notifications.wasSent('DEFERRAL_ENDING', e.id, end)) continue;
       due.push({ e, end });
     }
-    if (!due.length) return 0;
-    const lines = due.map(
-      ({ e, end }) =>
-        `• ${employeeFullName(e)} — відстрочка до ${formatUa(end)}${e.deferralUntilMobilizationEnd ? ' (до завершення мобілізації)' : ''}` +
-        `${e.deferralMobilizationBasis || e.deferralConscriptionBasis ? `, підстава: ${e.deferralMobilizationBasis || e.deferralConscriptionBasis}` : ''}\n  ${this.env.appUrl}/employees/${e.id}`,
-    );
-    const sent = await this.notifications.notifyUsers(
-      `Закінчується відстрочка: ${due.length} працівн.`,
-      `Через ${REMIND_DAYS_BEFORE} днів або раніше закінчується відстрочка:\n\n${lines.join('\n')}\n\n` +
-        'Перевірте, чи продовжено відстрочку (Резерв+ / ТЦК), і оновіть дані в картці працівника.',
-    );
-    await this.notifications.markSent(
-      'DEFERRAL_ENDING',
-      due.map(({ e, end }) => ({ refId: e.id, refDate: end })),
-      sent,
-    );
+    // one digest per legal entity: its users and its extra addresses
+    for (const [entityId, items] of groupByEntity(due, ({ e }) => e.legalEntityId)) {
+      const lines = items.map(
+        ({ e, end }) =>
+          `• ${employeeFullName(e)} — відстрочка до ${formatUa(end)}${e.deferralUntilMobilizationEnd ? ' (до завершення мобілізації)' : ''}` +
+          `${e.deferralMobilizationBasis || e.deferralConscriptionBasis ? `, підстава: ${e.deferralMobilizationBasis || e.deferralConscriptionBasis}` : ''}\n  ${this.env.appUrl}/employees/${e.id}`,
+      );
+      const sent = await this.notifications.notifyUsers(
+        `${await this.prefix(entityId)}Закінчується відстрочка: ${items.length} працівн.`,
+        `Через ${REMIND_DAYS_BEFORE} днів або раніше закінчується відстрочка:\n\n${lines.join('\n')}\n\n` +
+          'Перевірте, чи продовжено відстрочку (Резерв+ / ТЦК), і оновіть дані в картці працівника.',
+        entityId,
+      );
+      await this.notifications.markSent(
+        'DEFERRAL_ENDING',
+        items.map(({ e, end }) => ({ refId: e.id, refDate: end })),
+        sent,
+      );
+    }
     return due.length;
   }
 
@@ -147,23 +153,33 @@ export class DailyJobService {
       if (await this.notifications.wasSent('RESERVATION_ENDING', e.id, e.reservationUntil)) continue;
       due.push(e);
     }
-    if (!due.length) return 0;
-    const sent = await this.notifications.notifyUsers(
-      `Закінчується бронювання: ${due.length} працівн.`,
-      `Через ${REMIND_DAYS_BEFORE} днів або раніше закінчується бронювання:\n\n` +
-        due
-          .map(
-            (e) =>
-              `• ${employeeFullName(e)} — заброньовано до ${formatUa(e.reservationUntil!)}\n  ${this.env.appUrl}/employees/${e.id}`,
-          )
-          .join('\n'),
-    );
-    await this.notifications.markSent(
-      'RESERVATION_ENDING',
-      due.map((e) => ({ refId: e.id, refDate: e.reservationUntil! })),
-      sent,
-    );
+    for (const [entityId, items] of groupByEntity(due, (e) => e.legalEntityId)) {
+      const sent = await this.notifications.notifyUsers(
+        `${await this.prefix(entityId)}Закінчується бронювання: ${items.length} працівн.`,
+        `Через ${REMIND_DAYS_BEFORE} днів або раніше закінчується бронювання:\n\n` +
+          items
+            .map(
+              (e) =>
+                `• ${employeeFullName(e)} — заброньовано до ${formatUa(e.reservationUntil!)}\n  ${this.env.appUrl}/employees/${e.id}`,
+            )
+            .join('\n'),
+        entityId,
+      );
+      await this.notifications.markSent(
+        'RESERVATION_ENDING',
+        items.map((e) => ({ refId: e.id, refDate: e.reservationUntil! })),
+        sent,
+      );
+    }
     return due.length;
+  }
+
+  /** «ТОВ «Приклад»: » before the subject when there are several legal entities. */
+  private async prefix(entityId: string | null) {
+    const entities = await this.legalEntities.list();
+    if (entities.length < 2) return '';
+    const entity = entities.find((e) => e.id === entityId);
+    return entity ? `${entity.shortName || entity.fullName}: ` : '';
   }
 
   private async activeEmployees(today: IsoDate) {

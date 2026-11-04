@@ -59,6 +59,7 @@ export const FIELD_META: Partial<Record<keyof EmployeeFormModel, FieldMeta>> = {
   maritalStatus: { tab: 'family', label: 'Сімейний стан' },
   familyMembers: { tab: 'family', label: 'Члени сім’ї' },
 
+  legalEntityId: { tab: 'work', label: 'Юридична особа' },
   hireDate: { tab: 'work', label: 'Дата прийняття' },
   hireOrderDocName: { tab: 'work', label: 'Назва документа про вступ на посаду' },
   hireOrderNumber: { tab: 'work', label: 'Номер документа про прийняття' },

@@ -2,7 +2,7 @@ import { BadRequestException, HttpException, HttpStatus, NotFoundException } fro
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { describe, expect, it } from 'vitest';
-import { UpdateOrganizationDto } from '../../organization/organization.dto.js';
+import { CreateLegalEntityDto } from '../../legal-entities/legal-entities.dto.js';
 import { CreateEmployeeDto } from '../../employees/employees.dto.js';
 import { fieldLabel } from '../utils/field-labels.utils.js';
 import { HttpExceptionFilter } from '../filters/http-exception.filter.js';
@@ -23,17 +23,30 @@ const messages = async (cls: new () => object, body: object) => {
 
 describe('повідомлення про помилки — людською мовою', () => {
   it('назви полів залежать від запиту, а не беруться з коду', () => {
-    expect(fieldLabel('fullName', 'UpdateOrganizationDto')).toBe('Повна назва');
+    expect(fieldLabel('fullName', 'CreateLegalEntityDto')).toBe('Повна назва');
     expect(fieldLabel('fullName', 'CreateUserDto')).toBe('ПІБ');
     expect(fieldLabel('militaryDocuments.0.number')).toBe('Військово-обліковий документ 1 — Номер');
     expect(fieldLabel('positions.1')).toBe('Посада 2');
   });
 
   it('реквізити: зайві службові поля і поганий індекс — зрозуміло', async () => {
-    const res = await messages(UpdateOrganizationDto, { id: 1, postalCode: '790' });
+    const res = await messages(CreateLegalEntityDto, {
+      id: 1,
+      fullName: 'ТОВ «Приклад»',
+      edrpou: '12345678',
+      postalCode: '790',
+      phone: '067 000 00 00',
+    });
     expect(res.errors.map((e) => e.field).sort()).toEqual(['id', 'postalCode']);
     expect(res.message).toContain('Поштовий індекс: Поштовий індекс — 5 цифр, напр. 79000');
     expect(res.message.find((m) => m.startsWith('Службове поле «id»:'))).toContain('оновіть сторінку');
+  });
+
+  it('телефон у будь-якому написанні зберігається як код країни + цифри', async () => {
+    const dto = plainToInstance(CreateLegalEntityDto, { fullName: 'ТОВ', edrpou: '12345678', phone: '067 000 00 00' });
+    expect(dto.phone).toBe('+380670000000');
+    const bad = await messages(CreateLegalEntityDto, { fullName: 'ТОВ', edrpou: '12345678', phone: '+38 (0' });
+    expect(bad.errors.map((e) => e.field)).toEqual(['phone']);
   });
 
   it('стандартні англійські тексти перекладаються з числами', async () => {

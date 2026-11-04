@@ -66,6 +66,10 @@
   .btn-ghost {
     @apply text-muted hover:bg-sunken hover:text-ink;
   }
+  /* compact text button (toolbars, rows, links-as-buttons): still padded on all sides for the hover background */
+  .btn-sm {
+    @apply gap-1.5 rounded-lg px-3 py-1.5 text-[13px];
+  }
   .btn-danger {
     @apply border border-danger/30 bg-surface text-danger hover:bg-danger/5;
   }
@@ -103,6 +107,26 @@
   }
   .table-base tbody tr:hover {
     @apply bg-brand-50/50;
+  }
+  /* buttons side by side in a table cell: one standard gap, so their hover backgrounds do not touch */
+  .table-base td :is(.btn, .icon-btn) + :is(.btn, .icon-btn) {
+    margin-inline-start: 5px;
+  }
+  /* square icon button of the table rows (view, edit, copy, delete) */
+  .icon-btn {
+    @apply inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] transition-colors hover:bg-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  /* segmented switch: lists tabs, report views, column sets */
+  .segmented {
+    @apply inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl bg-sunken p-1;
+  }
+  .segmented-item {
+    @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm whitespace-nowrap text-muted transition-colors hover:text-ink;
+  }
+  .segmented-item[aria-pressed='true'],
+  .segmented-item[aria-selected='true'],
+  .segmented-item.is-active {
+    @apply bg-surface font-semibold text-ink shadow-sm;
   }
 }
 

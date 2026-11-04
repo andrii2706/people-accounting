@@ -9,6 +9,10 @@ import { Feedback10281793190000000 } from './1793190000000-Feedback1028.js';
 import { Educations1793200000000 } from './1793200000000-Educations.js';
 import { TckDirectory1793220000000 } from './1793220000000-TckDirectory.js';
 import { NextVlk1793230000000 } from './1793230000000-NextVlk.js';
+import { Billing1793250000000 } from './1793250000000-Billing.js';
+import { LegalEntities1793260000000 } from './1793260000000-LegalEntities.js';
+import { LegalEntitySettings1793270000000 } from './1793270000000-LegalEntitySettings.js';
+import { TemporaryPasswordExpiry1793280000000 } from './1793280000000-TemporaryPasswordExpiry.js';
 import { InboxReads1793240000000 } from './1793240000000-InboxReads.js';
 
 /** Migration registry. Add a new migration here after generating it. */
@@ -25,4 +29,8 @@ export const MIGRATIONS: Function[] = [
   TckDirectory1793220000000,
   NextVlk1793230000000,
   InboxReads1793240000000,
+  Billing1793250000000,
+  LegalEntities1793260000000,
+  LegalEntitySettings1793270000000,
+  TemporaryPasswordExpiry1793280000000,
 ];

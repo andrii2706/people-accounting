@@ -15,5 +15,7 @@ export const employeeListResolver: ResolveFn<EmployeeList | never> = (route) => 
     const value = q.get(key);
     if (value) params[key] = value;
   }
+  const entity = q.get('entity');
+  if (entity) params['legalEntityId'] = entity;
   return resolveOr(inject(EmployeesService).list(params), '/') as never;
 };

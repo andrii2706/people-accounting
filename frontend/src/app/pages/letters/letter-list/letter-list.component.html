@@ -81,19 +81,30 @@
           </td>
           <td class="whitespace-nowrap tabular-nums">{{ l.date | uaDate }}</td>
           <td class="hidden text-sm whitespace-nowrap xl:table-cell">{{ typeLabel(l.type) }}</td>
-          <td class="max-w-[360px] text-sm">{{ l.subject }}</td>
+          <td class="max-w-[360px] text-sm">
+            {{ l.subject }}
+            @if (l.external) {
+              <span
+                class="badge ml-1 bg-sunken text-[11px] text-muted"
+                title="Надіслано до системи; номер і дата — як на папері"
+                >внесено вручну</span
+              >
+            }
+          </td>
           <td class="max-w-[220px] text-sm text-muted">
             {{ l.tck?.name || '—' }}
           </td>
           <td><app-letter-status [status]="l.status" /></td>
           <td class="text-right">
-            <a
-              class="btn btn-ghost px-2"
-              [href]="lettersService.documentUrl(l.id)"
-              download
-              title="Завантажити .docx"
-              ><app-icon name="download"
-            /></a>
+            @if (!l.external) {
+              <a
+                class="icon-btn"
+                [href]="lettersService.documentUrl(l.id)"
+                download
+                title="Завантажити .docx"
+                ><app-icon name="download"
+              /></a>
+            }
           </td>
         </tr>
       } @empty {

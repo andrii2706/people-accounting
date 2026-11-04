@@ -1,9 +1,29 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  HttpCode,
+  Patch,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
-import { AllowPendingPasswordChange, CurrentUser, Public } from '../common/decorators/auth.decorators.js';
+import {
+  AllowDirector,
+  AllowPendingPasswordChange,
+  AllowVendor,
+  CurrentUser,
+  Public,
+} from '../common/decorators/auth.decorators.js';
+import { BILLING_BLOCKED_MESSAGE, BILLING_DEBT_CODE } from '../billing/billing.constants.js';
+import { BillingService } from '../billing/billing.service.js';
+import { blockedMessage } from '../billing/utils/billing.utils.js';
 import { passwordProblems } from '../common/utils/password-policy.utils.js';
 import { fieldErrors } from '../common/validators/validators.js';
 import { UpdatePreferencesDto } from '../users/users.dto.js';
@@ -21,6 +41,7 @@ export class AuthController {
     private readonly users: UsersService,
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
+    private readonly billing: BillingService,
   ) {}
 
   /** At most 5 attempts per minute from one address + account lockout after a series of failures. */
@@ -45,11 +66,26 @@ export class AuthController {
       });
       throw new UnauthorizedException(`Забагато невдалих спроб. Вхід заблоковано до ${until}`);
     }
+    if (result.status === 'expired') {
+      await this.audit.log('auth', result.userId, 'LOGIN_FAILED', { email: [null, dto.email], ip: [null, ip] });
+      throw new UnauthorizedException(
+        'Тимчасовий пароль прострочено — попросіть адміністратора видати новий (Налаштування → Користувачі → «Скинути пароль»)',
+      );
+    }
     if (result.status !== 'ok') {
       await this.audit.log('auth', result.userId ?? null, 'LOGIN_FAILED', { email: [null, dto.email], ip: [null, ip] });
       throw new UnauthorizedException('Невірний email або пароль');
     }
     const user = result.user;
+    // a debt for using the system: one entry per user, then the sign-in is blocked until it is paid
+    if ((await this.billing.loginGate(user)) === 'blocked') {
+      await this.audit.log('auth', user.id, 'LOGIN_FAILED', { reason: [null, 'billing debt'], ip: [null, ip] });
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: BILLING_DEBT_CODE,
+        message: blockedMessage(BILLING_BLOCKED_MESSAGE, await this.billing.paymentContact()),
+      });
+    }
     await this.sessions.issue(res, user);
     await this.audit.log('auth', user.id, 'LOGIN', { ip: [null, ip] }, user);
     return toAuthUser(user);
@@ -75,6 +111,7 @@ export class AuthController {
     return { user: toAuthUser(user) };
   }
 
+  @AllowVendor()
   @AllowPendingPasswordChange()
   @Get('me')
   me(@CurrentUser() user: AuthUser): AuthUser {
@@ -82,7 +119,9 @@ export class AuthController {
   }
 
   /** Change own password. All other sessions of the user are terminated. */
+  @AllowVendor()
   @AllowPendingPasswordChange()
+  @AllowDirector()
   @Post('change-password')
   @HttpCode(200)
   async changePassword(
@@ -104,6 +143,7 @@ export class AuthController {
     return this.users.preferences(user.id);
   }
 
+  @AllowDirector()
   @Patch('preferences')
   updatePreferences(@CurrentUser() user: AuthUser, @Body() dto: UpdatePreferencesDto) {
     return this.users.updatePreferences(user.id, dto.notify);

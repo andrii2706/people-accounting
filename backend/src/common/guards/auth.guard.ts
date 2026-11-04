@@ -12,7 +12,15 @@ import type { Repository } from 'typeorm';
 import { SessionService } from '../../auth/session.service.js';
 import { User } from '../../users/user.entity.js';
 import type { MaybeAuthenticatedRequest, UserRole } from '../../shared/interfaces/auth.interface.js';
-import { ALLOW_PENDING_PASSWORD, IS_PUBLIC, PASSWORD_CHANGE_REQUIRED, ROLES } from '../constants/auth.constants.js';
+import {
+  ALLOW_DIRECTOR,
+  ALLOW_PENDING_PASSWORD,
+  ALLOW_VENDOR,
+  IS_PUBLIC,
+  PASSWORD_CHANGE_REQUIRED,
+  READ_METHODS,
+  ROLES,
+} from '../constants/auth.constants.js';
 
 /**
  * Global guard. The session is an httpOnly cookie only (Bearer tokens are deliberately not accepted).
@@ -66,6 +74,20 @@ export class AuthGuard implements CanActivate {
         code: PASSWORD_CHANGE_REQUIRED,
         message: 'Спершу змініть тимчасовий пароль',
       });
+    }
+
+    // the vendor account manages the payment status only and never reaches personal data
+    if (user.role === 'VENDOR' && !this.reflector.getAllAndOverride<boolean>(ALLOW_VENDOR, targets)) {
+      throw new ForbiddenException('Обліковий запис постачальника має доступ лише до сторінки оплати');
+    }
+
+    // the director sees everything and signs documents, but does not change the registration data
+    if (
+      user.role === 'DIRECTOR' &&
+      !READ_METHODS.has(req.method) &&
+      !this.reflector.getAllAndOverride<boolean>(ALLOW_DIRECTOR, targets)
+    ) {
+      throw new ForbiddenException('Роль «Директор» — перегляд і підписання документів, змінювати дані не можна');
     }
 
     const roles = this.reflector.getAllAndOverride<UserRole[] | undefined>(ROLES, targets);

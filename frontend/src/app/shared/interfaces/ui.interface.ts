@@ -69,3 +69,11 @@ export interface InfoSection {
   title: string;
   rows: InfoRow[];
 }
+
+/** A view in the report switch (full lists / extracts). */
+export interface ReportView {
+  path: string;
+  label: string;
+  icon: IconName;
+  hint: string;
+}

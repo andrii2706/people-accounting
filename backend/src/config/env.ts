@@ -139,8 +139,14 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     adminName: env.ADMIN_NAME ?? 'Адміністратор',
     smtpUrl: env.SMTP_URL ?? '',
     mailFrom: env.MAIL_FROM ?? '',
+    // letters with a temporary password: a separate mailbox if set, otherwise the main one
+    accessSmtpUrl: env.ACCESS_SMTP_URL || env.SMTP_URL || '',
+    accessMailFrom: env.ACCESS_MAIL_FROM || env.MAIL_FROM || '',
+    temporaryPasswordHours: int(env.TEMPORARY_PASSWORD_HOURS, 72),
     appUrl: env.APP_URL || list(env.APP_ORIGIN)[0] || 'http://localhost:4200',
     decreeSourceUrl: env.DECREE_SOURCE_URL || 'https://zakon.rada.gov.ua/laws/show/65/2022',
+    // free ЄДР lookup by code ({code} is replaced); empty — the «Підтягнути з ЄДР» button is off
+    companyRegistryUrl: env.COMPANY_REGISTRY_URL ?? 'https://adm.tools/action/gov/api/?egrpou={code}',
   };
   if (env === process.env) cached = result;
   return result;

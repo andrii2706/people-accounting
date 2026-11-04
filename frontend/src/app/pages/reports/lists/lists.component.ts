@@ -1,3 +1,4 @@
+import { AuthService } from '../../../shared/services/auth.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,7 +23,9 @@ import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
-import { injectQueryParamsUpdate } from '../../../shared/utils/router.utils';
+import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
+import { ReportSwitchComponent } from '../../../shared/components/report-switch/report-switch.component';
+import { LegalEntityFilterComponent } from '../../../shared/components/legal-entity-filter/legal-entity-filter.component';
 import { InViewDirective } from '../../../shared/directives/in-view.directive';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { CategoryBadgeComponent } from '../../../shared/components/category-badge/category-badge.component';
@@ -30,6 +33,7 @@ import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import {
   COL,
   DETAIL_GROUPS,
+  LIST_COLUMN_MODES,
   LIST_COLUMNS,
   LIST_ROWS_PAGE,
   LIST_SECTION_ORDER,
@@ -54,10 +58,13 @@ import {
     RouterLink,
     CategoryBadgeComponent,
     UaDatePipe,
+    LegalEntityFilterComponent,
+    ReportSwitchComponent,
   ],
   templateUrl: './lists.component.html',
 })
 export class ListsComponent {
+  protected readonly auth = inject(AuthService);
   private readonly lettersService = inject(LettersService);
   private readonly reportsService = inject(ReportsService);
   private readonly router = inject(Router);
@@ -66,6 +73,7 @@ export class ListsComponent {
 
   protected readonly today = todayIso();
   protected readonly columns = LIST_COLUMNS;
+  protected readonly columnModes = LIST_COLUMN_MODES;
   protected readonly col = COL;
   protected readonly detailGroups = DETAIL_GROUPS;
   protected readonly quickFilters = QUICK_FILTERS;
@@ -77,6 +85,11 @@ export class ListsComponent {
   /** Report from listsReportResolver; the date lives in the ?date= query parameter. */
   readonly report = input.required<ListsReport>();
   protected readonly date = computed(() => this.report().date);
+  /** ?entity= — one legal entity; with several, the document needs one. */
+  readonly entity = input<string, string | undefined>('', { transform: orEmpty });
+  protected readonly needsEntity = computed(
+    () => this.dictionaries.severalLegalEntities() && !this.entity(),
+  );
   protected readonly busy = signal(false);
   protected readonly total = computed(() => this.report().rows.length);
   private readonly titles = computed(
@@ -183,7 +196,13 @@ export class ListsComponent {
     void this.updateQuery({ date: date && date !== this.today ? date : '' });
   }
 
-  protected readonly downloadUrl = computed(() => this.reportsService.listsDocxUrl(this.date()));
+  protected setEntity(entity: string) {
+    void this.updateQuery({ entity });
+  }
+
+  protected readonly downloadUrl = computed(() =>
+    this.reportsService.listsDocxUrl({ date: this.date(), entity: this.entity() }),
+  );
 
   /** Registers an outgoing letter — the document gets a number and a date. */
   protected async register() {
@@ -192,6 +211,7 @@ export class ListsComponent {
       const letter = await this.lettersService.createReport({
         type: 'LISTS',
         reportDate: this.date(),
+        legalEntityId: this.entity() || undefined,
       });
       this.toast.success(`Зареєстровано вих. № ${letter.number}`);
       await this.router.navigate(['/letters', letter.id]);

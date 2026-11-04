@@ -20,12 +20,15 @@ export interface SessionPayload {
   exp?: number;
 }
 
-export type UserRole = 'ADMIN' | 'HR';
+/** VENDOR — the system's supplier: sees only the payment page, no personal data. */
+/** DIRECTOR — the head: sees everything, signs documents, changes nothing. */
+export type UserRole = 'ADMIN' | 'HR' | 'DIRECTOR' | 'VENDOR';
 
 export type CredentialsResult =
   | { status: 'ok'; user: User }
   | { status: 'invalid'; userId?: string }
-  | { status: 'locked'; userId: string; lockedUntil: Date };
+  | { status: 'locked'; userId: string; lockedUntil: Date }
+  | { status: 'expired'; userId: string };
 
 /** Express request after the AuthGuard: the signed-in user is attached. */
 export interface AuthenticatedRequest extends Request {
@@ -60,4 +63,20 @@ export interface CreateUserOptions {
   mustChangePassword?: boolean;
   /** Do not send the «new head / new user» e-mails (seed, first admin). */
   silent?: boolean;
+  /** The administrator who created the account: the letter with the temporary password is sent. */
+  issuedBy?: AuthUser;
+}
+
+/** A temporary password just issued: shown to the administrator once, also e-mailed if possible. */
+export interface IssuedTemporaryPassword {
+  temporaryPassword: string;
+  mailSent: boolean;
+  expiresAt: Date;
+}
+
+/** Where the access is given: the legal entity and in what capacity (for the letter). */
+export interface AccessContext {
+  entityName: string;
+  entityCode: string;
+  asWhom: string;
 }

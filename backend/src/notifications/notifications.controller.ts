@@ -1,4 +1,5 @@
-import { Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
+import { parseEntityId } from '../reports/utils/report-params.utils.js';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,11 +20,12 @@ export class NotificationsController {
 
   /** Is e-mail configured, how many recipients, the mobilization term. */
   @Get('status')
-  async status() {
+  async status(@Query('entity') entity?: string) {
     const org = await this.org.findOneBy({ id: 1 });
     return {
       mailConfigured: this.notifications.mailConfigured,
-      recipients: (await this.notifications.recipients()).length,
+      /** For one legal entity: the users + its extra addresses. */
+      recipients: (await this.notifications.recipients(parseEntityId(entity))).length,
       mobilizationUntil: org?.mobilizationUntil ?? null,
       mobilizationDecree: org?.mobilizationDecree ?? '',
       mobilizationCheckedAt: org?.mobilizationCheckedAt ?? null,

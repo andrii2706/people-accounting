@@ -23,15 +23,17 @@
           Вибрано: {{ selectedCount() }} · листів буде: {{ selectedTckCount() }}
         </span>
       }
-      <button
-        type="button"
-        class="btn btn-primary cursor-pointer"
-        [disabled]="!selectedCount() || busy() !== null"
-        (click)="createForSelected()"
-      >
-        <app-icon name="file" />
-        {{ busy() === 'selected' ? 'Формуємо…' : 'Сформувати для вибраних' }}
-      </button>
+      @if (auth.canEdit()) {
+        <button
+          type="button"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="!selectedCount() || busy() !== null"
+          (click)="createForSelected()"
+        >
+          <app-icon name="file" />
+          {{ busy() === 'selected' ? 'Формуємо…' : 'Сформувати для вибраних' }}
+        </button>
+      }
     </div>
   </div>
 }
@@ -61,14 +63,16 @@
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          class="btn btn-primary cursor-pointer"
-          [disabled]="busy() !== null || !g.tckId"
-          (click)="createLetter(g)"
-        >
-          <app-icon name="file" /> Сформувати лист ({{ g.changes.length }})
-        </button>
+        @if (auth.canEdit()) {
+          <button
+            type="button"
+            class="btn btn-primary cursor-pointer"
+            [disabled]="busy() !== null || !g.tckId"
+            (click)="createLetter(g)"
+          >
+            <app-icon name="file" /> Сформувати лист ({{ g.changes.length }})
+          </button>
+        }
       </header>
       <ul class="divide-y divide-line">
         @for (c of g.changes; track c.id) {

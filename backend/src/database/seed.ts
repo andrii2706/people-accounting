@@ -12,7 +12,7 @@ import { Tck } from '../dictionaries/tck.entity.js';
 import { ALL_TCK } from './tck-directory.js';
 import type { CreateEmployeeDto } from '../employees/employees.dto.js';
 import { EmployeesService } from '../employees/employees.service.js';
-import { OrganizationService } from '../organization/organization.service.js';
+import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { UsersService } from '../users/users.service.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
@@ -30,30 +30,21 @@ async function seed() {
     }
     console.log(`ТЦК: ${await tckRepo.count()} (додано: ${added})`);
 
-    const org = app.get(OrganizationService);
-    const current = await org.get();
-    if (!current.fullName) {
-      await org.update({
+    const entities = app.get(LegalEntitiesService);
+    if (!(await entities.list()).length) {
+      // fictitious demo company — replace with real requisites in «Юридичні особи»
+      await entities.create({
         fullName: 'Товариство з обмеженою відповідальністю «Приклад»',
         nameLocative: 'Товаристві з обмеженою відповідальністю «Приклад»',
         shortName: 'ТзОВ «Приклад»',
         edrpou: '00000000',
-        address: '79000, м. Львів, вул. Зразкова, 1',
+        address: 'м. Львів, вул. Зразкова, 1',
+        postalCode: '79000',
         headPosition: 'Директор',
         headName: 'Іван ПРИКЛАДНИЙ',
-      });
-    }
-    if (!(await org.listHeads()).length) {
-      const o = await org.get();
-      if (o.headName)
-        await org.createHead({ position: o.headPosition || 'Директор', fullName: o.headName, validFrom: '2000-01-01' });
-    }
-    if (!(await org.listResponsible()).length) {
-      await org.createResponsible({
-        fullName: 'Ольга ОБЛІКОВА',
-        position: 'Інспектор з кадрів',
-        validFrom: '2024-01-01',
-        phone: '(032) 000-00-00',
+        responsibleName: 'Ольга ОБЛІКОВА',
+        responsiblePosition: 'Інспектор з кадрів',
+        responsiblePhone: '+380320000000',
       });
     }
 

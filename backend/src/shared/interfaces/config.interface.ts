@@ -48,8 +48,15 @@ export interface AppEnv {
   smtpUrl: string;
   /** Sender: «Військовий облік <hr@company.ua>». */
   mailFrom: string;
+  /** Mailbox for the letters with a temporary password (falls back to smtpUrl / mailFrom). */
+  accessSmtpUrl: string;
+  accessMailFrom: string;
+  /** How long a temporary password is valid, hours. */
+  temporaryPasswordHours: number;
   /** Public address of the app for links in e-mails. */
   appUrl: string;
   /** Where the daily job looks for the presidential decrees on mobilization. */
   decreeSourceUrl: string;
+  /** ЄДР lookup URL with {code}; empty — lookup off. */
+  companyRegistryUrl: string;
 }

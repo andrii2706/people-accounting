@@ -60,3 +60,11 @@ export interface ImportEditField {
 export interface ImportCommitErrorBody {
   rows?: CheckedImportRow[];
 }
+
+/** Options of the import commit. */
+export interface ImportCommitOptions {
+  hireNotices: HireNoticesMode;
+  fileName?: string;
+  /** All imported employees belong to this legal entity ('' — the only one there is). */
+  legalEntityId?: string;
+}

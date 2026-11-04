@@ -209,7 +209,7 @@
               <td>
                 <button
                   type="button"
-                  class="btn btn-ghost px-2 cursor-pointer"
+                  class="icon-btn"
                   [attr.aria-expanded]="expanded() === row.rowNumber"
                   [attr.aria-label]="'Редагувати рядок ' + row.rowNumber"
                   (click)="toggleExpanded(row)"
@@ -385,6 +385,17 @@
     class="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95 px-4 py-3 shadow-lg backdrop-blur lg:pl-[88px] xl:pl-[272px]"
   >
     <div class="flex flex-wrap items-center gap-3">
+      @if (dictionaries.severalLegalEntities()) {
+        <div class="text-sm">
+          <p class="mb-1 font-medium">Юридична особа</p>
+          <app-legal-entity-filter
+            placeholder="Оберіть юрособу"
+            [clearable]="false"
+            [value]="legalEntityId()"
+            (changed)="legalEntityId.set($event)"
+          />
+        </div>
+      }
       <fieldset class="mr-auto text-sm">
         <legend class="mb-1 font-medium">Повідомлення ТЦК про прийняття на роботу</legend>
         <div class="flex flex-wrap gap-x-5 gap-y-1">
@@ -439,7 +450,12 @@
       <button
         type="button"
         class="btn btn-primary cursor-pointer"
-        [disabled]="busy() || dirty() || selectedCount() === 0"
+        [disabled]="
+          busy() ||
+          dirty() ||
+          selectedCount() === 0 ||
+          (dictionaries.severalLegalEntities() && !legalEntityId())
+        "
         (click)="commit()"
       >
         <app-icon name="upload" /> Імпортувати {{ selectedCount() }}

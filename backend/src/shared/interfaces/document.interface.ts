@@ -2,7 +2,6 @@ import type { IsoDate } from './common.interface.js';
 import type { ChangeType, ListSection } from './dictionary.interface.js';
 import type { Tck } from '../../dictionaries/tck.entity.js';
 import type { Organization } from '../../organization/organization.entity.js';
-import type { ResponsiblePerson } from '../../organization/responsible-person.entity.js';
 import type { LetterNumberDate } from './letter.interface.js';
 export interface MobilizationTerm {
   /** Start of the latest extension. */
@@ -80,7 +79,7 @@ export interface ChangeNoticeInput {
   tck: Tck | null;
   notices: NoticeItem[];
   org: Organization;
-  responsible: ResponsiblePerson | null;
+  responsible: ResponsibleInfo | null;
 }
 
 export interface ListsInput {
@@ -107,7 +106,7 @@ export interface OperationalInput {
   date: IsoDate;
   rows: OperationalRowData[];
   org: Organization;
-  responsible: ResponsiblePerson | null;
+  responsible: ResponsibleInfo | null;
   letter?: { number: string; date: IsoDate } | null;
 }
 
@@ -134,4 +133,11 @@ export interface InventoryInput {
 export interface OperationalReportData {
   date: IsoDate;
   rows: OperationalRowData[];
+}
+
+/** The executor in the documents: the person responsible for military registration of the legal entity. */
+export interface ResponsibleInfo {
+  fullName: string;
+  position: string;
+  phone: string;
 }

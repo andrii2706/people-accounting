@@ -96,6 +96,8 @@ export interface EmployeeFormModel {
   servedInArmy: boolean;
   militaryDocuments: MilitaryDocumentForm[];
   tckId: string;
+  /** The legal entity (employer); '' — the server takes the only one. */
+  legalEntityId: string;
   tckRegisteredAt: string;
   fitness: string;
   fitnessBasis: string;

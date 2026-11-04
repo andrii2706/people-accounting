@@ -87,6 +87,8 @@ export type HireNoticesMode = 'RECENT' | 'ALL' | 'NONE';
 export interface ImportCommitOptions {
   hireNotices: HireNoticesMode;
   fileName?: string;
+  /** The legal entity all imported employees belong to (may be omitted when there is only one). */
+  legalEntityId?: string;
 }
 
 /** Options of a bulk creation from a file. */

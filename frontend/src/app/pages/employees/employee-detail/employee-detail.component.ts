@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
 import { httpResource } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
 import { CategoryBadgeComponent } from '../../../shared/components/category-badge/category-badge.component';
@@ -13,10 +14,21 @@ import { AuthService } from '../../../shared/services/auth.service';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { EmployeesService } from '../../../shared/services/employees.service';
 import { LettersService } from '../../../shared/services/letters.service';
-import type { EmployeeNotice } from '../../../shared/interfaces/letter.interface';
+import type {
+  EmployeeNotice,
+  ExternalNoticeForm,
+} from '../../../shared/interfaces/letter.interface';
+import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import {
+  EMPTY_EXTERNAL_NOTICE,
+  EXTERNAL_NOTICE_TYPES,
+} from '../../../shared/constants/letter.constants';
+import { todayIso } from '../../../shared/utils/date.utils';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
-import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
+import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import type { InfoRow, InfoSection } from '../../../shared/interfaces/ui.interface';
 import type { NotificationStatus } from '../../../shared/interfaces/organization.interface';
@@ -33,6 +45,10 @@ import type { NotificationStatus } from '../../../shared/interfaces/organization
     WarningsListComponent,
     UaDatePipe,
     UaDateTimePipe,
+    FormField,
+    FormFieldComponent,
+    DateInputComponent,
+    SelectComponent,
   ],
   templateUrl: './employee-detail.component.html',
 })
@@ -65,7 +81,9 @@ export class EmployeeDetailComponent {
 
   protected readonly extractUrl = computed(() => {
     const e = this.e();
-    return e?.derived.listGroup ? this.reportsService.listsDocxUrl(undefined, [e.id]) : null;
+    return e?.derived.listGroup
+      ? this.reportsService.listsDocxUrl({ ids: [e.id], entity: e.legalEntityId ?? '' })
+      : null;
   });
 
   /** Mobilization term — for deferrals «до завершення мобілізації». */
@@ -309,6 +327,113 @@ export class EmployeeDetailComponent {
       await this.employeesService.remove(e.id);
       this.toast.success('Картку видалено');
       await this.router.navigate(['/employees']);
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err));
+    }
+  }
+
+  /** Notice number by letter (for the history of changes): «12/3» when the letter holds several. */
+  private readonly noticeNumbers = computed(
+    () => new Map(this.notices().map((n) => [n.letter.id, n.number])),
+  );
+  protected noticeNumber(letterId: string) {
+    return this.noticeNumbers().get(letterId) ?? '';
+  }
+
+  // notices sent before the system: number and date as on paper, no document
+  protected readonly externalTypes = EXTERNAL_NOTICE_TYPES;
+  protected readonly externalOpen = signal(false);
+  protected readonly externalModel = signal<ExternalNoticeForm>({ ...EMPTY_EXTERNAL_NOTICE });
+  protected readonly externalForm = form(this.externalModel, (p) => {
+    required(p.number, { message: 'Вкажіть вихідний номер листа' });
+    maxLength(p.number, 50, { message: 'Не більше 50 символів' });
+    required(p.date, { message: 'Вкажіть дату листа' });
+    validate(p.date, ({ value }) =>
+      value() && value() > todayIso()
+        ? { kind: 'future', message: 'Дата ще не настала' }
+        : undefined,
+    );
+    maxLength(p.description, 1000, { message: 'Не більше 1000 символів' });
+  });
+  protected readonly tckOptions = computed(() =>
+    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name })),
+  );
+  /** Pending changes this old notice already reported — they leave the queue. */
+  protected readonly coveredChanges = signal<ReadonlySet<string>>(new Set());
+
+  protected openExternal() {
+    const e = this.e();
+    this.externalModel.set({
+      ...EMPTY_EXTERNAL_NOTICE,
+      tckId: e?.tckId ?? '',
+      effectiveDate: e?.hireDate ?? '',
+    });
+    this.externalForm().reset();
+    this.coveredChanges.set(new Set());
+    this.externalOpen.set(true);
+  }
+
+  protected setExternalType(type: string) {
+    const e = this.e();
+    const changeType = type as ExternalNoticeForm['changeType'];
+    this.externalModel.update((m) => ({
+      ...m,
+      changeType,
+      effectiveDate:
+        changeType === 'HIRE'
+          ? (e?.hireDate ?? m.effectiveDate)
+          : changeType === 'DISMISSAL'
+            ? (e?.dismissalDate ?? m.effectiveDate)
+            : m.effectiveDate,
+    }));
+  }
+
+  protected toggleCovered(id: string) {
+    this.coveredChanges.update((set) => {
+      const next = new Set(set);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  protected async saveExternal(event: Event) {
+    event.preventDefault();
+    const e = this.e();
+    if (!e) return;
+    await submit(this.externalForm, async () => {
+      try {
+        const m = this.externalModel();
+        const letter = await this.lettersService.createExternalNotice({
+          employeeId: e.id,
+          number: m.number.trim(),
+          date: m.date,
+          changeType: m.changeType,
+          effectiveDate: m.effectiveDate || undefined,
+          tckId: m.tckId || undefined,
+          description: m.description.trim() || undefined,
+          changeIds: [...this.coveredChanges()],
+        });
+        this.externalOpen.set(false);
+        this.toast.success(`Внесено повідомлення вих. № ${letter.number}`);
+        await this.refresh();
+        return undefined;
+      } catch (err) {
+        return formSubmitErrors(err, this.externalForm, (message) => this.toast.error(message));
+      }
+    });
+  }
+
+  /** A notice entered by mistake: removed, its changes go back to the queue. */
+  protected async removeExternal(n: EmployeeNotice) {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(`Видалити внесене вручну повідомлення № ${n.number}?`)
+    )
+      return;
+    try {
+      await this.lettersService.remove(n.letter.id);
+      this.toast.success('Повідомлення видалено');
+      await this.refresh();
     } catch (err) {
       this.toast.error(apiErrorMessage(err));
     }

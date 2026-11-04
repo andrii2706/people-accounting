@@ -9,14 +9,15 @@ export interface Dashboard {
   byCategory: Record<DutyCategory, number>;
   /** Deferrals in force on the date. */
   deferrals: number;
-  /** Reservation quota of the company and how much of it is used. */
+  /** Reservation quotas of the legal entities (summed) and how much of them is used. */
   reservation: {
     quota: number | null;
-    quotaBasis: string;
     reservedCompany: number;
     reservedOther: number;
     available: number | null;
     exceeded: boolean;
+    /** Per legal entity — shown when there are several. */
+    entities: EntityQuota[];
   };
   mobilizationUntil: string | null;
   pendingChanges: number;
@@ -28,6 +29,8 @@ export interface Dashboard {
 /** One record of the personal military registration lists (Annex 5): 18 cells, columns 1–18. */
 export interface ListRow {
   employeeId: string;
+  /** TCK where the person is registered. */
+  tckId: string | null;
   group: ListGroup;
   section: ListSection;
   category: DutyCategory | null;
@@ -132,4 +135,34 @@ export interface InboxKeyParts {
 export interface TckNameParts {
   name: string;
   place: string;
+}
+
+/** Parameters of the lists / extract document. */
+export interface ListsDocxParams {
+  date?: string;
+  /** Extract for these employees. */
+  ids?: string[];
+  /** Extract about the people registered at this TCK. */
+  tck?: string;
+  groups?: ListGroup[];
+  /** The legal entity the document is formed for (required when there are several). */
+  entity?: string;
+}
+
+/** One TCK in the extracts overview: how many people of each list are registered there. */
+export interface TckExtractSummary {
+  tckId: string | null;
+  tckName: string;
+  sections: Record<ListSection, number>;
+  total: number;
+}
+
+/** Quota use of one legal entity on the dashboard. */
+export interface EntityQuota {
+  id: string;
+  name: string;
+  quota: number | null;
+  reservedCompany: number;
+  available: number | null;
+  exceeded: boolean;
 }

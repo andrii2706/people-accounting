@@ -6,6 +6,7 @@ import { buildLists, buildOperationalReport } from '../documents/builders.js';
 import { deriveEmployee, toMilitaryRecord } from '../employees/utils/employee-view.utils.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
+import { Tck } from '../dictionaries/tck.entity.js';
 import { LIST_GROUPS, LIST_SECTIONS, listSection } from '../military/dictionaries.js';
 import { hasDeferralAt, listRowStatus, personalListCells } from '../military/personal-list.js';
 import {
@@ -20,10 +21,17 @@ import {
   operationalRow,
 } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
+import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import type { ListGroup, ListSection, DutyCategory } from '../shared/interfaces/dictionary.interface.js';
-import type { ListRowView } from '../shared/interfaces/report.interface.js';
+import type {
+  ListRowView,
+  ListsDocxOptions,
+  ListsFilter,
+  TckExtractSummary,
+} from '../shared/interfaces/report.interface.js';
 import type { OperationalRowData } from '../shared/interfaces/document.interface.js';
+import type { EntityQuota } from '../shared/interfaces/legal-entity.interface.js';
 import type { LetterNumberDate } from '../shared/interfaces/letter.interface.js';
 import { OPERATIONAL_REPORT_SINCE } from './reports.constants.js';
 import { OPERATIONAL_REPORT_TITLES } from './reports.constants.js';
@@ -34,11 +42,15 @@ export class ReportsService {
   constructor(
     @InjectRepository(Employee) private readonly employees: Repository<Employee>,
     @InjectRepository(EmployeeChange) private readonly changes: Repository<EmployeeChange>,
+    @InjectRepository(Tck) private readonly tcks: Repository<Tck>,
     private readonly org: OrganizationService,
+    private readonly legalEntities: LegalEntitiesService,
   ) {}
 
-  private loadAll() {
+  /** Employees of one legal entity, or of all of them (null). */
+  private loadAll(legalEntityId: string | null = null) {
     return this.employees.find({
+      where: legalEntityId ? { legalEntityId } : {},
       relations: { tck: true, familyMembers: true },
       order: { lastName: 'ASC', firstName: 'ASC' },
     });
@@ -86,9 +98,13 @@ export class ReportsService {
    * composition). Records are numbered within each list.
    * `groups` / `onlyIds` narrow it down (extract for specific employees).
    */
-  async lists(date: IsoDate = todayIso(), groups: ListGroup[] = LIST_GROUPS, onlyIds?: string[]) {
-    const all = (await this.loadAll()).filter(
-      (e) => (!onlyIds?.length || onlyIds.includes(e.id)) && isOnPersonalListsAt(toMilitaryRecord(e), date),
+  async lists(date: IsoDate = todayIso(), filter: ListsFilter = {}) {
+    const { groups = LIST_GROUPS, onlyIds, legalEntityId = null, tckId = null } = filter;
+    const all = (await this.loadAll(legalEntityId)).filter(
+      (e) =>
+        (!onlyIds?.length || onlyIds.includes(e.id)) &&
+        (!tckId || e.tckId === tckId) &&
+        isOnPersonalListsAt(toMilitaryRecord(e), date),
     );
     const ids = all.map((e) => e.id);
     const [notices, pending, org] = await Promise.all([
@@ -106,6 +122,7 @@ export class ReportsService {
       const category = dutyCategory(record);
       rows.push({
         employeeId: e.id,
+        tckId: e.tckId,
         group,
         section: listSection(group),
         category,
@@ -130,24 +147,57 @@ export class ReportsService {
     return { date, rows, counts };
   }
 
-  async listsDocx(date: IsoDate, groups: ListGroup[], extractIds?: string[], letter?: LetterNumberDate | null) {
-    const data = await this.lists(date, groups, extractIds);
-    const org = await this.org.getAt(letter?.date ?? date);
+  /**
+   * Lists (Annex 5) as .docx. With specific employees or a TCK it is an extract («ВИТЯГ ІЗ СПИСКІВ»):
+   * extracts are sent to every TCK about the people registered there.
+   */
+  async listsDocx(date: IsoDate, options: ListsDocxOptions = {}) {
+    const entityId = await this.legalEntities.forDocument(options.legalEntityId);
+    const data = await this.lists(date, { ...options, legalEntityId: entityId });
+    const org = await this.legalEntities.requisites(entityId);
     return buildLists({
       date,
-      extract: !!extractIds?.length,
+      extract: !!options.onlyIds?.length || !!options.tckId,
       sections: LIST_SECTIONS.map((section) => ({
         section,
         rows: data.rows.filter((r) => r.section === section).map((r) => r.cells),
       })),
       org,
-      letter,
+      letter: options.letter,
     });
   }
 
+  /** Extracts overview: every TCK with the number of people in each of the four lists. */
+  async extracts(date: IsoDate = todayIso(), legalEntityId: string | null = null): Promise<TckExtractSummary[]> {
+    const [data, tcks] = await Promise.all([
+      this.lists(date, { legalEntityId }),
+      this.tcks.find({ select: { id: true, name: true } }),
+    ]);
+    const names = new Map(tcks.map((t) => [t.id, t.name]));
+    const byTck = new Map<string | null, TckExtractSummary>();
+    for (const row of data.rows) {
+      let item = byTck.get(row.tckId);
+      if (!item) {
+        item = {
+          tckId: row.tckId,
+          tckName: row.tckId ? (names.get(row.tckId) ?? '') : '',
+          sections: Object.fromEntries(LIST_SECTIONS.map((s) => [s, 0])) as Record<ListSection, number>,
+          total: 0,
+        };
+        byTck.set(row.tckId, item);
+      }
+      item.sections[row.section]++;
+      item.total++;
+    }
+    // people without a TCK go last: an extract cannot be sent anywhere until the TCK is filled in
+    return [...byTck.values()].sort((a, b) =>
+      !a.tckId ? 1 : !b.tckId ? -1 : a.tckName.localeCompare(b.tckName, 'uk'),
+    );
+  }
+
   /** Operational registration report (Annex 12) — formulas OCL!D12:I16. */
-  async operational(date: IsoDate = todayIso()): Promise<OperationalReportData> {
-    const all = await this.loadAll();
+  async operational(date: IsoDate = todayIso(), legalEntityId: string | null = null): Promise<OperationalReportData> {
+    const all = await this.loadAll(legalEntityId);
     const rows = new Map<string, OperationalRowData>(
       ['1.1', '1.2', '1.3', '2.'].map((code) => [
         code,
@@ -198,19 +248,21 @@ export class ReportsService {
     return { date, rows: [head, ...sub, rows.get('2.')!] };
   }
 
-  async operationalDocx(date: IsoDate, letter?: { number: string; date: IsoDate } | null) {
-    const data = await this.operational(date);
+  async operationalDocx(date: IsoDate, letter?: LetterNumberDate | null, legalEntityId?: string | null) {
+    const entityId = await this.legalEntities.forDocument(legalEntityId);
+    const data = await this.operational(date, entityId);
     const [org, responsible] = await Promise.all([
-      this.org.getAt(letter?.date ?? date),
-      this.org.responsibleAt(letter?.date ?? date),
+      this.legalEntities.requisites(entityId),
+      this.legalEntities.responsible(entityId),
     ]);
     return buildOperationalReport({ date, rows: data.rows, org, responsible, letter });
   }
 
   async dashboard(date: IsoDate = todayIso()) {
-    const [all, org, pending] = await Promise.all([
+    const [all, org, entities, pending] = await Promise.all([
       this.loadAll(),
       this.org.get(),
+      this.legalEntities.list(),
       this.changes.find({
         where: { letterId: IsNull(), skipped: false },
         relations: { employee: true },
@@ -240,10 +292,25 @@ export class ReportsService {
     // deferrals in force on the date (a fixed date, or «до завершення мобілізації»)
     const deferrals = employed.filter(({ e }) => hasDeferralAt(e, date, org.mobilizationUntil)).length;
 
-    // reservation quota: only the company's own reservations count towards it
+    // reservation quota of every legal entity: only its own reservations count towards it
     const reserved = employed.filter((x) => x.d.reserved);
-    const reservedCompany = reserved.filter(({ e }) => e.reservedBy !== 'OTHER').length;
-    const quota = org.reservationQuota;
+    const own = reserved.filter(({ e }) => e.reservedBy !== 'OTHER');
+    const quotas: EntityQuota[] = entities.map((entity) => {
+      const reservedCompany = own.filter(({ e }) => e.legalEntityId === entity.id).length;
+      const quota = entity.reservationQuota;
+      return {
+        id: entity.id,
+        name: entity.shortName || entity.fullName,
+        quota,
+        reservedCompany,
+        available: quota === null ? null : Math.max(quota - reservedCompany, 0),
+        exceeded: quota !== null && reservedCompany > quota,
+      };
+    });
+    // the card sums the entities that have a quota; without any quota — just how many are reserved
+    const withQuota = quotas.filter((q) => q.quota !== null);
+    const quota = withQuota.length ? withQuota.reduce((sum, q) => sum + q.quota!, 0) : null;
+    const reservedCompany = withQuota.length ? withQuota.reduce((sum, q) => sum + q.reservedCompany, 0) : own.length;
 
     const attention = derived
       .filter(({ d }) => d.employed && d.warnings.some((w) => w.level !== 'info'))
@@ -264,11 +331,12 @@ export class ReportsService {
       deferrals,
       reservation: {
         quota,
-        quotaBasis: org.reservationQuotaBasis,
         reservedCompany,
-        reservedOther: reserved.length - reservedCompany,
-        available: quota === null ? null : Math.max(quota - reservedCompany, 0),
-        exceeded: quota !== null && reservedCompany > quota,
+        reservedOther: reserved.length - own.length,
+        available: withQuota.length ? withQuota.reduce((sum, q) => sum + q.available!, 0) : null,
+        exceeded: quotas.some((q) => q.exceeded),
+        /** Per legal entity — shown when there are several. */
+        entities: quotas,
       },
       mobilizationUntil: org.mobilizationUntil,
       pendingChanges: pending.length,
@@ -276,7 +344,8 @@ export class ReportsService {
         (c) => notificationDeadline(c.type, c.effectiveDate, c.employee, org.notifyDeadlineDays) < date,
       ).length,
       attention,
-      organizationConfigured: !!(org.fullName && org.edrpou && org.headName),
+      // at least one legal entity with a head and a responsible person — the documents need them
+      organizationConfigured: entities.some((e) => e.headName && e.responsibleName),
     };
   }
 }

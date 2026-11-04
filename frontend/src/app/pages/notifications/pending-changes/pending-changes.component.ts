@@ -1,3 +1,4 @@
+import { AuthService } from '../../../shared/services/auth.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
@@ -16,6 +17,7 @@ import type { PendingChangesGroup } from '../../../shared/interfaces/letter.inte
   templateUrl: './pending-changes.component.html',
 })
 export class PendingChangesComponent {
+  protected readonly auth = inject(AuthService);
   private readonly lettersService = inject(LettersService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);

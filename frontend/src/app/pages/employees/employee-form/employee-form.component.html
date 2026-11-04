@@ -240,8 +240,12 @@
               >
                 <input class="input font-mono" [formField]="f.personnelNumber" />
               </app-form-field>
-              <app-form-field label="Телефон" [field]="f.phone" hint="+380 67 123 45 67">
-                <input class="input" type="tel" [formField]="f.phone" />
+              <app-form-field
+                label="Телефон"
+                [field]="f.phone"
+                hint="Країна окремо, далі лише цифри"
+              >
+                <app-phone-input [formField]="f.phone" />
               </app-form-field>
               <app-form-field label="Email" hint="напр. name@gmail.com" [field]="f.email">
                 <input class="input" type="email" [formField]="f.email" />
@@ -513,6 +517,22 @@
           }
 
           @case ('work') {
+            @if (dict.severalLegalEntities() || !model().legalEntityId) {
+              <app-form-field
+                class="mb-5 block max-w-xl"
+                label="Юридична особа"
+                [required]="dict.severalLegalEntities()"
+                hint="Від її імені формуються списки й повідомлення ТЦК про цього працівника"
+                [field]="f.legalEntityId"
+              >
+                <app-select
+                  ariaLabel="Юридична особа"
+                  placeholder="Оберіть юрособу"
+                  [options]="dict.legalEntityOptions()"
+                  [formField]="f.legalEntityId"
+                />
+              </app-form-field>
+            }
             <h3 class="mb-3 text-sm font-semibold">Прийняття на роботу</h3>
             <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <app-form-field label="Дата прийняття" [field]="f.hireDate">

@@ -5,3 +5,6 @@ export const LETTER_TYPE_TITLES = {
   OPERATIONAL_REPORT: 'Відомість оперативного обліку',
   OTHER: 'Лист',
 } as const;
+
+/** A notice entered by hand (sent before the system) has no document here. */
+export const EXTERNAL_NO_DOCUMENT = 'Повідомлення внесено вручну — його надіслано поза системою, документа тут немає';

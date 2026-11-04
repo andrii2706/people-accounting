@@ -32,4 +32,6 @@ export interface LetterParams {
   reportDate?: string;
   groups?: ListGroup[] | null;
   employeeIds?: string[] | null;
+  /** Extract about the people registered at the letter's TCK. */
+  byTck?: boolean;
 }

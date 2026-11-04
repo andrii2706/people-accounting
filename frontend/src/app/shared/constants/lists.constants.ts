@@ -1,6 +1,6 @@
-import type { ListSection } from '../interfaces/dictionary.interface';
+import type { ListGroup, ListSection } from '../interfaces/dictionary.interface';
 import type { ListDetailGroup, ListQuickFilter } from '../interfaces/report.interface';
-import type { SelectOption } from '../interfaces/ui.interface';
+import type { ReportView, SelectOption } from '../interfaces/ui.interface';
 
 /** Short column titles of the full table; the .docx uses the full titles of the form. */
 export const LIST_COLUMNS = [
@@ -66,4 +66,46 @@ export const LIST_TABS: SelectOption<ListSection | 'ALL'>[] = [
   { value: 'SOLDIERS', label: 'Рядові, сержанти, старшини' },
   { value: 'WOMEN', label: 'Жінки' },
   { value: 'CONSCRIPTS', label: 'Призовники' },
+];
+
+/** Groups (sheets G1…G4R) of each list: the reservists go into the list of their composition. */
+export const SECTION_GROUPS: Record<ListSection, ListGroup[]> = {
+  OFFICERS: ['G1', 'G1R'],
+  SOLDIERS: ['G2', 'G2R'],
+  WOMEN: ['G3', 'G3R'],
+  CONSCRIPTS: ['G4', 'G4R'],
+};
+
+/** Column names of the extracts page (as the TCK calls them). */
+export const EXTRACT_SECTIONS: SelectOption<ListSection>[] = [
+  { value: 'OFFICERS', label: 'Офіцери' },
+  {
+    value: 'SOLDIERS',
+    label: 'Військовозобов’язані',
+    hint: 'рядовий, сержантський і старшинський склад',
+  },
+  { value: 'WOMEN', label: 'Жінки' },
+  { value: 'CONSCRIPTS', label: 'Призовники' },
+];
+
+/** The two views of the lists: everything for the company, or extracts per TCK. */
+export const REPORT_VIEWS: ReportView[] = [
+  {
+    path: '/reports/lists',
+    label: 'Повні списки',
+    icon: 'table',
+    hint: 'Чотири списки по всіх працівниках юрособи',
+  },
+  {
+    path: '/reports/extracts',
+    label: 'Витяги для ТЦК',
+    icon: 'copy',
+    hint: 'По кожному ТЦК — лише особи, які там на обліку',
+  },
+];
+
+/** Column sets of the lists table. */
+export const LIST_COLUMN_MODES: SelectOption<'short' | 'wide'>[] = [
+  { value: 'short', label: 'Основні графи', hint: 'ПІБ, звання, ВОС, статуси' },
+  { value: 'wide', label: 'Усі 18 граф', hint: 'Точна копія форми — для звірки з .docx' },
 ];

@@ -100,6 +100,7 @@ jobs:
           SIGN_WIDGET_SCRIPT_URL: ${{ vars.SIGN_WIDGET_SCRIPT_URL }}
           SIGN_WIDGET_FRAME_URL: ${{ vars.SIGN_WIDGET_FRAME_URL }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
+          ACCESS_MAIL_FROM: ${{ vars.ACCESS_MAIL_FROM }}
         run: |
           # shared by the migration job and the service
           jq -n --arg bucket "$GCP_BUCKET" '{
@@ -113,15 +114,22 @@ jobs:
                     SIGN_WIDGET_SCRIPT_URL: $script, SIGN_WIDGET_FRAME_URL: $frame }' \
              "$RUNNER_TEMP/env-common.json" > "$RUNNER_TEMP/env-service.json.tmp"
           # e-mail sender (GitHub variable MAIL_FROM); the SMTP password lives in the secret SMTP_URL
-          jq --arg from "$MAIL_FROM" '. + { MAIL_FROM: $from }' "$RUNNER_TEMP/env-service.json.tmp" > "$RUNNER_TEMP/env-service.json"
+          # letters with a temporary password go from a separate mailbox (ACCESS_MAIL_FROM + secret ACCESS_SMTP_URL)
+          jq --arg from "$MAIL_FROM" --arg access "$ACCESS_MAIL_FROM" '. + { MAIL_FROM: $from, ACCESS_MAIL_FROM: $access }' \
+             "$RUNNER_TEMP/env-service.json.tmp" > "$RUNNER_TEMP/env-service.json"
           jq 'keys' "$RUNNER_TEMP/env-service.json"
-          # SMTP is optional: the secret is attached only if it was created (see docs/DEPLOYMENT.md)
+          # SMTP is optional: the secrets are attached only if they were created (see docs/DEPLOYMENT.md)
+          MAIL_SECRETS=""
           if gcloud secrets describe SMTP_URL >/dev/null 2>&1; then
-            echo "SMTP_SECRET=,SMTP_URL=SMTP_URL:latest" >> "$GITHUB_ENV"
+            MAIL_SECRETS=",SMTP_URL=SMTP_URL:latest"
           else
             echo "::warning::Секрет SMTP_URL не створено — листи-нагадування вимкнені"
-            echo "SMTP_SECRET=" >> "$GITHUB_ENV"
           fi
+          # a separate mailbox for the letters with a temporary password (optional; otherwise SMTP_URL is used)
+          if gcloud secrets describe ACCESS_SMTP_URL >/dev/null 2>&1; then
+            MAIL_SECRETS="${MAIL_SECRETS},ACCESS_SMTP_URL=ACCESS_SMTP_URL:latest"
+          fi
+          echo "SMTP_SECRET=${MAIL_SECRETS}" >> "$GITHUB_ENV"
 
       - name: Збірка і публікація образу
         run: |

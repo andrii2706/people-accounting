@@ -5,13 +5,10 @@ import type {
   DecreeCheckResult,
   NotificationStatus,
   Organization,
-  OrganizationHead,
-  ResponsiblePerson,
-  TckImportItem,
-  TckImportResult,
   TestMailResult,
 } from '../interfaces/organization.interface';
 
+/** Parameters shared by all legal entities (terms, mobilization) and the e-mail status. */
 @Injectable({ providedIn: 'root' })
 export class OrganizationService {
   private readonly http = inject(HttpClient);
@@ -20,38 +17,15 @@ export class OrganizationService {
     return this.http.get<Organization>('/api/organization');
   }
 
-  responsiblePersons() {
-    return this.http.get<ResponsiblePerson[]>('/api/organization/responsible-persons');
-  }
-
   update(body: Partial<Organization>) {
     return firstValueFrom(this.http.put<Organization>('/api/organization', body));
   }
 
-  createResponsible(body: Omit<ResponsiblePerson, 'id'>) {
-    return firstValueFrom(
-      this.http.post<ResponsiblePerson>('/api/organization/responsible-persons', body),
-    );
-  }
-
-  removeResponsible(id: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/organization/responsible-persons/${id}`));
-  }
-
-  heads() {
-    return this.http.get<OrganizationHead[]>('/api/organization/heads');
-  }
-
-  createHead(body: Omit<OrganizationHead, 'id'>) {
-    return firstValueFrom(this.http.post<OrganizationHead>('/api/organization/heads', body));
-  }
-
-  removeHead(id: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/organization/heads/${id}`));
-  }
-
-  notificationStatus() {
-    return this.http.get<NotificationStatus>('/api/notifications/status');
+  /** E-mail status; with `entity` — recipients of that legal entity's reminders. */
+  notificationStatus(entity = '') {
+    return this.http.get<NotificationStatus>('/api/notifications/status', {
+      params: entity ? { entity } : {},
+    });
   }
 
   testMail() {
@@ -62,9 +36,5 @@ export class OrganizationService {
     return firstValueFrom(
       this.http.post<DecreeCheckResult>('/api/notifications/check-decrees', {}),
     );
-  }
-
-  importTck(items: TckImportItem[]) {
-    return firstValueFrom(this.http.post<TckImportResult>('/api/tck/import', { items }));
   }
 }

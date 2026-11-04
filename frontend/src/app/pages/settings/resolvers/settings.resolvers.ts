@@ -13,8 +13,6 @@ export const organizationSettingsResolver: ResolveFn<OrganizationSettingsData> =
   return resolveOr(
     forkJoin({
       organization: service.organization(),
-      responsiblePersons: service.responsiblePersons(),
-      heads: service.heads(),
       status: service.notificationStatus(),
     }),
     '/',

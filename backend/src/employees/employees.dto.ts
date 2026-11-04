@@ -23,7 +23,7 @@ import { DateField } from '../common/validators/validators.js';
 import { EmployeeStr } from './utils/employee-dto.utils.js';
 import { FAMILY_RELATIONS } from './employees.constants.js';
 import { PastDate } from '../common/validators/validators.js';
-import { Pattern } from '../common/validators/validators.js';
+import { Pattern, PhoneField } from '../common/validators/validators.js';
 import { passportType } from './utils/employee-dto.utils.js';
 import { rankOf } from './utils/employee-dto.utils.js';
 import { MARITAL_STATUS_CODES } from './employees.constants.js';
@@ -123,7 +123,7 @@ export class CreateEmployeeDto {
   @EmployeeStr('middleName') @Pattern(PATTERN.name, MESSAGE.name) middleName?: string;
   @EmployeeStr('rnokpp') @Pattern(PATTERN.rnokpp, MESSAGE.rnokpp) rnokpp?: string;
   @PastDate() birthDate?: string | null;
-  @EmployeeStr('phone') @Pattern(PATTERN.phone, MESSAGE.phone) phone?: string;
+  @PhoneField() phone?: string;
   @EmployeeStr('email') @Pattern(PATTERN.email, MESSAGE.email) email?: string;
   @EmployeeStr('registeredAddress') registeredAddress?: string;
   @EmployeeStr('actualAddress') actualAddress?: string;
@@ -259,6 +259,11 @@ export class CreateEmployeeDto {
   tckId?: string | null;
 
   @PastDate() tckRegisteredAt?: string | null;
+
+  /** The legal entity (employer); may be omitted when there is only one. */
+  @IsOptional()
+  @IsUUID('all', { message: 'Оберіть юридичну особу' })
+  legalEntityId?: string;
   @EmployeeStr('fitness') fitness?: string;
   @EmployeeStr('fitnessBasis') fitnessBasis?: string;
   @PastDate() fitnessDate?: string | null;
@@ -323,6 +328,7 @@ export class EmployeeQueryDto {
   @IsOptional() @IsIn(['G1', 'G1R', 'G2', 'G2R', 'G3', 'G3R', 'G4', 'G4R', 'NONE']) group?: string;
   @IsOptional() @IsIn(['LIABLE', 'RESERVIST', 'CONSCRIPT']) category?: string;
   @IsOptional() @IsUUID() tckId?: string;
+  @IsOptional() @IsUUID() legalEntityId?: string;
   @IsOptional() @IsIn(['true', 'false']) withWarnings?: string;
   @IsOptional() @IsIsoDate() date?: string;
 }

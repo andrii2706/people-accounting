@@ -74,5 +74,5 @@ export function orEmpty(value: string | null | undefined): string {
 /** Query parameters the employee list resolver sends to the server (the tabs ?view= are filtered in the browser). */
 export function employeeListQueryKey(route: ActivatedRouteSnapshot): string {
   const q = route.queryParamMap;
-  return ['search', 'group', 'category'].map((k) => q.get(k) ?? '').join('|');
+  return ['search', 'group', 'category', 'entity'].map((k) => q.get(k) ?? '').join('|');
 }

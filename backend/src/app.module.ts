@@ -10,12 +10,14 @@ import { DictionariesModule } from './dictionaries/dictionaries.module.js';
 import { EmployeesModule } from './employees/employees.module.js';
 import { LettersModule } from './letters/letters.module.js';
 import { OrganizationModule } from './organization/organization.module.js';
+import { LegalEntitiesModule } from './legal-entities/legal-entities.module.js';
 import { ReportsModule } from './reports/reports.module.js';
 import { SignaturesModule } from './signatures/signatures.module.js';
 import { StorageModule } from './storage/storage.service.js';
 import { UsersModule } from './users/users.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { InboxModule } from './inbox/inbox.module.js';
+import { BillingModule } from './billing/billing.module.js';
 
 @Controller('health')
 class HealthController {
@@ -42,12 +44,14 @@ class HealthController {
     AuthModule,
     UsersModule,
     OrganizationModule,
+    LegalEntitiesModule,
     DictionariesModule,
     EmployeesModule,
     ReportsModule,
     LettersModule,
     SignaturesModule,
     InboxModule,
+    BillingModule,
   ],
   controllers: [HealthController],
 })

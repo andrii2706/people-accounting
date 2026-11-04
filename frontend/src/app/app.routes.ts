@@ -1,6 +1,12 @@
 import type { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
-import { authGuard, guestGuard, passwordChangeGuard } from './shared/guards/auth.guard';
+import {
+  authGuard,
+  guestGuard,
+  passwordChangeGuard,
+  staffGuard,
+  vendorGuard,
+} from './shared/guards/auth.guard';
 import { dictionariesResolver } from './shared/resolvers/dictionaries.resolver';
 
 /**
@@ -14,9 +20,15 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
   {
+    // the vendor account: debt for using the system, nothing else
+    path: 'vendor',
+    canActivate: [vendorGuard],
+    loadChildren: () => import('./pages/vendor/vendor.routes').then((m) => m.VENDOR_ROUTES),
+  },
+  {
     path: '',
     component: ShellComponent,
-    canActivate: [authGuard],
+    canActivate: [authGuard, staffGuard],
     canActivateChild: [passwordChangeGuard],
     resolve: { dictionaries: dictionariesResolver },
     children: [
@@ -42,6 +54,13 @@ export const routes: Routes = [
       {
         path: 'reports',
         loadChildren: () => import('./pages/reports/reports.routes').then((m) => m.REPORTS_ROUTES),
+      },
+      // old links: the legal entities live in the settings now
+      { path: 'legal-entities', pathMatch: 'full', redirectTo: 'settings' },
+      { path: 'legal-entities/:id', redirectTo: 'settings/legal-entities/:id' },
+      {
+        path: 'tck',
+        loadChildren: () => import('./pages/tck/tck.routes').then((m) => m.TCK_ROUTES),
       },
       {
         path: 'settings',

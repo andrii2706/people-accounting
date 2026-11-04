@@ -1,0 +1,96 @@
+<div class="min-h-screen bg-canvas">
+  <header class="flex items-center justify-between border-b border-line bg-surface px-6 py-4">
+    <div class="flex items-center gap-3">
+      <span class="grid size-9 place-items-center rounded-[10px] bg-brand-600 text-white"
+        ><app-icon name="shield" [size]="18"
+      /></span>
+      <div class="leading-tight">
+        <p class="font-semibold">Військовий облік</p>
+        <p class="text-xs text-muted">Постачальник · {{ auth.user()?.fullName }}</p>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost cursor-pointer" (click)="logout()">
+      <app-icon name="logout" /> Вийти
+    </button>
+  </header>
+
+  <main class="mx-auto grid max-w-5xl gap-6 px-4 py-8 lg:grid-cols-[1.2fr_1fr]">
+    <form class="card p-5 sm:p-6" (submit)="save($event)" novalidate>
+      <h1 class="text-xl font-semibold">Оплата за користування</h1>
+      <p class="mt-1 mb-5 text-sm text-muted">
+        Поки є заборгованість, кожен користувач клієнта може увійти один раз; наступний вхід
+        блокується до її погашення. Обліковий запис постачальника блокування не стосується.
+      </p>
+
+      <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-line p-3.5">
+        <input
+          type="checkbox"
+          class="mt-0.5 size-4 cursor-pointer accent-brand-600"
+          [formField]="f.hasDebt"
+        />
+        <span>
+          <span class="block font-medium">Є заборгованість</span>
+          <span class="block text-xs text-muted"
+            >Увімкнення дає кожному користувачу один вхід; вимкнення одразу відкриває вхід
+            всім</span
+          >
+        </span>
+      </label>
+
+      <fieldset class="mt-4 grid gap-4 sm:grid-cols-2" [disabled]="!model().hasDebt">
+        <app-form-field
+          label="Сума боргу, грн"
+          hint="Необов’язково, напр. 1500 або 1500,50"
+          [field]="f.amount"
+        >
+          <input class="input tabular-nums" inputmode="decimal" [formField]="f.amount" />
+        </app-form-field>
+        <app-form-field label="Заборгованість з" hint="Необов’язково" [field]="f.debtSince">
+          <app-date-input [formField]="f.debtSince" ariaLabel="Заборгованість з" />
+        </app-form-field>
+        <app-form-field
+          class="sm:col-span-2"
+          label="Контакт для оплати"
+          hint="Телефон, email або реквізити; необов’язково"
+          [field]="f.paymentContact"
+        >
+          <textarea class="input min-h-20" [formField]="f.paymentContact"></textarea>
+        </app-form-field>
+      </fieldset>
+
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+          Зберегти
+        </button>
+        @if (current().updatedAt) {
+          <span class="text-xs text-muted"
+            >Змінено {{ current().updatedAt | uaDateTime }}
+            @if (current().updatedBy) {
+              · {{ current().updatedBy }}
+            }
+          </span>
+        }
+      </div>
+    </form>
+
+    <section class="flex flex-col gap-4">
+      <div class="card p-5">
+        <h2 class="mb-3 font-semibold">Що побачать користувачі після входу</h2>
+        <app-billing-notice [status]="preview()" name="Петро Приклад" />
+      </div>
+      @if (current().hasDebt) {
+        <div class="card p-5 text-sm">
+          <p>
+            Одноразовий вхід уже використали:
+            <b class="tabular-nums">{{ current().graceUsedBy }}</b>
+          </p>
+          @if (current().debtSetAt) {
+            <p class="mt-1 text-xs text-muted">
+              Заборгованість діє з {{ current().debtSetAt | uaDateTime }}
+            </p>
+          }
+        </div>
+      }
+    </section>
+  </main>
+</div>

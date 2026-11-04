@@ -1,4 +1,5 @@
 import type { Routes } from '@angular/router';
+import { editorGuard } from '../../shared/guards/auth.guard';
 import { employeeListQueryKey } from '../../shared/utils/router.utils';
 import { employeeCopyResolver } from './resolvers/employee-copy.resolver';
 import { employeeDetailsResolver } from './resolvers/employee-details.resolver';
@@ -18,6 +19,7 @@ export const EMPLOYEES_ROUTES: Routes = [
   },
   {
     path: 'new',
+    canActivate: [editorGuard],
     title: 'Новий працівник · Військовий облік',
     resolve: { source: employeeCopyResolver },
     runGuardsAndResolvers: 'paramsOrQueryParamsChange',
@@ -26,6 +28,7 @@ export const EMPLOYEES_ROUTES: Routes = [
   },
   {
     path: 'import',
+    canActivate: [editorGuard],
     title: 'Імпорт працівників · Військовий облік',
     loadComponent: () =>
       import('./employee-import/employee-import.component').then((m) => m.EmployeeImportComponent),
@@ -41,6 +44,7 @@ export const EMPLOYEES_ROUTES: Routes = [
   },
   {
     path: ':id/edit',
+    canActivate: [editorGuard],
     title: 'Редагування · Військовий облік',
     resolve: { employee: employeeDetailsResolver },
     loadComponent: () =>

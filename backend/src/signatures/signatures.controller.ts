@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { CurrentUser } from '../common/decorators/auth.decorators.js';
+import { AllowDirector, CurrentUser } from '../common/decorators/auth.decorators.js';
 import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
 import { attachmentFile } from '../common/utils/file-response.utils.js';
 import { AddSignatureDto } from './signatures.dto.js';
@@ -9,6 +9,7 @@ import { SignaturesService } from './signatures.service.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('signatures')
+@AllowDirector()
 @Controller()
 export class SignaturesController {
   constructor(

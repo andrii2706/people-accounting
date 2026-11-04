@@ -22,7 +22,7 @@ export class UsersController {
 
   @Post()
   async create(@Body() dto: CreateUserDto, @CurrentUser() actor: AuthUser) {
-    const user = await this.users.create(dto);
+    const user = await this.users.create(dto, { issuedBy: actor });
     await this.audit.log('user', user.id, 'CREATE', { email: [null, user.email], role: [null, user.role] }, actor);
     return user;
   }
@@ -44,7 +44,7 @@ export class UsersController {
   @Post(':id/reset-password')
   @HttpCode(200)
   async resetPassword(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser) {
-    const result = await this.users.resetPassword(id);
+    const result = await this.users.resetPassword(id, actor);
     await this.audit.log('user', id, 'PASSWORD_RESET', {}, actor);
     return result;
   }

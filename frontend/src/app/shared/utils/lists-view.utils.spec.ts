@@ -1,5 +1,12 @@
 import type { ListRow, ListRowStatus } from '../interfaces/report.interface';
-import { filterRows, maskTaxNumber, matchesSearch, splitTck } from './lists-view.utils';
+import {
+  extractCount,
+  filterRows,
+  groupsOfSections,
+  maskTaxNumber,
+  matchesSearch,
+  splitTck,
+} from './lists-view.utils';
 
 const status = (patch: Partial<ListRowStatus> = {}): ListRowStatus => ({
   reserved: false,
@@ -30,6 +37,7 @@ const row = (
   cells[7] = vos;
   return {
     employeeId: name,
+    tckId: null,
     group: 'G2',
     section: 'SOLDIERS',
     category: 'LIABLE',
@@ -75,5 +83,27 @@ describe('lists view', () => {
     });
     expect(splitTck('Стрийський РТЦК та СП')).toEqual({ name: 'Стрийський РТЦК', place: '' });
     expect(splitTck('')).toEqual({ name: '', place: '' });
+  });
+});
+
+describe('витяги для ТЦК', () => {
+  it('усі чотири списки — без фільтра груп; окремі — їхні групи разом з резервістами', () => {
+    expect(groupsOfSections(new Set(['OFFICERS', 'SOLDIERS', 'WOMEN', 'CONSCRIPTS']))).toEqual([]);
+    expect(groupsOfSections(new Set(['OFFICERS', 'CONSCRIPTS']))).toEqual([
+      'G1',
+      'G1R',
+      'G4',
+      'G4R',
+    ]);
+  });
+
+  it('кількість у витязі — лише обрані списки', () => {
+    const item = {
+      tckId: 't1',
+      tckName: 'Сихівський РТЦК та СП',
+      sections: { OFFICERS: 2, SOLDIERS: 5, WOMEN: 1, CONSCRIPTS: 3 },
+      total: 11,
+    };
+    expect(extractCount(item, new Set(['OFFICERS', 'WOMEN']))).toBe(3);
   });
 });

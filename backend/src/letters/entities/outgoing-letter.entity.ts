@@ -10,6 +10,7 @@ import {
   type Relation,
   UpdateDateColumn,
 } from 'typeorm';
+import { LegalEntity } from '../../legal-entities/legal-entity.entity.js';
 import { Tck } from '../../dictionaries/tck.entity.js';
 import { EmployeeChange } from '../../employees/entities/employee-change.entity.js';
 import { Employee } from '../../employees/entities/employee.entity.js';
@@ -47,6 +48,18 @@ export class OutgoingLetter {
 
   @Column({ type: 'uuid', nullable: true })
   employeeId: string | null;
+
+  /** Sender: the legal entity whose requisites, head and responsible person are in the document. */
+  @ManyToOne(() => LegalEntity, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'legalEntityId' })
+  legalEntity: Relation<LegalEntity> | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  legalEntityId: string | null;
+
+  /** A notice sent before the system (entered by hand): no generated document. */
+  @Column({ type: 'boolean', default: false })
+  external: boolean;
 
   @ManyToOne(() => Tck, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'tckId' })

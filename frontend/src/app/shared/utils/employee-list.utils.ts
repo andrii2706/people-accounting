@@ -35,7 +35,11 @@ export function matchesView(e: EmployeeListItem, view: EmployeeView, today = tod
   }
 }
 
-const ua = (iso: string) => iso.split('-').reverse().slice(0, 2).join('.');
+/** «2028-02-28» → «28.02.2028» — always with the year: a term two years ahead must not look urgent. */
+const ua = (iso: string) => iso.split('-').reverse().join('.');
+
+const hasWarning = (e: EmployeeListItem, ...codes: string[]) =>
+  e.warnings.some((w) => codes.includes(w.code));
 
 /** Status of the employee for the table: reservation, deferral, mobilization, not on registration. */
 export function statusBadges(e: EmployeeListItem): StatusBadge[] {
@@ -45,15 +49,16 @@ export function statusBadges(e: EmployeeListItem): StatusBadge[] {
     return [{ label: `Звільнений ${ua(e.dismissalDate)}`, tone: 'muted' }];
   if (e.dismissalDate) badges.push({ label: `Звільнення ${ua(e.dismissalDate)}`, tone: 'warning' });
   if (e.mobilized) badges.push({ label: 'Мобілізований', tone: 'info' });
+  // orange only when the term ends soon or has ended; otherwise a calm colour — it needs no attention
   if (e.reserved)
     badges.push({
       label: e.reservationUntil ? `Заброньований до ${ua(e.reservationUntil)}` : 'Заброньований',
-      tone: 'ok',
+      tone: hasWarning(e, 'RESERVATION_EXPIRING', 'RESERVATION_EXPIRED') ? 'warning' : 'ok',
     });
   if (e.deferral)
     badges.push({
       label: e.deferralUntil ? `Відстрочка до ${ua(e.deferralUntil)}` : 'Відстрочка',
-      tone: 'warning',
+      tone: hasWarning(e, 'DEFERRAL_EXPIRING', 'DEFERRAL_EXPIRED') ? 'warning' : 'info',
     });
   if (!e.dutyCategory && !e.dismissalDate) badges.push({ label: 'Не на обліку', tone: 'muted' });
   return badges;

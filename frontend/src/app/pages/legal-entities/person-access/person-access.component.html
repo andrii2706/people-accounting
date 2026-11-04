@@ -1,0 +1,171 @@
+<div class="mt-4 border-t border-line pt-4">
+  @if (issued(); as i) {
+    <div class="mb-4 rounded-xl border border-warning/40 bg-[#fdf9f2] p-4" role="alert">
+      <p class="text-sm font-semibold text-warning">Тимчасовий пароль для {{ i.user }}</p>
+      <p class="mt-1 text-xs text-muted">
+        Показується лише зараз. Логін — цей email. Передайте пароль особисто або телефоном, не
+        поштою; під час першого входу система попросить встановити свій.
+      </p>
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <code
+          class="rounded-lg border border-line bg-surface px-3 py-1.5 font-mono text-base tracking-wider"
+          >{{ i.password }}</code
+        >
+        <button type="button" class="btn btn-secondary cursor-pointer" (click)="copyPassword()">
+          Копіювати
+        </button>
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="issued.set(null)">
+          Сховати
+        </button>
+      </div>
+    </div>
+  }
+
+  <p class="mb-2 text-sm font-medium">Доступ до системи</p>
+  @if (access(); as a) {
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-sunken/60 px-3 py-2.5"
+    >
+      <div class="min-w-0 text-sm">
+        <p class="truncate font-medium">{{ a.email }}</p>
+        <p class="text-xs text-muted">
+          {{ roleLabels[a.role] ?? a.role }} ·
+          @if (!a.isActive) {
+            <span class="text-danger">вимкнено</span>
+          } @else if (a.mustChangePassword) {
+            ще не входив (тимчасовий пароль)
+          } @else if (a.lastLoginAt) {
+            останній вхід {{ a.lastLoginAt | uaDateTime }}
+          } @else {
+            активний
+          }
+        </p>
+      </div>
+      <button
+        type="button"
+        class="btn btn-danger px-3 py-1.5 text-[13px] cursor-pointer"
+        [disabled]="busy()"
+        (click)="revoke()"
+      >
+        Скасувати доступ
+      </button>
+    </div>
+  } @else if (changing()) {
+    <p class="text-xs text-muted">Немає — можна надати новому нижче.</p>
+  } @else if (personName()) {
+    <form class="grid gap-3 sm:grid-cols-[1fr_auto]" (submit)="grant($event)" novalidate>
+      <app-form-field
+        label="Email (логін)"
+        hint="На нього прийде лист про доступ; пароль — тимчасовий, ви передасте його особисто"
+        [field]="grantForm.email"
+      >
+        <input class="input" type="email" autocomplete="off" [formField]="grantForm.email" />
+      </app-form-field>
+      <app-form-field label="Роль">
+        <app-select
+          class="w-48"
+          ariaLabel="Роль"
+          [clearable]="false"
+          [options]="roleOptions"
+          [value]="grantModel().role"
+          (valueChange)="setGrantRole($event)"
+        />
+      </app-form-field>
+      <div>
+        <button
+          type="submit"
+          class="btn btn-secondary cursor-pointer"
+          [disabled]="grantForm().submitting()"
+        >
+          <app-icon name="key" /> Надати доступ
+        </button>
+      </div>
+    </form>
+  } @else {
+    <p class="text-xs text-muted">Спершу вкажіть і збережіть ім’я {{ text().whom }}.</p>
+  }
+
+  @if (personName()) {
+    @if (changing()) {
+      <form
+        class="mt-4 grid gap-3 rounded-xl border border-line bg-sunken/40 p-4"
+        (submit)="change($event)"
+        novalidate
+      >
+        <p class="text-sm font-semibold">Новий {{ text().who.toLowerCase() }}</p>
+        <p class="-mt-2 text-xs text-muted">
+          Замість «{{ personName() }}». Нові відомості одразу підуть у документи цієї юрособи.
+        </p>
+        <app-form-field label="Ім’я та ПРІЗВИЩЕ" [required]="true" [field]="changeForm.fullName">
+          <input class="input" [formField]="changeForm.fullName" />
+        </app-form-field>
+        <app-form-field
+          label="Посада"
+          hint="Порожньо — лишиться як було"
+          [field]="changeForm.position"
+        >
+          <input class="input" [formField]="changeForm.position" />
+        </app-form-field>
+        @if (person() === 'RESPONSIBLE') {
+          <app-form-field label="Телефон" [field]="changeForm.phone">
+            <app-phone-input [formField]="changeForm.phone" />
+          </app-form-field>
+        }
+        @if (access(); as a) {
+          <label class="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              class="mt-0.5 size-4 cursor-pointer accent-brand-600"
+              [formField]="changeForm.revokePrevious"
+            />
+            <span
+              >Скасувати доступ попереднього ({{ a.email }})
+              <span class="block text-xs text-muted"
+                >Обліковий запис вимкнеться, журнал його дій лишиться</span
+              ></span
+            >
+          </label>
+        }
+        <div class="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <app-form-field
+            label="Email нового (необов’язково)"
+            hint="Вкажіть — і йому одразу буде створено доступ"
+            [field]="changeForm.email"
+          >
+            <input class="input" type="email" autocomplete="off" [formField]="changeForm.email" />
+          </app-form-field>
+          <app-form-field label="Роль">
+            <app-select
+              class="w-48"
+              ariaLabel="Роль нового"
+              [clearable]="false"
+              [options]="roleOptions"
+              [value]="changeModel().role"
+              (valueChange)="setChangeRole($event)"
+            />
+          </app-form-field>
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="submit"
+            class="btn btn-primary cursor-pointer"
+            [disabled]="changeForm().submitting()"
+          >
+            Змінити {{ text().whom }}
+          </button>
+          <button type="button" class="btn btn-ghost cursor-pointer" (click)="changing.set(false)">
+            Скасувати
+          </button>
+        </div>
+      </form>
+    } @else {
+      <button
+        type="button"
+        class="btn btn-ghost mt-3 px-0 text-[13px] cursor-pointer"
+        (click)="startChange()"
+      >
+        <app-icon name="users" [size]="15" /> Змінити {{ text().whom }}
+      </button>
+    }
+  }
+</div>

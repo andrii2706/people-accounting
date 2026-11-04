@@ -55,3 +55,8 @@ export interface ListItemLabels {
   title: string;
   fields: Record<string, string>;
 }
+
+/** A Nest HttpException seen from outside an HTTP request (CLI jobs): its body with readable lines. */
+export interface HttpErrorLike {
+  response?: { message?: string | string[] };
+}

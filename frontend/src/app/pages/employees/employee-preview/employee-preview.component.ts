@@ -8,13 +8,14 @@ import type {
   EmployeeListItem,
 } from '../../../shared/interfaces/employee.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
+import { PhonePipe } from '../../../shared/pipes/phone.pipe';
 import { initials, statusBadges } from '../../../shared/utils/employee-list.utils';
 
 /** Side panel of the employee list: the main facts of a card without leaving the list. */
 @Component({
   selector: 'app-employee-preview',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, CategoryBadgeComponent, UaDatePipe],
+  imports: [RouterLink, IconComponent, CategoryBadgeComponent, UaDatePipe, PhonePipe],
   host: { '(document:keydown.escape)': 'closed.emit()' },
   templateUrl: './employee-preview.component.html',
 })

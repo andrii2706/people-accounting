@@ -19,7 +19,9 @@ import { EmployeeChange } from '../employees/entities/employee-change.entity.js'
 import { EmployeesService } from '../employees/employees.service.js';
 import { LIST_GROUPS } from '../military/dictionaries.js';
 import { fullName } from '../military/employee-format.js';
-import { OrganizationService } from '../organization/organization.service.js';
+import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
+import type { Organization } from '../organization/organization.entity.js';
+import { EXTERNAL_NO_DOCUMENT } from './letters.constants.js';
 import { ReportsService } from '../reports/reports.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { LetterSignature } from './entities/letter-signature.entity.js';
@@ -41,6 +43,8 @@ import { sha256 } from '../common/utils/hash.utils.js';
 import { LETTER_TYPE_TITLES } from './letters.constants.js';
 import { employeesCount, noticeBatches } from './utils/letters.utils.js';
 import type { LetterParams } from '../shared/interfaces/letter.interface.js';
+import { CreateExternalNoticeDto } from './letters.dto.js';
+import { fieldErrors } from '../common/validators/validators.js';
 
 @Injectable()
 export class LettersService {
@@ -52,7 +56,7 @@ export class LettersService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly employees: EmployeesService,
     private readonly reports: ReportsService,
-    private readonly org: OrganizationService,
+    private readonly legalEntities: LegalEntitiesService,
     private readonly storage: StorageService,
   ) {}
 
@@ -84,11 +88,11 @@ export class LettersService {
         .find({ where, order: { effectiveDate: 'ASC', createdAt: 'ASC' } });
       if (!changes.length) throw new BadRequestException('Немає змін, про які потрібно повідомити');
 
-      // group by TCK; inside a letter — employees alphabetically, their changes by date
+      // group by legal entity (the sender) and TCK; inside a letter — employees alphabetically, changes by date
       const groups = new Map<string, Employee[]>();
       for (const e of employees) {
         if (!changes.some((c) => c.employeeId === e.id)) continue;
-        const key = e.tckId ?? 'none';
+        const key = `${e.legalEntityId ?? 'none'}|${e.tckId ?? 'none'}`;
         groups.set(key, [...(groups.get(key) ?? []), e]);
       }
 
@@ -106,6 +110,7 @@ export class LettersService {
             : `${LETTER_TYPE_TITLES.CHANGE_NOTICE}: ${employeesCount(group.length)}`,
           employeeId: single ? group[0].id : null,
           tckId: group[0].tckId,
+          legalEntityId: group[0].legalEntityId,
           createdById: user.id,
         });
         await m
@@ -123,6 +128,58 @@ export class LettersService {
       return created;
     });
     return Promise.all(ids.map((id) => this.get(id)));
+  }
+
+  /** A notice sent before the system: stored as a sent letter with its real number, without a document. */
+  async createExternalNotice(dto: CreateExternalNoticeDto, user: AuthUser) {
+    const id = await this.dataSource.transaction(async (m) => {
+      const employee = await this.employees.findEntity(dto.employeeId, m);
+      const changes = dto.changeIds?.length
+        ? await m.getRepository(EmployeeChange).find({
+            where: { id: In(dto.changeIds), employeeId: employee.id, letterId: IsNull() },
+            order: { effectiveDate: 'ASC' },
+          })
+        : [];
+      if (dto.changeIds?.length && changes.length !== dto.changeIds.length) {
+        throw fieldErrors([
+          { field: 'changeIds', message: 'Деякі зміни вже повідомлено або вони не цього працівника' },
+        ]);
+      }
+      const tckId = dto.tckId ?? employee.tckId;
+      const letter = await this.newLetter(m, {
+        type: 'CHANGE_NOTICE',
+        date: dto.date,
+        number: dto.number,
+        subject: `${LETTER_TYPE_TITLES.CHANGE_NOTICE} (внесено вручну): ${fullName(employee)}`,
+        employeeId: employee.id,
+        tckId,
+        legalEntityId: employee.legalEntityId,
+        external: true,
+        status: 'SENT',
+        sentAt: new Date(`${dto.date}T12:00:00Z`),
+        createdById: user.id,
+      });
+      if (changes.length) {
+        await m.getRepository(EmployeeChange).update({ id: In(changes.map((c) => c.id)) }, { letterId: letter.id });
+      }
+      const snapshot = noticeSnapshot(employee, changes);
+      if (dto.description?.trim()) snapshot.change = dto.description.trim();
+      await m.getRepository(ChangeNotice).save(
+        this.noticeRepo.create({
+          letterId: letter.id,
+          sequence: 1,
+          employeeId: employee.id,
+          changeId: changes[0]?.id ?? null,
+          employeeName: fullName(employee),
+          changeType: dto.changeType,
+          effectiveDate: dto.effectiveDate ?? changes.at(-1)?.effectiveDate ?? dto.date,
+          content: JSON.stringify(snapshot),
+        }),
+      );
+      return letter.id;
+    });
+    await this.audit(id, 'CREATE', { external: [null, true], number: [null, dto.number] }, user);
+    return this.get(id);
   }
 
   private noticeRow(letterId: string, sequence: number, employee: Employee, batch: EmployeeChange[]) {
@@ -171,16 +228,22 @@ export class LettersService {
       order: { year: 'ASC', sequence: 'ASC' },
     });
     if (letters.length !== unique.length) throw new NotFoundException('Деякі листи не знайдено');
-    const org = await this.org.get();
-    const sender = {
-      name: org.shortName || org.fullName,
-      address: org.address,
-      postalCode: postalCodeOf(org.postalCode, org.address),
-      phone: org.phone,
+    const senders = new Map<string, Organization>();
+    for (const id of new Set(letters.map((l) => l.legalEntityId ?? ''))) {
+      senders.set(id, await this.legalEntities.requisites(id || null));
+    }
+    const senderOf = (l: OutgoingLetter) => {
+      const org = senders.get(l.legalEntityId ?? '')!;
+      return {
+        name: org.shortName || org.fullName,
+        address: org.address,
+        postalCode: postalCodeOf(org.postalCode, org.address),
+        phone: org.phone,
+      };
     };
     const buffer = await buildEnvelopeLabels(
       letters.map((l) => ({
-        sender,
+        sender: senderOf(l),
         recipient: {
           name: l.tck?.name ?? '',
           address: l.tck?.address ?? '',
@@ -214,7 +277,13 @@ export class LettersService {
       ...n,
       typeLabel: CHANGE_TYPE_LABELS[n.changeType],
       number: noticeNumber(letter.number, n.sequence, totals.get(n.letterId) ?? 1),
-      letter: { id: letter.id, number: letter.number, date: letter.date, status: letter.status },
+      letter: {
+        id: letter.id,
+        number: letter.number,
+        date: letter.date,
+        status: letter.status,
+        external: letter.external,
+      },
     }));
   }
 
@@ -223,8 +292,9 @@ export class LettersService {
     const notice = await this.noticeRepo.findOne({ where: { id }, relations: { letter: { tck: true } } });
     if (!notice) throw new NotFoundException('Повідомлення не знайдено');
     const total = await this.noticeRepo.countBy({ letterId: notice.letterId });
-    const org = await this.org.getAt(notice.letter.date);
-    const responsible = await this.org.responsibleAt(notice.letter.date);
+    if (notice.letter.external) throw new BadRequestException(EXTERNAL_NO_DOCUMENT);
+    const org = await this.legalEntities.requisites(notice.letter.legalEntityId);
+    const responsible = await this.legalEntities.responsible(notice.letter.legalEntityId);
     const snapshot = JSON.parse(notice.content) as NoticeSnapshot;
     const ref = { number: notice.letter.number, date: notice.letter.date };
     const buffer = await buildSingleNotice({
@@ -241,14 +311,24 @@ export class LettersService {
 
   async createReportLetter(dto: CreateReportLetterDto, user: AuthUser) {
     const tck = dto.tckId ? await this.tckRepo.findOneBy({ id: dto.tckId }) : null;
+    const byTck = dto.type === 'LISTS' && !!dto.byTck;
+    if (byTck && !tck) throw fieldErrors([{ field: 'tckId', message: 'Оберіть ТЦК, якому надсилається витяг' }]);
+    const legalEntityId = await this.legalEntities.forDocument(dto.legalEntityId);
+    const extract = !!dto.employeeIds?.length || byTck;
     const id = await this.dataSource.transaction(async (m) => {
       const letter = await this.newLetter(m, {
+        legalEntityId,
         type: dto.type,
         date: dto.date ?? todayIso(),
         number: dto.number,
-        subject: `${LETTER_TYPE_TITLES[dto.type]}${dto.employeeIds?.length ? ' (витяг)' : ''} станом на ${formatUa(dto.reportDate)}`,
+        subject: `${LETTER_TYPE_TITLES[dto.type]}${extract ? ' (витяг)' : ''} станом на ${formatUa(dto.reportDate)}`,
         tckId: tck?.id ?? null,
-        params: { reportDate: dto.reportDate, groups: dto.groups ?? null, employeeIds: dto.employeeIds ?? null },
+        params: {
+          reportDate: dto.reportDate,
+          groups: dto.groups ?? null,
+          employeeIds: dto.employeeIds ?? null,
+          ...(byTck ? { byTck: true } : {}),
+        },
         createdById: user.id,
       });
       return letter.id;
@@ -267,7 +347,7 @@ export class LettersService {
       .where('l.year = :year', { year })
       .getRawOne<MaxNumberRow>())!;
     const sequence = Number(max) + 1;
-    const org = await this.org.get();
+    const org = await this.legalEntities.requisites(data.legalEntityId ?? null);
     const number = data.number?.trim() || `${org.letterNumberPrefix}${sequence}`;
     return m
       .getRepository(OutgoingLetter)
@@ -347,7 +427,9 @@ export class LettersService {
   async remove(id: string) {
     const letter = await this.repo.findOneBy({ id });
     if (!letter) throw new NotFoundException('Лист не знайдено');
-    if (letter.status === 'SENT') throw new BadRequestException('Надісланий лист видаляти не можна');
+    // a notice entered by hand (sent before the system) may be removed if it was entered by mistake
+    if (letter.status === 'SENT' && !letter.external)
+      throw new BadRequestException('Надісланий лист видаляти не можна');
     if (await this.signatureRepo.countBy({ letterId: id }))
       throw new BadRequestException('Підписаний лист видаляти не можна');
     await this.dataSource.transaction(async (m) => {
@@ -374,6 +456,7 @@ export class LettersService {
       const { buffer, filename } = await this.frozenDocument(id);
       return { buffer, filename };
     }
+    if (letter.external) throw new BadRequestException(EXTERNAL_NO_DOCUMENT);
     const safeNumber = letter.number.replace(/[\\/:*?"<>|]/g, '-');
     const ref = { number: letter.number, date: letter.date };
 
@@ -381,8 +464,8 @@ export class LettersService {
       const rows = await this.ensureNotices(letter);
       if (!rows.length) throw new BadRequestException('У листі немає повідомлень');
       const [org, responsible, tck] = await Promise.all([
-        this.org.getAt(letter.date),
-        this.org.responsibleAt(letter.date),
+        this.legalEntities.requisites(letter.legalEntityId),
+        this.legalEntities.responsible(letter.legalEntityId),
         letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
       ]);
       const notices = rows.map((r) => ({
@@ -399,16 +482,18 @@ export class LettersService {
     const params = letter.params as LetterParams;
     const reportDate = params.reportDate ?? letter.date;
     if (letter.type === 'LISTS') {
-      const buffer = await this.reports.listsDocx(
-        reportDate,
-        params.groups ?? LIST_GROUPS,
-        params.employeeIds ?? undefined,
-        ref,
-      );
-      return { buffer, filename: `Списки ${safeNumber} ${reportDate}.docx` };
+      const extract = !!params.employeeIds?.length || !!params.byTck;
+      const buffer = await this.reports.listsDocx(reportDate, {
+        groups: params.groups ?? LIST_GROUPS,
+        onlyIds: params.employeeIds ?? undefined,
+        tckId: params.byTck ? letter.tckId : null,
+        letter: ref,
+        legalEntityId: letter.legalEntityId,
+      });
+      return { buffer, filename: `${extract ? 'Витяг' : 'Списки'} ${safeNumber} ${reportDate}.docx` };
     }
     if (letter.type === 'OPERATIONAL_REPORT') {
-      const buffer = await this.reports.operationalDocx(reportDate, ref);
+      const buffer = await this.reports.operationalDocx(reportDate, ref, letter.legalEntityId);
       return { buffer, filename: `Відомість ${safeNumber} ${reportDate}.docx` };
     }
     throw new BadRequestException('Для цього типу листа документ не формується');

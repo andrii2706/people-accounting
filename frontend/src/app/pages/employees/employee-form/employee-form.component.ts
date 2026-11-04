@@ -53,6 +53,7 @@ import {
 import { sensibleDate } from '../../../shared/utils/date.utils';
 import { httpResource } from '@angular/common/http';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { PhoneInputComponent } from '../../../shared/components/phone-input/phone-input.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
@@ -98,6 +99,7 @@ import type { NotificationStatus } from '../../../shared/interfaces/organization
     IconComponent,
     DateInputComponent,
     SelectComponent,
+    PhoneInputComponent,
   ],
   templateUrl: './employee-form.component.html',
 })
@@ -132,10 +134,12 @@ export class EmployeeFormComponent {
   readonly source = input<EmployeeDetails | null>(null);
   protected readonly model = linkedSignal<EmployeeFormModel>(() => {
     const source = this.source();
-    return (
-      this.original() ??
-      (source ? copyEmployeeToForm(source, this.today) : emptyEmployeeForm(this.today))
-    );
+    if (this.original()) return this.original()!;
+    const fresh = source ? copyEmployeeToForm(source, this.today) : emptyEmployeeForm(this.today);
+    // a new card of the only legal entity belongs to it; with several the user chooses
+    const entities = this.dict.legalEntities();
+    if (!fresh.legalEntityId && entities.length === 1) fresh.legalEntityId = entities[0].id;
+    return fresh;
   });
 
   protected readonly changedLabels = computed(() =>
@@ -314,7 +318,11 @@ export class EmployeeFormComponent {
     pattern(p.firstName, PATTERN.name, { message: MESSAGE.name });
     pattern(p.middleName, PATTERN.name, { message: MESSAGE.name });
     pattern(p.rnokpp, PATTERN.rnokpp, { message: MESSAGE.rnokpp });
-    pattern(p.phone, PATTERN.phone, { message: MESSAGE.phone });
+    pattern(p.phone, PATTERN.phoneE164, { message: MESSAGE.phoneE164 });
+    required(p.legalEntityId, {
+      message: 'Оберіть юридичну особу',
+      when: () => this.dict.severalLegalEntities(),
+    });
     pattern(p.email, PATTERN.email, { message: MESSAGE.email });
 
     // passport: rules depend on the document type

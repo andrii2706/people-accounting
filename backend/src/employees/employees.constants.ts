@@ -116,6 +116,7 @@ export const FIELD_LABELS: Record<string, string> = {
   militaryDocuments: 'Військово-облікові документи',
   servedInArmy: 'Проходив військову службу',
   tckId: 'ТЦК та СП',
+  legalEntityId: 'Юридична особа',
   tckRegisteredAt: 'На обліку в ТЦК з',
   fitness: 'Придатність',
   fitnessBasis: 'Графа, пункт наказу',

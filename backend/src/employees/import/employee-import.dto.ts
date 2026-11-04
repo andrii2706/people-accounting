@@ -9,6 +9,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   ValidateNested,
 } from 'class-validator';
@@ -40,4 +41,5 @@ export class ImportCommitDto extends ImportRowsDto {
   /** RECENT (default) / ALL / NONE; true / false are accepted as ALL / NONE for older clients. */
   @IsOptional() @IsIn([true, false, 'RECENT', 'ALL', 'NONE']) hireNotices?: boolean | HireNoticesMode;
   @IsOptional() @IsString() @MaxLength(255) fileName?: string;
+  @IsOptional() @IsUUID('all', { message: 'Оберіть юридичну особу' }) legalEntityId?: string;
 }

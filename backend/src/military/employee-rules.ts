@@ -67,6 +67,8 @@ export const PATTERN = {
   name: /^[\p{L}][\p{L}'’ʼ\-\s.]*$/u,
   rnokpp: /^\d{10}$/,
   phone: /^\+?[\d\s()-]{10,20}$/,
+  /** International format: «+» and 7–15 digits — the country code and the number, nothing else. */
+  phoneE164: /^\+\d{7,15}$/,
   email: /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/,
   /** Booklet passport: two Cyrillic letters + 6 digits. */
   passportBookSeries: /^[А-ЩЬЮЯҐЄІЇа-щьюяґєії]{2}$/u,
@@ -99,6 +101,7 @@ export const MESSAGE = {
   name: 'Лише літери, апостроф і дефіс',
   rnokpp: 'РНОКПП — рівно 10 цифр',
   phone: 'Формат: +380 67 123 45 67',
+  phoneE164: 'Номер — лише цифри після коду країни, напр. +380671234567',
   email: 'Некоректний email — приклад: name@company.ua',
   emailList: 'Перелік email через кому, напр. hr@company.ua, boss@company.ua',
   postalCode: 'Поштовий індекс — 5 цифр, напр. 79000',
@@ -186,4 +189,19 @@ export function splitDocNumber(text: string): DocNumberParts {
   const m = /^(\p{L}{1,3})?\s*№?\s*(\d[\d\s/-]*\d|\d)$/u.exec(compact);
   if (!m) return { series: '', number: compact };
   return { series: (m[1] ?? '').toUpperCase(), number: m[2].replace(/\s/g, '') };
+}
+
+/**
+ * Any written phone → «+<code><digits>»: «067 123 45 67» and «380671234567» → «+380671234567».
+ * Text that is not a phone is returned as typed (validation explains).
+ */
+export function normalizePhone(value: string): string {
+  const v = value.trim();
+  if (!v) return '';
+  const digits = v.replace(/\D/g, '');
+  if (!/^[+\d\s()-]+$/.test(v) || digits.length < 7) return v;
+  if (v.startsWith('+')) return `+${digits}`;
+  if (digits.length === 10 && digits.startsWith('0')) return `+38${digits}`;
+  if (digits.length === 12 && digits.startsWith('380')) return `+${digits}`;
+  return `+${digits}`;
 }

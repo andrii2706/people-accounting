@@ -1,3 +1,5 @@
+import type { UserRole } from '../interfaces/auth.interface';
+import type { SelectOption } from '../interfaces/ui.interface';
 /** Sign-out after this long without mouse or keyboard activity. */
 export const IDLE_TIMEOUT_MS = 10 * 60_000;
 
@@ -19,3 +21,18 @@ export const IDLE_ACTIVITY_KEY = 'mr.lastActivity';
 
 /** Set when one tab signs out on idle — the others follow. */
 export const IDLE_SIGNED_OUT_KEY = 'mr.idleSignedOut';
+
+/** Role names in the interface. */
+export const ROLE_LABELS: Record<UserRole, string> = {
+  ADMIN: 'Адміністратор',
+  HR: 'Кадровик',
+  DIRECTOR: 'Директор',
+  VENDOR: 'Постачальник',
+};
+
+/** Roles the administrator can give in «Користувачі». */
+export const ROLE_OPTIONS: SelectOption<UserRole>[] = [
+  { value: 'HR', label: 'Кадровик', hint: 'веде облік: працівники, листи, звіти' },
+  { value: 'DIRECTOR', label: 'Директор', hint: 'перегляд усього і підписання документів' },
+  { value: 'ADMIN', label: 'Адміністратор', hint: 'ще й налаштування та користувачі' },
+];

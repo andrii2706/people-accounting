@@ -105,7 +105,7 @@
     @if (d()?.phone) {
       <div class="col-span-2">
         <dt class="text-muted">Телефон</dt>
-        <dd class="mt-0.5">{{ d()?.phone }}</dd>
+        <dd class="mt-0.5 tabular-nums">{{ d()?.phone | phone }}</dd>
       </div>
     }
   </dl>

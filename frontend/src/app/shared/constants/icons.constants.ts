@@ -32,4 +32,9 @@ export const ICON_PATHS = {
   upload: 'M12 15V3M7 8l5-5 5 5M5 21h14',
   lock: 'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
   signature: 'M3 17c3-3 4-8 6-8s0 8 2 8 2-4 4-4 1 3 3 3h3M3 21h18',
+  building:
+    'M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M2 21h20M8 7h4M8 11h4M8 15h4',
+  flag: 'M4 22V4M4 4h12l-2 4 2 4H4',
+  externalLink: 'M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6',
+  trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6',
 } as const;

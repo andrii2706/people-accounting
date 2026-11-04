@@ -1,0 +1,27 @@
+<div class="flex gap-2">
+  <app-select
+    class="w-32 shrink-0"
+    ariaLabel="Код країни"
+    [options]="options"
+    [clearable]="false"
+    [searchable]="true"
+    [disabled]="disabled()"
+    [readonly]="readonly()"
+    [value]="code()"
+    (valueChange)="setCode($event)"
+  />
+  <input
+    class="input min-w-0 flex-1 font-mono tabular-nums"
+    type="tel"
+    inputmode="numeric"
+    autocomplete="tel-national"
+    [attr.aria-label]="ariaLabel() ?? 'Номер телефону без коду країни'"
+    [attr.aria-invalid]="invalid() || null"
+    [placeholder]="placeholder()"
+    [value]="national()"
+    [disabled]="disabled()"
+    [readOnly]="readonly()"
+    (input)="onInput($event)"
+    (blur)="touch.emit()"
+  />
+</div>

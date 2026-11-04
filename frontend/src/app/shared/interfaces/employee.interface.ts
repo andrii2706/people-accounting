@@ -44,6 +44,9 @@ export interface EmployeeListItem extends Omit<EmployeeDerived, 'warnings'> {
   rankCode: number | null;
   vos: string;
   tckName: string;
+  legalEntityId: string | null;
+  /** Short name of the legal entity (employer). */
+  legalEntityName: string;
   reservationUntil: string | null;
   /** Deferral in force on the date (not for reserved employees). */
   deferral: boolean;
@@ -151,6 +154,7 @@ export interface Employee {
   servedInArmy: boolean;
   tckId: string | null;
   tck: Tck | null;
+  legalEntityId: string | null;
   tckRegisteredAt: string | null;
   fitness: string;
   fitnessBasis: string;

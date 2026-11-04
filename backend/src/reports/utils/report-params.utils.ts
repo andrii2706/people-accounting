@@ -17,3 +17,19 @@ export function parseListGroups(value?: string): ListGroup[] {
   if (groups.some((g) => !LIST_GROUPS.includes(g))) throw new BadRequestException('Невідома група списку');
   return groups;
 }
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** ?entity=<uuid> → the legal entity id; empty — all legal entities. */
+export function parseEntityId(value?: string): string | null {
+  if (!value) return null;
+  if (!UUID.test(value)) throw new BadRequestException('Некоректна юридична особа');
+  return value;
+}
+
+/** ?tck=<uuid> → the TCK id; empty — all TCKs. */
+export function parseTckId(value?: string): string | null {
+  if (!value) return null;
+  if (!UUID.test(value)) throw new BadRequestException('Некоректний ТЦК');
+  return value;
+}

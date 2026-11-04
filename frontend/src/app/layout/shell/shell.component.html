@@ -145,7 +145,7 @@
             <div class="border-b border-line px-4 py-3">
               <p class="truncate text-sm font-semibold">{{ auth.user()?.fullName }}</p>
               <p class="truncate text-xs text-muted">
-                {{ auth.isAdmin() ? 'Адміністратор' : 'Кадровик' }} · {{ auth.user()?.email }}
+                {{ auth.roleLabel() }} · {{ auth.user()?.email }}
               </p>
             </div>
             <a
@@ -254,43 +254,53 @@
       aria-modal="true"
       aria-labelledby="welcome-title"
     >
-      <header class="border-b border-line px-5 py-4">
-        <h2 id="welcome-title" class="flex items-center gap-2 text-lg font-semibold">
-          <app-icon name="bell" class="text-brand-600" /> Нові сповіщення:
-          {{ inbox.unreadCount() }}
-        </h2>
-        <p class="mt-1 flex flex-wrap gap-x-4 text-sm text-muted">
-          @if (unreadByKind().DEADLINE) {
-            <span>Строки: {{ unreadByKind().DEADLINE }}</span>
-          }
-          @if (unreadByKind().TCK) {
-            <span>Повідомлення ТЦК: {{ unreadByKind().TCK }}</span>
-          }
-          @if (unreadByKind().CARD) {
-            <span>Дані картки: {{ unreadByKind().CARD }}</span>
-          }
-        </p>
-      </header>
-      <div class="overflow-y-auto">
-        <app-inbox-list
-          [items]="welcomeItems()"
-          (open)="openItem($event)"
-          (markRead)="markRead($event)"
-        />
-        @if (inbox.unreadCount() > welcomeItems().length) {
-          <p class="px-5 py-2 text-xs text-muted">
-            і ще {{ inbox.unreadCount() - welcomeItems().length }} — у розділі «Сповіщення»
-            (дзвіночок у меню)
+      <h2 id="welcome-title" class="sr-only">Після входу</h2>
+      @if (billing(); as b) {
+        <div class="px-5 pt-5" [class.pb-5]="!inbox.unreadCount()">
+          <app-billing-notice [status]="b" [name]="userName()" />
+        </div>
+      }
+      @if (inbox.unreadCount()) {
+        <header class="border-b border-line px-5 py-4">
+          <h3 class="flex items-center gap-2 text-lg font-semibold">
+            <app-icon name="bell" class="text-brand-600" /> Нові сповіщення:
+            {{ inbox.unreadCount() }}
+          </h3>
+          <p class="mt-1 flex flex-wrap gap-x-4 text-sm text-muted">
+            @if (unreadByKind().DEADLINE) {
+              <span>Строки: {{ unreadByKind().DEADLINE }}</span>
+            }
+            @if (unreadByKind().TCK) {
+              <span>Повідомлення ТЦК: {{ unreadByKind().TCK }}</span>
+            }
+            @if (unreadByKind().CARD) {
+              <span>Дані картки: {{ unreadByKind().CARD }}</span>
+            }
           </p>
-        }
-      </div>
+        </header>
+        <div class="overflow-y-auto">
+          <app-inbox-list
+            [items]="welcomeItems()"
+            (open)="openItem($event)"
+            (markRead)="markRead($event)"
+          />
+          @if (inbox.unreadCount() > welcomeItems().length) {
+            <p class="px-5 py-2 text-xs text-muted">
+              і ще {{ inbox.unreadCount() - welcomeItems().length }} — у розділі «Сповіщення»
+              (дзвіночок у меню)
+            </p>
+          }
+        </div>
+      }
       <footer class="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">
-        <button type="button" class="btn btn-ghost cursor-pointer" (click)="markAllRead()">
-          Позначити все прочитаним
-        </button>
-        <button type="button" class="btn btn-secondary cursor-pointer" (click)="showAll()">
-          Усі сповіщення
-        </button>
+        @if (inbox.unreadCount()) {
+          <button type="button" class="btn btn-ghost cursor-pointer" (click)="markAllRead()">
+            Позначити все прочитаним
+          </button>
+          <button type="button" class="btn btn-secondary cursor-pointer" (click)="showAll()">
+            Усі сповіщення
+          </button>
+        }
         <button type="button" class="btn btn-primary cursor-pointer" (click)="closeInbox()">
           Зрозуміло
         </button>

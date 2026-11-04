@@ -1,12 +1,13 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import type { ListGroup } from '../interfaces/dictionary.interface';
 import type {
   EmployeeNotice,
   Letter,
   LetterDetails,
   LetterUpdate,
+  ExternalNoticeRequest,
+  ReportLetterRequest,
 } from '../interfaces/letter.interface';
 
 /** Register of outgoing letters to the TCK, documents and hand-over. */
@@ -53,14 +54,13 @@ export class LettersService {
     );
   }
 
-  createReport(body: {
-    type: 'LISTS' | 'OPERATIONAL_REPORT';
-    reportDate: string;
-    groups?: ListGroup[];
-    employeeIds?: string[];
-    tckId?: string;
-  }) {
+  createReport(body: ReportLetterRequest) {
     return firstValueFrom(this.http.post<LetterDetails>('/api/letters/report', body));
+  }
+
+  /** A notice sent before the system: stored with its real number, without a document. */
+  createExternalNotice(body: ExternalNoticeRequest) {
+    return firstValueFrom(this.http.post<LetterDetails>('/api/letters/external-notice', body));
   }
 
   update(id: string, body: LetterUpdate) {

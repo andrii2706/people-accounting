@@ -1,3 +1,4 @@
+import { ROLE_LABELS } from '../constants/auth.constants';
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
@@ -19,6 +20,13 @@ export class AuthService {
   readonly user = this._user.asReadonly();
   readonly isAuthenticated = computed(() => this._user() !== null);
   readonly isAdmin = computed(() => this._user()?.role === 'ADMIN');
+  /** The director only views and signs; buttons that change data are hidden. */
+  readonly isDirector = computed(() => this._user()?.role === 'DIRECTOR');
+  readonly canEdit = computed(() => {
+    const role = this._user()?.role;
+    return role === 'ADMIN' || role === 'HR';
+  });
+  readonly roleLabel = computed(() => ROLE_LABELS[this._user()?.role ?? 'HR']);
   readonly mustChangePassword = computed(() => !!this._user()?.mustChangePassword);
   readonly initials = computed(() =>
     (this._user()?.fullName ?? '')

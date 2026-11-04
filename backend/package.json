@@ -25,6 +25,7 @@
     "seed": "nest build && node --env-file-if-exists=.env dist/database/seed.js",
     "dev:sign": "tsx scripts/dev-sign.ts",
     "job:daily": "nest build && node --env-file-if-exists=.env dist/jobs/daily.js",
+    "billing": "nest build && node --env-file-if-exists=.env dist/jobs/billing.js",
     "tck:export": "tsx --env-file-if-exists=.env scripts/tck-export.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "format:check": "prettier --check \"src/**/*.ts\" \"scripts/**/*.ts\""

@@ -72,6 +72,27 @@ export class CommandPaletteComponent {
       hint: 'Звітність',
       go: () => this.open(['/reports/operational']),
     },
+    {
+      id: 'a-extracts',
+      icon: 'copy',
+      title: 'Витяги для ТЦК',
+      hint: 'Звітність',
+      go: () => this.open(['/reports/extracts']),
+    },
+    {
+      id: 'a-entities',
+      icon: 'building',
+      title: 'Юридичні особи',
+      hint: 'Налаштування',
+      go: () => this.open(['/settings']),
+    },
+    {
+      id: 'a-tck',
+      icon: 'flag',
+      title: 'Довідник ТЦК',
+      hint: 'Довідники',
+      go: () => this.open(['/tck']),
+    },
   ];
 
   protected readonly entries = computed<PaletteEntry[]>(() => {

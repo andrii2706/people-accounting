@@ -1,3 +1,4 @@
+import { AuthService } from '../../../shared/services/auth.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -41,6 +42,7 @@ import type { SelectOption } from '../../../shared/interfaces/ui.interface';
   templateUrl: './letter-detail.component.html',
 })
 export class LetterDetailComponent {
+  protected readonly auth = inject(AuthService);
   protected readonly lettersService = inject(LettersService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);

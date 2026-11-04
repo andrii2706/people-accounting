@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import { toPlainImportRow } from '../utils/employee-import.utils';
 import type {
   CheckedImportRow,
-  HireNoticesMode,
+  ImportCommitOptions,
   ImportPreview,
   ImportResult,
   ImportRow,
@@ -32,12 +32,12 @@ export class EmployeeImportService {
     );
   }
 
-  commit(rows: ImportRow[], hireNotices: HireNoticesMode, fileName?: string) {
+  commit(rows: ImportRow[], options: ImportCommitOptions) {
     return firstValueFrom(
       this.http.post<ImportResult>('/api/employees/import/commit', {
         rows: rows.map(toPlainImportRow),
-        hireNotices,
-        fileName,
+        ...options,
+        legalEntityId: options.legalEntityId || undefined,
       }),
     );
   }

@@ -1,3 +1,4 @@
+import { AuthService } from '../../../shared/services/auth.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,6 +19,7 @@ import type {
   EmployeeView,
 } from '../../../shared/interfaces/employee.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
+import { LegalEntityFilterComponent } from '../../../shared/components/legal-entity-filter/legal-entity-filter.component';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
@@ -46,10 +48,18 @@ import {
 @Component({
   selector: 'app-employee-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, UaDatePipe, EmployeePreviewComponent, InViewDirective],
+  imports: [
+    RouterLink,
+    IconComponent,
+    UaDatePipe,
+    EmployeePreviewComponent,
+    InViewDirective,
+    LegalEntityFilterComponent,
+  ],
   templateUrl: './employee-list.component.html',
 })
 export class EmployeeListComponent {
+  protected readonly auth = inject(AuthService);
   protected readonly dict = inject(DictionariesService);
   private readonly reportsService = inject(ReportsService);
   private readonly router = inject(Router);
@@ -62,6 +72,8 @@ export class EmployeeListComponent {
   readonly status = input<string, string | undefined>('', { transform: orEmpty });
   readonly group = input<string, string | undefined>('', { transform: orEmpty });
   readonly category = input<string, string | undefined>('', { transform: orEmpty });
+  /** ?entity= — employees of one legal entity. */
+  readonly entity = input<string, string | undefined>('', { transform: orEmpty });
   readonly view = input<string, string | undefined>('', { transform: orEmpty });
   /** Old links: ?warnings=1 is the «Потребують уваги» tab. */
   readonly warnings = input<string, string | undefined>('', { transform: orEmpty });
@@ -119,7 +131,12 @@ export class EmployeeListComponent {
     return this.loaded().filter((e) => e.onLists && !isDismissed(e, today)).length;
   });
 
-  protected readonly exportUrl = computed(() => this.reportsService.listsDocxUrl());
+  /** The full lists need one legal entity: the filter, or the only one there is. */
+  protected readonly exportUrl = computed(() =>
+    this.dict.severalLegalEntities() && !this.entity()
+      ? null
+      : this.reportsService.listsDocxUrl({ entity: this.entity() }),
+  );
 
   /** Selected rows (bulk actions); reset when the list changes. */
   protected readonly selected = linkedSignal<EmployeeListItem[], ReadonlySet<string>>({
@@ -132,9 +149,18 @@ export class EmployeeListComponent {
   protected readonly allSelected = computed(
     () => this.items().length > 0 && this.items().every((i) => this.selected().has(i.id)),
   );
-  protected readonly selectedExtractUrl = computed(() =>
-    this.reportsService.listsDocxUrl(undefined, [...this.selected()]),
-  );
+  /** An extract is formed for one legal entity — the selected people must belong to the same one. */
+  protected readonly selectedExtractUrl = computed(() => {
+    const ids = this.selected();
+    const entities = new Set(
+      this.loaded()
+        .filter((e) => ids.has(e.id))
+        .map((e) => e.legalEntityId),
+    );
+    if (entities.size > 1) return null;
+    const [entity] = entities;
+    return this.reportsService.listsDocxUrl({ ids: [...ids], entity: entity ?? '' });
+  });
 
   /** Employee shown in the side panel. */
   protected readonly previewId = signal<string | null>(null);
@@ -191,6 +217,10 @@ export class EmployeeListComponent {
 
   protected setCategory(category: string) {
     void this.updateQuery({ category });
+  }
+
+  protected setEntity(entity: string) {
+    void this.updateQuery({ entity });
   }
 
   protected toggle(id: string) {

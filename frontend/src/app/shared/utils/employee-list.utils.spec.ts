@@ -71,14 +71,24 @@ describe('список працівників', () => {
 
   it('мітки статусу з датами', () => {
     expect(statusBadges(emp({ reserved: true, reservationUntil: '2026-11-15' }))).toEqual([
-      { label: 'Заброньований до 15.11', tone: 'ok' },
+      { label: 'Заброньований до 15.11.2026', tone: 'ok' },
     ]);
-    expect(statusBadges(emp({ deferral: true, deferralUntil: '2026-12-01' }))[0].label).toBe(
-      'Відстрочка до 01.12',
-    );
+    expect(statusBadges(emp({ deferral: true, deferralUntil: '2028-02-28' }))[0]).toEqual({
+      label: 'Відстрочка до 28.02.2028',
+      tone: 'info',
+    });
+    expect(
+      statusBadges(
+        emp({
+          deferral: true,
+          deferralUntil: '2026-11-20',
+          warnings: [{ code: 'DEFERRAL_EXPIRING', level: 'warning' }],
+        }),
+      )[0].tone,
+    ).toBe('warning');
     expect(statusBadges(emp({ dutyCategory: null }))[0].label).toBe('Не на обліку');
     expect(statusBadges(emp({ dismissalDate: '2020-01-31', reserved: true }))).toEqual([
-      { label: 'Звільнений 31.01', tone: 'muted' },
+      { label: 'Звільнений 31.01.2020', tone: 'muted' },
     ]);
   });
 

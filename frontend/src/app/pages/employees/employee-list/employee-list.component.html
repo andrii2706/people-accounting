@@ -8,13 +8,26 @@
       </p>
     </div>
     <div class="flex flex-wrap gap-2">
-      <a class="btn btn-secondary" [href]="exportUrl()" download
-        ><app-icon name="download" /> Списки .docx</a
-      >
-      <a routerLink="/employees/import" class="btn btn-secondary"
-        ><app-icon name="upload" /> Імпорт</a
-      >
-      <a routerLink="/employees/new" class="btn btn-primary"><app-icon name="plus" /> Додати</a>
+      @if (exportUrl(); as url) {
+        <a class="btn btn-secondary cursor-pointer" [href]="url" download
+          ><app-icon name="download" /> Списки .docx</a
+        >
+      } @else {
+        <button
+          type="button"
+          class="btn btn-secondary cursor-pointer"
+          disabled
+          title="Оберіть юридичну особу у фільтрі — списки формуються від її імені"
+        >
+          <app-icon name="download" /> Списки .docx
+        </button>
+      }
+      @if (auth.canEdit()) {
+        <a routerLink="/employees/import" class="btn btn-secondary"
+          ><app-icon name="upload" /> Імпорт</a
+        >
+        <a routerLink="/employees/new" class="btn btn-primary"><app-icon name="plus" /> Додати</a>
+      }
     </div>
   </div>
 
@@ -61,6 +74,7 @@
       />
     </label>
 
+    <app-legal-entity-filter [value]="entity()" (changed)="setEntity($event)" />
     <!-- filter chips: dashed «+ …» when empty, filled with «×» when set -->
     @if (category()) {
       <span
@@ -133,19 +147,25 @@
     <div class="flex flex-wrap items-center gap-3 rounded-xl bg-ink px-4 py-2.5 text-white">
       <b class="font-semibold">Вибрано {{ selected().size }}</b>
       <span class="flex-1"></span>
-      <a
-        routerLink="/notifications"
-        class="btn cursor-pointer bg-white px-3 py-1.5 text-[13px] text-ink hover:bg-white/90"
-      >
-        <app-icon name="send" [size]="15" /> Сформувати лист ТЦК
-      </a>
-      <a
-        [href]="selectedExtractUrl()"
-        download
-        class="btn cursor-pointer border border-white/30 px-3 py-1.5 text-[13px] text-white hover:bg-white/10"
-      >
-        <app-icon name="download" [size]="15" /> Витяг .docx
-      </a>
+      @if (auth.canEdit()) {
+        <a
+          routerLink="/notifications"
+          class="btn cursor-pointer bg-white px-3 py-1.5 text-[13px] text-ink hover:bg-white/90"
+        >
+          <app-icon name="send" [size]="15" /> Сформувати лист ТЦК
+        </a>
+      }
+      @if (selectedExtractUrl(); as url) {
+        <a
+          [href]="url"
+          download
+          class="btn cursor-pointer border border-white/30 px-3 py-1.5 text-[13px] text-white hover:bg-white/10"
+        >
+          <app-icon name="download" [size]="15" /> Витяг .docx
+        </a>
+      } @else {
+        <span class="text-[13px] text-white/70">Витяг — лише для працівників однієї юрособи</span>
+      }
       <button
         type="button"
         class="grid size-8 cursor-pointer place-items-center rounded-lg hover:bg-white/10"
@@ -219,6 +239,9 @@
               @if (e.hireDate) {
                 <p class="text-xs text-muted">з {{ e.hireDate | uaDate }}</p>
               }
+              @if (dict.severalLegalEntities() && e.legalEntityName) {
+                <p class="max-w-56 truncate text-xs text-muted">{{ e.legalEntityName }}</p>
+              }
             </td>
             <td>
               {{ e.rankTitle || '—' }}
@@ -261,7 +284,7 @@
             <td class="text-right whitespace-nowrap" (click)="$event.stopPropagation()">
               <button
                 type="button"
-                class="inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] hover:bg-sunken"
+                class="icon-btn"
                 [class.!bg-brand-100]="active"
                 [class.!text-brand-700]="active"
                 title="Переглянути"
@@ -271,24 +294,26 @@
               >
                 <app-icon name="eye" [size]="16" />
               </button>
-              <button
-                type="button"
-                class="inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] hover:bg-sunken"
-                title="Редагувати"
-                [attr.aria-label]="'Редагувати: ' + e.fullName"
-                (click)="edit(e)"
-              >
-                <app-icon name="edit" [size]="16" />
-              </button>
-              <button
-                type="button"
-                class="inline-grid size-8 cursor-pointer place-items-center rounded-lg text-[#3a3f34] hover:bg-sunken"
-                title="Копіювати"
-                [attr.aria-label]="'Копіювати: ' + e.fullName"
-                (click)="copy(e)"
-              >
-                <app-icon name="copy" [size]="16" />
-              </button>
+              @if (auth.canEdit()) {
+                <button
+                  type="button"
+                  class="icon-btn"
+                  title="Редагувати"
+                  [attr.aria-label]="'Редагувати: ' + e.fullName"
+                  (click)="edit(e)"
+                >
+                  <app-icon name="edit" [size]="16" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-btn"
+                  title="Копіювати"
+                  [attr.aria-label]="'Копіювати: ' + e.fullName"
+                  (click)="copy(e)"
+                >
+                  <app-icon name="copy" [size]="16" />
+                </button>
+              }
             </td>
           </tr>
         } @empty {

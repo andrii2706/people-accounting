@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { blindIndex, encrypted } from '../../common/crypto/field-encryption.js';
 import { Tck } from '../../dictionaries/tck.entity.js';
+import { LegalEntity } from '../../legal-entities/legal-entity.entity.js';
 import { EmployeeEducation } from './employee-education.entity.js';
 import { EmployeePosition } from './employee-position.entity.js';
 import { FamilyMember } from './family-member.entity.js';
@@ -206,6 +207,15 @@ export class Employee {
   @ManyToOne(() => Tck, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'tckId' })
   tck: Relation<Tck> | null;
+
+  /** The legal entity the employee works for (lists, TCK notices and reports are per legal entity). */
+  @ManyToOne(() => LegalEntity, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'legalEntityId' })
+  legalEntity: Relation<LegalEntity> | null;
+
+  @Index('IDX_employees_legal_entity')
+  @Column({ type: 'uuid', nullable: true })
+  legalEntityId: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   tckId: string | null;

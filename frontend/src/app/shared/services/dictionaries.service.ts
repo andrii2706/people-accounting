@@ -19,6 +19,9 @@ import type {
   Rank,
   Tck,
 } from '../interfaces/dictionary.interface';
+import type { LegalEntitySummary } from '../interfaces/legal-entity.interface';
+import type { TckImportItem, TckImportResult } from '../interfaces/organization.interface';
+import { legalEntityOptions } from '../utils/legal-entity.utils';
 
 /**
  * Dictionaries (ranks, TCKs, statuses…). Loaded once by the shell resolver
@@ -29,12 +32,18 @@ export class DictionariesService {
   private readonly http = inject(HttpClient);
   private readonly _dictionaries = signal<Dictionaries | undefined>(undefined);
   private readonly _tcks = signal<Tck[]>([]);
+  private readonly _legalEntities = signal<LegalEntitySummary[]>([]);
   private inFlight: Observable<void> | null = null;
 
   readonly dictionaries = this._dictionaries.asReadonly();
   readonly ranks = computed<Rank[]>(() => this._dictionaries()?.ranks ?? []);
   readonly tcks = this._tcks.asReadonly();
   readonly activeTcks = computed(() => this._tcks().filter((t) => t.isActive));
+  /** Legal entities of the client — for the employee form, filters and documents. */
+  readonly legalEntities = this._legalEntities.asReadonly();
+  readonly legalEntityOptions = computed(() => legalEntityOptions(this._legalEntities()));
+  /** With several legal entities a document / an employee needs an explicit choice. */
+  readonly severalLegalEntities = computed(() => this._legalEntities().length > 1);
 
   private readonly rankByCode = computed(() => new Map(this.ranks().map((r) => [r.code, r])));
   private readonly groupTitles = computed(
@@ -50,10 +59,12 @@ export class DictionariesService {
     this.inFlight ??= forkJoin({
       dictionaries: this.http.get<Dictionaries>('/api/dictionaries'),
       tcks: this.http.get<Tck[]>('/api/tck'),
+      legalEntities: this.http.get<LegalEntitySummary[]>('/api/legal-entities'),
     }).pipe(
-      tap(({ dictionaries, tcks }) => {
+      tap(({ dictionaries, tcks, legalEntities }) => {
         this._dictionaries.set(dictionaries);
         this._tcks.set(tcks);
+        this._legalEntities.set(legalEntities);
       }),
       map(() => undefined),
       finalize(() => (this.inFlight = null)),
@@ -64,6 +75,16 @@ export class DictionariesService {
 
   async reloadTcks() {
     this._tcks.set(await firstValueFrom(this.http.get<Tck[]>('/api/tck')));
+  }
+
+  async reloadLegalEntities() {
+    this._legalEntities.set(
+      await firstValueFrom(this.http.get<LegalEntitySummary[]>('/api/legal-entities')),
+    );
+  }
+
+  importTck(items: TckImportItem[]) {
+    return firstValueFrom(this.http.post<TckImportResult>('/api/tck/import', { items }));
   }
 
   saveTck(body: Partial<Tck>, id?: string) {

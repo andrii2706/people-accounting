@@ -1,0 +1,132 @@
+<app-page-header
+  eyebrow="Налаштування"
+  title="Юридичні особи"
+  subtitle="Кожен працівник належить юрособі: списки, відомості й листи до ТЦК формуються від її імені, з її керівником і відповідальним. Квота бронювання й адреси нагадувань — теж у юрособі."
+>
+  <a
+    routerLink="/settings/system"
+    class="btn btn-ghost cursor-pointer"
+    title="Строки попереджень і строк мобілізації — однакові для всіх юросіб"
+    ><app-icon name="settings" /> Загальні параметри</a
+  >
+  @if (auth.isAdmin()) {
+    <a routerLink="/settings/users" class="btn btn-secondary cursor-pointer"
+      ><app-icon name="users" /> Користувачі</a
+    >
+    <a routerLink="/settings/legal-entities/new" class="btn btn-primary cursor-pointer"
+      ><app-icon name="plus" /> Додати юрособу</a
+    >
+  }
+</app-page-header>
+
+<div class="card overflow-x-auto">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Юридична особа</th>
+        <th>Код ЄДРПОУ</th>
+        <th>Керівник</th>
+        <th>Відповідальний за військовий облік</th>
+        <th class="text-right">Квота бронювання</th>
+        <th class="text-right">Працівників</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (e of entities(); track e.id) {
+        <tr>
+          <td>
+            @if (auth.isAdmin()) {
+              <a
+                [routerLink]="['/settings/legal-entities', e.id]"
+                class="font-medium hover:text-brand-600"
+                >{{ name(e) }}</a
+              >
+            } @else {
+              <span class="font-medium">{{ name(e) }}</span>
+            }
+            @if (e.shortName && e.fullName !== e.shortName) {
+              <p class="max-w-[360px] truncate text-xs text-muted">{{ e.fullName }}</p>
+            }
+          </td>
+          <td class="whitespace-nowrap">
+            <span class="font-mono">{{ e.edrpou }}</span>
+            @if (youControlUrl(e.edrpou); as url) {
+              <a
+                class="ml-2 inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
+                [href]="url"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Перевірити компанію в YouControl"
+                >YouControl <app-icon name="externalLink" [size]="12"
+              /></a>
+            }
+          </td>
+          <td>
+            @if (e.headName) {
+              <p class="font-medium">{{ e.headName }}</p>
+              <p class="text-xs text-muted">{{ e.headPosition }}</p>
+            } @else {
+              <span class="text-xs font-medium text-warning"
+                >не вказано — документи без підпису</span
+              >
+            }
+          </td>
+          <td>
+            @if (e.responsibleName) {
+              <p class="font-medium">{{ e.responsibleName }}</p>
+              <p class="text-xs text-muted">{{ e.responsiblePosition || '—' }}</p>
+            } @else {
+              <span class="text-xs font-medium text-warning">не призначено</span>
+            }
+          </td>
+          <td class="text-right whitespace-nowrap tabular-nums">
+            @if (e.reservationQuota !== null) {
+              <span [class.text-danger]="e.reservedCompany > e.reservationQuota"
+                >{{ e.reservedCompany }} з {{ e.reservationQuota }}</span
+              >
+              @if (e.reservedCompany > e.reservationQuota) {
+                <p class="text-xs text-danger">перевищено</p>
+              }
+            } @else {
+              {{ e.reservedCompany }}
+              <p class="text-xs text-muted">квоту не задано</p>
+            }
+          </td>
+          <td class="text-right tabular-nums">{{ e.employees }}</td>
+          <td class="text-right whitespace-nowrap">
+            @if (auth.isAdmin()) {
+              <a
+                class="icon-btn"
+                [routerLink]="['/settings/legal-entities', e.id]"
+                aria-label="Редагувати"
+                title="Редагувати"
+                ><app-icon name="edit" [size]="16"
+              /></a>
+              <button
+                type="button"
+                class="icon-btn text-danger hover:text-danger"
+                [disabled]="e.employees > 0"
+                [title]="
+                  e.employees > 0
+                    ? 'Спершу переведіть працівників в іншу юрособу'
+                    : 'Видалити юрособу'
+                "
+                aria-label="Видалити"
+                (click)="remove(e)"
+              >
+                <app-icon name="trash" [size]="16" />
+              </button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7" class="py-10 text-center text-sm text-muted">
+            Юридичних осіб ще немає — додайте першу, щоб формувати документи.
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -15,3 +15,16 @@ export async function inGenitive(name: PersonName): Promise<string> {
     return [name.lastName, name.firstName, name.middleName].filter(Boolean).join(' ');
   }
 }
+
+/** «Ольга ОБЛІКОВА» → «Ольго» (the given name in the vocative for a greeting); '' if it cannot be declined. */
+export async function vocativeGivenName(fullName: string): Promise<string> {
+  const given = fullName.trim().split(/\s+/)[0] ?? '';
+  if (!given || given === given.toUpperCase()) return '';
+  try {
+    const gender = await shevchenko.detectGender({ givenName: given });
+    if (!gender) return '';
+    return (await shevchenko.inVocative({ gender, givenName: given })).givenName ?? '';
+  } catch {
+    return '';
+  }
+}

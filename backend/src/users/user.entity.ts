@@ -45,6 +45,14 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
 
+  /** A temporary password (set by the administrator) stops working after this moment. */
+  @Column({ type: 'timestamptz', nullable: true, select: false })
+  temporaryPasswordExpiresAt: Date | null;
+
+  /** One-time entry while there is a debt for using the system: when it was used. */
+  @Column({ type: 'timestamptz', nullable: true })
+  debtGraceUsedAt: Date | null;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;
 

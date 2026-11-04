@@ -21,13 +21,45 @@ export const ORGANIZATION_LABELS: Record<string, string> = {
   notifyEmails: 'Додаткові email для нагадувань',
 };
 
-export const HEAD_OR_PERSON_LABELS: Record<string, string> = {
-  fullName: 'ПІБ',
+export const LEGAL_ENTITY_LABELS: Record<string, string> = {
+  fullName: 'Повна назва',
+  nameLocative: 'Назва в місцевому відмінку',
+  shortName: 'Скорочена назва',
+  edrpou: 'Код ЄДРПОУ',
+  address: 'Адреса',
+  postalCode: 'Поштовий індекс',
+  phone: 'Телефон',
+  email: 'Email',
+  letterNumberPrefix: 'Префікс номера листа',
+  headPosition: 'Посада керівника',
+  headName: 'Керівник (ПІБ)',
+  responsibleName: 'Відповідальний за військовий облік',
+  responsiblePosition: 'Посада відповідального',
+  responsiblePhone: 'Телефон відповідального',
+  responsibleUserId: 'Користувач системи',
+  reservationQuota: 'Квота бронювання',
+  reservationQuotaBasis: 'Підстава квоти',
+  notifyEmails: 'Додаткові email для нагадувань',
+};
+
+export const PERSON_ACCESS_LABELS: Record<string, string> = {
+  fullName: 'Ім’я та ПРІЗВИЩЕ',
   position: 'Посада',
   phone: 'Телефон',
-  orderNumber: 'Номер наказу',
-  validFrom: 'Діє з',
-  validTo: 'Діє до',
+  email: 'Email (логін)',
+  role: 'Роль',
+  revokePrevious: 'Скасувати доступ попереднього',
+};
+
+export const EXTERNAL_NOTICE_LABELS: Record<string, string> = {
+  employeeId: 'Працівник',
+  number: 'Вихідний номер',
+  date: 'Дата листа',
+  changeType: 'Тип повідомлення',
+  effectiveDate: 'Дата зміни',
+  tckId: 'ТЦК та СП',
+  description: 'Зміст',
+  changeIds: 'Зміни в черзі',
 };
 
 export const USER_LABELS: Record<string, string> = {
@@ -104,12 +136,21 @@ export const LIST_ITEM_LABELS: Record<string, ListItemLabels> = {
   changeMeta: { title: 'Зміни', fields: { effectiveDate: 'Діють з', basis: 'Підстава' } },
 };
 
+export const BILLING_LABELS: Record<string, string> = {
+  hasDebt: 'Заборгованість',
+  amount: 'Сума боргу',
+  debtSince: 'Борг з дати',
+  paymentContact: 'Контакт для оплати',
+};
+
 export const LABELS_BY_REQUEST: Record<string, Record<string, string>> = {
   UpdateOrganizationDto: ORGANIZATION_LABELS,
-  CreateOrganizationHeadDto: HEAD_OR_PERSON_LABELS,
-  UpdateOrganizationHeadDto: HEAD_OR_PERSON_LABELS,
-  CreateResponsiblePersonDto: HEAD_OR_PERSON_LABELS,
-  UpdateResponsiblePersonDto: HEAD_OR_PERSON_LABELS,
+  CreateLegalEntityDto: LEGAL_ENTITY_LABELS,
+  UpdateLegalEntityDto: LEGAL_ENTITY_LABELS,
+  RegistryLookupDto: LEGAL_ENTITY_LABELS,
+  CreateExternalNoticeDto: EXTERNAL_NOTICE_LABELS,
+  GrantAccessDto: PERSON_ACCESS_LABELS,
+  ChangePersonDto: PERSON_ACCESS_LABELS,
   CreateUserDto: USER_LABELS,
   UpdateUserDto: USER_LABELS,
   LoginDto: AUTH_LABELS,
@@ -117,4 +158,5 @@ export const LABELS_BY_REQUEST: Record<string, Record<string, string>> = {
   CreateTckDto: TCK_LABELS,
   UpdateTckDto: TCK_LABELS,
   ImportTckDto: TCK_LABELS,
+  UpdateBillingDto: BILLING_LABELS,
 };

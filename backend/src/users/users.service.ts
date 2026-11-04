@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import { generateTemporaryPassword, passwordProblems } from '../common/utils/password-policy.utils.js';
 import { fieldErrors } from '../common/validators/validators.js';
 import { loadEnv } from '../config/env.js';
@@ -10,13 +10,16 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { User } from './user.entity.js';
 import type {
+  AccessContext,
+  AuthUser,
   CreateUserOptions,
   CredentialsResult,
+  IssuedTemporaryPassword,
   UserLookup,
   UserRole,
 } from '../shared/interfaces/auth.interface.js';
 import { BCRYPT_ROUNDS } from './users.constants.js';
-import { DUMMY_HASH } from './users.constants.js';
+import { DUMMY_HASH, ROLE_LABELS } from './users.constants.js';
 
 @Injectable()
 export class UsersService {
@@ -28,15 +31,16 @@ export class UsersService {
   ) {}
 
   private roleLabel(role: UserRole) {
-    return role === 'ADMIN' ? 'адміністратор' : 'працівник з військового обліку';
+    return ROLE_LABELS[role];
   }
 
+  /** Users of the client; the vendor account is not shown and cannot be changed by the client's admin. */
   list() {
-    return this.repo.find({ order: { fullName: 'ASC' } });
+    return this.repo.find({ where: { role: Not('VENDOR') }, order: { fullName: 'ASC' } });
   }
 
   async findById(id: string) {
-    const user = await this.repo.findOneBy({ id });
+    const user = await this.repo.findOneBy({ id, role: Not('VENDOR') });
     if (!user) throw new NotFoundException('Користувача не знайдено');
     return user;
   }
@@ -46,7 +50,9 @@ export class UsersService {
   }
 
   private findWithSecrets(where: UserLookup) {
-    const qb = this.repo.createQueryBuilder('u').addSelect(['u.passwordHash', 'u.tokenVersion', 'u.failedLoginCount']);
+    const qb = this.repo
+      .createQueryBuilder('u')
+      .addSelect(['u.passwordHash', 'u.tokenVersion', 'u.failedLoginCount', 'u.temporaryPasswordExpiresAt']);
     if (where.id) qb.where('u.id = :id', { id: where.id });
     else qb.where('LOWER(u.email) = LOWER(:email)', { email: where.email });
     return qb.getOne();
@@ -72,6 +78,10 @@ export class UsersService {
       await this.repo.update(user.id, { failedLoginCount: failed });
       return { status: 'invalid', userId: user.id };
     }
+    // a temporary password issued by the administrator works only for a limited time
+    if (user.mustChangePassword && user.temporaryPasswordExpiresAt && user.temporaryPasswordExpiresAt < new Date()) {
+      return { status: 'expired', userId: user.id };
+    }
     await this.repo.update(user.id, { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() });
     return { status: 'ok', user };
   }
@@ -90,10 +100,22 @@ export class UsersService {
         // a password set by an administrator is temporary
         mustChangePassword: opts.mustChangePassword ?? true,
         passwordChangedAt: new Date(),
+        temporaryPasswordExpiresAt: (opts.mustChangePassword ?? true) && !opts.silent ? this.temporaryUntil() : null,
       }),
     );
-    if (!opts.silent) {
-      // the temporary password is never sent by e-mail — the administrator hands it over personally
+    if (!opts.silent && opts.issuedBy) {
+      // created by the administrator: the temporary password goes to the person from the access mailbox
+      await this.notifications.sendTemporaryPassword({
+        email,
+        fullName: saved.fullName,
+        role: saved.role,
+        temporaryPassword: dto.password,
+        expiresAt: saved.temporaryPasswordExpiresAt ?? this.temporaryUntil(),
+        kind: 'NEW',
+        issuedBy: opts.issuedBy,
+      });
+    } else if (!opts.silent) {
+      // without an administrator (CLI, scripts) the password is not e-mailed — only a notice about the account
       await this.notifications.notifyUser(
         email,
         'Вам надано доступ до системи військового обліку',
@@ -107,7 +129,7 @@ export class UsersService {
 
   async update(id: string, dto: UpdateUserDto, actorId: string) {
     const user = await this.findWithSecrets({ id });
-    if (!user) throw new NotFoundException('Користувача не знайдено');
+    if (!user || user.role === 'VENDOR') throw new NotFoundException('Користувача не знайдено');
     if (id === actorId && (dto.isActive === false || (dto.role && dto.role !== 'ADMIN'))) {
       throw new BadRequestException('Не можна заблокувати себе або зняти з себе роль адміністратора');
     }
@@ -146,11 +168,53 @@ export class UsersService {
     return this.findById(id);
   }
 
-  /** Administrator resets a password: a temporary one is generated, shown once, the user's sessions are terminated. */
-  async resetPassword(id: string) {
-    const user = await this.findWithSecrets({ id });
-    if (!user) throw new NotFoundException('Користувача не знайдено');
+  /** Any account by its login e-mail (the vendor included — the caller decides). */
+  findByEmail(email: string) {
+    return this.repo.findOneBy({ email: email.trim().toLowerCase() });
+  }
+
+  /**
+   * An account for a person the administrator gives access to (the head, the responsible person):
+   * a temporary password is generated and shown to the administrator once, the user changes it on first sign-in.
+   */
+  async createWithTemporaryPassword(
+    email: string,
+    fullName: string,
+    role: UserRole,
+    issuedBy: AuthUser,
+    context: AccessContext,
+  ) {
     const temporaryPassword = generateTemporaryPassword(randomBytes);
+    const expiresAt = this.temporaryUntil();
+    const user = await this.create({ email, fullName, role, password: temporaryPassword }, { silent: true });
+    await this.repo.update(user.id, { temporaryPasswordExpiresAt: expiresAt });
+    const mailSent = await this.notifications.sendTemporaryPassword({
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      temporaryPassword,
+      expiresAt,
+      kind: 'NEW',
+      issuedBy,
+      ...context,
+    });
+    return { user, temporaryPassword, mailSent, expiresAt };
+  }
+
+  /** Until when a temporary password issued now is valid. */
+  private temporaryUntil() {
+    return new Date(Date.now() + this.env.temporaryPasswordHours * 3_600_000);
+  }
+
+  /**
+   * Administrator resets a password: a temporary one is generated, shown once and e-mailed from the access
+   * mailbox; it expires after TEMPORARY_PASSWORD_HOURS; the user's sessions are terminated.
+   */
+  async resetPassword(id: string, issuedBy: AuthUser): Promise<IssuedTemporaryPassword> {
+    const user = await this.findWithSecrets({ id });
+    if (!user || user.role === 'VENDOR') throw new NotFoundException('Користувача не знайдено');
+    const temporaryPassword = generateTemporaryPassword(randomBytes);
+    const expiresAt = this.temporaryUntil();
     await this.repo.update(id, {
       passwordHash: await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS),
       mustChangePassword: true,
@@ -158,14 +222,18 @@ export class UsersService {
       failedLoginCount: 0,
       lockedUntil: null,
       passwordChangedAt: new Date(),
+      temporaryPasswordExpiresAt: expiresAt,
     });
-    await this.notifications.notifyUser(
-      user.email,
-      'Ваш пароль скинуто',
-      'Адміністратор скинув пароль до вашого облікового запису. Новий тимчасовий пароль він передасть вам особисто.\n' +
-        'Якщо ви цього не очікували — негайно зверніться до адміністратора.',
-    );
-    return { temporaryPassword };
+    const mailSent = await this.notifications.sendTemporaryPassword({
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+      temporaryPassword,
+      expiresAt,
+      kind: 'RESET',
+      issuedBy,
+    });
+    return { temporaryPassword, mailSent, expiresAt };
   }
 
   async preferences(id: string) {
@@ -197,6 +265,7 @@ export class UsersService {
       mustChangePassword: false,
       tokenVersion: user.tokenVersion + 1,
       passwordChangedAt: new Date(),
+      temporaryPasswordExpiresAt: null,
     });
     await this.notifications.notifyUser(
       user.email,
@@ -204,6 +273,28 @@ export class UsersService {
       'Пароль до вашого облікового запису в системі військового обліку щойно змінено. Якщо це були не ви — зверніться до адміністратора.',
     );
     return (await this.findForSession(id))!;
+  }
+
+  /**
+   * Vendor account (CLI `npm run billing -- --create-vendor`): sees only the payment page.
+   * Created by us, not by the client's admin; the password is set by the one who runs the command.
+   */
+  async createVendor(email: string, fullName: string, password: string) {
+    const normalized = email.toLowerCase();
+    if (await this.repo.exists({ where: { email: normalized } }))
+      throw fieldErrors([{ field: 'email', message: 'Користувач з таким email уже існує' }]);
+    this.assertPolicy(password, normalized);
+    const saved = await this.repo.save(
+      this.repo.create({
+        email: normalized,
+        fullName,
+        role: 'VENDOR',
+        passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        mustChangePassword: false,
+        passwordChangedAt: new Date(),
+      }),
+    );
+    return (await this.findForSession(saved.id))!;
   }
 
   /** First administrator from environment variables. In production the password is temporary. */

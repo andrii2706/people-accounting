@@ -65,6 +65,7 @@ export class EmployeeImportController {
         hireNotices:
           dto.hireNotices === true ? 'ALL' : dto.hireNotices === false ? 'NONE' : (dto.hireNotices ?? 'RECENT'),
         fileName: dto.fileName,
+        legalEntityId: dto.legalEntityId,
       },
       user,
     );

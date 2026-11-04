@@ -20,6 +20,7 @@ import type {
   HireNoticesMode,
 } from '../../../shared/interfaces/employee-import.interface';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
+import { LegalEntityFilterComponent } from '../../../shared/components/legal-entity-filter/legal-entity-filter.component';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { EmployeeImportService } from '../../../shared/services/employee-import.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -42,7 +43,14 @@ import { importRowStatus } from '../../../shared/utils/employee-import.utils';
 @Component({
   selector: 'app-employee-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, IconComponent, RouterLink, UaDatePipe, DateInputComponent],
+  imports: [
+    PageHeaderComponent,
+    IconComponent,
+    RouterLink,
+    UaDatePipe,
+    DateInputComponent,
+    LegalEntityFilterComponent,
+  ],
   templateUrl: './employee-import.component.html',
 })
 export class EmployeeImportComponent {
@@ -62,6 +70,8 @@ export class EmployeeImportComponent {
   protected readonly filter = signal<ImportRowFilter>('all');
   /** TCK notices about hiring: only the recently hired by default (people hired long ago were reported). */
   protected readonly hireNotices = signal<HireNoticesMode>('RECENT');
+  /** The legal entity of all imported employees; with several it must be chosen. */
+  protected readonly legalEntityId = signal('');
   protected readonly recentDays = IMPORT_RECENT_NOTICE_DAYS;
   private readonly recentSince = addDaysIso(todayIso(), -IMPORT_RECENT_NOTICE_DAYS);
   /** How many of the selected rows will get a notice in each mode. */
@@ -273,7 +283,11 @@ export class EmployeeImportComponent {
     if (!rows.length || this.dirty()) return;
     this.busy.set(true);
     try {
-      const result = await this.importer.commit(rows, this.hireNotices(), this.preview()?.fileName);
+      const result = await this.importer.commit(rows, {
+        hireNotices: this.hireNotices(),
+        fileName: this.preview()?.fileName,
+        legalEntityId: this.legalEntityId(),
+      });
       this.toast.success(
         `Імпортовано працівників: ${result.created}` +
           (result.notices ? `, створено повідомлень ТЦК: ${result.notices}` : ''),

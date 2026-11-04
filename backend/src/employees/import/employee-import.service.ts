@@ -90,7 +90,10 @@ export class EmployeeImportService {
     }
     const source = `імпорт з файлу${opts.fileName ? ` «${opts.fileName}»` : ''}`;
     const { ids, notices } = await this.employeesService.createMany(
-      checked.map((r) => toDtoValues(r.values) as unknown as CreateEmployeeDto),
+      checked.map((r) => ({
+        ...(toDtoValues(r.values) as unknown as CreateEmployeeDto),
+        legalEntityId: opts.legalEntityId,
+      })),
       user,
       { hireNotices: opts.hireNotices, source },
     );

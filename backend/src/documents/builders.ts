@@ -8,7 +8,7 @@ import type { Tck } from '../dictionaries/tck.entity.js';
 import { CHANGE_TYPE_LABELS, LIST_SECTION_TITLES } from '../military/dictionaries.js';
 import { LIST_TITLES, LIST_WIDTHS } from '../military/personal-list.js';
 import type { Organization } from '../organization/organization.entity.js';
-import type { ResponsiblePerson } from '../organization/responsible-person.entity.js';
+import type { ResponsibleInfo } from '../shared/interfaces/document.interface.js';
 import {
   A4,
   CONTENT_WIDTH,
@@ -50,7 +50,7 @@ function orgHeader(org: Organization): Paragraph[] {
   ];
 }
 
-function executor(person: ResponsiblePerson | null): Paragraph[] {
+function executor(person: ResponsibleInfo | null): Paragraph[] {
   if (!person) return [];
   return [...empty(2), p(`Виконавець: ${person.fullName}${person.phone ? `, тел. ${person.phone}` : ''}`, { size: 9 })];
 }

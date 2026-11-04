@@ -1,0 +1,148 @@
+<app-page-header
+  eyebrow="Довідники"
+  title="Довідник ТЦК та СП"
+  subtitle="Територіальні центри комплектування: куди надсилаються повідомлення, списки й витяги."
+/>
+
+<section class="card">
+  <header class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+    <p class="text-sm text-muted">
+      {{ tcks().length }} з {{ dict.tcks().length }} · Email потрібен для надсилання повідомлень;
+      назва в родовому відмінку — для «Керівнику …».
+    </p>
+    <div class="flex gap-2">
+      <input
+        class="input w-56"
+        type="search"
+        placeholder="Пошук"
+        [value]="tckFilter()"
+        (input)="tckFilter.set($any($event.target).value)"
+      />
+      @if (auth.isAdmin()) {
+        <label class="btn btn-ghost cursor-pointer" title="Файл з npm run tck:export">
+          <app-icon name="upload" /> Імпорт
+          <input
+            type="file"
+            class="sr-only"
+            accept=".json,application/json"
+            (change)="pickTckFile($event)"
+          />
+        </label>
+        <button type="button" class="btn btn-secondary cursor-pointer" (click)="editTck(null)">
+          <app-icon name="plus" /> Додати
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (tckImport(); as pending) {
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-sunken/50 px-5 py-4 text-sm"
+    >
+      <p>
+        <span class="font-medium">{{ pending.file }}</span
+        >: {{ pending.items.length }} ТЦК. Наявні з такою ж назвою оновляться, нові додадуться,
+        нічого не видаляється.
+      </p>
+      <div class="flex gap-2">
+        <button
+          type="button"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="importingTck()"
+          (click)="confirmTckImport()"
+        >
+          Імпортувати
+        </button>
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="tckImport.set(null)">
+          Скасувати
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (editingTck()) {
+    <form
+      class="grid gap-3 border-b border-line bg-sunken/50 p-5 md:grid-cols-2"
+      (submit)="saveTck($event)"
+      novalidate
+    >
+      <app-form-field label="Назва" [required]="true" [field]="tckForm.name">
+        <input class="input" [formField]="tckForm.name" />
+      </app-form-field>
+      <app-form-field
+        label="Назва в родовому відмінку"
+        hint="Шевченківського РТЦК та СП"
+        [field]="tckForm.nameGenitive"
+      >
+        <input class="input" [formField]="tckForm.nameGenitive" />
+      </app-form-field>
+      <app-form-field label="Адреса" hint="Для конверта й наклейки" [field]="tckForm.address">
+        <input class="input" [formField]="tckForm.address" />
+      </app-form-field>
+      <app-form-field
+        label="Поштовий індекс"
+        hint="5 цифр, напр. 01001"
+        [field]="tckForm.postalCode"
+      >
+        <input class="input font-mono" inputmode="numeric" [formField]="tckForm.postalCode" />
+      </app-form-field>
+      <div class="grid grid-cols-2 gap-3">
+        <app-form-field label="Телефон" [field]="tckForm.phone">
+          <input class="input" type="tel" [formField]="tckForm.phone" />
+        </app-form-field>
+        <app-form-field label="Email" hint="Для листів ТЦК" [field]="tckForm.email">
+          <input class="input" type="email" [formField]="tckForm.email" />
+        </app-form-field>
+      </div>
+      <div class="flex gap-2 md:col-span-2">
+        <button
+          type="submit"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="tckForm().submitting()"
+        >
+          Зберегти
+        </button>
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="editingTck.set(null)">
+          Скасувати
+        </button>
+      </div>
+    </form>
+  }
+
+  <div class="overflow-x-auto">
+    <table class="table-base">
+      <thead>
+        <tr>
+          <th>Назва</th>
+          <th>Адреса</th>
+          <th>Телефон</th>
+          <th>Email</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (t of tcks(); track t.id) {
+          <tr [class.opacity-50]="!t.isActive">
+            <td class="font-medium">{{ t.name }}</td>
+            <td class="text-muted">{{ t.address }}</td>
+            <td class="whitespace-nowrap text-muted">{{ t.phone }}</td>
+            <td>
+              @if (t.email) {
+                {{ t.email }}
+              } @else {
+                <span class="text-xs text-warning">не вказано</span>
+              }
+            </td>
+            <td class="text-right">
+              @if (auth.isAdmin()) {
+                <button type="button" class="icon-btn" (click)="editTck(t)" aria-label="Редагувати">
+                  <app-icon name="edit" [size]="16" />
+                </button>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

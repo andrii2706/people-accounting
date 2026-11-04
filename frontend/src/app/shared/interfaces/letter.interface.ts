@@ -11,6 +11,8 @@ export interface LetterRef {
   number: string;
   date: string;
   status: LetterStatus;
+  /** Entered by hand: sent before the system, there is no document. */
+  external?: boolean;
 }
 
 export interface Letter {
@@ -25,8 +27,16 @@ export interface Letter {
   employee: { id: string; fullName: string } | null;
   tckId: string | null;
   tck: Tck | null;
-  params: { reportDate?: string; groups?: ListGroup[] | null; employeeIds?: string[] | null };
+  params: {
+    reportDate?: string;
+    groups?: ListGroup[] | null;
+    employeeIds?: string[] | null;
+    byTck?: boolean;
+  };
   status: LetterStatus;
+  /** Entered by hand: a notice sent before the system, without a document. */
+  external: boolean;
+  legalEntityId: string | null;
   sentAt: string | null;
   /** The document is frozen for qualified e-signing. */
   frozen: boolean;
@@ -51,7 +61,7 @@ export interface LetterNotice {
 
 /** Notice with its letter — the history shown in the employee card. */
 export interface EmployeeNotice extends LetterNotice {
-  letter: { id: string; number: string; date: string; status: LetterStatus };
+  letter: LetterRef;
 }
 
 export interface LetterDetails extends Letter {
@@ -80,4 +90,41 @@ export interface LetterUpdate {
   number?: string;
   date?: string;
   tckId?: string;
+}
+
+/** POST /api/letters/report — a letter with the lists, an extract or the operational report. */
+export interface ReportLetterRequest {
+  type: 'LISTS' | 'OPERATIONAL_REPORT';
+  reportDate: string;
+  groups?: ListGroup[];
+  employeeIds?: string[];
+  tckId?: string;
+  /** Extract about the people registered at `tckId`. */
+  byTck?: boolean;
+  legalEntityId?: string;
+}
+
+/** POST /api/letters/external-notice — a notice sent to the TCK before the system. */
+export interface ExternalNoticeRequest {
+  employeeId: string;
+  number: string;
+  date: string;
+  changeType: ExternalNoticeType;
+  effectiveDate?: string;
+  tckId?: string;
+  description?: string;
+  /** Pending changes this notice reported — they leave the queue. */
+  changeIds?: string[];
+}
+
+export type ExternalNoticeType = 'HIRE' | 'DISMISSAL' | 'DATA';
+
+/** Form of an old notice in the employee card. */
+export interface ExternalNoticeForm {
+  number: string;
+  date: string;
+  changeType: ExternalNoticeType;
+  effectiveDate: string;
+  tckId: string;
+  description: string;
 }

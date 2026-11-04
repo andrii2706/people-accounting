@@ -22,9 +22,20 @@
           >Підписано КЕП</span
         >
       }
-      <a class="btn btn-secondary" [href]="lettersService.documentUrl(l.id)" download
-        ><app-icon name="download" /> Документ .docx</a
-      >
+      @if (l.external) {
+        <span
+          class="badge bg-sunken text-muted"
+          title="Надіслано до системи: номер і дата — як на папері, документа немає"
+          >внесено вручну</span
+        >
+      } @else {
+        <a
+          class="btn btn-secondary cursor-pointer"
+          [href]="lettersService.documentUrl(l.id)"
+          download
+          ><app-icon name="download" /> Документ .docx</a
+        >
+      }
     </div>
   </header>
 
@@ -84,32 +95,43 @@
                     <p class="text-xs text-muted">{{ n.employeeName }}</p>
                   }
                 </div>
-                <a
-                  class="btn btn-ghost px-2 py-1 text-xs"
-                  [href]="lettersService.noticeDocxUrl(n.id)"
-                  download
-                  title="Лише це повідомлення (Додаток 4)"
-                  ><app-icon name="download" [size]="14" /> .docx</a
-                >
+                @if (!l.external) {
+                  <a
+                    class="btn btn-ghost px-2 py-1 text-xs cursor-pointer"
+                    [href]="lettersService.noticeDocxUrl(n.id)"
+                    download
+                    title="Лише це повідомлення (Додаток 4)"
+                    ><app-icon name="download" [size]="14" /> .docx</a
+                  >
+                }
               </li>
             }
           </ul>
         }
-        <p class="mt-4 text-xs text-muted">
-          У документі: супровідний лист, повідомлення про зміну облікових даних (Додаток 4) та опис
-          вкладення ф. 107 — якщо лист надсилається Укрпоштою.
-        </p>
+        @if (l.external) {
+          <p class="mt-4 text-xs text-muted">
+            Повідомлення надіслано до ТЦК ще до системи — внесене вручну для історії, документ не
+            формується. Видалити його можна з картки працівника.
+          </p>
+        } @else {
+          <p class="mt-4 text-xs text-muted">
+            У документі: супровідний лист, повідомлення про зміну облікових даних (Додаток 4) та
+            опис вкладення ф. 107 — якщо лист надсилається Укрпоштою.
+          </p>
+        }
       </section>
 
-      <app-letter-signing
-        [letterId]="l.id"
-        [letterStatus]="l.status"
-        [state]="signing()"
-        [config]="signingConfig()"
-        (changed)="refreshPage()"
-      />
+      @if (!l.external) {
+        <app-letter-signing
+          [letterId]="l.id"
+          [letterStatus]="l.status"
+          [state]="signing()"
+          [config]="signingConfig()"
+          (changed)="refreshPage()"
+        />
+      }
 
-      @if (l.status !== 'SENT' && !signing().frozen) {
+      @if (l.status !== 'SENT' && !signing().frozen && auth.canEdit()) {
         <section class="card p-5">
           <h2 class="mb-3 font-semibold">Реквізити</h2>
           <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
@@ -161,13 +183,21 @@
           ><app-icon name="mail" /> Наклейка на конверт .docx</a
         >
         @if (l.status !== 'SENT') {
-          <button type="button" class="btn btn-primary w-full cursor-pointer" (click)="markSent()">
-            Позначити як переданий у ТЦК
-          </button>
-          @if (!signed()) {
-            <button type="button" class="btn btn-danger w-full cursor-pointer" (click)="remove()">
-              Видалити чернетку
+          @if (auth.canEdit()) {
+            <button
+              type="button"
+              class="btn btn-primary w-full cursor-pointer"
+              (click)="markSent()"
+            >
+              Позначити як переданий у ТЦК
             </button>
+          }
+          @if (!signed()) {
+            @if (auth.canEdit()) {
+              <button type="button" class="btn btn-danger w-full cursor-pointer" (click)="remove()">
+                Видалити чернетку
+              </button>
+            }
             <p class="text-xs text-muted">
               Після видалення зміни повернуться в чергу «Повідомлення ТЦК».
             </p>

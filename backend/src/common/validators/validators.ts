@@ -7,7 +7,8 @@ import { VALIDATION_DEFAULT_MESSAGES } from '../constants/validation.constants.j
 import { hasCyrillic } from '../utils/text.utils.js';
 import { applyDecorators } from '@nestjs/common';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
-import { MESSAGE } from '../../military/employee-rules.js';
+import { Transform } from 'class-transformer';
+import { MESSAGE, PATTERN, normalizePhone } from '../../military/employee-rules.js';
 
 const isEmpty = (v: unknown) => v === undefined || v === null || v === '';
 
@@ -122,3 +123,14 @@ export const Pattern = (re: RegExp, message: string) => Rule((v: string) => re.t
 /** Optional string of at most `max` characters. */
 export const OptionalStr = (max: number) =>
   applyDecorators(IsOptional(), IsString(), MaxLength(max, { message: MESSAGE.tooLong(max) }));
+
+/**
+ * Optional phone: any typed form is normalized to «+<country code><digits>» before the check,
+ * so only the digits after the country code are stored.
+ */
+export const PhoneField = (max = 20) =>
+  applyDecorators(
+    Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? normalizePhone(value) : value)),
+    OptionalStr(max),
+    Rule((v: string) => PATTERN.phoneE164.test(v), MESSAGE.phoneE164),
+  );

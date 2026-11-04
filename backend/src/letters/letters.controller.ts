@@ -19,6 +19,7 @@ import { docxFile } from '../common/utils/file-response.utils.js';
 import {
   CreateChangeNoticeDto,
   CreateChangeNoticesDto,
+  CreateExternalNoticeDto,
   NoticeQueryDto,
   CreateReportLetterDto,
   LetterQueryDto,
@@ -49,6 +50,12 @@ export class LettersController {
   @Post('change-notice')
   createChangeNotice(@Body() dto: CreateChangeNoticeDto, @CurrentUser() user: AuthUser) {
     return this.letters.createChangeNotice(dto, user);
+  }
+
+  /** A notice sent before the system — entered by hand with its real number and date. */
+  @Post('external-notice')
+  createExternalNotice(@Body() dto: CreateExternalNoticeDto, @CurrentUser() user: AuthUser) {
+    return this.letters.createExternalNotice(dto, user);
   }
 
   /** Register a letter with the lists / operational report. */

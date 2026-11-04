@@ -1,7 +1,10 @@
+import type { LetterNumberDate } from './letter.interface.js';
 import type { IsoDate } from './common.interface.js';
 import type { DutyCategory, ListGroup, ListSection } from './dictionary.interface.js';
 export interface ListRowView {
   employeeId: string;
+  /** TCK where the person is registered — extracts are sent to each TCK separately. */
+  tckId: string | null;
   group: ListGroup;
   section: ListSection;
   category: DutyCategory | null;
@@ -36,4 +39,25 @@ export interface ListRowStatusContext {
   alertDays: number;
   pendingNotices: number;
   lastNoticeDate: IsoDate | null;
+}
+
+/** What part of the lists to take: groups, specific employees, a legal entity, a TCK. */
+export interface ListsFilter {
+  groups?: ListGroup[];
+  onlyIds?: string[];
+  legalEntityId?: string | null;
+  tckId?: string | null;
+}
+
+/** Lists / extract document: the filter plus the outgoing number and date of the letter. */
+export interface ListsDocxOptions extends ListsFilter {
+  letter?: LetterNumberDate | null;
+}
+
+/** One TCK in the extracts overview: how many people of each list are registered there. */
+export interface TckExtractSummary {
+  tckId: string | null;
+  tckName: string;
+  sections: Record<ListSection, number>;
+  total: number;
 }

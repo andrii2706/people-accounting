@@ -1,0 +1,155 @@
+<app-page-header
+  eyebrow="Додаток 5 до Порядку · витяги"
+  title="Витяги зі списків для ТЦК"
+  subtitle="Кожному ТЦК — витяг лише про осіб, які перебувають у ньому на обліку. Оберіть, які списки включити."
+>
+  <label class="flex items-center gap-2 text-sm">
+    <span class="text-muted">Станом на</span>
+    <app-date-input
+      class="w-40"
+      ariaLabel="Станом на дату"
+      [value]="reportDate()"
+      (valueChange)="setDate($event)"
+    />
+  </label>
+  <app-legal-entity-filter
+    placeholder="Оберіть юрособу"
+    [value]="entity()"
+    (changed)="setEntity($event)"
+  />
+</app-page-header>
+
+<div class="mb-4">
+  <app-report-switch />
+</div>
+
+<div class="mb-4 flex flex-wrap items-center gap-3">
+  <span class="text-sm text-muted">У витяг:</span>
+  <div class="segmented" role="group" aria-label="Списки у витязі">
+    @for (o of sectionOptions; track o.value) {
+      <button
+        type="button"
+        class="segmented-item"
+        [attr.aria-pressed]="sections().has(o.value)"
+        [title]="o.hint ?? ''"
+        (click)="toggleSection(o.value)"
+      >
+        <span
+          class="grid size-4 place-items-center rounded border"
+          [class]="
+            sections().has(o.value)
+              ? 'border-brand-600 bg-brand-600 text-white'
+              : 'border-[#c9c8bf] bg-surface'
+          "
+          aria-hidden="true"
+        >
+          @if (sections().has(o.value)) {
+            <app-icon name="check" [size]="11" />
+          }
+        </span>
+        {{ o.label }}
+      </button>
+    }
+  </div>
+  @if (isLoading()) {
+    <span class="text-xs text-muted">оновлення…</span>
+  }
+</div>
+
+@if (needsEntity()) {
+  <p class="mb-4 rounded-xl border border-warning/40 bg-[#fdf9f2] px-4 py-3 text-sm" role="status">
+    Юридичних осіб кілька — оберіть, від імені якої формуються витяги. Нижче — підсумок по всіх.
+  </p>
+}
+
+<div class="card overflow-x-auto">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>ТЦК та СП</th>
+        @for (o of sectionOptions; track o.value) {
+          <th class="text-right" [class.opacity-40]="!sections().has(o.value)">{{ o.label }}</th>
+        }
+        <th class="text-right">У витязі</th>
+        <th class="w-[260px]"><span class="sr-only">Дії</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of rows(); track r.item.tckId) {
+        <tr>
+          <td>
+            @if (r.item.tckId) {
+              <span class="font-medium">{{ r.item.tckName }}</span>
+            } @else {
+              <span class="font-medium text-warning">ТЦК не вказано</span>
+              <p class="text-xs text-muted">
+                Заповніть ТЦК у картках — інакше витяг нікуди надіслати
+              </p>
+            }
+          </td>
+          @for (s of sectionOrder; track s) {
+            <td class="text-right tabular-nums" [class.opacity-40]="!sections().has(s)">
+              @if (r.item.sections[s] && r.item.tckId && !needsEntity()) {
+                <a
+                  class="text-brand-600 hover:underline"
+                  [href]="docxUrl(r.item.tckId, s)"
+                  download
+                  title="Витяг лише з цього списку .docx"
+                  >{{ r.item.sections[s] }}</a
+                >
+              } @else {
+                {{ r.item.sections[s] || '—' }}
+              }
+            </td>
+          }
+          <td class="text-right font-semibold tabular-nums">{{ r.count }}</td>
+          <td class="text-right whitespace-nowrap">
+            @if (r.item.tckId && r.count) {
+              @if (needsEntity()) {
+                <span class="text-xs text-muted">оберіть юрособу</span>
+              } @else {
+                <a
+                  class="btn btn-ghost px-2 cursor-pointer"
+                  [href]="docxUrl(r.item.tckId)"
+                  download
+                  title="Витяг .docx без реєстрації"
+                  ><app-icon name="download" [size]="16" /> .docx</a
+                >
+                @if (auth.canEdit()) {
+                  <button
+                    type="button"
+                    class="btn btn-secondary px-3 py-1.5 text-[13px] cursor-pointer"
+                    [disabled]="busyTck() === r.item.tckId"
+                    (click)="register(r.item)"
+                  >
+                    <app-icon name="mail" [size]="15" /> Зареєструвати лист
+                  </button>
+                }
+              }
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="7" class="py-10 text-center text-sm text-muted">
+            На цю дату у списках нікого немає.
+          </td>
+        </tr>
+      }
+    </tbody>
+    @if (rows().length) {
+      <tfoot>
+        <tr class="border-t border-line font-semibold">
+          <td>Разом</td>
+          @for (s of sectionOrder; track s) {
+            <td class="text-right tabular-nums" [class.opacity-40]="!sections().has(s)">
+              {{ totals()[s] }}
+            </td>
+          }
+          <td></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    }
+  </table>
+</div>

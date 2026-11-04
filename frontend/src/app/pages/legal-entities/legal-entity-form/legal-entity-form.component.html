@@ -1,0 +1,246 @@
+<app-page-header
+  eyebrow="Юридичні особи"
+  [title]="isNew() ? 'Нова юридична особа' : model().shortName || model().fullName"
+  subtitle="Реквізити, керівник і відповідальний підставляються в документи цієї юрособи: списки, відомості, повідомлення ТЦК, наклейки."
+>
+  <a routerLink="/settings" class="btn btn-ghost cursor-pointer"
+    ><app-icon name="arrowLeft" /> До списку</a
+  >
+</app-page-header>
+
+<form class="grid gap-6 xl:grid-cols-[1.3fr_1fr]" (submit)="save($event)" novalidate>
+  <section class="card p-5 sm:p-6">
+    <h2 class="mb-4 font-semibold">Реквізити</h2>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div class="sm:col-span-2">
+        <app-form-field
+          label="Код ЄДРПОУ"
+          [required]="true"
+          hint="8 цифр; для ФОП — РНОКПП, 10 цифр"
+          [field]="entityForm.edrpou"
+        >
+          <div class="flex flex-wrap gap-2">
+            <input
+              class="input w-40 font-mono"
+              inputmode="numeric"
+              [formField]="entityForm.edrpou"
+            />
+            <button
+              type="button"
+              class="btn btn-secondary cursor-pointer"
+              [disabled]="lookingUp()"
+              (click)="pullFromRegistry()"
+              title="Назва, адреса й керівник з Єдиного державного реєстру"
+            >
+              <app-icon name="download" /> {{ lookingUp() ? 'Шукаю…' : 'Підтягнути з ЄДР' }}
+            </button>
+            @if (youControl(); as url) {
+              <a
+                class="btn btn-ghost cursor-pointer"
+                [href]="url"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Перевірити компанію: стан, керівник, суди, санкції"
+                ><app-icon name="externalLink" /> Перевірити в YouControl</a
+              >
+            }
+          </div>
+        </app-form-field>
+        @if (registryNote()) {
+          <p class="mt-1.5 text-xs text-brand-700">{{ registryNote() }}</p>
+        }
+      </div>
+      <app-form-field
+        class="sm:col-span-2"
+        label="Повна назва"
+        [required]="true"
+        [field]="entityForm.fullName"
+        hint="Товариство з обмеженою відповідальністю «…»"
+      >
+        <input class="input" [formField]="entityForm.fullName" />
+      </app-form-field>
+      <app-form-field
+        class="sm:col-span-2"
+        label="Назва в місцевому відмінку"
+        hint="Для заголовків списків: «…які працюють в Товаристві з обмеженою відповідальністю «…»»"
+        [field]="entityForm.nameLocative"
+      >
+        <input class="input" [formField]="entityForm.nameLocative" />
+      </app-form-field>
+      <app-form-field
+        label="Скорочена назва"
+        hint="Для підписів і наклейок: ТОВ «…»"
+        [field]="entityForm.shortName"
+      >
+        <input class="input" [formField]="entityForm.shortName" />
+      </app-form-field>
+      <app-form-field
+        label="Префікс вихідного номера"
+        hint="напр. «ВО-» → ВО-15"
+        [field]="entityForm.letterNumberPrefix"
+      >
+        <input class="input font-mono" [formField]="entityForm.letterNumberPrefix" />
+      </app-form-field>
+      <app-form-field
+        class="sm:col-span-2"
+        label="Місцезнаходження"
+        hint="Область, місто, вулиця, будинок"
+        [field]="entityForm.address"
+      >
+        <input class="input" [formField]="entityForm.address" />
+      </app-form-field>
+      <app-form-field
+        label="Поштовий індекс"
+        hint="5 цифр, напр. 79000"
+        [field]="entityForm.postalCode"
+      >
+        <input class="input font-mono" inputmode="numeric" [formField]="entityForm.postalCode" />
+      </app-form-field>
+      <app-form-field label="Email" hint="напр. hr@company.ua" [field]="entityForm.email">
+        <input class="input" type="email" [formField]="entityForm.email" />
+      </app-form-field>
+      <app-form-field
+        class="sm:col-span-2"
+        label="Телефон"
+        hint="Країна окремо, далі лише цифри номера"
+        [field]="entityForm.phone"
+      >
+        <app-phone-input [formField]="entityForm.phone" />
+      </app-form-field>
+    </div>
+  </section>
+
+  <div class="grid content-start gap-6">
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Керівник</h2>
+      <p class="mb-4 text-xs text-muted">
+        Підписує документи юрособи. Описку виправте тут і збережіть; якщо керівник змінився —
+        «Змінити керівника» нижче (там само доступ до системи).
+      </p>
+      <div class="grid gap-4">
+        <app-form-field label="Посада" [field]="entityForm.headPosition">
+          <input class="input" [formField]="entityForm.headPosition" />
+        </app-form-field>
+        <app-form-field
+          label="Ім’я та ПРІЗВИЩЕ"
+          hint="Як у підписі: Іван ПЕТРЕНКО"
+          [field]="entityForm.headName"
+        >
+          <input class="input" [formField]="entityForm.headName" />
+        </app-form-field>
+      </div>
+      @if (page().entity; as entity) {
+        <app-person-access
+          [entityId]="entity.id"
+          person="HEAD"
+          [personName]="entity.headName"
+          [access]="people().HEAD"
+          (changed)="reload()"
+        />
+      }
+    </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Відповідальний за військовий облік</h2>
+      <p class="mb-4 text-xs text-muted">
+        Виконавець у листах і повідомленнях до ТЦК цієї юрособи. Якщо людина змінилась — «Змінити
+        відповідального» нижче.
+      </p>
+      <div class="grid gap-4">
+        <app-form-field
+          label="Ім’я та ПРІЗВИЩЕ"
+          hint="Як у підписі виконавця"
+          [field]="entityForm.responsibleName"
+        >
+          <input class="input" [formField]="entityForm.responsibleName" />
+        </app-form-field>
+        <app-form-field label="Посада" [field]="entityForm.responsiblePosition">
+          <input class="input" [formField]="entityForm.responsiblePosition" />
+        </app-form-field>
+        <app-form-field label="Телефон" [field]="entityForm.responsiblePhone">
+          <app-phone-input [formField]="entityForm.responsiblePhone" />
+        </app-form-field>
+      </div>
+      @if (page().entity; as entity) {
+        <app-person-access
+          [entityId]="entity.id"
+          person="RESPONSIBLE"
+          [personName]="entity.responsibleName"
+          [access]="people().RESPONSIBLE"
+          (changed)="reload()"
+        />
+      } @else {
+        <p class="mt-4 border-t border-line pt-4 text-xs text-muted">
+          Доступ до системи для керівника й відповідального можна надати після збереження юрособи.
+        </p>
+      }
+    </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Квота бронювання</h2>
+      <p class="mb-4 text-xs text-muted">
+        Скільки працівників ця юрособа може забронювати. На огляді й у списку юросіб видно, скільки
+        вже заброньовано.
+      </p>
+      <div class="grid gap-4 sm:grid-cols-[10rem_1fr]">
+        <app-form-field
+          label="Квота, осіб"
+          hint="Порожньо — не задано"
+          [field]="entityForm.reservationQuota"
+        >
+          <input class="input" inputmode="numeric" [formField]="entityForm.reservationQuota" />
+        </app-form-field>
+        <app-form-field
+          label="Підстава"
+          hint="напр. рішення про критичність, наказ"
+          [field]="entityForm.reservationQuotaBasis"
+        >
+          <input class="input" [formField]="entityForm.reservationQuotaBasis" />
+        </app-form-field>
+      </div>
+    </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Нагадування на пошту</h2>
+      <p class="mb-3 text-xs text-muted">
+        Листи про завершення відстрочки (за 5 днів) і бронювання працівників цієї юрособи. Отримують
+        користувачі з увімкненими сповіщеннями (Профіль) і додаткові адреси нижче.
+      </p>
+      <p class="mb-3 text-sm">
+        @if (status().mailConfigured) {
+          <span class="text-ok">Пошту налаштовано</span> · отримувачів:
+          <b class="tabular-nums">{{ status().recipients }}</b>
+        } @else {
+          <span class="text-warning">Пошту не налаштовано</span> — додайте секрет SMTP_URL (див.
+          docs/DEPLOYMENT.md)
+        }
+      </p>
+      <app-form-field
+        label="Додаткові адреси"
+        hint="через кому, напр. hr@company.ua, office@company.ua"
+        [field]="entityForm.notifyEmails"
+      >
+        <input class="input" [formField]="entityForm.notifyEmails" />
+      </app-form-field>
+      <button
+        type="button"
+        class="btn btn-ghost mt-3 px-0 text-[13px] cursor-pointer"
+        [disabled]="testingMail() || !status().mailConfigured"
+        (click)="testMail()"
+      >
+        <app-icon name="mail" [size]="15" /> Надіслати тестовий лист собі
+      </button>
+    </section>
+
+    <div class="flex gap-2">
+      <button
+        type="submit"
+        class="btn btn-primary cursor-pointer"
+        [disabled]="entityForm().submitting()"
+      >
+        {{ isNew() ? 'Додати юрособу' : 'Зберегти' }}
+      </button>
+      <a routerLink="/settings" class="btn btn-ghost cursor-pointer">Скасувати</a>
+    </div>
+  </div>
+</form>

@@ -1,3 +1,4 @@
+import { ROLE_OPTIONS } from '../../../shared/constants/auth.constants';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import {
   form,
@@ -104,10 +105,7 @@ export class UsersComponent {
     );
   }
 
-  protected readonly roleOptions: SelectOption[] = [
-    { value: 'HR', label: 'Кадровик' },
-    { value: 'ADMIN', label: 'Адміністратор' },
-  ];
+  protected readonly roleOptions = ROLE_OPTIONS;
 
   protected setRole(u: ManagedUser, role: UserRole) {
     return this.run(() => this.usersService.update(u.id, { role }), 'Роль змінено');

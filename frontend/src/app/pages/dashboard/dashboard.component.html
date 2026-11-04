@@ -29,8 +29,8 @@
       routerLink="/settings"
       class="mb-5 flex items-center gap-3 rounded-xl border border-warning/30 bg-[#fdf6ec] px-4 py-3 text-sm text-warning"
     >
-      <app-icon name="alert" /> Заповніть реквізити підприємства — вони потрібні для всіх
-      документів.
+      <app-icon name="alert" /> Вкажіть керівника й відповідального за військовий облік у юридичних
+      особах — вони потрібні для всіх документів.
     </a>
   }
 
@@ -90,11 +90,23 @@
         @if (d.reservation.exceeded) {
           <span class="text-xs text-danger">Квоту перевищено</span>
         }
+        @if (d.reservation.entities.length > 1) {
+          <ul class="mt-1 space-y-0.5 text-xs text-muted">
+            @for (q of d.reservation.entities; track q.id) {
+              <li class="flex justify-between gap-2" [class.text-danger]="q.exceeded">
+                <span class="truncate">{{ q.name }}</span>
+                <span class="tabular-nums">{{
+                  q.quota !== null ? q.reservedCompany + ' з ' + q.quota : q.reservedCompany
+                }}</span>
+              </li>
+            }
+          </ul>
+        }
       } @else {
         <b class="text-[28px] leading-none font-semibold tabular-nums">{{
           d.reservation.reservedCompany
         }}</b>
-        <span class="text-xs text-muted">квоту не задано — вкажіть у налаштуваннях</span>
+        <span class="text-xs text-muted">квоту не задано — вкажіть у юридичній особі</span>
       }
     </a>
   </div>

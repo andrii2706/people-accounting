@@ -85,6 +85,7 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     servedInArmy: false,
     militaryDocuments: [emptyDocument()],
     tckId: '',
+    legalEntityId: '',
     tckRegisteredAt: '',
     fitness: '',
     fitnessBasis: '',
@@ -222,6 +223,7 @@ export function formToPayload(
     educations,
     rankCode,
     tckId,
+    legalEntityId,
     maritalStatus,
     ...rest
   } = model;
@@ -234,6 +236,8 @@ export function formToPayload(
   payload['rankCode'] = rankCode === '' ? null : Number(rankCode);
   payload['vos'] = normalizeVos(model.vos);
   payload['tckId'] = tckId || null;
+  // omitted when empty: the server takes the only legal entity (or asks to choose one)
+  if (legalEntityId) payload['legalEntityId'] = legalEntityId;
   payload['maritalStatus'] = maritalStatus || null;
   payload['familyMembers'] = familyMembers.map((m) => ({ ...m, birthDate: m.birthDate || null }));
   payload['militaryDocuments'] = militaryDocuments

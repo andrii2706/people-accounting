@@ -1,44 +1,51 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Organization } from '../organization/organization.entity.js';
+import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
+import { loadEnv } from '../config/env.js';
+import { vocativeGivenName } from '../documents/name-declension.js';
+import type { TemporaryPasswordMail } from '../shared/interfaces/mail.interface.js';
+import type { UserRole } from '../shared/interfaces/auth.interface.js';
+import { ROLE_ACCESS_TEXT } from '../users/users.constants.js';
+import { accessLetter } from './templates/access-letter.template.js';
 import { User } from '../users/user.entity.js';
 import { MailService } from './mail.service.js';
 import { NotificationLog } from './notification-log.entity.js';
 import type { NotificationRef } from '../shared/interfaces/inbox.interface.js';
 
-/** Who gets reminders: active users who have not turned them off, plus extra addresses from the settings. */
+/** Who gets reminders: active users who have not turned them off, plus extra addresses of the legal entities. */
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly env = loadEnv();
 
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    @InjectRepository(Organization) private readonly org: Repository<Organization>,
     @InjectRepository(NotificationLog) private readonly log: Repository<NotificationLog>,
     private readonly mail: MailService,
+    private readonly legalEntities: LegalEntitiesService,
   ) {}
 
   get mailConfigured() {
     return this.mail.configured;
   }
 
-  async recipients(): Promise<string[]> {
-    const [users, org] = await Promise.all([
+  /**
+   * Users with reminders on + the extra addresses of the legal entity the reminder is about
+   * (null — of every legal entity: news for everyone, e.g. the mobilization term).
+   */
+  async recipients(legalEntityId: string | null = null): Promise<string[]> {
+    const [users, extra] = await Promise.all([
       this.users.find({ where: { isActive: true, notify: true } }),
-      this.org.findOneBy({ id: 1 }),
+      this.legalEntities.notifyEmails(legalEntityId),
     ]);
-    const extra = (org?.notifyEmails ?? '')
-      .split(',')
-      .map((x) => x.trim())
-      .filter(Boolean);
-    return [...users.map((u) => u.email), ...extra];
+    return [...new Set([...users.map((u) => u.email), ...extra])];
   }
 
-  /** A notice to all users (e.g. a change of director). Never throws — e-mail must not break the operation. */
-  async notifyUsers(subject: string, text: string): Promise<number> {
+  /** A notice to the users (and the entity's extra addresses). Never throws — e-mail must not break the operation. */
+  async notifyUsers(subject: string, text: string, legalEntityId: string | null = null): Promise<number> {
     try {
-      const to = await this.recipients();
+      const to = await this.recipients(legalEntityId);
       return (await this.mail.send(to, subject, text)) ? to.length : 0;
     } catch (err) {
       this.logger.error(`Не вдалося надіслати «${subject}»`, err as Error);
@@ -53,6 +60,37 @@ export class NotificationsService {
     } catch (err) {
       this.logger.error(`Не вдалося надіслати «${subject}» користувачу`, err as Error);
     }
+  }
+
+  /** The letter with a temporary password from the access mailbox. Never throws: false — not sent. */
+  async sendTemporaryPassword(mail: TemporaryPasswordMail): Promise<boolean> {
+    try {
+      const role = ROLE_ACCESS_TEXT[mail.role as UserRole] ?? ROLE_ACCESS_TEXT.HR;
+      const letter = accessLetter({
+        fullName: mail.fullName,
+        greetingName: await vocativeGivenName(mail.fullName),
+        login: mail.email,
+        temporaryPassword: mail.temporaryPassword,
+        expiresAt: mail.expiresAt,
+        roleLabel: role.label,
+        roleHint: role.hint,
+        kind: mail.kind,
+        asWhom: mail.asWhom ?? '',
+        entityName: mail.entityName ?? '',
+        entityCode: mail.entityCode ?? '',
+        adminName: mail.issuedBy.fullName,
+        adminEmail: mail.issuedBy.email,
+        appUrl: this.env.appUrl,
+      });
+      return await this.mail.sendAccess(mail.email, letter);
+    } catch (err) {
+      this.logger.error('Не вдалося надіслати лист з тимчасовим паролем', err as Error);
+      return false;
+    }
+  }
+
+  get accessMailConfigured() {
+    return this.mail.accessConfigured;
   }
 
   async wasSent(kind: string, refId: string, refDate: string) {

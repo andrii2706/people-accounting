@@ -1,5 +1,5 @@
 import { hasDeferralAt } from '../military/personal-list.js';
-import { isElectronicDocType, normalizeVos } from '../military/employee-rules.js';
+import { isElectronicDocType, normalizePhone, normalizeVos } from '../military/employee-rules.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'typeorm';
@@ -14,6 +14,8 @@ import { familyText, militaryDocText } from '../military/employee-format.js';
 import { notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { Tck } from '../dictionaries/tck.entity.js';
+import { LegalEntity } from '../legal-entities/legal-entity.entity.js';
+import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { deriveEmployee } from './utils/employee-view.utils.js';
 import { historyEntries } from './utils/history.utils.js';
 import { CHANGE_RULES, NULLABLE_DATES, RECENT_NOTICE_DAYS } from './employees.constants.js';
@@ -48,6 +50,7 @@ export class EmployeesService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly org: OrganizationService,
     private readonly auditService: AuditService,
+    private readonly entities: LegalEntitiesService,
   ) {}
 
   async list(query: EmployeeQueryDto) {
@@ -55,6 +58,7 @@ export class EmployeesService {
     const qb = this.repo
       .createQueryBuilder('e')
       .leftJoinAndSelect('e.tck', 'tck')
+      .leftJoinAndSelect('e.legalEntity', 'le')
       .leftJoinAndSelect('e.militaryDocuments', 'md')
       .orderBy('e.lastName', 'ASC')
       .addOrderBy('e.firstName', 'ASC');
@@ -82,6 +86,7 @@ export class EmployeesService {
       qb.andWhere('e.dismissalDate <= :date', { date });
     }
     if (query.tckId) qb.andWhere('e.tckId = :tckId', { tckId: query.tckId });
+    if (query.legalEntityId) qb.andWhere('e.legalEntityId = :entityId', { entityId: query.legalEntityId });
 
     const [employees, pendingCounts, org] = await Promise.all([
       qb.getMany(),
@@ -104,6 +109,8 @@ export class EmployeesService {
       rankCode: e.rankCode,
       vos: e.vos,
       tckName: e.tck?.name ?? '',
+      legalEntityId: e.legalEntityId,
+      legalEntityName: e.legalEntity ? e.legalEntity.shortName || e.legalEntity.fullName : '',
       reservationUntil: e.reserved ? e.reservationUntil : null,
       /** Deferral in force on the date (and the employee is not reserved). */
       deferral: !e.reserved && hasDeferralAt(e, date, org.mobilizationUntil),
@@ -147,12 +154,17 @@ export class EmployeesService {
 
   /** History of the card in human-readable form (who, when, which field from → to). */
   async auditTrail(id: string) {
-    const [rows, employee, tcks] = await Promise.all([
+    const [rows, employee, tcks, entities] = await Promise.all([
       this.auditRepo.find({ where: { entity: 'employee', entityId: id }, order: { createdAt: 'DESC' }, take: 300 }),
       this.repo.findOne({ where: { id }, loadEagerRelations: false, select: { id: true, gender: true } }),
       this.dataSource.getRepository(Tck).find({ select: { id: true, name: true } }),
+      this.dataSource.getRepository(LegalEntity).find({ select: { id: true, fullName: true, shortName: true } }),
     ]);
-    return historyEntries(rows, new Map(tcks.map((t) => [t.id, t.name])), employee?.gender ?? 'M');
+    const names = new Map([
+      ...tcks.map((t): [string, string] => [t.id, t.name]),
+      ...entities.map((e): [string, string] => [e.id, e.shortName || e.fullName]),
+    ]);
+    return historyEntries(rows, names, employee?.gender ?? 'M');
   }
 
   async create(dto: CreateEmployeeDto, user: AuthUser) {
@@ -187,6 +199,7 @@ export class EmployeesService {
     let notices = 0;
     const { changeMeta, familyMembers, militaryDocuments, positions, educations, ...data } = dto;
     const employee = m.getRepository(Employee).create(this.normalize(data) as Partial<Employee>);
+    employee.legalEntityId = await this.entities.resolveForEmployee(data.legalEntityId);
     // without an educations list (e.g. import) the education fields of the card become the first entry
     employee.educations = this.educationRows(
       m,
@@ -267,6 +280,7 @@ export class EmployeesService {
       const beforePositions = positionsText(employee);
       const beforeEducations = educationsText(employee);
 
+      if (data.legalEntityId) await this.entities.get(data.legalEntityId);
       Object.assign(employee, this.normalize(data));
       applyReservation(employee);
       applyDeferral(employee);
@@ -297,6 +311,7 @@ export class EmployeesService {
       }
       // otherwise TypeORM takes the FK from the previously loaded relation instead of tckId
       if (data.tckId !== undefined) delete (employee as Partial<Employee>).tck;
+      if (data.legalEntityId !== undefined) delete (employee as Partial<Employee>).legalEntity;
       const saved = await m.getRepository(Employee).save(employee);
       const after = await this.findEntity(id, m);
 
@@ -532,6 +547,7 @@ export class EmployeesService {
     if (typeof out.firstName === 'string') out.firstName = capitalizeName(out.firstName);
     if (typeof out.middleName === 'string') out.middleName = capitalizeName(out.middleName);
     if (typeof out.vos === 'string') out.vos = normalizeVos(out.vos);
+    if (typeof out.phone === 'string') out.phone = normalizePhone(out.phone);
     return out;
   }
 

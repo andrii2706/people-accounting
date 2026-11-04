@@ -1,39 +1,20 @@
 import type { Tck } from './dictionary.interface';
 
+/** Parameters shared by all legal entities (GET / PUT /api/organization): terms and mobilization. */
 export interface Organization {
-  fullName: string;
-  nameLocative: string;
-  shortName: string;
-  edrpou: string;
-  address: string;
-  postalCode: string;
-  phone: string;
-  email: string;
-  headPosition: string;
-  headName: string;
-  letterNumberPrefix: string;
   alertDays: number;
   notifyDeadlineDays: number;
-  /** Reservation quota; null — not set. */
-  reservationQuota?: number | null;
-  reservationQuotaBasis?: string;
   /** General mobilization lasts until (from the presidential decrees). */
   mobilizationUntil?: string | null;
   mobilizationDecree?: string;
   mobilizationSource?: string;
   mobilizationCheckedAt?: string | null;
-  /** Extra e-mail addresses for reminders, comma-separated. */
-  notifyEmails?: string;
 }
 
-/** Head (director) for a period — signs documents dated within it. */
-export interface OrganizationHead {
-  id: string;
-  position: string;
-  fullName: string;
-  orderNumber: string;
-  validFrom: string;
-  validTo: string | null;
+/** The «Строки» card of the settings. */
+export interface OrganizationTermsForm {
+  alertDays: number;
+  notifyDeadlineDays: number;
 }
 
 export interface NotificationStatus {
@@ -52,31 +33,22 @@ export interface DecreeCheckResult {
   message?: string;
 }
 
-export interface ResponsiblePerson {
-  id: string;
-  fullName: string;
-  position: string;
-  phone: string;
-  orderNumber: string;
-  validFrom: string;
-  validTo: string | null;
-}
+/** The TCK edit form. */
+export type TckForm = Pick<Tck, 'name' | 'nameGenitive' | 'address' | 'phone' | 'email'> & {
+  postalCode: string;
+};
 
 export type TckImportItem = Pick<Tck, 'name'> &
   Partial<Pick<Tck, 'nameGenitive' | 'address' | 'postalCode' | 'phone' | 'email'>>;
 
+/** The «Строк мобілізації» card (manual override). */
 export interface OrganizationExtraForm {
-  reservationQuota: string;
-  reservationQuotaBasis: string;
   mobilizationUntil: string;
   mobilizationDecree: string;
-  notifyEmails: string;
 }
 
 export interface OrganizationSettingsData {
   organization: Organization;
-  responsiblePersons: ResponsiblePerson[];
-  heads: OrganizationHead[];
   status: NotificationStatus;
 }
 

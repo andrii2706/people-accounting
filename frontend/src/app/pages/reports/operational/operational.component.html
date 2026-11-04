@@ -12,17 +12,32 @@
       (valueChange)="setDate($event)"
     />
   </label>
-  <a class="btn btn-secondary" [href]="reportsService.operationalDocxUrl(date())" download
-    ><app-icon name="download" /> .docx</a
-  >
-  <button
-    type="button"
-    class="btn btn-primary cursor-pointer"
-    [disabled]="busy()"
-    (click)="register()"
-  >
-    <app-icon name="mail" /> Зареєструвати лист
-  </button>
+  <app-legal-entity-filter [value]="entity()" (changed)="setEntity($event)" />
+  @if (needsEntity()) {
+    <button
+      type="button"
+      class="btn btn-secondary cursor-pointer"
+      disabled
+      title="Оберіть юридичну особу — відомість формується від її імені"
+    >
+      <app-icon name="download" /> .docx
+    </button>
+  } @else {
+    <a class="btn btn-secondary cursor-pointer" [href]="downloadUrl()" download
+      ><app-icon name="download" /> .docx</a
+    >
+  }
+  @if (auth.canEdit()) {
+    <button
+      type="button"
+      class="btn btn-primary cursor-pointer"
+      [disabled]="busy() || needsEntity()"
+      [title]="needsEntity() ? 'Оберіть юридичну особу' : ''"
+      (click)="register()"
+    >
+      <app-icon name="mail" /> Зареєструвати лист
+    </button>
+  }
 </app-page-header>
 
 <div class="card overflow-x-auto">

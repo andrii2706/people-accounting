@@ -1,4 +1,6 @@
-export type UserRole = 'ADMIN' | 'HR';
+/** VENDOR — the system's supplier: sees only the payment page. */
+/** DIRECTOR — the head: sees everything, signs documents, changes nothing. */
+export type UserRole = 'ADMIN' | 'HR' | 'DIRECTOR' | 'VENDOR';
 
 export interface AuthUser {
   id: string;
