@@ -28,14 +28,21 @@ import {
   EMPLOYEE_LIST_PAGE_SIZE,
   EMPLOYEE_VIEWS,
 } from '../../../shared/constants/employee.constants';
+import { todayIso } from '../../../shared/utils/date.utils';
 import {
   hasDanger,
+  isDismissed,
   initials,
   matchesView,
   statusBadges,
   warningCount,
 } from '../../../shared/utils/employee-list.utils';
 
+/**
+ * Employee list. Data comes from employeeListResolver (everyone, dismissed included); the search, group and
+ * category live in the URL (a filtered list can be bookmarked). The tabs filter the loaded list in the browser,
+ * so switching them is instant and every tab shows its count.
+ */
 @Component({
   selector: 'app-employee-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -61,6 +68,7 @@ export class EmployeeListComponent {
 
   protected readonly views = EMPLOYEE_VIEWS;
   protected readonly currentView = computed<EmployeeView>(() => {
+    // old links: ?status=dismissed is the «Звільнені» tab
     if (this.status() === 'dismissed') return 'dismissed';
     if (this.warnings() === '1') return 'attention';
     const v = this.view() as EmployeeView;
@@ -70,11 +78,16 @@ export class EmployeeListComponent {
   /** Search box text — local; it reaches the URL with a debounce. */
   protected readonly searchText = linkedSignal(() => this.search());
 
-  /** Employees of the current list (dismissed or working), before the tab filter. */
+  /** Everyone matching the search / group / category, before the tab filter. */
   private readonly loaded = computed(() => this.list().items);
-  protected readonly items = computed(() =>
-    this.loaded().filter((e) => matchesView(e, this.currentView())),
-  );
+  protected readonly items = computed(() => {
+    const today = todayIso();
+    return this.loaded().filter((e) => matchesView(e, this.currentView(), today));
+  });
+  protected readonly workingCount = computed(() => {
+    const today = todayIso();
+    return this.loaded().filter((e) => !isDismissed(e, today)).length;
+  });
   /**
    * Rows are drawn in portions of EMPLOYEE_LIST_PAGE_SIZE: a thousand rows at once is ~30 000 DOM nodes and seconds of work
    * on an office laptop. The next portion is added when the end of the table scrolls into view.
@@ -92,17 +105,19 @@ export class EmployeeListComponent {
 
   protected readonly counts = computed(() => {
     const all = this.loaded();
-    const working = this.currentView() !== 'dismissed';
-    return new Map<EmployeeView, number | null>(
+    const today = todayIso();
+    return new Map<EmployeeView, number>(
       EMPLOYEE_VIEWS.map((v) => [
         v.value,
-        v.value === 'dismissed' || !working
-          ? null
-          : all.filter((e) => matchesView(e, v.value)).length,
+        all.filter((e) => matchesView(e, v.value, today)).length,
       ]),
     );
   });
-  protected readonly onListsCount = computed(() => this.loaded().filter((e) => e.onLists).length);
+  /** Working employees on the registration lists (the dismissed are counted separately). */
+  protected readonly onListsCount = computed(() => {
+    const today = todayIso();
+    return this.loaded().filter((e) => e.onLists && !isDismissed(e, today)).length;
+  });
 
   protected readonly exportUrl = computed(() => this.reportsService.listsDocxUrl());
 
@@ -167,11 +182,7 @@ export class EmployeeListComponent {
 
   protected setView(view: EmployeeView) {
     this.previewId.set(null);
-    void this.updateQuery({
-      status: view === 'dismissed' ? 'dismissed' : '',
-      view: view === 'all' || view === 'dismissed' ? '' : view,
-      warnings: '',
-    });
+    void this.updateQuery({ status: '', view: view === 'all' ? '' : view, warnings: '' });
   }
 
   protected setGroup(group: string) {

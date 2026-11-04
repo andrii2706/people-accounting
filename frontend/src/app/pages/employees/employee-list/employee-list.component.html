@@ -3,11 +3,8 @@
     <div>
       <h1 class="text-2xl font-semibold">Працівники</h1>
       <p class="mt-0.5 text-muted">
-        @if (currentView() === 'dismissed') {
-          Звільнені: {{ list().total }}
-        } @else {
-          {{ list().total }} працюють · {{ onListsCount() }} у списках військового обліку
-        }
+        {{ workingCount() }} працюють · {{ onListsCount() }} у списках військового обліку ·
+        звільнених: {{ counts().get('dismissed') }}
       </p>
     </div>
     <div class="flex flex-wrap gap-2">
@@ -36,7 +33,7 @@
       >
         {{ v.label }}
         @if (counts().get(v.value); as n) {
-          @if (v.value === 'attention') {
+          @if (v.value === 'attention' && n) {
             <span
               class="ml-1 rounded-full bg-[#fbe9e7] px-1.5 text-[11px] font-semibold text-danger"
               >{{ n }}</span
