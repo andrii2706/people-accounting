@@ -86,12 +86,12 @@ function labelled(list: FieldError[], request?: string): FieldError[] {
 }
 
 /** The same 400 as the ValidationPipe — for rules checked in services on the merged entity. */
-export function fieldErrors(list: FieldError[]) {
+export function fieldErrors(list: FieldError[], request?: string) {
   return new BadRequestException({
     statusCode: 400,
     error: 'Bad Request',
-    message: readable(list),
-    errors: labelled(list),
+    message: readable(list, request),
+    errors: labelled(list, request),
   });
 }
 

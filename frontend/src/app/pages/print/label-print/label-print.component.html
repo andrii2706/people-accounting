@@ -1,0 +1,30 @@
+<header
+  class="sticky top-0 z-10 border-b border-line bg-surface/95 px-4 py-3 backdrop-blur print:hidden"
+>
+  <div class="mx-auto flex max-w-5xl flex-wrap items-center gap-3">
+    <button type="button" class="btn btn-ghost cursor-pointer" (click)="close()">
+      <app-icon name="arrowLeft" /> {{ back() ? 'До налаштувань' : 'Закрити' }}
+    </button>
+    <div class="min-w-0 flex-1">
+      <p class="font-semibold">Наклейки на конверти</p>
+      <p class="text-xs text-muted">{{ count() }} шт. · сторінок: {{ pages().length }}</p>
+    </div>
+    <button type="button" class="btn btn-primary cursor-pointer" (click)="print()">
+      <app-icon name="printer" /> Друкувати
+    </button>
+  </div>
+  <div class="mx-auto mt-2 max-w-5xl text-xs text-muted">
+    У вікні друку: масштаб <b>100%</b> (не «за розміром сторінки»), поля — <b>немає</b>, без
+    колонтитулів.
+    @if (hasSheets()) {
+      Аркуш — A4.
+    }
+    @for (e of envelopes(); track e) {
+      Конверт {{ e }} — у лоток ручної подачі, розмір паперу підставиться сам.
+    }
+  </div>
+</header>
+
+<main class="px-4 py-8 print:p-0">
+  <app-label-sheet [pages]="pages()" />
+</main>

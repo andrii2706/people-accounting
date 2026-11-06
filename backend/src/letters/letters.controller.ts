@@ -1,18 +1,6 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import type { LabelPrintData } from '../shared/interfaces/label-settings.interface.js';
 import { ApiTags } from '@nestjs/swagger';
-import { isUUID } from 'class-validator';
 import { AuditService } from '../audit/audit.service.js';
 import { CurrentUser, EntityScope } from '../common/decorators/auth.decorators.js';
 import { docxFile } from '../common/utils/file-response.utils.js';
@@ -26,6 +14,7 @@ import {
   UpdateLetterDto,
 } from './letters.dto.js';
 import { LettersService } from './letters.service.js';
+import { letterIds } from './utils/letters.utils.js';
 import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 import { scopedEntity } from '../common/utils/entity-scope.utils.js';
 
@@ -84,14 +73,10 @@ export class LettersController {
     return this.letters.createReportLetter(dto, user);
   }
 
-  /** Envelope labels for one or many letters: ?ids=<uuid>,<uuid> */
+  /** Envelope labels for one or many letters (.docx): ?ids=<uuid>,<uuid> */
   @Get('labels')
   async labels(@Query('ids') ids: string | undefined, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
-    const list = (ids ?? '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (list.some((id) => !isUUID(id))) throw new BadRequestException('ids: очікуються UUID листів через кому');
+    const list = letterIds(ids);
     const { buffer, filename } = await this.letters.labels(list, scope);
     await this.audit.log(
       'letter',
@@ -101,6 +86,25 @@ export class LettersController {
       user,
     );
     return docxFile(buffer, filename);
+  }
+
+  /** The same labels as data — printed from the browser with the settings of each legal entity. */
+  @Get('labels/print')
+  async labelsPrint(
+    @Query('ids') ids: string | undefined,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ): Promise<LabelPrintData> {
+    const list = letterIds(ids);
+    const data = await this.letters.labelPrintData(list, scope);
+    await this.audit.log(
+      'letter',
+      list.length === 1 ? list[0] : null,
+      'EXPORT',
+      { labelsPrint: [null, list.join(',')] },
+      user,
+    );
+    return data;
   }
 
   @Get(':id')

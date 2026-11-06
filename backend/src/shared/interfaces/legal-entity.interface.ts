@@ -65,6 +65,11 @@ export interface EntityCountRow {
   count: string;
 }
 
+/** The TCK where most employees of a legal entity are registered (raw query row). */
+export interface TckUsageRow {
+  tckId: string;
+}
+
 /** Who in the legal entity: the head or the person responsible for military registration. */
 export type EntityPerson = 'HEAD' | 'RESPONSIBLE';
 

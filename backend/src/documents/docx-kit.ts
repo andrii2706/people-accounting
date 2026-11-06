@@ -6,6 +6,7 @@ import {
   type FileChild,
   type ISectionOptions,
   Packer,
+  LineRuleType,
   PageBreak,
   PageOrientation,
   Paragraph,
@@ -17,7 +18,7 @@ import {
   VerticalAlign,
   WidthType,
 } from 'docx';
-import type { TextOpts, CellSpec, PageMargins } from '../shared/interfaces/document.interface.js';
+import type { TextOpts, CellSpec, PageMargins, PageSize } from '../shared/interfaces/document.interface.js';
 
 export const FONT = 'Times New Roman';
 /** Font size in points. */
@@ -42,7 +43,7 @@ export function p(text: string | TextRun[], opts: TextOpts = {}): Paragraph {
               italics: opts.italics,
               underline: opts.underline ? {} : undefined,
               size: pt(opts.size ?? 12),
-              font: FONT,
+              font: opts.font ?? FONT,
             }),
         )
       : text;
@@ -222,6 +223,36 @@ export function section(children: FileChild[], landscape = false, margins?: Page
     },
     children,
   };
+}
+
+/** A page of any size (an envelope, a sheet of stickers) with the given margins. */
+export function sizedSection(children: FileChild[], size: PageSize, margins: PageMargins): ISectionOptions {
+  const landscape = size.width > size.height;
+  return {
+    properties: {
+      page: {
+        // docx swaps the sides of a landscape page itself
+        size: {
+          width: Math.min(size.width, size.height),
+          height: Math.max(size.width, size.height),
+          orientation: landscape ? PageOrientation.LANDSCAPE : PageOrientation.PORTRAIT,
+        },
+        margin: { ...margins, header: 0, footer: 0 },
+      },
+    },
+    children,
+  };
+}
+
+/**
+ * Word needs a paragraph after a table: a 1 pt one, so that a table filling the page does not push it
+ * onto an empty page; with `pageBreak` the next content starts on a new page.
+ */
+export function pageTail(pageBreak: boolean): Paragraph {
+  return new Paragraph({
+    children: pageBreak ? [new PageBreak()] : [],
+    spacing: { before: 0, after: 0, line: 20, lineRule: LineRuleType.EXACT },
+  });
 }
 
 /** Width of the page content area in twips. */

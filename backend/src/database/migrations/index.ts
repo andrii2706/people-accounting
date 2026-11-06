@@ -14,6 +14,7 @@ import { LegalEntities1793260000000 } from './1793260000000-LegalEntities.js';
 import { LegalEntitySettings1793270000000 } from './1793270000000-LegalEntitySettings.js';
 import { TemporaryPasswordExpiry1793280000000 } from './1793280000000-TemporaryPasswordExpiry.js';
 import { EntityRoles1793320000000 } from './1793320000000-EntityRoles.js';
+import { LabelSettings1793330000000 } from './1793330000000-LabelSettings.js';
 import { TckPostalCodes1793310000000 } from './1793310000000-TckPostalCodes.js';
 import { QuotaPercent1793300000000 } from './1793300000000-QuotaPercent.js';
 import { PasswordResetTokens1793290000000 } from './1793290000000-PasswordResetTokens.js';
@@ -41,4 +42,5 @@ export const MIGRATIONS: Function[] = [
   QuotaPercent1793300000000,
   TckPostalCodes1793310000000,
   EntityRoles1793320000000,
+  LabelSettings1793330000000,
 ];

@@ -179,9 +179,22 @@
           способом — Укрпоштою, нарочно, через СЕД чи електронний кабінет, — і позначте лист як
           переданий.
         </p>
-        <a class="btn btn-secondary w-full" [href]="lettersService.labelsUrl([l.id])" download
-          ><app-icon name="mail" /> Наклейка на конверт .docx</a
-        >
+        <div class="flex gap-2">
+          <a
+            class="btn btn-secondary flex-1 cursor-pointer"
+            [href]="lettersService.labelsPrintUrl([l.id])"
+            target="_blank"
+            title="Відкриється сторінка друку з налаштуваннями наклейок юрособи"
+            ><app-icon name="printer" /> Друкувати наклейку</a
+          >
+          <a
+            class="btn btn-ghost cursor-pointer"
+            [href]="lettersService.labelsUrl([l.id])"
+            download
+            title="Наклейка файлом Word"
+            ><app-icon name="download" /> .docx</a
+          >
+        </div>
         @if (l.status !== 'SENT') {
           @if (auth.canEdit()) {
             <button

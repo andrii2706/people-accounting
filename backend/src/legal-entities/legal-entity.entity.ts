@@ -10,6 +10,7 @@ import {
 import type { Relation } from 'typeorm';
 import { decimalColumn } from '../common/utils/column.utils.js';
 import { User } from '../users/user.entity.js';
+import type { LabelSettings } from '../shared/interfaces/label-settings.interface.js';
 
 /**
  * A legal entity of the client (a company of the group). Employees belong to one; lists, TCK notices and reports
@@ -90,6 +91,10 @@ export class LegalEntity {
   /** Extra e-mail addresses for the reminders about the employees of this legal entity, comma-separated. */
   @Column({ type: 'varchar', length: 500, default: '' })
   notifyEmails: string;
+
+  /** How its envelope labels are printed (font, sizes, A4 sheet or envelope). null — the defaults. */
+  @Column({ type: 'jsonb', nullable: true })
+  labelSettings: Partial<LabelSettings> | null;
 
   /** The user account of the responsible person (who works in the system), if any. */
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })

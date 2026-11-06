@@ -3,13 +3,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, In, IsNull, Repository } from 'typeorm';
 import { formatUa, todayIso, yearOf } from '../common/utils/dates.utils.js';
 import { Tck } from '../dictionaries/tck.entity.js';
-import {
-  buildChangeNotice,
-  buildEnvelopeLabels,
-  buildSingleNotice,
-  noticeNumber,
-  postalCodeOf,
-} from '../documents/builders.js';
+import { buildChangeNotice, buildEnvelopeLabels, buildSingleNotice, noticeNumber } from '../documents/builders.js';
 import { noticeSnapshot } from '../documents/notice-snapshot.js';
 import type { Employee } from '../employees/entities/employee.entity.js';
 import { CHANGE_TYPE_LABELS } from '../military/dictionaries.js';
@@ -20,8 +14,9 @@ import { EmployeesService } from '../employees/employees.service.js';
 import { LIST_GROUPS } from '../military/dictionaries.js';
 import { fullName } from '../military/employee-format.js';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
-import type { Organization } from '../organization/organization.entity.js';
-import { EXTERNAL_NO_DOCUMENT } from './letters.constants.js';
+import { EXTERNAL_NO_DOCUMENT, LABELS_MAX_LETTERS } from './letters.constants.js';
+import { senderParty, tckParty } from '../documents/utils/label-party.utils.js';
+import type { LabelPrintData, LabelPrintGroup } from '../shared/interfaces/label-settings.interface.js';
 import { ReportsService } from '../reports/reports.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { LetterSignature } from './entities/letter-signature.entity.js';
@@ -37,7 +32,7 @@ import type {
 import type { FileResult, IsoDate } from '../shared/interfaces/common.interface.js';
 import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 import { assertInScope, inScope } from '../common/utils/entity-scope.utils.js';
-import type { NoticeSnapshot } from '../shared/interfaces/document.interface.js';
+import type { LabelParty, NoticeSnapshot } from '../shared/interfaces/document.interface.js';
 import type { MaxNumberRow } from '../shared/interfaces/letter.interface.js';
 import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
 import { sha256 } from '../common/utils/hash.utils.js';
@@ -218,46 +213,55 @@ export class LettersService {
     return rows.length ? this.noticeRepo.save(rows) : [];
   }
 
-  /** Envelope labels for the given letters (sender — organization, recipient — the letter's TCK). */
+  /** Envelope labels (.docx) for the given letters: each legal entity — with its own label settings. */
   async labels(ids: string[], scope: Scope = null) {
+    const letters = await this.labelLetters(ids, scope);
+    const buffer = await buildEnvelopeLabels(await this.labelGroups(letters));
+    const filename =
+      letters.length === 1
+        ? `Наклейка ${letters[0].number.replace(/[\\/:*?"<>|]/g, '-')}.docx`
+        : `Наклейки (${letters.length}).docx`;
+    return { buffer, filename };
+  }
+
+  /** The same labels for printing from the browser. */
+  async labelPrintData(ids: string[], scope: Scope = null): Promise<LabelPrintData> {
+    return { groups: await this.labelGroups(await this.labelLetters(ids, scope)) };
+  }
+
+  /** Letters of the scope for the labels, in the order of their numbers; all of them must exist. */
+  private async labelLetters(ids: string[], scope: Scope) {
     const unique = [...new Set(ids)];
     if (!unique.length) throw new BadRequestException('Оберіть хоча б один лист');
-    if (unique.length > 200) throw new BadRequestException('Не більше 200 листів за раз');
+    if (unique.length > LABELS_MAX_LETTERS) {
+      throw new BadRequestException(`Не більше ${LABELS_MAX_LETTERS} листів за раз`);
+    }
     const letters = await this.repo.find({
       where: { id: In(unique), ...(scope ? { legalEntityId: scope } : {}) },
       relations: { tck: true },
       order: { year: 'ASC', sequence: 'ASC' },
     });
     if (letters.length !== unique.length) throw new NotFoundException('Деякі листи не знайдено');
-    const senders = new Map<string, Organization>();
-    for (const id of new Set(letters.map((l) => l.legalEntityId ?? ''))) {
-      senders.set(id, await this.legalEntities.requisites(id || null));
+    return letters;
+  }
+
+  /** Sender — the legal entity of the letter, recipient — its TCK; grouped by legal entity with its settings. */
+  private async labelGroups(letters: OutgoingLetter[]): Promise<LabelPrintGroup[]> {
+    const groups = new Map<string, LabelPrintGroup & { sender: LabelParty }>();
+    for (const letter of letters) {
+      const key = letter.legalEntityId ?? '';
+      let group = groups.get(key);
+      if (!group) {
+        const [org, settings] = await Promise.all([
+          this.legalEntities.requisites(letter.legalEntityId),
+          this.legalEntities.labelSettings(letter.legalEntityId),
+        ]);
+        group = { legalEntityId: letter.legalEntityId, settings, labels: [], sender: senderParty(org) };
+        groups.set(key, group);
+      }
+      group.labels.push({ sender: group.sender, recipient: tckParty(letter.tck) });
     }
-    const senderOf = (l: OutgoingLetter) => {
-      const org = senders.get(l.legalEntityId ?? '')!;
-      return {
-        name: org.shortName || org.fullName,
-        address: org.address,
-        postalCode: postalCodeOf(org.postalCode, org.address),
-        phone: org.phone,
-      };
-    };
-    const buffer = await buildEnvelopeLabels(
-      letters.map((l) => ({
-        sender: senderOf(l),
-        recipient: {
-          name: l.tck?.name ?? '',
-          address: l.tck?.address ?? '',
-          postalCode: postalCodeOf(l.tck?.postalCode, l.tck?.address),
-          phone: l.tck?.phone ?? '',
-        },
-      })),
-    );
-    const filename =
-      letters.length === 1
-        ? `Наклейка ${letters[0].number.replace(/[\\/:*?"<>|]/g, '-')}.docx`
-        : `Наклейки (${letters.length}).docx`;
-    return { buffer, filename };
+    return [...groups.values()].map(({ sender: _s, ...g }) => g);
   }
 
   /** Stored notices, optionally for one employee — the history shown in the employee card. */

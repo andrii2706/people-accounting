@@ -16,10 +16,11 @@ import { Organization } from '../organization/organization.entity.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import type { Scope } from '../shared/interfaces/auth.interface.js';
-import type { ResponsibleInfo } from '../shared/interfaces/document.interface.js';
+import type { EnvelopeLabel, ResponsibleInfo } from '../shared/interfaces/document.interface.js';
 import type {
   EntityCountRow,
   LegalEntitySummary,
+  TckUsageRow,
   RegistryCompany,
 } from '../shared/interfaces/legal-entity.interface.js';
 import { REGISTRY_SOURCE_LABEL, REGISTRY_TIMEOUT_MS } from './legal-entities.constants.js';
@@ -27,6 +28,11 @@ import type { CreateLegalEntityDto, UpdateLegalEntityDto } from './legal-entitie
 import { LegalEntity } from './legal-entity.entity.js';
 import { User } from '../users/user.entity.js';
 import { pickRegistryCompany, toRegistryCompany } from './utils/registry.utils.js';
+import { Tck } from '../dictionaries/tck.entity.js';
+import { SAMPLE_RECIPIENT } from '../documents/label-settings.constants.js';
+import { senderParty, tckParty } from '../documents/utils/label-party.utils.js';
+import { labelSettingsProblems, withLabelDefaults } from '../documents/utils/label-settings.utils.js';
+import type { LabelSettings } from '../shared/interfaces/label-settings.interface.js';
 import { entityQuota, quotaStanding } from './utils/quota.utils.js';
 
 /** Legal entities of the client: requisites, the head and the person responsible for military registration. */
@@ -161,7 +167,44 @@ export class LegalEntitiesService {
     return { fullName: entity.responsibleName, position: entity.responsiblePosition, phone: entity.responsiblePhone };
   }
 
-  /** The legal entity whose head / responsible person this account is (for the account letters). */
+  /** Label settings of the legal entity (the defaults when none are saved, or for documents without an entity). */
+  async labelSettings(id: string | null): Promise<LabelSettings> {
+    const entity = id ? await this.repo.findOneBy({ id }) : await this.single();
+    return withLabelDefaults(entity?.labelSettings);
+  }
+
+  /** Saves the label settings when they fit on the paper; the settings before and after — for the journal. */
+  async saveLabelSettings(id: string, dto: LabelSettings): Promise<{ before: LabelSettings; after: LabelSettings }> {
+    const entity = await this.get(id);
+    const before = withLabelDefaults(entity.labelSettings);
+    const after = withLabelDefaults(dto);
+    const problems = labelSettingsProblems(after);
+    if (problems.length) throw fieldErrors(problems, 'LabelSettingsDto');
+    entity.labelSettings = after;
+    await this.repo.save(entity);
+    return { before, after };
+  }
+
+  /**
+   * A label of this legal entity for the preview: the sender — its requisites,
+   * the recipient — the TCK where most of its employees are registered (a sample TCK when none).
+   */
+  async sampleLabel(id: string): Promise<EnvelopeLabel> {
+    const [org, top] = await Promise.all([
+      this.requisites(id),
+      this.employees
+        .createQueryBuilder('e')
+        .select('e.tckId', 'tckId')
+        .where('e.legalEntityId = :id AND e.tckId IS NOT NULL', { id })
+        .groupBy('e.tckId')
+        .orderBy('COUNT(*)', 'DESC')
+        .limit(1)
+        .getRawOne<TckUsageRow>(),
+    ]);
+    const tck = top ? await this.repo.manager.findOneBy(Tck, { id: top.tckId }) : null;
+    return { sender: senderParty(org), recipient: tck ? tckParty(tck) : { ...SAMPLE_RECIPIENT } };
+  }
+
   /** The legal entity of the account (the letters about its password name it). */
   async entityOfUser(userId: string): Promise<{ name: string; code: string } | null> {
     const user = await this.repo.manager.findOne(User, {

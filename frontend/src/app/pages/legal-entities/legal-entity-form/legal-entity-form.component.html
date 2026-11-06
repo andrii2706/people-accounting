@@ -6,6 +6,13 @@
   <a routerLink="/settings" class="btn btn-ghost cursor-pointer"
     ><app-icon name="arrowLeft" /> До списку</a
   >
+  @if (page().entity; as entity) {
+    <a
+      [routerLink]="['/settings/legal-entities', entity.id, 'labels']"
+      class="btn btn-secondary cursor-pointer"
+      ><app-icon name="mail" /> Наклейки на конверти</a
+    >
+  }
 </app-page-header>
 
 <form class="grid gap-6 xl:grid-cols-[1.3fr_1fr]" (submit)="save($event)" novalidate>

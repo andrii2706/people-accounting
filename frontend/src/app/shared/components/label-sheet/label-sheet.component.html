@@ -1,0 +1,114 @@
+@for (page of pages(); track $index) {
+  @let s = page.settings;
+  <div
+    class="label-page"
+    [class]="
+      spaced()
+        ? 'mx-auto mb-6 shadow-lg ring-1 ring-black/5 print:m-0 print:shadow-none print:ring-0'
+        : ''
+    "
+    [style.width.mm]="size(s).widthMm"
+    [style.height.mm]="size(s).heightMm"
+    [style.page]="'labels-' + page.group"
+    [style.font-family]="font(s)"
+  >
+    @if (s.mode === 'ENVELOPE') {
+      @let label = page.labels[0];
+      <div
+        class="absolute overflow-hidden"
+        [style.left.mm]="s.senderXMm"
+        [style.top.mm]="s.senderYMm"
+        [style.width.mm]="s.senderWidthMm"
+        [style.max-height.mm]="s.recipientYMm - s.senderYMm"
+      >
+        <ng-container
+          *ngTemplateOutlet="party; context: { $implicit: label.sender, title: titles.sender, s }"
+        />
+      </div>
+      <div
+        class="absolute"
+        [style.left.mm]="s.recipientXMm"
+        [style.top.mm]="s.recipientYMm"
+        [style.width.mm]="s.recipientWidthMm"
+      >
+        <ng-container
+          *ngTemplateOutlet="
+            party;
+            context: { $implicit: label.recipient, title: titles.recipient, s }
+          "
+        />
+      </div>
+    } @else {
+      <div
+        class="grid content-start"
+        [style.padding-top.mm]="s.marginTopMm"
+        [style.padding-left.mm]="s.marginLeftMm"
+        [style.grid-template-columns]="columns(s)"
+        [style.grid-auto-rows.mm]="s.labelHeightMm"
+        [style.gap.mm]="s.gapMm"
+      >
+        @for (label of page.labels; track $index) {
+          <div
+            class="flex min-w-0 overflow-hidden"
+            [class.flex-col]="s.layout === 'STACKED'"
+            [style.border]="s.cutBorder ? '0.75pt dashed #777' : 'none'"
+            [style.padding.mm]="s.layout === 'STACKED' ? s.paddingMm : 0"
+            [style.gap.pt]="s.layout === 'STACKED' ? 6 : 0"
+          >
+            <div
+              class="min-w-0 flex-1 overflow-hidden"
+              [class.flex-none]="s.layout === 'STACKED'"
+              [style.padding.mm]="s.layout === 'STACKED' ? 0 : s.paddingMm"
+              [style.border-right]="
+                s.layout === 'SIDE_BY_SIDE' && s.cutBorder ? '0.5pt solid #bbb' : 'none'
+              "
+            >
+              <ng-container
+                *ngTemplateOutlet="
+                  party;
+                  context: { $implicit: label.sender, title: titles.sender, s }
+                "
+              />
+            </div>
+            <div
+              class="min-w-0 flex-1 overflow-hidden"
+              [class.flex-none]="s.layout === 'STACKED'"
+              [style.padding.mm]="s.layout === 'STACKED' ? 0 : s.paddingMm"
+            >
+              <ng-container
+                *ngTemplateOutlet="
+                  party;
+                  context: { $implicit: label.recipient, title: titles.recipient, s }
+                "
+              />
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+}
+
+<ng-template #party let-party let-title="title" let-s="s">
+  <div [style.text-align]="s.align" class="break-words">
+    @if (s.showTitles) {
+      <p class="font-bold" [style.font-size.pt]="s.titleSize" style="margin-bottom: 3pt">
+        {{ title }}
+      </p>
+    }
+    <p [style.font-size.pt]="s.nameSize" [style.font-weight]="s.nameBold ? 700 : 400">
+      {{ party.name || '________________' }}
+    </p>
+    <p [style.font-size.pt]="s.addressSize">{{ party.address || '________________' }}</p>
+    <p
+      [style.font-size.pt]="s.postalSize"
+      [style.font-weight]="s.postalBold ? 700 : 400"
+      style="margin-top: 3pt"
+    >
+      {{ postal(party.postalCode, s) }}
+    </p>
+    @if (s.showPhone && party.phone) {
+      <p [style.font-size.pt]="s.phoneSize">тел. {{ party.phone }}</p>
+    }
+  </div>
+</ng-template>

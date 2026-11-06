@@ -9,6 +9,7 @@ import type {
   ExternalNoticeRequest,
   ReportLetterRequest,
 } from '../interfaces/letter.interface';
+import type { LabelPrintData } from '../interfaces/label-settings.interface';
 
 /** Register of outgoing letters to the TCK, documents and hand-over. */
 @Injectable({ providedIn: 'root' })
@@ -43,9 +44,21 @@ export class LettersService {
     return `/api/change-notices/${noticeId}/docx`;
   }
 
-  /** Envelope labels (sender / recipient) for one or many letters. */
+  /** Envelope labels (sender / recipient) for one or many letters, .docx. */
   labelsUrl(letterIds: string[]) {
     return `/api/letters/labels?ids=${letterIds.join(',')}`;
+  }
+
+  /** The same labels for printing from the browser — with the label settings of each legal entity. */
+  labelPrintData(letterIds: string[]) {
+    return this.http.get<LabelPrintData>('/api/letters/labels/print', {
+      params: { ids: letterIds.join(',') },
+    });
+  }
+
+  /** The print page of the app (opens in a new tab and calls the print dialog). */
+  labelsPrintUrl(letterIds: string[]) {
+    return `/print/labels?ids=${letterIds.join(',')}`;
   }
 
   createChangeNotice(employeeId: string, changeIds?: string[]) {

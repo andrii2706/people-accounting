@@ -2,7 +2,22 @@
  * Texts and structure follow the employee card (rows 30–100, 116–147)
  * and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
-import { BorderStyle, HeightRule, type Paragraph, Table, TableCell, TableLayoutType, TableRow, WidthType } from 'docx';
+import {
+  BorderStyle,
+  HeightRule,
+  type IBorderOptions,
+  type ISectionOptions,
+  type Paragraph,
+  Table,
+  TableCell,
+  TableLayoutType,
+  TableRow,
+  VerticalAlign,
+  WidthType,
+} from 'docx';
+import { A4_MM, ENVELOPE_SIZES, PRINT_EDGE_MM } from './label-settings.constants.js';
+import { labelsPerPage, twips } from './utils/label-settings.utils.js';
+import type { LabelPrintGroup, LabelSettings } from '../shared/interfaces/label-settings.interface.js';
 import { formatUa, formatUaLong } from '../common/utils/dates.utils.js';
 import type { Tck } from '../dictionaries/tck.entity.js';
 import { CHANGE_TYPE_LABELS, LIST_SECTION_TITLES } from '../military/dictionaries.js';
@@ -16,10 +31,12 @@ import {
   hint,
   p,
   pageBreak,
+  pageTail,
   render,
   run,
   section,
   signature,
+  sizedSection,
   table,
   twoColumns,
 } from './docx-kit.js';
@@ -411,62 +428,198 @@ export function postalCodeOf(postalCode: string | null | undefined, address: str
   return /(?:^|\D)(\d{5})(?:\D|$)/.exec(address ?? '')?.[1] ?? '';
 }
 
-function labelBlock(title: string, party: LabelParty): Paragraph[] {
+const LABEL_TITLES = { sender: 'Відправник:', recipient: 'Отримувач:' } as const;
+
+const NONE: IBorderOptions = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+const DASHED: IBorderOptions = { style: BorderStyle.DASHED, size: 6, color: '777777' };
+const DIVIDER: IBorderOptions = { style: BorderStyle.SINGLE, size: 4, color: 'BBBBBB' };
+const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE };
+
+/** One party of a label in the font, sizes and lines of the settings. */
+function labelBlock(title: string, party: LabelParty, s: LabelSettings): Paragraph[] {
+  const o = { font: s.font, align: s.align };
+  const postal = party.postalCode || '________';
   return [
-    p(title, { bold: true, size: 11, spacingAfter: 60 }),
-    p(blank(party.name), { bold: true, size: 13 }),
-    p(blank(party.address), { size: 12 }),
-    p(party.postalCode ? `Індекс: ${party.postalCode}` : 'Індекс: ________', {
-      bold: true,
-      size: 14,
+    ...(s.showTitles ? [p(title, { ...o, bold: true, size: s.titleSize, spacingAfter: 60 })] : []),
+    p(blank(party.name), { ...o, bold: s.nameBold, size: s.nameSize }),
+    p(blank(party.address), { ...o, size: s.addressSize }),
+    p(s.postalPrefix ? `Індекс: ${postal}` : postal, {
+      ...o,
+      bold: s.postalBold,
+      size: s.postalSize,
       spacingBefore: 60,
     }),
-    ...(party.phone ? [p(`тел. ${party.phone}`, { size: 11 })] : []),
+    ...(s.showPhone && party.phone ? [p(`тел. ${party.phone}`, { ...o, size: s.phoneSize })] : []),
   ];
 }
 
-/**
- * Envelope labels "Відправник / Отримувач" — several per A4 page, cut along the borders.
- * One label per letter (sender — the organization, recipient — the TCK of the letter).
- */
-export async function buildEnvelopeLabels(labels: EnvelopeLabel[]): Promise<Buffer> {
-  const w = CONTENT_WIDTH.portrait;
-  const half = Math.floor(w / 2);
-  const children = labels.flatMap((label) => [
-    new Table({
-      rows: [
-        new TableRow({
-          cantSplit: true,
-          height: { value: 3100, rule: HeightRule.ATLEAST },
-          children: [
-            new TableCell({
-              children: labelBlock('Відправник:', label.sender),
-              width: { size: half, type: WidthType.DXA },
-              margins: { top: 120, bottom: 120, left: 160, right: 160 },
-            }),
-            new TableCell({
-              children: labelBlock('Отримувач:', label.recipient),
-              width: { size: w - half, type: WidthType.DXA },
-              margins: { top: 120, bottom: 120, left: 160, right: 160 },
-            }),
-          ],
-        }),
-      ],
-      width: { size: w, type: WidthType.DXA },
-      columnWidths: [half, w - half],
-      layout: TableLayoutType.FIXED,
-      borders: {
-        top: DASHED,
-        bottom: DASHED,
-        left: DASHED,
-        right: DASHED,
-        insideHorizontal: DASHED,
-        insideVertical: { style: BorderStyle.SINGLE, size: 4, color: 'BBBBBB' },
-      },
-    }),
-    p('', { spacingAfter: 240 }),
-  ]);
-  return render([section(children)], 'Наклейки на конверти');
+const chunk = <T>(items: T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, (i + 1) * size));
+
+/** An empty cell: a gap between the labels or a free place in the last row. */
+function blankCell(width: number, columnSpan?: number): TableCell {
+  return new TableCell({
+    children: [p('', { size: 1 })],
+    width: { size: width, type: WidthType.DXA },
+    columnSpan,
+    borders: NO_BORDERS,
+  });
 }
 
-const DASHED = { style: BorderStyle.DASHED, size: 6, color: '777777' };
+/** One A4 page of labels: rows of `columns` labels of exact size, so that a sheet of stickers matches. */
+function sheetPage(labels: EnvelopeLabel[], s: LabelSettings): Table {
+  const w = twips(s.labelWidthMm);
+  const gap = twips(s.gapMm);
+  const pad = twips(s.paddingMm);
+  const side = s.layout === 'SIDE_BY_SIDE';
+  const half = Math.floor(w / 2);
+  const labelCols = side ? [half, w - half] : [w];
+  const columnWidths: number[] = [];
+  for (let c = 0; c < s.columns; c++) {
+    if (c && gap) columnWidths.push(gap);
+    columnWidths.push(...labelCols);
+  }
+  const total = columnWidths.reduce((a, b) => a + b, 0);
+  const edge = s.cutBorder ? DASHED : NONE;
+  const divider = s.cutBorder ? DIVIDER : NONE;
+  const cell = (children: Paragraph[], width: number, borders: { left: IBorderOptions; right: IBorderOptions }) =>
+    new TableCell({
+      children,
+      width: { size: width, type: WidthType.DXA },
+      margins: { top: pad, bottom: pad, left: pad, right: pad },
+      borders: { top: edge, bottom: edge, ...borders },
+      verticalAlign: VerticalAlign.TOP,
+    });
+
+  const rows: TableRow[] = [];
+  chunk(labels, s.columns).forEach((row, r) => {
+    if (r && gap) {
+      rows.push(
+        new TableRow({
+          height: { value: gap, rule: HeightRule.EXACT },
+          children: [blankCell(total, columnWidths.length)],
+        }),
+      );
+    }
+    const cells: TableCell[] = [];
+    for (let c = 0; c < s.columns; c++) {
+      if (c && gap) cells.push(blankCell(gap));
+      const label = row[c];
+      if (!label) {
+        labelCols.forEach((width) => cells.push(blankCell(width)));
+      } else if (side) {
+        cells.push(
+          cell(labelBlock(LABEL_TITLES.sender, label.sender, s), labelCols[0], { left: edge, right: divider }),
+        );
+        cells.push(
+          cell(labelBlock(LABEL_TITLES.recipient, label.recipient, s), labelCols[1], { left: divider, right: edge }),
+        );
+      } else {
+        const both = [
+          ...labelBlock(LABEL_TITLES.sender, label.sender, s),
+          p('', { size: 6 }),
+          ...labelBlock(LABEL_TITLES.recipient, label.recipient, s),
+        ];
+        cells.push(cell(both, w, { left: edge, right: edge }));
+      }
+    }
+    rows.push(
+      new TableRow({
+        cantSplit: true,
+        height: { value: twips(s.labelHeightMm), rule: HeightRule.EXACT },
+        children: cells,
+      }),
+    );
+  });
+  return new Table({
+    rows,
+    width: { size: total, type: WidthType.DXA },
+    columnWidths,
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+  });
+}
+
+function sheetSection(group: LabelPrintGroup): ISectionOptions {
+  const s = group.settings;
+  const pages = chunk(group.labels, labelsPerPage(s));
+  return sizedSection(
+    pages.flatMap((page, i) => [sheetPage(page, s), pageTail(i < pages.length - 1)]),
+    { width: twips(A4_MM.widthMm), height: twips(A4_MM.heightMm) },
+    {
+      top: twips(s.marginTopMm),
+      left: twips(s.marginLeftMm),
+      right: twips(PRINT_EDGE_MM),
+      bottom: twips(PRINT_EDGE_MM),
+    },
+  );
+}
+
+/**
+ * One envelope: the page starts at the sender (the margins), the recipient is shifted by the columns of
+ * a borderless table and by the exact height of its first row.
+ */
+function envelopePage(label: EnvelopeLabel, s: LabelSettings): Table {
+  const offset = twips(s.recipientXMm - s.senderXMm);
+  const recipient = twips(s.recipientWidthMm);
+  const sender = twips(s.senderWidthMm);
+  const columnWidths = [...(offset > 0 ? [offset] : []), recipient];
+  const extra = sender - columnWidths.reduce((a, b) => a + b, 0);
+  if (extra > 0) columnWidths.push(extra);
+  const total = columnWidths.reduce((a, b) => a + b, 0);
+  const zero = { top: 0, bottom: 0, left: 0, right: 0 };
+  return new Table({
+    rows: [
+      new TableRow({
+        height: { value: twips(s.recipientYMm - s.senderYMm), rule: HeightRule.EXACT },
+        children: [
+          new TableCell({
+            children: labelBlock(LABEL_TITLES.sender, label.sender, s),
+            width: { size: total, type: WidthType.DXA },
+            columnSpan: columnWidths.length,
+            margins: { ...zero, right: Math.max(0, total - sender) },
+            borders: NO_BORDERS,
+          }),
+        ],
+      }),
+      new TableRow({
+        cantSplit: true,
+        children: [
+          ...(offset > 0 ? [blankCell(offset)] : []),
+          new TableCell({
+            children: labelBlock(LABEL_TITLES.recipient, label.recipient, s),
+            width: { size: recipient, type: WidthType.DXA },
+            margins: zero,
+            borders: NO_BORDERS,
+          }),
+          ...(extra > 0 ? [blankCell(extra)] : []),
+        ],
+      }),
+    ],
+    width: { size: total, type: WidthType.DXA },
+    columnWidths,
+    layout: TableLayoutType.FIXED,
+    borders: NO_BORDERS,
+  });
+}
+
+function envelopeSection(group: LabelPrintGroup): ISectionOptions {
+  const s = group.settings;
+  const env = ENVELOPE_SIZES[s.envelope];
+  return sizedSection(
+    group.labels.flatMap((label, i) => [envelopePage(label, s), pageTail(i < group.labels.length - 1)]),
+    { width: twips(env.widthMm), height: twips(env.heightMm) },
+    { top: twips(s.senderYMm), left: twips(s.senderXMm), right: twips(3), bottom: twips(3) },
+  );
+}
+
+/**
+ * Envelope labels «Відправник / Отримувач», one per letter. Each legal entity — with its own settings:
+ * labels on A4 (cut out or a sheet of stickers) or printed right on the envelope.
+ */
+export async function buildEnvelopeLabels(groups: LabelPrintGroup[]): Promise<Buffer> {
+  const sections = groups
+    .filter((g) => g.labels.length)
+    .map((g) => (g.settings.mode === 'ENVELOPE' ? envelopeSection(g) : sheetSection(g)));
+  return render(sections, 'Наклейки на конверти');
+}

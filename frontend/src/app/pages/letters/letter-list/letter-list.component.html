@@ -26,8 +26,19 @@
       <span class="text-sm text-muted">Вибрано: {{ selected().size }}</span>
     }
     @if (selected().size) {
-      <a class="btn btn-secondary" [href]="lettersService.labelsUrl(selectedIds())" download
-        ><app-icon name="mail" /> Наклейки на конверти</a
+      <a
+        class="btn btn-secondary cursor-pointer"
+        [href]="lettersService.labelsPrintUrl(selectedIds())"
+        target="_blank"
+        title="Відкриється сторінка друку з налаштуваннями наклейок юрособи"
+        ><app-icon name="printer" /> Друкувати наклейки</a
+      >
+      <a
+        class="btn btn-ghost cursor-pointer"
+        [href]="lettersService.labelsUrl(selectedIds())"
+        download
+        title="Ті самі наклейки файлом Word"
+        ><app-icon name="download" /> .docx</a
       >
     } @else {
       <button
@@ -36,7 +47,7 @@
         disabled
         title="Позначте листи, для яких потрібні наклейки"
       >
-        <app-icon name="mail" /> Наклейки на конверти
+        <app-icon name="printer" /> Друкувати наклейки
       </button>
     }
   </div>

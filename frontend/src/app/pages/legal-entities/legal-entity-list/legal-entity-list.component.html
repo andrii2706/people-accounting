@@ -110,6 +110,13 @@
             @if (auth.isEntityManager()) {
               <a
                 class="icon-btn cursor-pointer"
+                [routerLink]="['/settings/legal-entities', e.id, 'labels']"
+                aria-label="Наклейки на конверти"
+                title="Наклейки на конверти: шрифт, розміри, A4 чи конверт"
+                ><app-icon name="mail" [size]="16"
+              /></a>
+              <a
+                class="icon-btn cursor-pointer"
                 [routerLink]="['/settings/legal-entities', e.id]"
                 aria-label="Редагувати"
                 title="Редагувати"

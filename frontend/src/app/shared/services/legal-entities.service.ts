@@ -16,6 +16,7 @@ import type {
   RegistryCompany,
 } from '../interfaces/legal-entity.interface';
 import type { AuditEntry } from '../interfaces/employee.interface';
+import type { LabelSettings, LabelSettingsPage } from '../interfaces/label-settings.interface';
 
 /** Legal entities of the client: requisites, head and responsible person for the documents. */
 @Injectable({ providedIn: 'root' })
@@ -81,6 +82,17 @@ export class LegalEntitiesService {
         `/api/legal-entities/${id}/people/${PERSON_TEXT[person].path}`,
         body,
       ),
+    );
+  }
+
+  /** Envelope labels of the entity: the settings and a label of this entity for the preview. */
+  labelSettings(id: string) {
+    return this.http.get<LabelSettingsPage>(`/api/legal-entities/${id}/label-settings`);
+  }
+
+  saveLabelSettings(id: string, body: LabelSettings) {
+    return firstValueFrom(
+      this.http.put<LabelSettings>(`/api/legal-entities/${id}/label-settings`, body),
     );
   }
 

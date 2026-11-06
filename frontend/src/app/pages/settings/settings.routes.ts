@@ -1,5 +1,9 @@
 import type { Routes } from '@angular/router';
-import { organizationSettingsResolver, usersResolver } from './resolvers/settings.resolvers';
+import {
+  labelSettingsResolver,
+  organizationSettingsResolver,
+  usersResolver,
+} from './resolvers/settings.resolvers';
 import {
   legalEntitiesResolver,
   legalEntityPageResolver,
@@ -7,7 +11,7 @@ import {
 import { entityCreatorGuard, managerGuard } from '../../shared/guards/auth.guard';
 
 /**
- * Settings: the legal entities (requisites, head, responsible person, quota, reminder addresses),
+ * Settings: the legal entities (requisites, head, responsible person, quota, reminder addresses, envelope labels),
  * the users and the parameters shared by all legal entities.
  */
 export const SETTINGS_ROUTES: Routes = [
@@ -41,6 +45,15 @@ export const SETTINGS_ROUTES: Routes = [
       import('../legal-entities/legal-entity-form/legal-entity-form.component').then(
         (m) => m.LegalEntityFormComponent,
       ),
+  },
+  {
+    path: 'legal-entities/:id/labels',
+    canActivate: [managerGuard],
+    title: 'Наклейки на конверти · Військовий облік',
+    resolve: { data: labelSettingsResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () =>
+      import('./label-settings/label-settings.component').then((m) => m.LabelSettingsComponent),
   },
   {
     path: 'system',

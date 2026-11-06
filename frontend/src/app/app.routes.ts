@@ -36,6 +36,13 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/vendor/vendor.routes').then((m) => m.VENDOR_ROUTES),
   },
   {
+    // printing from the browser (envelope labels) — without the menu of the app
+    path: 'print',
+    canActivate: [authGuard, staffGuard],
+    canActivateChild: [passwordChangeGuard, entityAssignedGuard],
+    loadChildren: () => import('./pages/print/print.routes').then((m) => m.PRINT_ROUTES),
+  },
+  {
     path: '',
     component: ShellComponent,
     canActivate: [authGuard, staffGuard],

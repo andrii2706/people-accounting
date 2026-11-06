@@ -49,6 +49,8 @@ export interface TextOpts {
   spacingAfter?: number;
   spacingBefore?: number;
   keepNext?: boolean;
+  /** Times New Roman by default. */
+  font?: string;
 }
 
 export interface CellSpec {
@@ -59,6 +61,12 @@ export interface CellSpec {
   colSpan?: number;
   /** Keep this row on the same page as the next one (e.g. two-tier records). */
   keepNext?: boolean;
+}
+
+/** Size of a page in twips, as it lies when printed (an envelope is wider than high). */
+export interface PageSize {
+  width: number;
+  height: number;
 }
 
 export interface PageMargins {

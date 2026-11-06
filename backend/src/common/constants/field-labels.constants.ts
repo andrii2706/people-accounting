@@ -42,6 +42,38 @@ export const LEGAL_ENTITY_LABELS: Record<string, string> = {
   notifyEmails: 'Додаткові email для нагадувань',
 };
 
+export const LABEL_SETTINGS_LABELS: Record<string, string> = {
+  mode: 'Що друкуємо',
+  font: 'Шрифт',
+  titleSize: 'Розмір «Відправник/Отримувач»',
+  nameSize: 'Розмір назви',
+  addressSize: 'Розмір адреси',
+  postalSize: 'Розмір індексу',
+  phoneSize: 'Розмір телефону',
+  nameBold: 'Назва жирним',
+  postalBold: 'Індекс жирним',
+  align: 'Вирівнювання',
+  showTitles: 'Підписи «Відправник/Отримувач»',
+  showPhone: 'Телефон',
+  postalPrefix: 'Слово «Індекс:»',
+  layout: 'Компонування наклейки',
+  columns: 'Наклейок у рядку',
+  labelWidthMm: 'Ширина наклейки, мм',
+  labelHeightMm: 'Висота наклейки, мм',
+  gapMm: 'Проміжок між наклейками, мм',
+  marginTopMm: 'Відступ згори, мм',
+  marginLeftMm: 'Відступ зліва, мм',
+  paddingMm: 'Поле всередині наклейки, мм',
+  cutBorder: 'Рамка для розрізання',
+  envelope: 'Формат конверта',
+  senderXMm: 'Відправник: зліва, мм',
+  senderYMm: 'Відправник: згори, мм',
+  senderWidthMm: 'Відправник: ширина, мм',
+  recipientXMm: 'Отримувач: зліва, мм',
+  recipientYMm: 'Отримувач: згори, мм',
+  recipientWidthMm: 'Отримувач: ширина, мм',
+};
+
 export const PERSON_ACCESS_LABELS: Record<string, string> = {
   fullName: 'Ім’я та ПРІЗВИЩЕ',
   position: 'Посада',
@@ -159,4 +191,5 @@ export const LABELS_BY_REQUEST: Record<string, Record<string, string>> = {
   UpdateTckDto: TCK_LABELS,
   ImportTckDto: TCK_LABELS,
   UpdateBillingDto: BILLING_LABELS,
+  LabelSettingsDto: LABEL_SETTINGS_LABELS,
 };

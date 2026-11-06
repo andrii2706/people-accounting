@@ -8,3 +8,6 @@ export const LETTER_TYPE_TITLES = {
 
 /** A notice entered by hand (sent before the system) has no document here. */
 export const EXTERNAL_NO_DOCUMENT = 'Повідомлення внесено вручну — його надіслано поза системою, документа тут немає';
+
+/** Labels for at most this many letters in one file / print. */
+export const LABELS_MAX_LETTERS = 200;

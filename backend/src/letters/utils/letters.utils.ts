@@ -1,3 +1,5 @@
+import { BadRequestException } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import type { EmployeeChange } from '../../employees/entities/employee-change.entity.js';
 
 /** "2 працівники", "5 працівників", "21 працівник" — Ukrainian plural forms. */
@@ -19,4 +21,14 @@ export function noticeBatches(changes: EmployeeChange[]): EmployeeChange[][] {
   const data = changes.filter((c) => c.type !== 'HIRE' && c.type !== 'DISMISSAL');
   const dismissals = changes.filter((c) => c.type === 'DISMISSAL').map((c) => [c]);
   return [...hires, ...(data.length ? [data] : []), ...dismissals];
+}
+
+/** ?ids=<uuid>,<uuid> of the letters. */
+export function letterIds(ids: string | undefined): string[] {
+  const list = (ids ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (list.some((id) => !isUUID(id))) throw new BadRequestException('ids: очікуються UUID листів через кому');
+  return list;
 }
