@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Get,
   HttpCode,
+  Param,
   Patch,
   Post,
   Req,
@@ -15,7 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
 import {
-  AllowDirector,
+  AllowUnassigned,
   AllowPendingPasswordChange,
   AllowVendor,
   CurrentUser,
@@ -30,7 +31,7 @@ import { UpdatePreferencesDto } from '../users/users.dto.js';
 import { UsersService } from '../users/users.service.js';
 import { SessionService } from './session.service.js';
 import type { AuthUser, SessionResponse } from '../shared/interfaces/auth.interface.js';
-import { ChangePasswordDto } from './auth.dto.js';
+import { ChangePasswordDto, ResetPasswordDto } from './auth.dto.js';
 import { LoginDto } from './auth.dto.js';
 import { toAuthUser } from './utils/auth.utils.js';
 
@@ -113,6 +114,7 @@ export class AuthController {
 
   @AllowVendor()
   @AllowPendingPasswordChange()
+  @AllowUnassigned()
   @Get('me')
   me(@CurrentUser() user: AuthUser): AuthUser {
     return user;
@@ -121,7 +123,7 @@ export class AuthController {
   /** Change own password. All other sessions of the user are terminated. */
   @AllowVendor()
   @AllowPendingPasswordChange()
-  @AllowDirector()
+  @AllowUnassigned()
   @Post('change-password')
   @HttpCode(200)
   async changePassword(
@@ -137,13 +139,34 @@ export class AuthController {
     return toAuthUser(user);
   }
 
+  /** Who a link from a letter is for (the «new password» page); 400 — invalid / used / expired. */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Get('password-reset/:token')
+  passwordLink(@Param('token') token: string) {
+    return this.users.passwordLinkInfo(token);
+  }
+
+  /** A new password by the link from a letter (expiry reminder or the administrator's request). */
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Post('password-reset')
+  @HttpCode(200)
+  async resetPassword(@Body() dto: ResetPasswordDto, @Res({ passthrough: true }) res: Response) {
+    const user = await this.users.resetWithLink(dto.token, dto.newPassword);
+    this.sessions.clear(res);
+    await this.audit.log('auth', user.id, 'PASSWORD_CHANGED', { byLink: [null, true] });
+    return { email: user.email };
+  }
+
   /** Own settings: e-mail reminders on / off. */
+  @AllowUnassigned()
   @Get('preferences')
   preferences(@CurrentUser() user: AuthUser) {
     return this.users.preferences(user.id);
   }
 
-  @AllowDirector()
+  @AllowUnassigned()
   @Patch('preferences')
   updatePreferences(@CurrentUser() user: AuthUser, @Body() dto: UpdatePreferencesDto) {
     return this.users.updatePreferences(user.id, dto.notify);

@@ -114,6 +114,7 @@
       <thead>
         <tr>
           <th>Назва</th>
+          <th>Індекс</th>
           <th>Адреса</th>
           <th>Телефон</th>
           <th>Email</th>
@@ -124,6 +125,13 @@
         @for (t of tcks(); track t.id) {
           <tr [class.opacity-50]="!t.isActive">
             <td class="font-medium">{{ t.name }}</td>
+            <td class="font-mono whitespace-nowrap">
+              @if (t.postalCode) {
+                {{ t.postalCode }}
+              } @else {
+                <span class="font-sans text-xs text-warning">не вказано</span>
+              }
+            </td>
             <td class="text-muted">{{ t.address }}</td>
             <td class="whitespace-nowrap text-muted">{{ t.phone }}</td>
             <td>
@@ -135,7 +143,12 @@
             </td>
             <td class="text-right">
               @if (auth.isAdmin()) {
-                <button type="button" class="icon-btn" (click)="editTck(t)" aria-label="Редагувати">
+                <button
+                  type="button"
+                  class="icon-btn cursor-pointer"
+                  (click)="editTck(t)"
+                  aria-label="Редагувати"
+                >
                   <app-icon name="edit" [size]="16" />
                 </button>
               }

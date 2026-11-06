@@ -4,7 +4,7 @@ import {
   legalEntitiesResolver,
   legalEntityPageResolver,
 } from '../legal-entities/resolvers/legal-entities.resolvers';
-import { adminGuard } from '../../shared/guards/auth.guard';
+import { entityCreatorGuard, managerGuard } from '../../shared/guards/auth.guard';
 
 /**
  * Settings: the legal entities (requisites, head, responsible person, quota, reminder addresses),
@@ -23,7 +23,7 @@ export const SETTINGS_ROUTES: Routes = [
   },
   {
     path: 'legal-entities/new',
-    canActivate: [adminGuard],
+    canActivate: [entityCreatorGuard],
     title: 'Нова юридична особа · Військовий облік',
     resolve: { page: legalEntityPageResolver },
     loadComponent: () =>
@@ -33,7 +33,7 @@ export const SETTINGS_ROUTES: Routes = [
   },
   {
     path: 'legal-entities/:id',
-    canActivate: [adminGuard],
+    canActivate: [managerGuard],
     title: 'Юридична особа · Військовий облік',
     resolve: { page: legalEntityPageResolver },
     runGuardsAndResolvers: 'always',
@@ -54,7 +54,7 @@ export const SETTINGS_ROUTES: Routes = [
   },
   {
     path: 'users',
-    canActivate: [adminGuard],
+    canActivate: [managerGuard],
     title: 'Користувачі · Військовий облік',
     resolve: { users: usersResolver },
     runGuardsAndResolvers: 'always',

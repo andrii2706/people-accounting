@@ -1,4 +1,8 @@
-import { ROLE_OPTIONS } from '../../../shared/constants/auth.constants';
+import {
+  ENTITY_ISSUED_ROLES,
+  ROLE_LABELS,
+  ROLE_OPTIONS,
+} from '../../../shared/constants/auth.constants';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import {
   form,
@@ -28,8 +32,14 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { passwordProblems } from '../../../shared/validators/password.validators';
 import { SelectComponent } from '../../../shared/components/select/select.component';
 import type { SelectOption } from '../../../shared/interfaces/ui.interface';
+import { DictionariesService } from '../../../shared/services/dictionaries.service';
+import { canManageUser, roleNeedsEntity } from '../../../shared/utils/user-policy.utils';
+import { legalEntityName } from '../../../shared/utils/legal-entity.utils';
 
-/** Account administration: roles, lockout, password reset. */
+/**
+ * Accounts: the main administrator — all of them (role, legal entity); the administrator / director of a
+ * legal entity — the HR and director accounts of his legal entity.
+ */
 @Component({
   selector: 'app-users',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,6 +59,7 @@ export class UsersComponent {
   private readonly toast = inject(ToastService);
   private readonly refresh = injectRouteRefresh();
   protected readonly auth = inject(AuthService);
+  private readonly dict = inject(DictionariesService);
 
   readonly users = input.required<ManagedUser[]>();
 
@@ -64,7 +75,36 @@ export class UsersComponent {
     );
   });
 
-  private readonly blank = { fullName: '', email: '', password: '', role: 'HR' as UserRole };
+  /** Legal entities to choose from (the main administrator). */
+  protected readonly entityOptions = computed<SelectOption<string>[]>(() =>
+    this.dict.legalEntities().map((e) => ({ value: e.id, label: legalEntityName(e) })),
+  );
+  protected readonly entityNames = computed(
+    () => new Map(this.dict.legalEntities().map((e) => [e.id, legalEntityName(e)])),
+  );
+
+  /** Roles the signed-in user may give. */
+  protected readonly roleOptions = computed(() =>
+    this.auth.isAdmin()
+      ? ROLE_OPTIONS
+      : ROLE_OPTIONS.filter((o) => ENTITY_ISSUED_ROLES.includes(o.value)),
+  );
+
+  protected roleLabel(role: UserRole) {
+    return ROLE_LABELS[role];
+  }
+
+  protected canManage(u: ManagedUser) {
+    return canManageUser(this.auth.user(), u);
+  }
+
+  private readonly blank = {
+    fullName: '',
+    email: '',
+    password: '',
+    role: 'HR' as UserRole,
+    legalEntityId: '',
+  };
   protected readonly userModel = signal({ ...this.blank });
   protected readonly userForm = form(this.userModel, (p) => {
     required(p.fullName, { message: 'Вкажіть ім’я' });
@@ -80,13 +120,23 @@ export class UsersComponent {
     maxLength(p.fullName, 200, { message: 'Не більше 200 символів' });
     maxLength(p.email, 200, { message: 'Не більше 200 символів' });
     maxLength(p.password, 200, { message: 'Не більше 200 символів' });
+    // the main administrator chooses the legal entity; the others create accounts of their own one
+    validate(p.legalEntityId, ({ value, valueOf }) =>
+      this.auth.isAdmin() && roleNeedsEntity(valueOf(p.role)) && !value()
+        ? { kind: 'required', message: 'Оберіть юридичну особу' }
+        : undefined,
+    );
   });
 
   protected async create(event: Event) {
     event.preventDefault();
     await submit(this.userForm, async () => {
       try {
-        await this.usersService.create(this.userModel());
+        const { legalEntityId, ...rest } = this.userModel();
+        await this.usersService.create({
+          ...rest,
+          legalEntityId: rest.role === 'ADMIN' ? null : legalEntityId || null,
+        });
         this.userModel.set({ ...this.blank });
         this.userForm().reset();
         this.toast.success(
@@ -107,7 +157,12 @@ export class UsersComponent {
     );
   }
 
-  protected readonly roleOptions = ROLE_OPTIONS;
+  protected setEntity(u: ManagedUser, legalEntityId: string) {
+    return this.run(
+      () => this.usersService.update(u.id, { legalEntityId: legalEntityId || null }),
+      'Юридичну особу змінено',
+    );
+  }
 
   protected setRole(u: ManagedUser, role: UserRole) {
     return this.run(() => this.usersService.update(u.id, { role }), 'Роль змінено');
@@ -122,6 +177,28 @@ export class UsersComponent {
 
   protected unlock(u: ManagedUser) {
     return this.run(() => this.usersService.unlock(u.id), 'Вхід розблоковано');
+  }
+
+  /** Letter 2: «change your password» with a link; until changed the user gets only the password page. */
+  protected async requestPasswordChange(u: ManagedUser) {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        `Надіслати «${u.fullName}» лист на зміну пароля? До зміни пароля він зможе відкрити лише сторінку пароля.`,
+      )
+    )
+      return;
+    try {
+      const { mailSent, email } = await this.usersService.requestPasswordChange(u.id);
+      if (mailSent) this.toast.success(`Лист на зміну пароля надіслано на ${email}`);
+      else
+        this.toast.error(
+          'Пошту для доступів не налаштовано — лист не надіслано. Користувач змінить пароль після входу.',
+        );
+      await this.refresh();
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err));
+    }
   }
 
   protected async resetPassword(u: ManagedUser) {

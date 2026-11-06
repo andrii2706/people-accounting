@@ -1,4 +1,5 @@
 import type { NotificationStatus } from './organization.interface';
+import type { EntityQuota } from './report.interface';
 
 /** A legal entity of the client in the list: requisites, the head and the responsible person. */
 export interface LegalEntitySummary {
@@ -12,11 +13,12 @@ export interface LegalEntitySummary {
   responsiblePosition: string;
   headUserId: string | null;
   responsibleUserId: string | null;
-  /** Employees (working and dismissed) that belong to it. */
+  /** Working employees today (the dismissed are not counted). */
   employees: number;
-  /** Reservation quota (null — not set) and how many working employees it has reserved today. */
-  reservationQuota: number | null;
-  reservedCompany: number;
+  /** All employees including the dismissed — while there are any, the entity cannot be deleted. */
+  allEmployees: number;
+  /** Reservation quota today: percent, base, places, reserved by the entity. */
+  quota: EntityQuota;
 }
 
 /** The legal entity form (GET /api/legal-entities/:id and the body of POST / PATCH). */
@@ -35,16 +37,16 @@ export interface LegalEntityForm {
   responsibleName: string;
   responsiblePosition: string;
   responsiblePhone: string;
-  /** Reservation quota as typed ('' — not set). */
-  reservationQuota: string;
+  /** Reservation quota in percent as typed ('' — not set). */
+  reservationQuotaPercent: string;
   reservationQuotaBasis: string;
   /** Extra e-mail addresses for reminders about its employees, comma-separated. */
   notifyEmails: string;
 }
 
 /** Request body of POST / PATCH: no user — null. */
-export interface LegalEntityBody extends Omit<LegalEntityForm, 'reservationQuota'> {
-  reservationQuota: number | null;
+export interface LegalEntityBody extends Omit<LegalEntityForm, 'reservationQuotaPercent'> {
+  reservationQuotaPercent: number | null;
 }
 
 export interface LegalEntity extends LegalEntityBody {
@@ -71,13 +73,15 @@ export interface LegalEntityPageData {
   /** System accounts of the head and of the responsible person (none for a new entity). */
   people: EntityPeople;
   status: NotificationStatus;
+  /** Quota today (none for a new entity): the base for the live calculation in the form. */
+  quota: EntityQuota | null;
 }
 
 /** Who in the legal entity: the head or the person responsible for military registration. */
 export type EntityPerson = 'HEAD' | 'RESPONSIBLE';
 
 /** Roles a head / responsible person can get. */
-export type AccessRole = 'HR' | 'DIRECTOR' | 'ADMIN';
+export type AccessRole = 'HR' | 'DIRECTOR' | 'ENTITY_ADMIN';
 
 /** The system account linked to the head / the responsible person. */
 export interface PersonAccess {

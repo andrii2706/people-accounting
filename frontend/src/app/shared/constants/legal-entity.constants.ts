@@ -21,7 +21,7 @@ export const EMPTY_LEGAL_ENTITY: LegalEntityForm = {
   responsibleName: '',
   responsiblePosition: '',
   responsiblePhone: '',
-  reservationQuota: '',
+  reservationQuotaPercent: '',
   reservationQuotaBasis: '',
   notifyEmails: '',
 };
@@ -31,9 +31,13 @@ export const YOUCONTROL_COMPANY_URL = 'https://youcontrol.com.ua/catalog/company
 
 /** Roles the head / the responsible person can get. */
 export const ACCESS_ROLE_OPTIONS: SelectOption<AccessRole>[] = [
-  { value: 'HR', label: 'Працівник з обліку', hint: 'працівники, листи, звіти' },
-  { value: 'DIRECTOR', label: 'Директор', hint: 'перегляд усього і підписання документів' },
-  { value: 'ADMIN', label: 'Адміністратор', hint: 'ще й налаштування та користувачі' },
+  { value: 'HR', label: 'Відповідальний за облік', hint: 'працівники, листи, звіти своєї юрособи' },
+  { value: 'DIRECTOR', label: 'Директор', hint: 'ще й реквізити, доступи й користувачі юрособи' },
+  {
+    value: 'ENTITY_ADMIN',
+    label: 'Адміністратор юрособи',
+    hint: 'як директор; призначає лише головний адміністратор',
+  },
 ];
 
 /** Words about the person in the UI. */

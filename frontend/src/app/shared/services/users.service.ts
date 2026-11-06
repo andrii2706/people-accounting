@@ -4,6 +4,7 @@ import { firstValueFrom } from 'rxjs';
 import type {
   CreateUserRequest,
   ManagedUser,
+  PasswordChangeRequestResult,
   PasswordResetResult,
   UpdateUserRequest,
 } from '../interfaces/auth.interface';
@@ -26,6 +27,13 @@ export class UsersService {
   }
 
   /** The temporary password is returned once. */
+  /** Letter «change your password» with a link; until changed the user gets only the password page. */
+  requestPasswordChange(id: string) {
+    return firstValueFrom(
+      this.http.post<PasswordChangeRequestResult>(`/api/users/${id}/password-change-request`, {}),
+    );
+  }
+
   resetPassword(id: string) {
     return firstValueFrom(
       this.http.post<PasswordResetResult>(`/api/users/${id}/reset-password`, {}),

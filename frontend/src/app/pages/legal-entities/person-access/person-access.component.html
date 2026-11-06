@@ -80,7 +80,7 @@
           class="w-48"
           ariaLabel="Роль"
           [clearable]="false"
-          [options]="roleOptions"
+          [options]="roleOptions()"
           [value]="grantModel().role"
           (valueChange)="setGrantRole($event)"
         />
@@ -155,7 +155,7 @@
               class="w-48"
               ariaLabel="Роль нового"
               [clearable]="false"
-              [options]="roleOptions"
+              [options]="roleOptions()"
               [value]="changeModel().role"
               (valueChange)="setChangeRole($event)"
             />

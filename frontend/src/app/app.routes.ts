@@ -2,6 +2,7 @@ import type { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
 import {
   authGuard,
+  entityAssignedGuard,
   guestGuard,
   passwordChangeGuard,
   staffGuard,
@@ -20,6 +21,15 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/auth/auth.routes').then((m) => m.AUTH_ROUTES),
   },
   {
+    // a new password by the link from a letter — works without signing in
+    path: 'reset-password',
+    title: 'Новий пароль · Військовий облік',
+    loadComponent: () =>
+      import('./pages/auth/reset-password/reset-password.component').then(
+        (m) => m.ResetPasswordComponent,
+      ),
+  },
+  {
     // the vendor account: debt for using the system, nothing else
     path: 'vendor',
     canActivate: [vendorGuard],
@@ -29,7 +39,7 @@ export const routes: Routes = [
     path: '',
     component: ShellComponent,
     canActivate: [authGuard, staffGuard],
-    canActivateChild: [passwordChangeGuard],
+    canActivateChild: [passwordChangeGuard, entityAssignedGuard],
     resolve: { dictionaries: dictionariesResolver },
     children: [
       {
@@ -70,6 +80,12 @@ export const routes: Routes = [
       {
         path: 'profile',
         loadChildren: () => import('./pages/profile/profile.routes').then((m) => m.PROFILE_ROUTES),
+      },
+      {
+        path: 'no-entity',
+        title: 'Немає юридичної особи · Військовий облік',
+        loadComponent: () =>
+          import('./pages/no-entity/no-entity.component').then((m) => m.NoEntityComponent),
       },
     ],
   },

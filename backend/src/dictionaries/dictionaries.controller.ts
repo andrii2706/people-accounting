@@ -13,7 +13,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AllowPendingPasswordChange, Roles } from '../common/decorators/auth.decorators.js';
+import { AllowPendingPasswordChange, AllowUnassigned, Roles } from '../common/decorators/auth.decorators.js';
 import {
   CHANGE_TYPE_LABELS,
   DUTY_CATEGORY_LABELS,
@@ -41,6 +41,7 @@ export class DictionariesController {
    * Reference data without personal data — available even before the temporary password is changed (needed by the app shell).
    */
   @AllowPendingPasswordChange()
+  @AllowUnassigned()
   @Get('dictionaries')
   all() {
     return {
@@ -58,6 +59,7 @@ export class DictionariesController {
   }
 
   @AllowPendingPasswordChange()
+  @AllowUnassigned()
   @Get('tck')
   listTck() {
     return this.tckRepo.find({ order: { name: 'ASC' } });
@@ -100,6 +102,11 @@ export class DictionariesController {
     return { created, updated };
   }
 
+  /**
+   * The TCK directory is shared by all legal entities — a changed e-mail would redirect the notices of every
+   * one of them, so only the main administrator edits it.
+   */
+  @Roles('ADMIN')
   @Patch('tck/:id')
   async updateTck(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTckDto) {
     const tck = await this.tckRepo.findOneBy({ id });

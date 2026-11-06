@@ -1,14 +1,21 @@
-/** VENDOR — the system's supplier: sees only the payment page. */
-/** DIRECTOR — the head: sees everything, signs documents, changes nothing. */
-export type UserRole = 'ADMIN' | 'HR' | 'DIRECTOR' | 'VENDOR';
+/**
+ * ADMIN — the main administrator: all legal entities. ENTITY_ADMIN — administrator of one legal entity.
+ * DIRECTOR — the head of one legal entity (adds it himself). HR — responsible for the military registration.
+ * VENDOR — the system's supplier: sees only the payment page.
+ */
+export type UserRole = 'ADMIN' | 'ENTITY_ADMIN' | 'DIRECTOR' | 'HR' | 'VENDOR';
 
 export interface AuthUser {
   id: string;
   email: string;
   fullName: string;
   role: UserRole;
+  /** The legal entity of the account — it sees only its data; null — the main administrator, or not assigned yet. */
+  legalEntityId: string | null;
   /** Temporary password from an administrator — must be changed before working. */
   mustChangePassword: boolean;
+  /** When the password stops working (HR / director — half a year after the change); null — never. */
+  passwordExpiresAt?: string | null;
 }
 
 /** Account in the user list (administration). */
@@ -17,6 +24,7 @@ export interface ManagedUser {
   email: string;
   fullName: string;
   role: UserRole;
+  legalEntityId: string | null;
   isActive: boolean;
   /** Receives e-mail reminders. */
   notify?: boolean;
@@ -44,12 +52,15 @@ export interface CreateUserRequest {
   fullName: string;
   password: string;
   role: UserRole;
+  /** The main administrator chooses it; for the others it is their own. */
+  legalEntityId?: string | null;
 }
 
 /** PATCH /api/users/:id */
 export interface UpdateUserRequest {
   isActive?: boolean;
   role?: UserRole;
+  legalEntityId?: string | null;
   fullName?: string;
   notify?: boolean;
 }
@@ -74,4 +85,24 @@ export interface IssuedPassword {
 /** GET/PATCH /api/auth/preferences */
 export interface UserPreferences {
   notify: boolean;
+}
+
+/** GET /api/auth/password-reset/:token — who the link from the letter is for. */
+export interface PasswordLinkInfo {
+  email: string;
+  fullName: string;
+  purpose: 'EXPIRING' | 'ADMIN_REQUEST';
+  expiresAt: string;
+}
+
+/** The «new password» form opened from a letter. */
+export interface NewPasswordForm {
+  newPassword: string;
+  confirmPassword: string;
+}
+
+/** POST /api/users/:id/password-change-request */
+export interface PasswordChangeRequestResult {
+  mailSent: boolean;
+  email: string;
 }

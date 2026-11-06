@@ -36,6 +36,8 @@ export class SelectComponent implements FormValueControl<string> {
   readonly disabled = input(false);
   readonly readonly = input(false);
   readonly invalid = input(false);
+  /** Bound by [formField]: an error is shown only after the field was touched (or the form submitted). */
+  readonly touched = input(false);
   readonly touch = output<void>();
   readonly ariaLabel = input<string | undefined>(undefined);
 

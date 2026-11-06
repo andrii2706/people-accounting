@@ -9,10 +9,12 @@
     title="Строки попереджень і строк мобілізації — однакові для всіх юросіб"
     ><app-icon name="settings" /> Загальні параметри</a
   >
-  @if (auth.isAdmin()) {
+  @if (auth.isEntityManager()) {
     <a routerLink="/settings/users" class="btn btn-secondary cursor-pointer"
       ><app-icon name="users" /> Користувачі</a
     >
+  }
+  @if (auth.canAddEntity()) {
     <a routerLink="/settings/legal-entities/new" class="btn btn-primary cursor-pointer"
       ><app-icon name="plus" /> Додати юрособу</a
     >
@@ -28,7 +30,7 @@
         <th>Керівник</th>
         <th>Відповідальний за військовий облік</th>
         <th class="text-right">Квота бронювання</th>
-        <th class="text-right">Працівників</th>
+        <th class="text-right" title="Працюючі сьогодні, без звільнених">Працівників</th>
         <th></th>
       </tr>
     </thead>
@@ -36,7 +38,7 @@
       @for (e of entities(); track e.id) {
         <tr>
           <td>
-            @if (auth.isAdmin()) {
+            @if (auth.isEntityManager()) {
               <a
                 [routerLink]="['/settings/legal-entities', e.id]"
                 class="font-medium hover:text-brand-600"
@@ -81,35 +83,47 @@
             }
           </td>
           <td class="text-right whitespace-nowrap tabular-nums">
-            @if (e.reservationQuota !== null) {
-              <span [class.text-danger]="e.reservedCompany > e.reservationQuota"
-                >{{ e.reservedCompany }} з {{ e.reservationQuota }}</span
+            @if (e.quota.quota !== null) {
+              <span [class.text-danger]="e.quota.exceeded"
+                >{{ e.quota.reservedCompany }} з {{ e.quota.quota }}</span
               >
-              @if (e.reservedCompany > e.reservationQuota) {
-                <p class="text-xs text-danger">перевищено</p>
-              }
+              <p class="text-xs" [class]="e.quota.exceeded ? 'text-danger' : 'text-muted'">
+                @if (e.quota.exceeded) {
+                  перевищено ·
+                } @else {
+                  вільно {{ e.quota.available }} ·
+                }
+                {{ percent(e.quota.percent!) }}% від {{ e.quota.base }} в/з
+              </p>
             } @else {
-              {{ e.reservedCompany }}
+              {{ e.quota.reservedCompany }}
               <p class="text-xs text-muted">квоту не задано</p>
             }
           </td>
-          <td class="text-right tabular-nums">{{ e.employees }}</td>
+          <td class="text-right tabular-nums">
+            {{ e.employees }}
+            @if (e.allEmployees > e.employees) {
+              <p class="text-xs text-muted">+ {{ e.allEmployees - e.employees }} звільн.</p>
+            }
+          </td>
           <td class="text-right whitespace-nowrap">
-            @if (auth.isAdmin()) {
+            @if (auth.isEntityManager()) {
               <a
-                class="icon-btn"
+                class="icon-btn cursor-pointer"
                 [routerLink]="['/settings/legal-entities', e.id]"
                 aria-label="Редагувати"
                 title="Редагувати"
                 ><app-icon name="edit" [size]="16"
               /></a>
+            }
+            @if (auth.isAdmin()) {
               <button
                 type="button"
-                class="icon-btn text-danger hover:text-danger"
-                [disabled]="e.employees > 0"
+                class="icon-btn cursor-pointer text-danger hover:text-danger"
+                [disabled]="e.allEmployees > 0"
                 [title]="
-                  e.employees > 0
-                    ? 'Спершу переведіть працівників в іншу юрособу'
+                  e.allEmployees > 0
+                    ? 'Спершу переведіть працівників (разом зі звільненими) в іншу юрособу'
                     : 'Видалити юрособу'
                 "
                 aria-label="Видалити"

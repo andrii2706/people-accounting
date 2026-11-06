@@ -24,17 +24,20 @@ export function legalEntityToForm(entity: LegalEntity | null): LegalEntityForm {
     const value = entity[key];
     form[key] = value === null || value === undefined ? '' : String(value);
   }
+  if (entity.reservationQuotaPercent !== null) {
+    form.reservationQuotaPercent = percentText(entity.reservationQuotaPercent);
+  }
   return form;
 }
 
-/** Form model → request body: trimmed strings, an empty quota — null. */
+/** Form model → request body: trimmed strings, the quota percent as a number (comma allowed), empty — null. */
 export function legalEntityBody(model: LegalEntityForm): LegalEntityBody {
   const trimmed = { ...model };
   for (const key of Object.keys(trimmed) as (keyof LegalEntityForm)[])
     trimmed[key] = trimmed[key].trim();
   return {
     ...trimmed,
-    reservationQuota: trimmed.reservationQuota ? Number(trimmed.reservationQuota) : null,
+    reservationQuotaPercent: parsePercent(trimmed.reservationQuotaPercent),
   };
 }
 
@@ -60,3 +63,22 @@ export const legalEntityName = (e: Pick<LegalEntitySummary, 'shortName' | 'fullN
 
 export const legalEntityOptions = (entities: LegalEntitySummary[]): SelectOption[] =>
   entities.map((e) => ({ value: e.id, label: legalEntityName(e), hint: `ЄДРПОУ ${e.edrpou}` }));
+
+/** «50», «33,5», «12.25» → a number; '' or not a number — null. */
+export function parsePercent(text: string): number | null {
+  const v = text.trim().replace(',', '.');
+  if (!v) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Places under the quota: percent of the base, rounded down (the same rule as the server). */
+export function quotaPlaces(percent: number | null, base: number): number | null {
+  if (percent === null) return null;
+  return Math.floor((base * Math.round(percent * 100)) / 10_000);
+}
+
+/** 33.5 → «33,5» (Ukrainian decimal comma). */
+export function percentText(percent: number): string {
+  return String(percent).replace('.', ',');
+}

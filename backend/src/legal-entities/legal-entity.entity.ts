@@ -8,6 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import type { Relation } from 'typeorm';
+import { decimalColumn } from '../common/utils/column.utils.js';
 import { User } from '../users/user.entity.js';
 
 /**
@@ -75,9 +76,12 @@ export class LegalEntity {
   @Column({ type: 'uuid', nullable: true })
   headUserId: string | null;
 
-  /** Reservation quota — how many employees this legal entity may reserve; null — not set. */
-  @Column({ type: 'int', nullable: true })
-  reservationQuota: number | null;
+  /**
+   * Reservation quota in percent (e.g. 50): places = percent × working military-liable men, rounded down.
+   * null — not set.
+   */
+  @Column({ type: 'numeric', precision: 5, scale: 2, nullable: true, transformer: decimalColumn })
+  reservationQuotaPercent: number | null;
 
   /** Basis of the quota (decision on criticality, order…). */
   @Column({ type: 'varchar', length: 300, default: '' })

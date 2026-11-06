@@ -3,10 +3,11 @@ import { AuditService } from '../audit/audit.service.js';
 import { NIL_UUID } from '../common/constants/common.constants.js';
 import { docxFile } from '../common/utils/file-response.utils.js';
 import { parseEntityId, parseListGroups, parseReportDate, parseTckId } from './utils/report-params.utils.js';
-import { CurrentUser } from '../common/decorators/auth.decorators.js';
+import { CurrentUser, EntityScope } from '../common/decorators/auth.decorators.js';
+import { scopedEntity } from '../common/utils/entity-scope.utils.js';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ReportsService } from './reports.service.js';
-import type { AuthUser } from '../shared/interfaces/auth.interface.js';
+import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('reports')
 @Controller('reports')
@@ -17,24 +18,29 @@ export class ReportsController {
   ) {}
 
   @Get('dashboard')
-  dashboard(@Query('date') date?: string) {
-    return this.reports.dashboard(parseReportDate(date));
+  dashboard(@EntityScope() scope: Scope, @Query('date') date?: string) {
+    return this.reports.dashboard(parseReportDate(date), scope);
   }
 
   @ApiQuery({ name: 'groups', required: false, description: 'G1,G1R,G2,…' })
   @ApiQuery({ name: 'entity', required: false, description: 'id юридичної особи; без нього — усі' })
   @Get('lists')
-  lists(@Query('date') date?: string, @Query('groups') groups?: string, @Query('entity') entity?: string) {
+  lists(
+    @EntityScope() scope: Scope,
+    @Query('date') date?: string,
+    @Query('groups') groups?: string,
+    @Query('entity') entity?: string,
+  ) {
     return this.reports.lists(parseReportDate(date), {
       groups: parseListGroups(groups),
-      legalEntityId: parseEntityId(entity),
+      legalEntityId: scopedEntity(scope, parseEntityId(entity)),
     });
   }
 
   @ApiQuery({ name: 'entity', required: false, description: 'id юридичної особи; без нього — усі' })
   @Get('extracts')
-  extracts(@Query('date') date?: string, @Query('entity') entity?: string) {
-    return this.reports.extracts(parseReportDate(date), parseEntityId(entity));
+  extracts(@EntityScope() scope: Scope, @Query('date') date?: string, @Query('entity') entity?: string) {
+    return this.reports.extracts(parseReportDate(date), scopedEntity(scope, parseEntityId(entity)));
   }
 
   @ApiQuery({ name: 'ids', required: false, description: 'id працівників для витягу через кому' })
@@ -42,6 +48,7 @@ export class ReportsController {
   @Get('lists/docx')
   async listsDocx(
     @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
     @Query('date') date?: string,
     @Query('groups') groups?: string,
     @Query('ids') ids?: string,
@@ -60,23 +67,28 @@ export class ReportsController {
     const buffer = await this.reports.listsDocx(d, {
       groups: parseListGroups(groups),
       onlyIds: ids?.split(',').filter(Boolean),
-      legalEntityId: parseEntityId(entity),
+      legalEntityId: scopedEntity(scope, parseEntityId(entity)),
       tckId,
     });
     return docxFile(buffer, `${ids || tckId ? 'Витяг' : 'Списки'} військового обліку ${d}.docx`);
   }
 
   @Get('operational')
-  operational(@Query('date') date?: string, @Query('entity') entity?: string) {
-    return this.reports.operational(parseReportDate(date), parseEntityId(entity));
+  operational(@EntityScope() scope: Scope, @Query('date') date?: string, @Query('entity') entity?: string) {
+    return this.reports.operational(parseReportDate(date), scopedEntity(scope, parseEntityId(entity)));
   }
 
   @Get('operational/docx')
-  async operationalDocx(@CurrentUser() user: AuthUser, @Query('date') date?: string, @Query('entity') entity?: string) {
+  async operationalDocx(
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+    @Query('date') date?: string,
+    @Query('entity') entity?: string,
+  ) {
     const d = parseReportDate(date);
     await this.audit.log('report', NIL_UUID, 'EXPORT', { operational: [null, d] }, user);
     return docxFile(
-      await this.reports.operationalDocx(d, null, parseEntityId(entity)),
+      await this.reports.operationalDocx(d, null, scopedEntity(scope, parseEntityId(entity))),
       `Відомість оперативного обліку ${d}.docx`,
     );
   }

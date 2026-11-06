@@ -37,7 +37,7 @@ export const LEGAL_ENTITY_LABELS: Record<string, string> = {
   responsiblePosition: 'Посада відповідального',
   responsiblePhone: 'Телефон відповідального',
   responsibleUserId: 'Користувач системи',
-  reservationQuota: 'Квота бронювання',
+  reservationQuotaPercent: 'Квота бронювання, %',
   reservationQuotaBasis: 'Підстава квоти',
   notifyEmails: 'Додаткові email для нагадувань',
 };

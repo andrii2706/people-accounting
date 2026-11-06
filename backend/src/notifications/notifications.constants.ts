@@ -18,3 +18,6 @@ export const ACCESS_LETTER_COLORS = {
   warning: '#b54708',
   warningPale: '#fdf9f2',
 } as const;
+
+/** The link in the «password expires» letter is valid for a week (the letter comes a month before). */
+export const PASSWORD_REMINDER_LINK_HOURS = 7 * 24;

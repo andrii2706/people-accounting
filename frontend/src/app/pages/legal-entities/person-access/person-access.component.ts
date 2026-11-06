@@ -27,6 +27,7 @@ import type {
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { LegalEntitiesService } from '../../../shared/services/legal-entities.service';
 import { ToastService } from '../../../shared/services/toast.service';
+import { AuthService } from '../../../shared/services/auth.service';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
 
@@ -51,6 +52,7 @@ import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
 export class PersonAccessComponent {
   private readonly service = inject(LegalEntitiesService);
   private readonly toast = inject(ToastService);
+  private readonly auth = inject(AuthService);
 
   readonly entityId = input.required<string>();
   readonly person = input.required<EntityPerson>();
@@ -61,7 +63,12 @@ export class PersonAccessComponent {
   readonly changed = output<void>();
 
   protected readonly text = computed(() => PERSON_TEXT[this.person()]);
-  protected readonly roleOptions = ACCESS_ROLE_OPTIONS;
+  /** The entity administrator role is given only by the main administrator. */
+  protected readonly roleOptions = computed(() =>
+    this.auth.isAdmin()
+      ? ACCESS_ROLE_OPTIONS
+      : ACCESS_ROLE_OPTIONS.filter((o) => o.value !== 'ENTITY_ADMIN'),
+  );
   protected readonly roleLabels: Record<string, string> = ROLE_LABELS;
   protected readonly busy = signal(false);
   /** A temporary password issued just now — shown once. */

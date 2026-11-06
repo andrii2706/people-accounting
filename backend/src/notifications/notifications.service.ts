@@ -4,7 +4,8 @@ import { Repository } from 'typeorm';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { loadEnv } from '../config/env.js';
 import { vocativeGivenName } from '../documents/name-declension.js';
-import type { TemporaryPasswordMail } from '../shared/interfaces/mail.interface.js';
+import type { PasswordLinkMail, TemporaryPasswordMail } from '../shared/interfaces/mail.interface.js';
+import { passwordChangeLetter, passwordExpiringLetter } from './templates/password-letters.template.js';
 import type { UserRole } from '../shared/interfaces/auth.interface.js';
 import { ROLE_ACCESS_TEXT } from '../users/users.constants.js';
 import { accessLetter } from './templates/access-letter.template.js';
@@ -31,12 +32,21 @@ export class NotificationsService {
   }
 
   /**
-   * Users with reminders on + the extra addresses of the legal entity the reminder is about
-   * (null — of every legal entity: news for everyone, e.g. the mobilization term).
+   * Users with reminders on + the extra addresses of the legal entity the reminder is about:
+   * the accounts of that legal entity and the main administrators (they see all of them).
+   * null — news for everyone (e.g. the mobilization term): every account and every legal entity's addresses.
    */
   async recipients(legalEntityId: string | null = null): Promise<string[]> {
+    const on = { isActive: true, notify: true };
     const [users, extra] = await Promise.all([
-      this.users.find({ where: { isActive: true, notify: true } }),
+      this.users.find({
+        where: legalEntityId
+          ? [
+              { ...on, legalEntityId },
+              { ...on, role: 'ADMIN' as const },
+            ]
+          : on,
+      }),
       this.legalEntities.notifyEmails(legalEntityId),
     ]);
     return [...new Set([...users.map((u) => u.email), ...extra])];
@@ -85,6 +95,51 @@ export class NotificationsService {
       return await this.mail.sendAccess(mail.email, letter);
     } catch (err) {
       this.logger.error('Не вдалося надіслати лист з тимчасовим паролем', err as Error);
+      return false;
+    }
+  }
+
+  /** Letter 1: «your password expires on …» with a link to set a new one. Never throws. */
+  async sendPasswordExpiring(mail: PasswordLinkMail & { passwordExpiresAt: Date }): Promise<boolean> {
+    try {
+      const entity = await this.legalEntities.entityOfUser(mail.userId);
+      const letter = passwordExpiringLetter({
+        fullName: mail.fullName,
+        greetingName: await vocativeGivenName(mail.fullName),
+        login: mail.email,
+        expiresAt: mail.passwordExpiresAt,
+        link: mail.link,
+        linkExpiresAt: mail.linkExpiresAt,
+        appUrl: this.env.appUrl,
+        entityName: entity?.name ?? '',
+        entityCode: entity?.code ?? '',
+      });
+      return await this.mail.sendAccess(mail.email, letter);
+    } catch (err) {
+      this.logger.error('Не вдалося надіслати нагадування про зміну пароля', err as Error);
+      return false;
+    }
+  }
+
+  /** Letter 2: the administrator asks to change the password — a link to set a new one. Never throws. */
+  async sendPasswordChangeRequest(mail: PasswordLinkMail & { issuedBy: { fullName: string; email: string } }) {
+    try {
+      const entity = await this.legalEntities.entityOfUser(mail.userId);
+      const letter = passwordChangeLetter({
+        fullName: mail.fullName,
+        greetingName: await vocativeGivenName(mail.fullName),
+        login: mail.email,
+        link: mail.link,
+        linkExpiresAt: mail.linkExpiresAt,
+        adminName: mail.issuedBy.fullName,
+        adminEmail: mail.issuedBy.email,
+        appUrl: this.env.appUrl,
+        entityName: entity?.name ?? '',
+        entityCode: entity?.code ?? '',
+      });
+      return await this.mail.sendAccess(mail.email, letter);
+    } catch (err) {
+      this.logger.error('Не вдалося надіслати лист на зміну пароля', err as Error);
       return false;
     }
   }

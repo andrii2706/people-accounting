@@ -1,21 +1,20 @@
-import { AllowDirector } from '../common/decorators/auth.decorators.js';
 import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { CurrentUser } from '../common/decorators/auth.decorators.js';
+import { AllowUnassigned, CurrentUser } from '../common/decorators/auth.decorators.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 import { InboxService } from './inbox.service.js';
 import { MarkReadDto } from './inbox.dto.js';
 
 /** In-app notifications of the signed-in user (bell in the menu and the window after login). */
 @ApiTags('inbox')
-@AllowDirector()
+@AllowUnassigned()
 @Controller('inbox')
 export class InboxController {
   constructor(private readonly inbox: InboxService) {}
 
   @Get()
   list(@CurrentUser() user: AuthUser) {
-    return this.inbox.list(user.id);
+    return this.inbox.list(user);
   }
 
   @Post('read')
@@ -27,6 +26,6 @@ export class InboxController {
   @Post('read-all')
   @HttpCode(204)
   async readAll(@CurrentUser() user: AuthUser) {
-    await this.inbox.markAllRead(user.id);
+    await this.inbox.markAllRead(user);
   }
 }

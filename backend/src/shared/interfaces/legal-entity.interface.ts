@@ -25,16 +25,23 @@ export interface LegalEntitySummary {
   responsiblePosition: string;
   headUserId: string | null;
   responsibleUserId: string | null;
+  /** Working employees today (the dismissed are not counted). */
   employees: number;
-  /** Reservation quota (null — not set) and how many working employees the entity has reserved today. */
-  reservationQuota: number | null;
-  reservedCompany: number;
+  /** All employees including the dismissed — the entity cannot be deleted while it has any. */
+  allEmployees: number;
+  /** Reservation quota today: percent, base, places, how many the entity has reserved. */
+  quota: EntityQuota;
 }
 
 /** Quota use of one legal entity on a date (dashboard). */
 export interface EntityQuota {
   id: string;
   name: string;
+  /** Quota in percent (null — not set). */
+  percent: number | null;
+  /** Working military-liable men (without those reserved by another enterprise). */
+  base: number;
+  /** Places = percent × base, rounded down (null — no quota). */
   quota: number | null;
   reservedCompany: number;
   available: number | null;
@@ -62,7 +69,7 @@ export interface EntityCountRow {
 export type EntityPerson = 'HEAD' | 'RESPONSIBLE';
 
 /** Roles a head / responsible person can get. */
-export type AccessRole = 'HR' | 'DIRECTOR' | 'ADMIN';
+export type AccessRole = 'HR' | 'DIRECTOR' | 'ENTITY_ADMIN';
 
 /** The system account linked to the head / the responsible person. */
 export interface PersonAccess {
@@ -90,4 +97,14 @@ export interface RevokeAccessResult {
   /** false — the account is still linked to another legal entity, so it stays active. */
   deactivated: boolean;
   email: string;
+}
+
+/** How one employee counts for the quota of his legal entity on a date. */
+export interface QuotaStanding {
+  legalEntityId: string | null;
+  employed: boolean;
+  /** Counted in the base of the quota (a working military-liable man). */
+  inBase: boolean;
+  /** Reserved by his own enterprise (uses a place). */
+  reservedOwn: boolean;
 }

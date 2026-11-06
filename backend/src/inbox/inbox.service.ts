@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { entityScope } from '../common/utils/entity-scope.utils.js';
+import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 import { In, IsNull, Not, Repository } from 'typeorm';
 import { formatUa, todayIso } from '../common/utils/dates.utils.js';
 import { deriveEmployee } from '../employees/utils/employee-view.utils.js';
@@ -30,8 +32,12 @@ export class InboxService {
     private readonly org: OrganizationService,
   ) {}
 
-  async list(userId: string, date: IsoDate = todayIso()): Promise<InboxView> {
-    const items = await this.compute(date);
+  /** Notifications about the employees of the user's legal entity (the main administrator — of all). */
+  async list(user: AuthUser, date: IsoDate = todayIso()): Promise<InboxView> {
+    const userId = user.id;
+    // an account without a legal entity (a director who has not added his yet) has nothing to be notified about
+    if (user.role !== 'ADMIN' && !user.legalEntityId) return { items: [], unread: 0, date };
+    const items = await this.compute(date, entityScope(user));
     const read = new Set(
       (await this.reads.find({ where: { userId, key: In(items.map((i) => i.key)) }, select: { key: true } })).map(
         (r) => r.key,
@@ -60,18 +66,20 @@ export class InboxService {
   }
 
   /** Marks everything current as read and forgets marks of notifications that no longer exist. */
-  async markAllRead(userId: string): Promise<void> {
-    const keys = (await this.compute(todayIso())).map((i) => i.key);
+  async markAllRead(user: AuthUser): Promise<void> {
+    const userId = user.id;
+    if (user.role !== 'ADMIN' && !user.legalEntityId) return;
+    const keys = (await this.compute(todayIso(), entityScope(user))).map((i) => i.key);
     await this.reads.delete(keys.length ? { userId, key: Not(In(keys)) } : { userId });
     await this.markRead(userId, keys);
   }
 
-  private async compute(date: IsoDate): Promise<InboxItem[]> {
+  private async compute(date: IsoDate, scope: Scope): Promise<InboxItem[]> {
     const [org, employees, pending] = await Promise.all([
       this.org.get(),
-      this.employees.find({ relations: { militaryDocuments: true } }),
+      this.employees.find({ where: scope ? { legalEntityId: scope } : {}, relations: { militaryDocuments: true } }),
       this.changes.find({
-        where: { letterId: IsNull(), skipped: false },
+        where: { letterId: IsNull(), skipped: false, ...(scope ? { employee: { legalEntityId: scope } } : {}) },
         relations: { employee: true },
         order: { effectiveDate: 'ASC' },
       }),

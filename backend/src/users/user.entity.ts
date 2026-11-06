@@ -18,6 +18,13 @@ export class User {
   @Column({ type: 'varchar', length: 20, default: 'HR' })
   role: UserRole;
 
+  /**
+   * The legal entity of the account: everyone except the main administrator sees only its data.
+   * null — the main administrator / vendor, or a director who has not added his legal entity yet.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  legalEntityId: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 

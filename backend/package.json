@@ -23,6 +23,7 @@
     "migration:run": "tsx --env-file-if-exists=.env node_modules/typeorm/cli.js migration:run -d src/database/data-source.ts",
     "migration:revert": "tsx --env-file-if-exists=.env node_modules/typeorm/cli.js migration:revert -d src/database/data-source.ts",
     "seed": "nest build && node --env-file-if-exists=.env dist/database/seed.js",
+    "seed:accounts": "nest build && node --env-file-if-exists=.env dist/database/seed-test-accounts.js",
     "dev:sign": "tsx scripts/dev-sign.ts",
     "job:daily": "nest build && node --env-file-if-exists=.env dist/jobs/daily.js",
     "billing": "nest build && node --env-file-if-exists=.env dist/jobs/billing.js",

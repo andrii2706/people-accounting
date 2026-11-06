@@ -17,7 +17,8 @@ import { LegalEntity } from './legal-entity.entity.js';
 import { accessOf, personOf } from './utils/person.utils.js';
 
 /**
- * System access of the head and the responsible person of a legal entity — only the administrator:
+ * System access of the head and the responsible person of a legal entity — the main administrator, or the
+ * administrator / director of this legal entity:
  * give an account (login = their e-mail, a temporary password is shown once), turn it off, replace the person.
  */
 @Injectable()
@@ -54,9 +55,14 @@ export class LegalEntityAccessService {
     let expiresAt: Date | null = null;
     if (existing) {
       // an account with this e-mail already exists — link it (and turn it back on), the password stays
-      if (existing.role === 'VENDOR') {
+      if (existing.role === 'VENDOR' || existing.role === 'ADMIN') {
         throw fieldErrors([{ field: 'email', message: 'Цю адресу не можна використати' }]);
       }
+      // one person — one legal entity: an account of another legal entity cannot be linked here
+      if (existing.legalEntityId && existing.legalEntityId !== id) {
+        throw fieldErrors([{ field: 'email', message: 'Ця адреса вже використовується в іншій юридичній особі' }]);
+      }
+      if (!existing.legalEntityId) await this.users.assignEntity(existing.id, id);
       access = accessOf(existing)!;
       if (!existing.isActive) {
         access = accessOf(await this.users.update(existing.id, { isActive: true }, existing.id))!;
@@ -71,6 +77,7 @@ export class LegalEntityAccessService {
           entityName: entity.shortName || entity.fullName,
           entityCode: entity.edrpou,
           asWhom: PERSON_AS_WHOM[person],
+          legalEntityId: id,
         },
       );
       access = accessOf(created.user)!;
@@ -102,6 +109,18 @@ export class LegalEntityAccessService {
   }
 
   /** A new head / responsible person: the details are replaced; the previous access can be turned off. */
+  /**
+   * The director has added his legal entity: from now on his account belongs to it and he is its head
+   * (the head's access is his account).
+   */
+  async adoptByDirector(id: string, director: AuthUser) {
+    await this.users.assignEntity(director.id, id);
+    const entity = await this.entity(id);
+    if (!entity.headUserId) {
+      await this.repo.update(id, { headUserId: director.id, headName: entity.headName.trim() || director.fullName });
+    }
+  }
+
   async change(id: string, person: EntityPerson, dto: ChangePersonDto, actor: AuthUser) {
     const entity = await this.entity(id);
     const f = PERSON_FIELDS[person];

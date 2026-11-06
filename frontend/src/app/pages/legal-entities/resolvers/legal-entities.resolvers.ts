@@ -1,6 +1,6 @@
 import { inject } from '@angular/core';
 import type { ResolveFn } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, map, of } from 'rxjs';
 import type {
   LegalEntityPageData,
   LegalEntitySummary,
@@ -13,7 +13,7 @@ import { resolveOr } from '../../../shared/utils/router.utils';
 export const legalEntitiesResolver: ResolveFn<LegalEntitySummary[]> = () =>
   resolveOr(inject(LegalEntitiesService).list(), '/') as never;
 
-/** The form: the entity (none for «new»), the accounts of its head and responsible person, the e-mail status. */
+/** The form: the entity (none for «new»), the accounts of its head and responsible person, the e-mail status, the quota today. */
 export const legalEntityPageResolver: ResolveFn<LegalEntityPageData> = (route) => {
   const id = route.paramMap.get('id');
   const service = inject(LegalEntitiesService);
@@ -22,6 +22,9 @@ export const legalEntityPageResolver: ResolveFn<LegalEntityPageData> = (route) =
       entity: id ? service.get(id) : of(null),
       people: id ? service.people(id) : of(NO_PEOPLE),
       status: inject(OrganizationService).notificationStatus(id ?? ''),
+      quota: id
+        ? service.list().pipe(map((all) => all.find((e) => e.id === id)?.quota ?? null))
+        : of(null),
     }),
     '/settings',
   ) as never;

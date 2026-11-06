@@ -35,7 +35,8 @@ import type {
   UpdateLetterDto,
 } from './letters.dto.js';
 import type { FileResult, IsoDate } from '../shared/interfaces/common.interface.js';
-import type { AuthUser } from '../shared/interfaces/auth.interface.js';
+import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
+import { assertInScope, inScope } from '../common/utils/entity-scope.utils.js';
 import type { NoticeSnapshot } from '../shared/interfaces/document.interface.js';
 import type { MaxNumberRow } from '../shared/interfaces/letter.interface.js';
 import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
@@ -218,12 +219,12 @@ export class LettersService {
   }
 
   /** Envelope labels for the given letters (sender — organization, recipient — the letter's TCK). */
-  async labels(ids: string[]) {
+  async labels(ids: string[], scope: Scope = null) {
     const unique = [...new Set(ids)];
     if (!unique.length) throw new BadRequestException('Оберіть хоча б один лист');
     if (unique.length > 200) throw new BadRequestException('Не більше 200 листів за раз');
     const letters = await this.repo.find({
-      where: { id: In(unique) },
+      where: { id: In(unique), ...(scope ? { legalEntityId: scope } : {}) },
       relations: { tck: true },
       order: { year: 'ASC', sequence: 'ASC' },
     });
@@ -260,11 +261,12 @@ export class LettersService {
   }
 
   /** Stored notices, optionally for one employee — the history shown in the employee card. */
-  async notices(query: NoticeQueryDto) {
+  async notices(query: NoticeQueryDto, scope: Scope = null) {
     const rows = await this.noticeRepo.find({
       where: {
         ...(query.employeeId ? { employeeId: query.employeeId } : {}),
         ...(query.letterId ? { letterId: query.letterId } : {}),
+        ...(scope ? { letter: { legalEntityId: scope } } : {}),
       },
       relations: { letter: true },
       order: { createdAt: 'DESC', sequence: 'ASC' },
@@ -288,9 +290,10 @@ export class LettersService {
   }
 
   /** One notice (Annex 4) as a separate .docx. */
-  async noticeDocument(id: string) {
+  async noticeDocument(id: string, scope: Scope = null) {
     const notice = await this.noticeRepo.findOne({ where: { id }, relations: { letter: { tck: true } } });
-    if (!notice) throw new NotFoundException('Повідомлення не знайдено');
+    if (!notice || !inScope(scope, notice.letter.legalEntityId))
+      throw new NotFoundException('Повідомлення не знайдено');
     const total = await this.noticeRepo.countBy({ letterId: notice.letterId });
     if (notice.letter.external) throw new BadRequestException(EXTERNAL_NO_DOCUMENT);
     const org = await this.legalEntities.requisites(notice.letter.legalEntityId);
@@ -336,16 +339,22 @@ export class LettersService {
     return this.get(id);
   }
 
-  /** Next number in the yearly outgoing register — under an advisory lock to avoid duplicates. */
+  /**
+   * Next number in the yearly outgoing register of the legal entity (each legal entity keeps its own register) —
+   * under an advisory lock to avoid duplicates.
+   */
   private async newLetter(m: EntityManager, data: Partial<OutgoingLetter> & { date: IsoDate; number?: string }) {
     const year = yearOf(data.date);
-    await m.query('SELECT pg_advisory_xact_lock($1)', [year]);
-    const { max } = (await m
+    const entityId = data.legalEntityId ?? null;
+    await m.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`letters:${entityId ?? 'none'}:${year}`]);
+    const qb = m
       .getRepository(OutgoingLetter)
       .createQueryBuilder('l')
       .select('COALESCE(MAX(l.sequence), 0)', 'max')
-      .where('l.year = :year', { year })
-      .getRawOne<MaxNumberRow>())!;
+      .where('l.year = :year', { year });
+    if (entityId) qb.andWhere('l.legalEntityId = :entityId', { entityId });
+    else qb.andWhere('l.legalEntityId IS NULL');
+    const { max } = (await qb.getRawOne<MaxNumberRow>())!;
     const sequence = Number(max) + 1;
     const org = await this.legalEntities.requisites(data.legalEntityId ?? null);
     const number = data.number?.trim() || `${org.letterNumberPrefix}${sequence}`;
@@ -354,13 +363,26 @@ export class LettersService {
       .save(m.getRepository(OutgoingLetter).create({ ...data, year, sequence, number }));
   }
 
-  list(query: LetterQueryDto) {
+  /** The employees the letter is about belong to the legal entity of the scope. */
+  assertEmployees(ids: string[], scope: Scope): Promise<void> {
+    return this.employees.assertAccessMany(ids, scope);
+  }
+
+  /** The letter belongs to the legal entity of the scope — otherwise «not found». */
+  async assertAccess(id: string, scope: Scope): Promise<void> {
+    if (scope === null) return;
+    const l = await this.repo.findOne({ where: { id }, select: { id: true, legalEntityId: true } });
+    assertInScope(scope, l?.legalEntityId, 'Лист не знайдено');
+  }
+
+  list(query: LetterQueryDto, scope: Scope = null) {
     const qb = this.repo
       .createQueryBuilder('l')
       .leftJoinAndSelect('l.tck', 'tck')
       .leftJoinAndSelect('l.employee', 'employee')
       .orderBy('l.year', 'DESC')
       .addOrderBy('l.sequence', 'DESC');
+    if (scope) qb.andWhere('l.legalEntityId = :scope', { scope });
     if (query.type) qb.andWhere('l.type = :type', { type: query.type });
     if (query.status) qb.andWhere('l.status = :status', { status: query.status });
     if (query.employeeId) {

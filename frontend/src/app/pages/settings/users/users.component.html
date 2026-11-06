@@ -1,7 +1,11 @@
 <app-page-header
   eyebrow="Налаштування"
   title="Користувачі"
-  subtitle="Доступ до персональних даних мають лише облікові записи зі списку. Усі дії записуються в журнал."
+  [subtitle]="
+    auth.isAdmin()
+      ? 'Усі облікові записи. Кожен, крім головного адміністратора, бачить лише свою юрособу. Усі дії записуються в журнал.'
+      : 'Облікові записи вашої юрособи. Адміністратора юрособи призначає головний адміністратор. Усі дії записуються в журнал.'
+  "
 >
   <a routerLink="/settings" class="btn btn-ghost"><app-icon name="arrowLeft" /> Назад</a>
 </app-page-header>
@@ -42,6 +46,9 @@
       <thead>
         <tr>
           <th>Користувач</th>
+          @if (auth.isAdmin()) {
+            <th>Юрособа</th>
+          }
           <th>Роль</th>
           <th>Останній вхід</th>
           <th>Стан</th>
@@ -56,16 +63,37 @@
               <p class="font-medium">{{ u.fullName }}</p>
               <p class="text-xs text-muted">{{ u.email }}</p>
             </td>
+            @if (auth.isAdmin()) {
+              <td>
+                @if (u.role === 'ADMIN') {
+                  <span class="text-sm text-muted">усі юрособи</span>
+                } @else {
+                  <app-select
+                    class="w-48"
+                    ariaLabel="Юридична особа"
+                    placeholder="не прив’язано"
+                    [clearable]="u.role === 'DIRECTOR'"
+                    [options]="entityOptions()"
+                    [value]="u.legalEntityId ?? ''"
+                    (valueChange)="setEntity(u, $any($event))"
+                  />
+                }
+              </td>
+            }
             <td>
-              <app-select
-                class="w-44"
-                ariaLabel="Роль"
-                [clearable]="false"
-                [options]="roleOptions"
-                [value]="u.role"
-                [disabled]="u.id === auth.user()?.id"
-                (valueChange)="setRole(u, $any($event))"
-              />
+              @if (canManage(u)) {
+                <app-select
+                  class="w-48"
+                  ariaLabel="Роль"
+                  [clearable]="false"
+                  [options]="roleOptions()"
+                  [value]="u.role"
+                  [disabled]="u.id === auth.user()?.id"
+                  (valueChange)="setRole(u, $any($event))"
+                />
+              } @else {
+                <span class="text-sm">{{ roleLabel(u.role) }}</span>
+              }
             </td>
             <td class="text-sm whitespace-nowrap text-muted">
               {{ u.lastLoginAt | uaDateTime: 'ще не входив' }}
@@ -94,39 +122,54 @@
             <td>
               <input
                 type="checkbox"
-                class="size-4 accent-brand-600"
+                class="size-4 cursor-pointer accent-brand-600"
                 [attr.aria-label]="'Нагадування на пошту для ' + u.fullName"
                 [checked]="u.notify ?? true"
-                [disabled]="!u.isActive"
+                [disabled]="!u.isActive || !canManage(u)"
                 (change)="setNotify(u, $any($event.target).checked)"
               />
             </td>
             <td class="text-right whitespace-nowrap">
-              @if (lockedIds().has(u.id)) {
+              @if (!canManage(u)) {
+                <span class="text-xs text-muted">керує головний адміністратор</span>
+              } @else {
+                @if (lockedIds().has(u.id)) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm cursor-pointer"
+                    (click)="unlock(u)"
+                  >
+                    Розблокувати вхід
+                  </button>
+                }
+                @if (u.isActive) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm cursor-pointer"
+                    title="Лист з посиланням на зміну пароля; поки не змінить — лише сторінка пароля"
+                    (click)="requestPasswordChange(u)"
+                  >
+                    Лист на зміну пароля
+                  </button>
+                }
                 <button
                   type="button"
                   class="btn btn-ghost btn-sm cursor-pointer"
-                  (click)="unlock(u)"
+                  title="Новий тимчасовий пароль (лист і показ один раз); старий перестає діяти одразу"
+                  (click)="resetPassword(u)"
                 >
-                  Розблокувати вхід
+                  Скинути пароль
                 </button>
-              }
-              <button
-                type="button"
-                class="btn btn-ghost btn-sm cursor-pointer"
-                (click)="resetPassword(u)"
-              >
-                Скинути пароль
-              </button>
-              @if (u.id !== auth.user()?.id) {
-                <button
-                  type="button"
-                  class="btn btn-sm cursor-pointer"
-                  [class]="u.isActive ? 'btn-danger' : 'btn-secondary'"
-                  (click)="toggle(u)"
-                >
-                  {{ u.isActive ? 'Заблокувати' : 'Активувати' }}
-                </button>
+                @if (u.id !== auth.user()?.id) {
+                  <button
+                    type="button"
+                    class="btn btn-sm cursor-pointer"
+                    [class]="u.isActive ? 'btn-danger' : 'btn-secondary'"
+                    (click)="toggle(u)"
+                  >
+                    {{ u.isActive ? 'Заблокувати' : 'Активувати' }}
+                  </button>
+                }
               }
             </td>
           </tr>
@@ -168,15 +211,38 @@
     </app-form-field>
     <app-form-field
       label="Роль"
-      hint="Адміністратор керує користувачами й реквізитами; кадровик — працівниками"
+      [hint]="
+        auth.isAdmin()
+          ? 'Адміністратор юрособи й директор керують своєю юрособою; відповідальний — веде облік'
+          : 'Відповідальний веде облік; директор ще й керує юрособою та її користувачами'
+      "
     >
       <app-select
         ariaLabel="Роль"
         [clearable]="false"
-        [options]="roleOptions"
+        [options]="roleOptions()"
         [formField]="$any(userForm.role)"
       />
     </app-form-field>
+    @if (auth.isAdmin() && userModel().role !== 'ADMIN') {
+      <app-form-field
+        label="Юридична особа"
+        [required]="userModel().role !== 'DIRECTOR'"
+        [hint]="
+          userModel().role === 'DIRECTOR'
+            ? 'Можна не обирати — директор сам додасть свою юрособу після входу'
+            : 'Обліковий запис бачитиме лише дані цієї юрособи'
+        "
+        [field]="userForm.legalEntityId"
+      >
+        <app-select
+          ariaLabel="Юридична особа"
+          placeholder="Оберіть юрособу"
+          [options]="entityOptions()"
+          [formField]="$any(userForm.legalEntityId)"
+        />
+      </app-form-field>
+    }
     <button
       type="submit"
       class="btn btn-primary w-full cursor-pointer"

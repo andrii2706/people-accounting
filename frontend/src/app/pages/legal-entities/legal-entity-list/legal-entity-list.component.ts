@@ -8,7 +8,11 @@ import { DictionariesService } from '../../../shared/services/dictionaries.servi
 import { LegalEntitiesService } from '../../../shared/services/legal-entities.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
-import { legalEntityName, youControlUrl } from '../../../shared/utils/legal-entity.utils';
+import {
+  legalEntityName,
+  percentText,
+  youControlUrl,
+} from '../../../shared/utils/legal-entity.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 
 /** Legal entities of the client: who is the head and who keeps the military registration. */
@@ -30,6 +34,7 @@ export class LegalEntityListComponent {
 
   protected readonly name = legalEntityName;
   protected readonly youControlUrl = youControlUrl;
+  protected readonly percent = percentText;
 
   protected async remove(e: LegalEntitySummary) {
     try {

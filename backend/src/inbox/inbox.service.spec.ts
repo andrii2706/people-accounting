@@ -48,9 +48,19 @@ function setup(readKeys: string[] = []) {
   return new InboxService(repo([employee]) as never, repo(pending) as never, reads as never, org as never);
 }
 
+/** The main administrator: notifications about every legal entity (fictional account). */
+const ADMIN = {
+  id: 'u1',
+  email: 'admin@example.com',
+  fullName: 'Адміністратор',
+  role: 'ADMIN',
+  legalEntityId: null,
+  mustChangePassword: false,
+} as const;
+
 describe('InboxService — сповіщення по працівниках', () => {
   it('строки, повідомлення ТЦК і дані картки; спершу непрочитані й небезпечні', async () => {
-    const view = await setup().list('u1', TODAY);
+    const view = await setup().list(ADMIN, TODAY);
     const kinds = view.items.map((i) => `${i.kind}:${i.level}`);
     expect(kinds).toContain('DEADLINE:warning');
     expect(kinds).toContain('TCK:danger'); // зміна адреси від 10.09 — строк до 05.10 минув
@@ -60,12 +70,17 @@ describe('InboxService — сповіщення по працівниках', ()
   });
 
   it('ключ стабільний: та сама відстрочка — той самий ключ, прочитане не повертається', async () => {
-    const first = await setup().list('u1', TODAY);
+    const first = await setup().list(ADMIN, TODAY);
     const deferral = first.items.find((i) => i.kind === 'DEADLINE')!;
     expect(deferral.key).toBe('DEFERRAL_EXPIRING:e1:2026-11-13');
     // наступного дня текст «через N днів» змінюється, а ключ — ні
-    const next = await setup([deferral.key]).list('u1', '2026-11-04');
+    const next = await setup([deferral.key]).list(ADMIN, '2026-11-04');
     expect(next.items.find((i) => i.kind === 'DEADLINE')).toMatchObject({ key: deferral.key, read: true });
     expect(next.unread).toBe(next.items.length - 1);
+  });
+
+  it('обліковий запис без юрособи не отримує сповіщень', async () => {
+    const view = await setup().list({ ...ADMIN, role: 'DIRECTOR' }, TODAY);
+    expect(view).toMatchObject({ items: [], unread: 0 });
   });
 });

@@ -1,19 +1,20 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { AllowDirector, CurrentUser } from '../common/decorators/auth.decorators.js';
+import { CurrentUser, EntityScope } from '../common/decorators/auth.decorators.js';
+import { LettersService } from '../letters/letters.service.js';
 import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
 import { attachmentFile } from '../common/utils/file-response.utils.js';
 import { AddSignatureDto } from './signatures.dto.js';
 import { SignaturesService } from './signatures.service.js';
-import type { AuthUser } from '../shared/interfaces/auth.interface.js';
+import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('signatures')
-@AllowDirector()
 @Controller()
 export class SignaturesController {
   constructor(
     private readonly signatures: SignaturesService,
+    private readonly letters: LettersService,
     private readonly audit: AuditService,
   ) {}
 
@@ -24,32 +25,46 @@ export class SignaturesController {
   }
 
   @Get('letters/:id/signatures')
-  state(@Param('id', ParseUUIDPipe) id: string) {
+  async state(@Param('id', ParseUUIDPipe) id: string, @EntityScope() scope: Scope) {
+    await this.letters.assertAccess(id, scope);
     return this.signatures.state(id);
   }
 
   /** Freeze the document: from now on exactly this file is signed and sent. */
   @Post('letters/:id/freeze')
   @HttpCode(200)
-  freeze(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  async freeze(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
+    await this.letters.assertAccess(id, scope);
     return this.signatures.freeze(id, user);
   }
 
   @Delete('letters/:id/freeze')
-  unfreeze(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  async unfreeze(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
+    await this.letters.assertAccess(id, scope);
     return this.signatures.unfreeze(id, user);
   }
 
   /** Document bytes to sign (exactly these must be signed). */
   @Get('letters/:id/signing-file')
-  async signingFile(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  async signingFile(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ) {
+    await this.letters.assertAccess(id, scope);
     const { buffer, filename } = await this.signatures.frozenDocument(id);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
     return attachmentFile(buffer, filename, DOCX_MIME);
   }
 
   @Post('letters/:id/signatures')
-  add(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AddSignatureDto, @CurrentUser() user: AuthUser) {
+  async add(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: AddSignatureDto,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ) {
+    await this.letters.assertAccess(id, scope);
     return this.signatures.add(id, dto.signature, dto.method, user);
   }
 
@@ -57,13 +72,20 @@ export class SignaturesController {
   async signatureFile(
     @Param('id', ParseUUIDPipe) id: string,
     @Param('signatureId', ParseUUIDPipe) signatureId: string,
+    @EntityScope() scope: Scope,
   ) {
+    await this.letters.assertAccess(id, scope);
     const { buffer, filename } = await this.signatures.signatureFile(id, signatureId);
     return attachmentFile(buffer, filename, P7S_MIME);
   }
 
   @Get('letters/:id/signed-package')
-  async signedPackage(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser) {
+  async signedPackage(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ) {
+    await this.letters.assertAccess(id, scope);
     const { buffer, filename } = await this.signatures.signedPackage(id);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
     return attachmentFile(buffer, filename, 'application/zip');

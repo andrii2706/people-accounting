@@ -22,6 +22,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { PhoneInputComponent } from '../../../shared/components/phone-input/phone-input.component';
 import { PersonAccessComponent } from '../person-access/person-access.component';
+import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { AuthService } from '../../../shared/services/auth.service';
 import { OrganizationService } from '../../../shared/services/organization.service';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
@@ -37,6 +38,8 @@ import {
   applyRegistry,
   legalEntityBody,
   legalEntityToForm,
+  parsePercent,
+  quotaPlaces,
   youControlUrl,
 } from '../../../shared/utils/legal-entity.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
@@ -56,6 +59,7 @@ import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
     PhoneInputComponent,
     PersonAccessComponent,
     RouterLink,
+    UaDateTimePipe,
   ],
   templateUrl: './legal-entity-form.component.html',
 })
@@ -98,11 +102,13 @@ export class LegalEntityFormComponent {
     len(p.responsiblePosition, 200);
     len(p.reservationQuotaBasis, 300);
     len(p.notifyEmails, 500);
-    validate(p.reservationQuota, ({ value }) => {
+    validate(p.reservationQuotaPercent, ({ value }) => {
       const v = value().trim();
       if (!v) return undefined;
-      if (!/^\d+$/.test(v)) return { kind: 'quota', message: 'Ціле число без пробілів, напр. 25' };
-      return Number(v) > 100_000 ? { kind: 'quota', message: 'Не більше 100 000' } : undefined;
+      if (!/^\d{1,3}([.,]\d{1,2})?$/.test(v)) {
+        return { kind: 'quota', message: 'Відсоток, напр. 50 або 33,5' };
+      }
+      return parsePercent(v)! > 100 ? { kind: 'quota', message: 'Не більше 100%' } : undefined;
     });
     validate(p.notifyEmails, ({ value }) =>
       value()
@@ -116,6 +122,28 @@ export class LegalEntityFormComponent {
   });
 
   protected readonly youControl = computed(() => youControlUrl(this.model().edrpou));
+
+  /** Live calculation under the quota field: places for the typed percent and how many are free. */
+  protected readonly quotaPreview = computed(() => {
+    const today = this.page().quota;
+    const percent = parsePercent(this.model().reservationQuotaPercent);
+    if (!today || percent === null || this.entityForm.reservationQuotaPercent().invalid())
+      return null;
+    const places = quotaPlaces(percent, today.base)!;
+    return {
+      base: today.base,
+      places,
+      reserved: today.reservedCompany,
+      free: Math.max(places - today.reservedCompany, 0),
+      exceeded: today.reservedCompany > places,
+    };
+  });
+
+  /** Journal of the entity (administrator, on demand). */
+  protected readonly showHistory = signal(false);
+  protected readonly history = this.service.historyResource(() =>
+    this.showHistory() ? this.page().entity?.id : undefined,
+  );
   protected readonly people = computed(() => this.page().people);
   protected readonly status = computed(() => this.page().status);
 
@@ -169,9 +197,18 @@ export class LegalEntityFormComponent {
         const entity = this.page().entity;
         if (entity) await this.service.update(entity.id, body);
         else await this.service.create(body);
+        // the director who has just added his legal entity belongs to it from now on
+        const firstOwn = !entity && this.auth.needsEntity();
+        if (firstOwn) await this.auth.refresh();
         await this.dict.reloadLegalEntities();
-        this.toast.success(entity ? 'Юрособу збережено' : 'Юрособу додано');
-        await this.router.navigateByUrl('/settings');
+        this.toast.success(
+          entity
+            ? 'Юрособу збережено'
+            : firstOwn
+              ? 'Юрособу додано — тепер ви її керівник і бачите її облік'
+              : 'Юрособу додано',
+        );
+        await this.router.navigateByUrl(firstOwn ? '/' : '/settings');
         return undefined;
       } catch (err) {
         return formSubmitErrors(err, this.entityForm, this.notifyError);

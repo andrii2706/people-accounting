@@ -1,3 +1,4 @@
+import { PasswordResetToken } from '../users/password-reset-token.entity.js';
 import { BillingStatusEntity } from '../billing/billing-status.entity.js';
 import { LegalEntity } from '../legal-entities/legal-entity.entity.js';
 import { InboxRead } from '../inbox/inbox-read.entity.js';
@@ -39,4 +40,5 @@ export const ENTITIES = [
   InboxRead,
   BillingStatusEntity,
   LegalEntity,
+  PasswordResetToken,
 ];

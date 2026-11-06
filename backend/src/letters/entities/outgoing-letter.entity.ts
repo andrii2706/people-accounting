@@ -2,7 +2,6 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  Index,
   JoinColumn,
   ManyToOne,
   OneToMany,
@@ -18,7 +17,7 @@ import type { LetterType, LetterStatus } from '../../shared/interfaces/letter.in
 
 /** Register of outgoing military-registration correspondence. */
 @Entity('outgoing_letters')
-@Index(['year', 'sequence'], { unique: true })
+/** Number in the register: unique per legal entity and year (an expression index — see migration EntityRoles). */
 export class OutgoingLetter {
   @PrimaryGeneratedColumn('uuid')
   id: string;

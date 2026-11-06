@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { User } from '../users/user.entity.js';
+import { UsersService } from '../users/users.service.js';
+import { passwordExpiresAt } from '../common/utils/password-policy.utils.js';
 import { addDays, formatUa, todayIso } from '../common/utils/dates.utils.js';
 import { loadEnv } from '../config/env.js';
 import { Employee } from '../employees/entities/employee.entity.js';
@@ -11,7 +14,7 @@ import type { ErrorWithCause, IsoDate } from '../shared/interfaces/common.interf
 import type { DueDeferral } from '../shared/interfaces/employee.interface.js';
 import { MOBILIZATION_REMIND_DAYS } from './notifications.constants.js';
 import { NIL_UUID } from '../common/constants/common.constants.js';
-import { REMIND_DAYS_BEFORE } from './notifications.constants.js';
+import { PASSWORD_REMINDER_LINK_HOURS, REMIND_DAYS_BEFORE } from './notifications.constants.js';
 import { employeeFullName } from '../employees/utils/employee-text.utils.js';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { groupByEntity } from './utils/group-by-entity.utils.js';
@@ -33,6 +36,8 @@ export class DailyJobService {
     @InjectRepository(Organization) private readonly orgRepo: Repository<Organization>,
     private readonly notifications: NotificationsService,
     private readonly legalEntities: LegalEntitiesService,
+    @InjectRepository(User) private readonly users: Repository<User>,
+    private readonly usersService: UsersService,
   ) {}
 
   async run(today: IsoDate = todayIso()) {
@@ -43,6 +48,7 @@ export class DailyJobService {
       mobilizationEnding: await this.mobilizationEndingReminder(org, today),
       deferrals: await this.deferralReminders(org, today),
       reservations: await this.reservationReminders(today),
+      passwords: await this.passwordReminders(),
     };
   }
 
@@ -174,9 +180,45 @@ export class DailyJobService {
     return due.length;
   }
 
+  /**
+   * A month before the half-year password of HR / directors expires — a letter with a link to set a new one,
+   * once per expiry date.
+   */
+  async passwordReminders(now = new Date()) {
+    const { passwordMaxAgeDays: maxAge, passwordExpiryRoles: roles, passwordReminderDays: before } = this.env;
+    if (!maxAge || !roles.length) return 0;
+    const users = await this.users.find({ where: { isActive: true, role: In(roles) } });
+    let sent = 0;
+    for (const user of users) {
+      const expires = passwordExpiresAt(user, maxAge, roles);
+      if (!expires || expires <= now || expires.getTime() - now.getTime() > before * 86_400_000) continue;
+      const refDate = expires.toISOString().slice(0, 10);
+      if (await this.notifications.wasSent('PASSWORD_EXPIRING', user.id, refDate)) continue;
+      const { link, expiresAt } = await this.usersService.createPasswordLink(
+        user.id,
+        'EXPIRING',
+        PASSWORD_REMINDER_LINK_HOURS,
+      );
+      const ok = await this.notifications.sendPasswordExpiring({
+        userId: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        link,
+        linkExpiresAt: expiresAt,
+        passwordExpiresAt: expires,
+      });
+      // marked only when it really went out — otherwise tomorrow's run tries again
+      if (ok) {
+        await this.notifications.markSent('PASSWORD_EXPIRING', [{ refId: user.id, refDate }], 1);
+        sent++;
+      }
+    }
+    return sent;
+  }
+
   /** «ТОВ «Приклад»: » before the subject when there are several legal entities. */
   private async prefix(entityId: string | null) {
-    const entities = await this.legalEntities.list();
+    const entities = await this.legalEntities.all();
     if (entities.length < 2) return '';
     const entity = entities.find((e) => e.id === entityId);
     return entity ? `${entity.shortName || entity.fullName}: ` : '';

@@ -1,3 +1,4 @@
+import type { UserRole } from '../shared/interfaces/auth.interface.js';
 /**
  * Configuration validated at startup. If something is missing the app does not start
  * and says clearly what to fix (instead of a stack trace from deep inside DI).
@@ -143,6 +144,13 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     accessSmtpUrl: env.ACCESS_SMTP_URL || env.SMTP_URL || '',
     accessMailFrom: env.ACCESS_MAIL_FROM || env.MAIL_FROM || '',
     temporaryPasswordHours: int(env.TEMPORARY_PASSWORD_HOURS, 72),
+    // passwords of those who keep the registration and of the directors are valid for half a year
+    passwordMaxAgeDays: int(env.PASSWORD_MAX_AGE_DAYS, 180),
+    passwordExpiryRoles: (env.PASSWORD_EXPIRY_ROLES
+      ? list(env.PASSWORD_EXPIRY_ROLES)
+      : ['HR', 'DIRECTOR']) as UserRole[],
+    passwordReminderDays: int(env.PASSWORD_REMINDER_DAYS, 30),
+    passwordLinkHours: int(env.PASSWORD_LINK_HOURS, 72),
     appUrl: env.APP_URL || list(env.APP_ORIGIN)[0] || 'http://localhost:4200',
     decreeSourceUrl: env.DECREE_SOURCE_URL || 'https://zakon.rada.gov.ua/laws/show/65/2022',
     // free ЄДР lookup by code ({code} is replaced); empty — the «Підтягнути з ЄДР» button is off

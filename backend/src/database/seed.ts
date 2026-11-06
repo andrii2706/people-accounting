@@ -61,6 +61,7 @@ async function seed() {
       email: admin.email,
       fullName: admin.fullName,
       role: 'ADMIN',
+      legalEntityId: null,
       mustChangePassword: false,
     };
     const tcks = await tckRepo.find();

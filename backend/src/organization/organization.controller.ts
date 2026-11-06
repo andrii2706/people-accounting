@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Roles } from '../common/decorators/auth.decorators.js';
+import { AllowUnassigned, Roles } from '../common/decorators/auth.decorators.js';
 import { UpdateOrganizationDto } from './organization.dto.js';
 import { OrganizationService } from './organization.service.js';
 
@@ -13,6 +13,7 @@ import { OrganizationService } from './organization.service.js';
 export class OrganizationController {
   constructor(private readonly org: OrganizationService) {}
 
+  @AllowUnassigned()
   @Get()
   get() {
     return this.org.get();

@@ -13,6 +13,10 @@ import { Billing1793250000000 } from './1793250000000-Billing.js';
 import { LegalEntities1793260000000 } from './1793260000000-LegalEntities.js';
 import { LegalEntitySettings1793270000000 } from './1793270000000-LegalEntitySettings.js';
 import { TemporaryPasswordExpiry1793280000000 } from './1793280000000-TemporaryPasswordExpiry.js';
+import { EntityRoles1793320000000 } from './1793320000000-EntityRoles.js';
+import { TckPostalCodes1793310000000 } from './1793310000000-TckPostalCodes.js';
+import { QuotaPercent1793300000000 } from './1793300000000-QuotaPercent.js';
+import { PasswordResetTokens1793290000000 } from './1793290000000-PasswordResetTokens.js';
 import { InboxReads1793240000000 } from './1793240000000-InboxReads.js';
 
 /** Migration registry. Add a new migration here after generating it. */
@@ -33,4 +37,8 @@ export const MIGRATIONS: Function[] = [
   LegalEntities1793260000000,
   LegalEntitySettings1793270000000,
   TemporaryPasswordExpiry1793280000000,
+  PasswordResetTokens1793290000000,
+  QuotaPercent1793300000000,
+  TckPostalCodes1793310000000,
+  EntityRoles1793320000000,
 ];

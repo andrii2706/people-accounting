@@ -14,6 +14,8 @@ import { Employee } from '../employees/entities/employee.entity.js';
 import { normalizePhone } from '../military/employee-rules.js';
 import { Organization } from '../organization/organization.entity.js';
 import { OrganizationService } from '../organization/organization.service.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
+import type { Scope } from '../shared/interfaces/auth.interface.js';
 import type { ResponsibleInfo } from '../shared/interfaces/document.interface.js';
 import type {
   EntityCountRow,
@@ -23,7 +25,9 @@ import type {
 import { REGISTRY_SOURCE_LABEL, REGISTRY_TIMEOUT_MS } from './legal-entities.constants.js';
 import type { CreateLegalEntityDto, UpdateLegalEntityDto } from './legal-entities.dto.js';
 import { LegalEntity } from './legal-entity.entity.js';
+import { User } from '../users/user.entity.js';
 import { pickRegistryCompany, toRegistryCompany } from './utils/registry.utils.js';
+import { entityQuota, quotaStanding } from './utils/quota.utils.js';
 
 /** Legal entities of the client: requisites, the head and the person responsible for military registration. */
 @Injectable()
@@ -36,29 +40,22 @@ export class LegalEntitiesService {
     private readonly org: OrganizationService,
   ) {}
 
-  async list(): Promise<LegalEntitySummary[]> {
-    const today = todayIso();
-    const [entities, counts, reserved] = await Promise.all([
-      this.repo.find({ order: { fullName: 'ASC' } }),
+  async list(date: IsoDate = todayIso(), scope: Scope = null): Promise<LegalEntitySummary[]> {
+    const own = scope ? { legalEntityId: scope } : {};
+    const [entities, counts, staff] = await Promise.all([
+      this.all(scope),
+      // all employees, the dismissed too: an entity with any of them cannot be deleted
       this.employees
         .createQueryBuilder('e')
         .select('e.legalEntityId', 'legalEntityId')
         .addSelect('COUNT(*)', 'count')
+        .where(scope ? 'e.legalEntityId = :scope' : '1=1', { scope })
         .groupBy('e.legalEntityId')
         .getRawMany<EntityCountRow>(),
-      // reserved by the entity itself (counts towards its quota) — the same rule as isReservedAt
-      this.employees
-        .createQueryBuilder('e')
-        .select('e.legalEntityId', 'legalEntityId')
-        .addSelect('COUNT(*)', 'count')
-        .where('e.reserved = true AND e.reservedBy <> :other', { other: 'OTHER' })
-        .andWhere('e.reservationUntil >= :today', { today })
-        .andWhere('(e.dismissalDate IS NULL OR e.dismissalDate > :today)', { today })
-        .groupBy('e.legalEntityId')
-        .getRawMany<EntityCountRow>(),
+      this.employees.find({ where: own }),
     ]);
-    const byId = new Map(counts.map((c) => [c.legalEntityId, Number(c.count)]));
-    const reservedById = new Map(reserved.map((c) => [c.legalEntityId, Number(c.count)]));
+    const allById = new Map(counts.map((c) => [c.legalEntityId, Number(c.count)]));
+    const standing = staff.map((e) => quotaStanding(e, date));
     return entities.map((e) => ({
       id: e.id,
       fullName: e.fullName,
@@ -70,10 +67,15 @@ export class LegalEntitiesService {
       responsiblePosition: e.responsiblePosition,
       headUserId: e.headUserId,
       responsibleUserId: e.responsibleUserId,
-      employees: byId.get(e.id) ?? 0,
-      reservationQuota: e.reservationQuota,
-      reservedCompany: reservedById.get(e.id) ?? 0,
+      employees: standing.filter((s) => s.employed && s.legalEntityId === e.id).length,
+      allEmployees: allById.get(e.id) ?? 0,
+      quota: entityQuota(e, standing),
     }));
+  }
+
+  /** Legal entities by name: all, or only the one of the scope. */
+  all(scope: string | null = null): Promise<LegalEntity[]> {
+    return this.repo.find({ where: scope ? { id: scope } : {}, order: { fullName: 'ASC' } });
   }
 
   async get(id: string): Promise<LegalEntity> {
@@ -99,7 +101,7 @@ export class LegalEntitiesService {
     const count = await this.employees.countBy({ legalEntityId: id });
     if (count) {
       throw new BadRequestException(
-        `У цій юридичній особі ${count} працівник(ів) — спершу переведіть їх в іншу юрособу`,
+        `У цій юридичній особі ${count} працівник(ів), разом зі звільненими — спершу переведіть їх в іншу юрособу`,
       );
     }
     await this.repo.delete(id);
@@ -157,6 +159,19 @@ export class LegalEntitiesService {
     const entity = id ? await this.repo.findOneBy({ id }) : await this.single();
     if (!entity?.responsibleName) return null;
     return { fullName: entity.responsibleName, position: entity.responsiblePosition, phone: entity.responsiblePhone };
+  }
+
+  /** The legal entity whose head / responsible person this account is (for the account letters). */
+  /** The legal entity of the account (the letters about its password name it). */
+  async entityOfUser(userId: string): Promise<{ name: string; code: string } | null> {
+    const user = await this.repo.manager.findOne(User, {
+      where: { id: userId },
+      select: { id: true, legalEntityId: true },
+    });
+    const e = user?.legalEntityId ? await this.repo.findOneBy({ id: user.legalEntityId }) : null;
+    if (e) return { name: e.shortName || e.fullName, code: e.edrpou };
+    const all = await this.repo.find({ take: 2 });
+    return all.length === 1 ? { name: all[0].shortName || all[0].fullName, code: all[0].edrpou } : null;
   }
 
   /** Extra reminder addresses: of one legal entity, or of all of them (null). */

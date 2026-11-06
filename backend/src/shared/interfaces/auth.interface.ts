@@ -6,7 +6,11 @@ export interface AuthUser {
   email: string;
   fullName: string;
   role: UserRole;
+  /** The legal entity the account belongs to — it sees only its data; null — the main administrator (sees all) or not yet assigned. */
+  legalEntityId: string | null;
   mustChangePassword: boolean;
+  /** When the password stops working (HR / DIRECTOR — half a year after the change); null — never. */
+  passwordExpiresAt?: string | null;
 }
 
 export interface SessionPayload {
@@ -20,9 +24,14 @@ export interface SessionPayload {
   exp?: number;
 }
 
-/** VENDOR — the system's supplier: sees only the payment page, no personal data. */
-/** DIRECTOR — the head: sees everything, signs documents, changes nothing. */
-export type UserRole = 'ADMIN' | 'HR' | 'DIRECTOR' | 'VENDOR';
+/**
+ * ADMIN — the main administrator: all legal entities, all data, all accounts.
+ * ENTITY_ADMIN — administrator of one legal entity: its employees, documents, card, accounts (HR / director).
+ * DIRECTOR — the head of one legal entity: the same as ENTITY_ADMIN, and adds his legal entity himself.
+ * HR — responsible for the military registration in one legal entity: employees, notices, letters, reports.
+ * VENDOR — the system's supplier: sees only the payment page, no personal data.
+ */
+export type UserRole = 'ADMIN' | 'ENTITY_ADMIN' | 'DIRECTOR' | 'HR' | 'VENDOR';
 
 export type CredentialsResult =
   | { status: 'ok'; user: User }
@@ -79,4 +88,46 @@ export interface AccessContext {
   entityName: string;
   entityCode: string;
   asWhom: string;
+}
+
+/** A new account of a legal entity's person: the letter context + the legal entity it belongs to. */
+export interface EntityAccountContext extends AccessContext {
+  legalEntityId: string;
+}
+
+/** Why a link to set a new password was sent. */
+export type PasswordLinkPurpose = 'EXPIRING' | 'ADMIN_REQUEST';
+
+/** GET /auth/password-reset/:token — the link is valid; who it is for. */
+export interface PasswordLinkInfo {
+  email: string;
+  fullName: string;
+  purpose: PasswordLinkPurpose;
+  expiresAt: Date;
+}
+
+/** POST /users/:id/password-change-request */
+export interface PasswordChangeRequestResult {
+  mailSent: boolean;
+  email: string;
+}
+
+/** Fields the password age is computed from. */
+export interface PasswordAgeFields {
+  role: UserRole;
+  passwordChangedAt: Date | null;
+}
+
+/** Which legal entity a request may touch: its id, or null — all of them (the main administrator). */
+export type Scope = string | null;
+
+/** A local test account (npm run seed:accounts): fictional, never in production. */
+export interface TestAccount {
+  email: string;
+  fullName: string;
+  role: UserRole;
+  /** Which demo legal entity: A — the first one, B — the second demo one, null — none (the director adds his). */
+  entity: 'A' | 'B' | null;
+  /** What to try with it. */
+  purpose: string;
 }

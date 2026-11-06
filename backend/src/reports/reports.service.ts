@@ -22,6 +22,7 @@ import {
 } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
+import { entityQuota, quotaStanding } from '../legal-entities/utils/quota.utils.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import type { ListGroup, ListSection, DutyCategory } from '../shared/interfaces/dictionary.interface.js';
 import type {
@@ -258,13 +259,14 @@ export class ReportsService {
     return buildOperationalReport({ date, rows: data.rows, org, responsible, letter });
   }
 
-  async dashboard(date: IsoDate = todayIso()) {
+  /** The overview: of one legal entity (scope) or of all of them (the main administrator). */
+  async dashboard(date: IsoDate = todayIso(), scope: string | null = null) {
     const [all, org, entities, pending] = await Promise.all([
-      this.loadAll(),
+      this.loadAll(scope),
       this.org.get(),
-      this.legalEntities.list(),
+      this.legalEntities.all(scope),
       this.changes.find({
-        where: { letterId: IsNull(), skipped: false },
+        where: { letterId: IsNull(), skipped: false, ...(scope ? { employee: { legalEntityId: scope } } : {}) },
         relations: { employee: true },
         select: {
           id: true,
@@ -292,21 +294,12 @@ export class ReportsService {
     // deferrals in force on the date (a fixed date, or «до завершення мобілізації»)
     const deferrals = employed.filter(({ e }) => hasDeferralAt(e, date, org.mobilizationUntil)).length;
 
-    // reservation quota of every legal entity: only its own reservations count towards it
+    // reservation quota of every legal entity: percent × its working military-liable men;
+    // only its own reservations use the places
     const reserved = employed.filter((x) => x.d.reserved);
     const own = reserved.filter(({ e }) => e.reservedBy !== 'OTHER');
-    const quotas: EntityQuota[] = entities.map((entity) => {
-      const reservedCompany = own.filter(({ e }) => e.legalEntityId === entity.id).length;
-      const quota = entity.reservationQuota;
-      return {
-        id: entity.id,
-        name: entity.shortName || entity.fullName,
-        quota,
-        reservedCompany,
-        available: quota === null ? null : Math.max(quota - reservedCompany, 0),
-        exceeded: quota !== null && reservedCompany > quota,
-      };
-    });
+    const standing = all.map((e) => quotaStanding(e, date));
+    const quotas: EntityQuota[] = entities.map((entity) => entityQuota(entity, standing));
     // the card sums the entities that have a quota; without any quota — just how many are reserved
     const withQuota = quotas.filter((q) => q.quota !== null);
     const quota = withQuota.length ? withQuota.reduce((sum, q) => sum + q.quota!, 0) : null;

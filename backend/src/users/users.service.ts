@@ -2,19 +2,32 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
-import { Not, Repository } from 'typeorm';
-import { generateTemporaryPassword, passwordProblems } from '../common/utils/password-policy.utils.js';
+import { IsNull, Not, Repository } from 'typeorm';
+import { PasswordResetToken } from './password-reset-token.entity.js';
+import { sha256 } from '../common/utils/hash.utils.js';
+import {
+  generateTemporaryPassword,
+  passwordExpiresAt,
+  passwordProblems,
+} from '../common/utils/password-policy.utils.js';
 import { fieldErrors } from '../common/validators/validators.js';
 import { loadEnv } from '../config/env.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { User } from './user.entity.js';
+import { LegalEntity } from '../legal-entities/legal-entity.entity.js';
+import { roleEntityProblem } from './utils/user-policy.utils.js';
 import type {
-  AccessContext,
+  EntityAccountContext,
   AuthUser,
   CreateUserOptions,
   CredentialsResult,
   IssuedTemporaryPassword,
+  PasswordAgeFields,
+  PasswordChangeRequestResult,
+  PasswordLinkInfo,
+  PasswordLinkPurpose,
+  Scope,
   UserLookup,
   UserRole,
 } from '../shared/interfaces/auth.interface.js';
@@ -27,16 +40,132 @@ export class UsersService {
 
   constructor(
     @InjectRepository(User) private readonly repo: Repository<User>,
+    @InjectRepository(PasswordResetToken) private readonly links: Repository<PasswordResetToken>,
     private readonly notifications: NotificationsService,
   ) {}
+
+  /** When the password of this account stops working (HR / DIRECTOR — half a year); null — never. */
+  passwordExpiresAt(user: PasswordAgeFields): Date | null {
+    return passwordExpiresAt(user, this.env.passwordMaxAgeDays, this.env.passwordExpiryRoles);
+  }
+
+  /** The password is older than allowed — the user is let in only to change it. */
+  async enforcePasswordAge(user: User): Promise<void> {
+    const expires = this.passwordExpiresAt(user);
+    if (!expires || expires > new Date() || user.mustChangePassword) return;
+    await this.repo.update(user.id, { mustChangePassword: true });
+    user.mustChangePassword = true;
+  }
+
+  /**
+   * A one-time link to set a new password (letters «the password expires» and «change the password»).
+   * Earlier unused links of the user stop working. Returns the raw token — it goes only into the letter.
+   */
+  async createPasswordLink(userId: string, purpose: PasswordLinkPurpose, hours: number) {
+    await this.links.update({ userId, usedAt: IsNull() }, { usedAt: new Date() });
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = new Date(Date.now() + hours * 3_600_000);
+    await this.links.save(this.links.create({ userId, tokenHash: sha256(Buffer.from(token)), purpose, expiresAt }));
+    return { link: `${this.env.appUrl.replace(/\/+$/, '')}/reset-password?token=${token}`, expiresAt };
+  }
+
+  private async validLink(token: string) {
+    const link = token
+      ? await this.links.findOne({ where: { tokenHash: sha256(Buffer.from(token)) }, relations: { user: true } })
+      : null;
+    if (!link || link.usedAt || link.expiresAt < new Date() || !link.user?.isActive || link.user.role === 'VENDOR') {
+      throw new BadRequestException('Посилання недійсне або вже використане — попросіть адміністратора надіслати нове');
+    }
+    return link;
+  }
+
+  /** Who the link is for (the reset page shows the login). */
+  async passwordLinkInfo(token: string): Promise<PasswordLinkInfo> {
+    const link = await this.validLink(token);
+    return { email: link.user.email, fullName: link.user.fullName, purpose: link.purpose, expiresAt: link.expiresAt };
+  }
+
+  /** Sets a new password by the link from a letter; all sessions of the user end. */
+  async resetWithLink(token: string, newPassword: string) {
+    const link = await this.validLink(token);
+    const user = await this.findWithSecrets({ id: link.userId });
+    if (!user) throw new NotFoundException('Користувача не знайдено');
+    this.assertPolicy(newPassword, user.email, 'newPassword');
+    if (await bcrypt.compare(newPassword, user.passwordHash))
+      throw fieldErrors([{ field: 'newPassword', message: 'Має відрізнятися від поточного' }]);
+    await this.repo.update(user.id, {
+      passwordHash: await bcrypt.hash(newPassword, BCRYPT_ROUNDS),
+      mustChangePassword: false,
+      tokenVersion: user.tokenVersion + 1,
+      passwordChangedAt: new Date(),
+      temporaryPasswordExpiresAt: null,
+      failedLoginCount: 0,
+      lockedUntil: null,
+    });
+    await this.links.update({ userId: user.id, usedAt: IsNull() }, { usedAt: new Date() });
+    await this.notifications.notifyUser(
+      user.email,
+      'Пароль змінено',
+      'Пароль до вашого облікового запису в системі військового обліку щойно змінено за посиланням з листа. ' +
+        'Якщо це були не ви — негайно зверніться до адміністратора.',
+    );
+    return { id: user.id, email: user.email };
+  }
+
+  /**
+   * The administrator asks a user to change the password: from now on the user is let in only to the password
+   * change; the letter has a link to set a new one.
+   */
+  async requestPasswordChange(id: string, issuedBy: AuthUser): Promise<PasswordChangeRequestResult> {
+    const user = await this.findById(id);
+    if (!user.isActive) throw new BadRequestException('Обліковий запис вимкнено — спершу увімкніть його');
+    await this.repo.update(id, { mustChangePassword: true });
+    const { link, expiresAt } = await this.createPasswordLink(id, 'ADMIN_REQUEST', this.env.passwordLinkHours);
+    const mailSent = await this.notifications.sendPasswordChangeRequest({
+      userId: id,
+      email: user.email,
+      fullName: user.fullName,
+      link,
+      linkExpiresAt: expiresAt,
+      issuedBy,
+    });
+    return { mailSent, email: user.email };
+  }
 
   private roleLabel(role: UserRole) {
     return ROLE_LABELS[role];
   }
 
-  /** Users of the client; the vendor account is not shown and cannot be changed by the client's admin. */
-  list() {
-    return this.repo.find({ where: { role: Not('VENDOR') }, order: { fullName: 'ASC' } });
+  /**
+   * Users of the client: of one legal entity (scope), or all of them (the main administrator).
+   * The vendor account is not shown and cannot be changed by the client's admin.
+   */
+  list(scope: Scope = null) {
+    return this.repo.find({
+      where: { role: Not('VENDOR'), ...(scope ? { legalEntityId: scope } : {}) },
+      order: { fullName: 'ASC' },
+    });
+  }
+
+  /** The legal entity of an account must fit its role and exist. */
+  private async checkEntity(role: UserRole, legalEntityId: string | null) {
+    const problem = roleEntityProblem(role, legalEntityId);
+    if (problem) throw fieldErrors([{ field: 'legalEntityId', message: problem }]);
+    if (legalEntityId && !(await this.repo.manager.existsBy(LegalEntity, { id: legalEntityId }))) {
+      throw fieldErrors([{ field: 'legalEntityId', message: 'Юридичну особу не знайдено' }]);
+    }
+  }
+
+  /** «ТОВ «Приклад»» and its code for the letter with a temporary password. */
+  private async entityContext(legalEntityId: string | null) {
+    if (!legalEntityId) return {};
+    const e = await this.repo.manager.findOneBy(LegalEntity, { id: legalEntityId });
+    return e ? { entityName: e.shortName || e.fullName, entityCode: e.edrpou } : {};
+  }
+
+  /** Puts the account into a legal entity (the director who has just added his). */
+  async assignEntity(id: string, legalEntityId: string) {
+    await this.repo.update(id, { legalEntityId });
   }
 
   async findById(id: string) {
@@ -83,6 +212,8 @@ export class UsersService {
       return { status: 'expired', userId: user.id };
     }
     await this.repo.update(user.id, { failedLoginCount: 0, lockedUntil: null, lastLoginAt: new Date() });
+    // the half-year password of HR / directors: after it expires the user is let in only to change it
+    await this.enforcePasswordAge(user);
     return { status: 'ok', user };
   }
 
@@ -91,11 +222,15 @@ export class UsersService {
     if (await this.repo.exists({ where: { email } }))
       throw fieldErrors([{ field: 'email', message: 'Користувач з таким email уже існує' }]);
     this.assertPolicy(dto.password, email);
+    const role = dto.role ?? 'HR';
+    const legalEntityId = role === 'ADMIN' ? null : (dto.legalEntityId ?? null);
+    await this.checkEntity(role, legalEntityId);
     const saved = await this.repo.save(
       this.repo.create({
         email,
         fullName: dto.fullName,
-        role: dto.role ?? 'HR',
+        role,
+        legalEntityId,
         passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
         // a password set by an administrator is temporary
         mustChangePassword: opts.mustChangePassword ?? true,
@@ -113,6 +248,7 @@ export class UsersService {
         expiresAt: saved.temporaryPasswordExpiresAt ?? this.temporaryUntil(),
         kind: 'NEW',
         issuedBy: opts.issuedBy,
+        ...(await this.entityContext(legalEntityId)),
       });
     } else if (!opts.silent) {
       // without an administrator (CLI, scripts) the password is not e-mailed — only a notice about the account
@@ -130,11 +266,19 @@ export class UsersService {
   async update(id: string, dto: UpdateUserDto, actorId: string) {
     const user = await this.findWithSecrets({ id });
     if (!user || user.role === 'VENDOR') throw new NotFoundException('Користувача не знайдено');
-    if (id === actorId && (dto.isActive === false || (dto.role && dto.role !== 'ADMIN'))) {
-      throw new BadRequestException('Не можна заблокувати себе або зняти з себе роль адміністратора');
+    if (id === actorId && (dto.isActive === false || (dto.role && dto.role !== user.role))) {
+      throw new BadRequestException('Не можна заблокувати себе або змінити власну роль');
     }
     const changes: Partial<User> = {};
     if (dto.fullName !== undefined) changes.fullName = dto.fullName;
+    // the role and the legal entity are checked together: e.g. HR needs one, the main administrator has none
+    const role = dto.role ?? user.role;
+    const legalEntityId =
+      role === 'ADMIN' ? null : dto.legalEntityId !== undefined ? dto.legalEntityId : user.legalEntityId;
+    if (role !== user.role || legalEntityId !== user.legalEntityId) {
+      await this.checkEntity(role, legalEntityId);
+      if (legalEntityId !== user.legalEntityId) changes.legalEntityId = legalEntityId;
+    }
     if (dto.role !== undefined && dto.role !== user.role) {
       changes.role = dto.role;
       changes.tokenVersion = user.tokenVersion + 1;
@@ -182,11 +326,15 @@ export class UsersService {
     fullName: string,
     role: UserRole,
     issuedBy: AuthUser,
-    context: AccessContext,
+    context: EntityAccountContext,
   ) {
     const temporaryPassword = generateTemporaryPassword(randomBytes);
     const expiresAt = this.temporaryUntil();
-    const user = await this.create({ email, fullName, role, password: temporaryPassword }, { silent: true });
+    const { legalEntityId, ...letter } = context;
+    const user = await this.create(
+      { email, fullName, role, password: temporaryPassword, legalEntityId },
+      { silent: true },
+    );
     await this.repo.update(user.id, { temporaryPasswordExpiresAt: expiresAt });
     const mailSent = await this.notifications.sendTemporaryPassword({
       email: user.email,
@@ -196,7 +344,7 @@ export class UsersService {
       expiresAt,
       kind: 'NEW',
       issuedBy,
-      ...context,
+      ...letter,
     });
     return { user, temporaryPassword, mailSent, expiresAt };
   }
@@ -232,6 +380,7 @@ export class UsersService {
       expiresAt,
       kind: 'RESET',
       issuedBy,
+      ...(await this.entityContext(user.legalEntityId)),
     });
     return { temporaryPassword, mailSent, expiresAt };
   }
@@ -267,6 +416,7 @@ export class UsersService {
       passwordChangedAt: new Date(),
       temporaryPasswordExpiresAt: null,
     });
+    await this.links.update({ userId: id, usedAt: IsNull() }, { usedAt: new Date() });
     await this.notifications.notifyUser(
       user.email,
       'Пароль змінено',

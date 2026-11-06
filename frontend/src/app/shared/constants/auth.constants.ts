@@ -24,15 +24,39 @@ export const IDLE_SIGNED_OUT_KEY = 'mr.idleSignedOut';
 
 /** Role names in the interface. */
 export const ROLE_LABELS: Record<UserRole, string> = {
-  ADMIN: 'Адміністратор',
-  HR: 'Кадровик',
+  ADMIN: 'Головний адміністратор',
+  ENTITY_ADMIN: 'Адміністратор юрособи',
   DIRECTOR: 'Директор',
+  HR: 'Відповідальний за облік',
   VENDOR: 'Постачальник',
 };
 
-/** Roles the administrator can give in «Користувачі». */
+/** Roles in «Користувачі»: all of them — for the main administrator. */
 export const ROLE_OPTIONS: SelectOption<UserRole>[] = [
-  { value: 'HR', label: 'Кадровик', hint: 'веде облік: працівники, листи, звіти' },
-  { value: 'DIRECTOR', label: 'Директор', hint: 'перегляд усього і підписання документів' },
-  { value: 'ADMIN', label: 'Адміністратор', hint: 'ще й налаштування та користувачі' },
+  {
+    value: 'HR',
+    label: 'Відповідальний за облік',
+    hint: 'веде облік своєї юрособи: працівники, листи, звіти',
+  },
+  {
+    value: 'DIRECTOR',
+    label: 'Директор',
+    hint: 'усе в обліку своєї юрособи, її реквізити й користувачі; додає свою юрособу',
+  },
+  {
+    value: 'ENTITY_ADMIN',
+    label: 'Адміністратор юрособи',
+    hint: 'облік, реквізити, доступи й користувачі своєї юрособи',
+  },
+  {
+    value: 'ADMIN',
+    label: 'Головний адміністратор',
+    hint: 'усі юрособи, користувачі й налаштування',
+  },
 ];
+
+/** Roles the administrator / director of a legal entity may give (the rest — only the main administrator). */
+export const ENTITY_ISSUED_ROLES: UserRole[] = ['HR', 'DIRECTOR'];
+
+/** Roles that run a legal entity: its card, the access of its people, its accounts. */
+export const ENTITY_MANAGER_ROLES: UserRole[] = ['ADMIN', 'ENTITY_ADMIN', 'DIRECTOR'];

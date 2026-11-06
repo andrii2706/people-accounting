@@ -2,7 +2,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { EMPTY_LEGAL_ENTITY } from '../constants/legal-entity.constants';
-import { legalEntityBody } from '../utils/legal-entity.utils';
+import { legalEntityBody, quotaPlaces } from '../utils/legal-entity.utils';
 import { DictionariesService } from './dictionaries.service';
 import { LegalEntitiesService } from './legal-entities.service';
 
@@ -40,11 +40,21 @@ describe('LegalEntitiesService', () => {
     const req = backend.expectOne({ method: 'POST', url: '/api/legal-entities' });
     expect(req.request.body).toMatchObject({
       fullName: 'ТОВ «Приклад»',
-      reservationQuota: null,
+      reservationQuotaPercent: null,
       phone: '+380670000000',
     });
     req.flush({ id: 'e1', ...body });
     await expect(done).resolves.toMatchObject({ id: 'e1' });
+  });
+
+  it('квота: відсоток з комою, місця — униз', () => {
+    expect(
+      legalEntityBody({ ...EMPTY_LEGAL_ENTITY, reservationQuotaPercent: ' 33,5 ' })
+        .reservationQuotaPercent,
+    ).toBe(33.5);
+    expect(quotaPlaces(50, 7)).toBe(3);
+    expect(quotaPlaces(50, 20)).toBe(10);
+    expect(quotaPlaces(null, 20)).toBeNull();
   });
 
   it('доступ відповідальному: POST з email і роллю; скасування — DELETE', async () => {

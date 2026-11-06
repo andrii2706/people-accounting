@@ -2,7 +2,7 @@ import { hasDeferralAt } from '../military/personal-list.js';
 import { isElectronicDocType, normalizePhone, normalizeVos } from '../military/employee-rules.js';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { Brackets, DataSource, type EntityManager, IsNull, Repository } from 'typeorm';
+import { Brackets, DataSource, type EntityManager, In, IsNull, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service.js';
 import { blindIndex } from '../common/crypto/field-encryption.js';
 import { fieldErrors } from '../common/validators/validators.js';
@@ -37,7 +37,9 @@ import { EmployeePosition } from './entities/employee-position.entity.js';
 import { FamilyMember } from './entities/family-member.entity.js';
 import { MilitaryDocument } from './entities/military-document.entity.js';
 import type { AuditAction } from '../shared/interfaces/common.interface.js';
-import type { AuthUser } from '../shared/interfaces/auth.interface.js';
+import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
+import { assertInScope, inScope } from '../common/utils/entity-scope.utils.js';
+
 import type { ChangeType } from '../shared/interfaces/dictionary.interface.js';
 import type { EmployeeCountRow } from '../shared/interfaces/letter.interface.js';
 
@@ -397,10 +399,29 @@ export class EmployeesService {
     });
   }
 
-  async pendingChanges() {
+  /** The employee belongs to the legal entity of the scope — otherwise «not found» (no hint it exists). */
+  async assertAccess(id: string, scope: Scope): Promise<void> {
+    if (scope === null) return;
+    const e = await this.repo.findOne({ where: { id }, select: { id: true, legalEntityId: true } });
+    assertInScope(scope, e?.legalEntityId, 'Працівника не знайдено');
+  }
+
+  /** All the employees belong to the legal entity of the scope. */
+  async assertAccessMany(ids: string[], scope: Scope): Promise<void> {
+    const unique = [...new Set(ids)];
+    if (scope === null || !unique.length) return;
+    const n = await this.repo.count({ where: { id: In(unique), legalEntityId: scope } });
+    if (n !== unique.length) throw new NotFoundException('Працівника не знайдено');
+  }
+
+  async pendingChanges(scope: Scope = null) {
     const org = await this.org.get();
     const changes = await this.changeRepo.find({
-      where: { letterId: IsNull(), skipped: false },
+      where: {
+        letterId: IsNull(),
+        skipped: false,
+        ...(scope ? { employee: { legalEntityId: scope } } : {}),
+      },
       relations: { employee: { tck: true } },
       order: { effectiveDate: 'ASC' },
     });
@@ -416,9 +437,12 @@ export class EmployeesService {
     }));
   }
 
-  async updateChange(changeId: string, dto: UpdateChangeDto) {
-    const change = await this.changeRepo.findOneBy({ id: changeId });
-    if (!change) throw new NotFoundException('Зміну не знайдено — можливо, її вже повідомлено');
+  async updateChange(changeId: string, dto: UpdateChangeDto, scope: Scope = null) {
+    const change = await this.changeRepo.findOne({ where: { id: changeId }, relations: { employee: true } });
+    if (!change || !inScope(scope, change.employee?.legalEntityId)) {
+      throw new NotFoundException('Зміну не знайдено — можливо, її вже повідомлено');
+    }
+    delete (change as Partial<EmployeeChange>).employee;
     if (change.letterId) throw new BadRequestException('Зміна вже включена до листа');
     Object.assign(change, dto);
     return this.changeRepo.save(change);

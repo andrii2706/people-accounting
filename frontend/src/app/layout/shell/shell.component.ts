@@ -214,10 +214,13 @@ export class ShellComponent {
       items: [{ path: '/tck', label: 'Довідник ТЦК', icon: 'flag' }],
     },
   ];
+  /** Without a legal entity there is nothing to open yet — no menu (the director adds his legal entity first). */
   protected readonly navGroups = computed(() =>
-    this.groups.map((g) => ({
-      ...g,
-      items: g.items.filter((i) => !i.adminOnly || this.auth.isAdmin()),
-    })),
+    this.auth.needsEntity()
+      ? []
+      : this.groups.map((g) => ({
+          ...g,
+          items: g.items.filter((i) => !i.adminOnly || this.auth.isAdmin()),
+        })),
   );
 }

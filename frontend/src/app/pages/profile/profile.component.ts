@@ -1,3 +1,4 @@
+import { UaDatePipe } from '../../shared/pipes/ua-date.pipe';
 import { HttpClient, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -15,7 +16,7 @@ import type { UserPreferences } from '../../shared/interfaces/auth.interface';
 @Component({
   selector: 'app-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, FormField, FormFieldComponent],
+  imports: [PageHeaderComponent, FormField, FormFieldComponent, UaDatePipe],
   templateUrl: './profile.component.html',
 })
 export class ProfileComponent {

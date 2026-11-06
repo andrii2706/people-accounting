@@ -1,5 +1,6 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { InjectRepository, TypeOrmModule } from '@nestjs/typeorm';
+import { Not } from 'typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
 import type { AuditAction } from '../shared/interfaces/common.interface.js';
@@ -28,6 +29,15 @@ export class AuditService {
       diff: maskDiff(diff),
       userId: user?.id ?? null,
       userName: user?.fullName ?? '',
+    });
+  }
+
+  /** The latest entries about one record, newest first (views are not shown). */
+  trail(entity: string, entityId: string, take = 300) {
+    return this.repo.find({
+      where: { entity, entityId, action: Not('VIEW') },
+      order: { createdAt: 'DESC' },
+      take,
     });
   }
 }

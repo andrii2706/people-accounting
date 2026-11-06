@@ -4,8 +4,8 @@ import type { AccessRole } from '../shared/interfaces/legal-entity.interface.js'
 import {
   IsBoolean,
   IsIn,
-  IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   Max,
@@ -38,13 +38,13 @@ export class CreateLegalEntityDto {
   @OptionalStr(200) responsibleName?: string;
   @OptionalStr(200) responsiblePosition?: string;
   @PhoneField() responsiblePhone?: string;
-  /** Reservation quota — how many employees may be reserved. null — not set. */
+  /** Reservation quota in percent (up to 2 decimals). null — not set. */
   @IsOptional()
-  @ValidateIf((o: CreateLegalEntityDto) => o.reservationQuota !== null)
-  @IsInt({ message: 'Квота — ціле число' })
+  @ValidateIf((o: CreateLegalEntityDto) => o.reservationQuotaPercent !== null)
+  @IsNumber({ maxDecimalPlaces: 2 }, { message: 'Відсоток — число, до двох знаків після коми' })
   @Min(0, { message: 'Не менше 0' })
-  @Max(100000, { message: 'Не більше 100 000' })
-  reservationQuota?: number | null;
+  @Max(100, { message: 'Не більше 100' })
+  reservationQuotaPercent?: number | null;
   @OptionalStr(300) reservationQuotaBasis?: string;
   /** Extra e-mail addresses for reminders, comma-separated. */
   @OptionalStr(500)

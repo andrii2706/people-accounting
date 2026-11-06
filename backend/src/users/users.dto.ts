@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
 import { passwordProblems } from '../common/utils/password-policy.utils.js';
 import { Rule } from '../common/validators/validators.js';
 import { MESSAGE, PATTERN } from '../military/employee-rules.js';
@@ -29,6 +29,12 @@ export class CreateUserDto {
   @IsOptional()
   @IsIn(USER_ROLES)
   role?: UserRole;
+
+  /** The legal entity of the account (the main administrator chooses; for the others — their own). */
+  @IsOptional()
+  @ValidateIf((o: CreateUserDto) => o.legalEntityId !== null)
+  @IsUUID('all', { message: 'Оберіть юридичну особу' })
+  legalEntityId?: string | null;
 }
 
 export class UpdateUserDto {
@@ -40,6 +46,12 @@ export class UpdateUserDto {
   @IsOptional()
   @IsIn(USER_ROLES)
   role?: UserRole;
+
+  /** Another legal entity — only the main administrator. */
+  @IsOptional()
+  @ValidateIf((o: UpdateUserDto) => o.legalEntityId !== null)
+  @IsUUID('all', { message: 'Оберіть юридичну особу' })
+  legalEntityId?: string | null;
 
   @IsOptional()
   @IsBoolean()

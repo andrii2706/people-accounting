@@ -1,3 +1,4 @@
+import type { UserRole } from './auth.interface.js';
 export interface AppEnv {
   nodeEnv: string;
   isProduction: boolean;
@@ -53,6 +54,13 @@ export interface AppEnv {
   accessMailFrom: string;
   /** How long a temporary password is valid, hours. */
   temporaryPasswordHours: number;
+  /** How long a password of the roles below is valid, days (0 — forever). */
+  passwordMaxAgeDays: number;
+  passwordExpiryRoles: UserRole[];
+  /** A letter «your password expires» this many days before. */
+  passwordReminderDays: number;
+  /** A link to set a new password is valid this many hours. */
+  passwordLinkHours: number;
   /** Public address of the app for links in e-mails. */
   appUrl: string;
   /** Where the daily job looks for the presidential decrees on mobilization. */

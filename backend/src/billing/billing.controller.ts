@@ -1,7 +1,13 @@
 import { Body, Controller, Get, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
-import { AllowPendingPasswordChange, AllowVendor, CurrentUser, Roles } from '../common/decorators/auth.decorators.js';
+import {
+  AllowPendingPasswordChange,
+  AllowUnassigned,
+  AllowVendor,
+  CurrentUser,
+  Roles,
+} from '../common/decorators/auth.decorators.js';
 import type { AuthUser } from '../shared/interfaces/auth.interface.js';
 import type { BillingRecord, BillingStatus } from '../shared/interfaces/billing.interface.js';
 import { UpdateBillingDto } from './billing.dto.js';
@@ -18,6 +24,7 @@ export class BillingController {
   /** For every signed-in user: the block «Ласкаво просимо» / «Є заборгованість» after a sign-in. */
   @AllowVendor()
   @AllowPendingPasswordChange()
+  @AllowUnassigned()
   @Get('status')
   status(): Promise<BillingStatus> {
     return this.billing.status();

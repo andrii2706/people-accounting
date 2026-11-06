@@ -161,6 +161,11 @@ export interface TckExtractSummary {
 export interface EntityQuota {
   id: string;
   name: string;
+  /** Quota in percent (null — not set). */
+  percent: number | null;
+  /** Working military-liable men (without those reserved by another enterprise). */
+  base: number;
+  /** Places = percent × base, rounded down (null — no quota). */
   quota: number | null;
   reservedCompany: number;
   available: number | null;

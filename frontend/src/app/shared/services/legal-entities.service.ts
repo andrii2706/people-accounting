@@ -1,4 +1,4 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, httpResource } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PERSON_TEXT } from '../constants/legal-entity.constants';
@@ -15,6 +15,7 @@ import type {
   LegalEntitySummary,
   RegistryCompany,
 } from '../interfaces/legal-entity.interface';
+import type { AuditEntry } from '../interfaces/employee.interface';
 
 /** Legal entities of the client: requisites, head and responsible person for the documents. */
 @Injectable({ providedIn: 'root' })
@@ -39,6 +40,16 @@ export class LegalEntitiesService {
 
   remove(id: string) {
     return firstValueFrom(this.http.delete<void>(`/api/legal-entities/${id}`));
+  }
+
+  /** Journal of the entity on demand: who changed the requisites, the head, the responsible person, the access. */
+  historyResource(id: () => string | undefined) {
+    return httpResource<AuditEntry[]>(
+      () => (id() ? `/api/legal-entities/${id()}/history` : undefined),
+      {
+        defaultValue: [],
+      },
+    );
   }
 
   people(id: string) {

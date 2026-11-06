@@ -8,6 +8,7 @@ import { AuthService } from '../../shared/services/auth.service';
 import { DictionariesService } from '../../shared/services/dictionaries.service';
 import { InboxService } from '../../shared/services/inbox.service';
 import { buildTasks, upcomingTerms } from '../../shared/utils/dashboard-tasks.utils';
+import { percentText } from '../../shared/utils/legal-entity.utils';
 
 @Component({
   selector: 'app-dashboard',
@@ -84,6 +85,8 @@ export class DashboardComponent {
       share: (d.bySection[section] / max) * 100,
     }));
   });
+
+  protected readonly percent = percentText;
 
   /** Share of the reservation quota used (for the bar). */
   protected readonly quotaShare = computed(() => {

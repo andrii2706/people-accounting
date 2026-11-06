@@ -89,6 +89,8 @@
         </div>
         @if (d.reservation.exceeded) {
           <span class="text-xs text-danger">Квоту перевищено</span>
+        } @else if (d.reservation.available !== null) {
+          <span class="text-xs text-muted">вільно місць: {{ d.reservation.available }}</span>
         }
         @if (d.reservation.entities.length > 1) {
           <ul class="mt-1 space-y-0.5 text-xs text-muted">
@@ -96,7 +98,9 @@
               <li class="flex justify-between gap-2" [class.text-danger]="q.exceeded">
                 <span class="truncate">{{ q.name }}</span>
                 <span class="tabular-nums">{{
-                  q.quota !== null ? q.reservedCompany + ' з ' + q.quota : q.reservedCompany
+                  q.quota !== null
+                    ? q.reservedCompany + ' з ' + q.quota + ' (' + percent(q.percent!) + '%)'
+                    : q.reservedCompany
                 }}</span>
               </li>
             }

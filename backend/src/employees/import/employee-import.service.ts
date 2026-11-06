@@ -20,7 +20,7 @@ import {
   toDtoValues,
   validateValues,
 } from './utils/import-rows.utils.js';
-import type { AuthUser } from '../../shared/interfaces/auth.interface.js';
+import type { AuthUser, Scope } from '../../shared/interfaces/auth.interface.js';
 import type { ImportValues, ImportRow, CheckedRow, ImportPreview } from '../../shared/interfaces/import.interface.js';
 
 @Injectable()
@@ -32,7 +32,7 @@ export class EmployeeImportService {
   ) {}
 
   /** Reads the file and checks every row. Nothing is saved. */
-  async preview(buffer: Buffer, fileName: string): Promise<ImportPreview> {
+  async preview(buffer: Buffer, fileName: string, scope: Scope = null): Promise<ImportPreview> {
     const table = await readTable(buffer, fileName);
     const tcks = await this.tcks.find({ select: { id: true, name: true } });
     const { mapping, rows } = convertRows(table, { tcks });
@@ -43,12 +43,15 @@ export class EmployeeImportService {
         message: ['У файлі немає колонки «Прізвище» або «ПІБ»'],
       });
     }
-    return { fileName, mapping, rows: await this.check(rows) };
+    return { fileName, mapping, rows: await this.check(rows, scope) };
   }
 
   /** Checks the rows again after the user edited them on the preview page. */
-  async check(rows: ImportRow[]): Promise<CheckedRow[]> {
-    const existing = await this.existingIndex(rows.map((r) => r.values));
+  async check(rows: ImportRow[], scope: Scope = null): Promise<CheckedRow[]> {
+    const existing = await this.existingIndex(
+      rows.map((r) => r.values),
+      scope,
+    );
     const seenRnokpp = new Map<string, number>();
     const checked: CheckedRow[] = [];
     const tcks = await this.tcks.find({ select: { id: true, name: true } });
@@ -78,7 +81,8 @@ export class EmployeeImportService {
 
   /** Creates the employees from the rows that passed the check — all or nothing. */
   async commit(rows: ImportRow[], opts: ImportCommitOptions, user: AuthUser) {
-    const checked = await this.check(rows);
+    // duplicates are looked for in the legal entity the employees join (the main administrator — everywhere)
+    const checked = await this.check(rows, user.role === 'ADMIN' ? null : (opts.legalEntityId ?? null));
     const bad = checked.filter((r) => r.errors.length || r.duplicate);
     if (bad.length) {
       throw new BadRequestException({
@@ -101,21 +105,23 @@ export class EmployeeImportService {
   }
 
   /** Lookup of employees that already exist: by RNOKPP (blind index) or full name + date of birth. */
-  private async existingIndex(values: ImportValues[]) {
+  /** Employees already in the system (of the scope's legal entity) — to mark duplicates in the file. */
+  private async existingIndex(values: ImportValues[], scope: Scope) {
+    const entity = scope ? { legalEntityId: scope } : {};
     const hashes = values.map((v) => blindIndex(String(v.rnokpp ?? ''))).filter((h): h is string => !!h);
     const lastNames = [...new Set(values.map((v) => String(v.lastName ?? '')).filter(Boolean))];
     const [byHash, byName] = await Promise.all([
       hashes.length
         ? this.employees.find({
             loadEagerRelations: false,
-            where: { rnokppHash: In(hashes) },
+            where: { rnokppHash: In(hashes), ...entity },
             select: { id: true, lastName: true, firstName: true, middleName: true, rnokppHash: true },
           })
         : [],
       lastNames.length
         ? this.employees.find({
             loadEagerRelations: false,
-            where: { lastName: In(lastNames) },
+            where: { lastName: In(lastNames), ...entity },
             select: { id: true, lastName: true, firstName: true, middleName: true, birthDate: true },
           })
         : [],
