@@ -62,9 +62,9 @@ export const LIST_ROWS_PAGE = 100;
 /** Short tab names of the lists page; the full official title stays above the table. */
 export const LIST_TABS: SelectOption<ListSection | 'ALL'>[] = [
   { value: 'ALL', label: 'Усі' },
-  { value: 'OFFICERS', label: 'Офіцери' },
-  { value: 'SOLDIERS', label: 'Рядові, сержанти, старшини' },
-  { value: 'WOMEN', label: 'Жінки' },
+  { value: 'OFFICERS', label: 'Офіцерський склад' },
+  { value: 'SOLDIERS', label: 'Рядовий, сержантський і старшинський склад' },
+  { value: 'WOMEN', label: 'Військовозобов’язані з числа жінок' },
   { value: 'CONSCRIPTS', label: 'Призовники' },
 ];
 
@@ -76,17 +76,10 @@ export const SECTION_GROUPS: Record<ListSection, ListGroup[]> = {
   CONSCRIPTS: ['G4', 'G4R'],
 };
 
-/** Column names of the extracts page (as the TCK calls them). */
-export const EXTRACT_SECTIONS: SelectOption<ListSection>[] = [
-  { value: 'OFFICERS', label: 'Офіцери' },
-  {
-    value: 'SOLDIERS',
-    label: 'Військовозобов’язані',
-    hint: 'рядовий, сержантський і старшинський склад',
-  },
-  { value: 'WOMEN', label: 'Жінки' },
-  { value: 'CONSCRIPTS', label: 'Призовники' },
-];
+/** The lists in the extracts (the switches and the columns of the extracts page) — as the lists of Annex 13 name them. */
+export const EXTRACT_SECTIONS: SelectOption<ListSection>[] = LIST_TABS.filter(
+  (t): t is SelectOption<ListSection> => t.value !== 'ALL',
+);
 
 /** Names of the reports — in the menu, the search, the titles of the pages. */
 export const REPORT_NAMES = {

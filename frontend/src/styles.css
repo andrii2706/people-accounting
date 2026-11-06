@@ -93,8 +93,9 @@
   .label {
     @apply mb-1.5 block text-[13px] font-medium text-ink;
   }
+  /* relative: hidden labels (sr-only, absolute) stay inside the scrolling card instead of widening the page */
   .table-base {
-    @apply w-full text-left text-sm;
+    @apply relative w-full text-left text-sm;
   }
   .table-base {
     font-variant-numeric: tabular-nums;
@@ -121,7 +122,7 @@
     @apply inline-flex max-w-full flex-wrap items-center gap-1 rounded-xl bg-sunken p-1;
   }
   .segmented-item {
-    @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm whitespace-nowrap text-muted transition-colors hover:text-ink;
+    @apply inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3.5 py-1.5 max-w-full text-left text-sm text-muted transition-colors hover:text-ink;
   }
   .segmented-item[aria-pressed='true'],
   .segmented-item[aria-selected='true'],
