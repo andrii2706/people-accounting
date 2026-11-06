@@ -1,6 +1,6 @@
 import { AuthService } from '../../../shared/services/auth.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { ReportSwitchComponent } from '../../../shared/components/report-switch/report-switch.component';
@@ -16,6 +16,7 @@ import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { todayIso } from '../../../shared/utils/date.utils';
+import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { extractCount, groupsOfSections } from '../../../shared/utils/lists-view.utils';
 import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.utils';
 
@@ -32,6 +33,8 @@ import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.u
     IconComponent,
     LegalEntityFilterComponent,
     ReportSwitchComponent,
+    RouterLink,
+    UaDatePipe,
   ],
   templateUrl: './extracts.component.html',
 })
@@ -115,7 +118,7 @@ export class ExtractsComponent {
         groups: groups.length ? groups : undefined,
         legalEntityId: this.entity() || undefined,
       });
-      this.toast.success(`Витяг для ${item.tckName}: вих. № ${letter.number}`);
+      this.toast.success(`Виписка для ${item.tckName}: вих. № ${letter.number}`);
       await this.router.navigate(['/letters', letter.id]);
     } catch (err) {
       this.toast.error(apiErrorMessage(err));

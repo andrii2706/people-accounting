@@ -88,17 +88,24 @@ export const EXTRACT_SECTIONS: SelectOption<ListSection>[] = [
   { value: 'CONSCRIPTS', label: 'Призовники' },
 ];
 
+/** Names of the reports — in the menu, the search, the titles of the pages. */
+export const REPORT_NAMES = {
+  lists: 'Списки персонального обліку призовників, військовозобов’язаних та резервістів',
+  operational: 'Відомість оперативного обліку',
+  extracts: 'Виписки з списків персонального обліку для звірок',
+} as const;
+
 /** The two views of the lists: everything for the company, or extracts per TCK. */
 export const REPORT_VIEWS: ReportView[] = [
   {
     path: '/reports/lists',
-    label: 'Повні списки',
+    label: REPORT_NAMES.lists,
     icon: 'table',
     hint: 'Чотири списки по всіх працівниках юрособи',
   },
   {
     path: '/reports/extracts',
-    label: 'Витяги для ТЦК',
+    label: REPORT_NAMES.extracts,
     icon: 'copy',
     hint: 'По кожному ТЦК — лише особи, які там на обліку',
   },

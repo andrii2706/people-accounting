@@ -52,7 +52,10 @@ export function entityHistory(rows: AuditLog[]): HistoryEntry[] {
   const format = (field: string, v: unknown): string => {
     if (v === null || v === undefined || v === '') return '—';
     if (field === 'reservationQuotaPercent') return `${text(v).replace('.', ',')}%`;
-    if (field.startsWith(LABEL_JOURNAL_PREFIX)) return LABEL_VALUE_TEXT[text(v)] ?? text(v).replace('.', ',');
+    if (field.startsWith(LABEL_JOURNAL_PREFIX)) {
+      if (Array.isArray(v)) return v.map((x) => LABEL_VALUE_TEXT[text(x)] ?? text(x)).join(' → ');
+      return LABEL_VALUE_TEXT[text(v)] ?? text(v).replace('.', ',');
+    }
     return text(v);
   };
   return rows.map((r) => ({

@@ -1,0 +1,44 @@
+<ol class="space-y-1.5" [attr.aria-label]="ariaLabel() || null">
+  @for (item of items(); track item.value; let i = $index, first = $first, last = $last) {
+    <li
+      class="flex cursor-grab items-center gap-2 rounded-lg border bg-surface px-2 py-1.5 text-sm transition-colors select-none active:cursor-grabbing"
+      [class]="
+        over() === i && dragging() !== i
+          ? 'border-brand-600 bg-brand-600/5'
+          : dragging() === i
+            ? 'border-line opacity-50'
+            : 'border-line'
+      "
+      draggable="true"
+      (dragstart)="start($event, i)"
+      (dragover)="enter($event, i)"
+      (dragenter)="enter($event, i)"
+      (drop)="drop($event, i)"
+      (dragend)="end()"
+    >
+      <app-icon name="grip" [size]="16" class="text-muted" />
+      <span class="w-5 text-xs text-muted tabular-nums">{{ i + 1 }}.</span>
+      <span class="flex-1">{{ item.label }}</span>
+      <button
+        type="button"
+        class="icon-btn cursor-pointer disabled:cursor-default disabled:opacity-30"
+        [disabled]="first"
+        [attr.aria-label]="'Вище: ' + item.label"
+        title="Вище"
+        (click)="move(i, i - 1)"
+      >
+        <app-icon name="chevronDown" [size]="16" class="rotate-180" />
+      </button>
+      <button
+        type="button"
+        class="icon-btn cursor-pointer disabled:cursor-default disabled:opacity-30"
+        [disabled]="last"
+        [attr.aria-label]="'Нижче: ' + item.label"
+        title="Нижче"
+        (click)="move(i, i + 1)"
+      >
+        <app-icon name="chevronDown" [size]="16" />
+      </button>
+    </li>
+  }
+</ol>

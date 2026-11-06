@@ -11,6 +11,18 @@ export type LabelLayout = 'SIDE_BY_SIDE' | 'STACKED';
 
 export type LabelAlign = 'left' | 'center';
 
+/** UKRPOSHTA — «Від кого:» / «Кому:»; CLASSIC — «Відправник:» / «Отримувач:». */
+export type LabelTitleStyle = 'UKRPOSHTA' | 'CLASSIC';
+
+/** BOXES — the index digit by digit in cells; TEXT — «Індекс: 79000» or «79000». */
+export type PostalStyle = 'BOXES' | 'TEXT';
+
+/** A line of a party block; their order is set by dragging. */
+export type LabelLine = 'name' | 'address' | 'postalCode' | 'phone';
+
+/** Which party goes first on a label (to the left, or on top). */
+export type LabelPartyKey = 'sender' | 'recipient';
+
 /** How the envelope labels of a legal entity look: text sizes in points, everything else in millimetres. */
 export interface LabelSettings {
   mode: LabelMode;
@@ -24,6 +36,10 @@ export interface LabelSettings {
   postalBold: boolean;
   align: LabelAlign;
   showTitles: boolean;
+  titleStyle: LabelTitleStyle;
+  postalStyle: PostalStyle;
+  lineOrder: LabelLine[];
+  partyOrder: LabelPartyKey[];
   showPhone: boolean;
   postalPrefix: boolean;
   layout: LabelLayout;
@@ -108,4 +124,10 @@ export interface LabelPage {
 export interface LabelFieldProblem {
   field: keyof LabelSettings;
   message: string;
+}
+
+/** An item of a list sorted by dragging. */
+export interface SortableItem {
+  value: string;
+  label: string;
 }

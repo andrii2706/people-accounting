@@ -22,7 +22,7 @@
         [style.max-height.mm]="s.recipientYMm - s.senderYMm"
       >
         <ng-container
-          *ngTemplateOutlet="party; context: { $implicit: label.sender, title: titles.sender, s }"
+          *ngTemplateOutlet="party; context: { $implicit: label.sender, who: 'sender', s }"
         />
       </div>
       <div
@@ -32,10 +32,7 @@
         [style.width.mm]="s.recipientWidthMm"
       >
         <ng-container
-          *ngTemplateOutlet="
-            party;
-            context: { $implicit: label.recipient, title: titles.recipient, s }
-          "
+          *ngTemplateOutlet="party; context: { $implicit: label.recipient, who: 'recipient', s }"
         />
       </div>
     } @else {
@@ -55,33 +52,20 @@
             [style.padding.mm]="s.layout === 'STACKED' ? s.paddingMm : 0"
             [style.gap.pt]="s.layout === 'STACKED' ? 6 : 0"
           >
-            <div
-              class="min-w-0 flex-1 overflow-hidden"
-              [class.flex-none]="s.layout === 'STACKED'"
-              [style.padding.mm]="s.layout === 'STACKED' ? 0 : s.paddingMm"
-              [style.border-right]="
-                s.layout === 'SIDE_BY_SIDE' && s.cutBorder ? '0.5pt solid #bbb' : 'none'
-              "
-            >
-              <ng-container
-                *ngTemplateOutlet="
-                  party;
-                  context: { $implicit: label.sender, title: titles.sender, s }
+            @for (who of s.partyOrder; track who; let first = $first) {
+              <div
+                class="min-w-0 flex-1 overflow-hidden"
+                [class.flex-none]="s.layout === 'STACKED'"
+                [style.padding.mm]="s.layout === 'STACKED' ? 0 : s.paddingMm"
+                [style.border-right]="
+                  first && s.layout === 'SIDE_BY_SIDE' && s.cutBorder ? '0.5pt solid #bbb' : 'none'
                 "
-              />
-            </div>
-            <div
-              class="min-w-0 flex-1 overflow-hidden"
-              [class.flex-none]="s.layout === 'STACKED'"
-              [style.padding.mm]="s.layout === 'STACKED' ? 0 : s.paddingMm"
-            >
-              <ng-container
-                *ngTemplateOutlet="
-                  party;
-                  context: { $implicit: label.recipient, title: titles.recipient, s }
-                "
-              />
-            </div>
+              >
+                <ng-container
+                  *ngTemplateOutlet="party; context: { $implicit: label[who], who, s }"
+                />
+              </div>
+            }
           </div>
         }
       </div>
@@ -89,26 +73,56 @@
   </div>
 }
 
-<ng-template #party let-party let-title="title" let-s="s">
+<ng-template #party let-party let-who="who" let-s="s">
   <div [style.text-align]="s.align" class="break-words">
     @if (s.showTitles) {
       <p class="font-bold" [style.font-size.pt]="s.titleSize" style="margin-bottom: 3pt">
-        {{ title }}
+        {{ title(s, who) }}
       </p>
     }
-    <p [style.font-size.pt]="s.nameSize" [style.font-weight]="s.nameBold ? 700 : 400">
-      {{ party.name || '________________' }}
-    </p>
-    <p [style.font-size.pt]="s.addressSize">{{ party.address || '________________' }}</p>
-    <p
-      [style.font-size.pt]="s.postalSize"
-      [style.font-weight]="s.postalBold ? 700 : 400"
-      style="margin-top: 3pt"
-    >
-      {{ postal(party.postalCode, s) }}
-    </p>
-    @if (s.showPhone && party.phone) {
-      <p [style.font-size.pt]="s.phoneSize">тел. {{ party.phone }}</p>
+    @for (line of s.lineOrder; track line) {
+      @switch (line) {
+        @case ('name') {
+          <p [style.font-size.pt]="s.nameSize" [style.font-weight]="s.nameBold ? 700 : 400">
+            {{ party.name || '________________' }}
+          </p>
+        }
+        @case ('address') {
+          <p [style.font-size.pt]="s.addressSize">{{ party.address || '________________' }}</p>
+        }
+        @case ('postalCode') {
+          @if (s.postalStyle === 'BOXES') {
+            <div
+              class="flex"
+              [class.justify-center]="s.align === 'center'"
+              style="margin: 3pt 0"
+              [attr.aria-label]="'Індекс ' + (party.postalCode || 'не вказано')"
+            >
+              @for (d of digits(party.postalCode); track $index) {
+                <span
+                  class="grid place-items-center"
+                  [style.width.pt]="s.postalSize * 1.45"
+                  [style.height.pt]="s.postalSize * 1.45"
+                  [style.font-size.pt]="s.postalSize"
+                  [style.font-weight]="s.postalBold ? 700 : 400"
+                  [style.margin-left.pt]="$first ? 0 : -0.75"
+                  style="border: 0.75pt solid #000; line-height: 1"
+                  >{{ d }}</span
+                >
+              }
+            </div>
+          } @else {
+            <p [style.font-size.pt]="s.postalSize" [style.font-weight]="s.postalBold ? 700 : 400">
+              {{ postal(party.postalCode, s) }}
+            </p>
+          }
+        }
+        @case ('phone') {
+          @if (s.showPhone && party.phone) {
+            <p [style.font-size.pt]="s.phoneSize">тел. {{ party.phone }}</p>
+          }
+        }
+      }
     }
   </div>
 </ng-template>

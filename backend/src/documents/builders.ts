@@ -3,6 +3,7 @@
  * and sheets G1…G4R, OCL of the file new_military_list v8.6.
  */
 import {
+  AlignmentType,
   BorderStyle,
   HeightRule,
   type IBorderOptions,
@@ -15,9 +16,14 @@ import {
   VerticalAlign,
   WidthType,
 } from 'docx';
-import { A4_MM, ENVELOPE_SIZES, PRINT_EDGE_MM } from './label-settings.constants.js';
-import { labelsPerPage, twips } from './utils/label-settings.utils.js';
-import type { LabelPrintGroup, LabelSettings } from '../shared/interfaces/label-settings.interface.js';
+import { A4_MM, ENVELOPE_SIZES, LABEL_TITLES, POSTAL_CODE_DIGITS, PRINT_EDGE_MM } from './label-settings.constants.js';
+import { labelsPerPage, postalLine, twips } from './utils/label-settings.utils.js';
+import type {
+  LabelLine,
+  LabelPartyKey,
+  LabelPrintGroup,
+  LabelSettings,
+} from '../shared/interfaces/label-settings.interface.js';
 import { formatUa, formatUaLong } from '../common/utils/dates.utils.js';
 import type { Tck } from '../dictionaries/tck.entity.js';
 import { CHANGE_TYPE_LABELS, LIST_SECTION_TITLES } from '../military/dictionaries.js';
@@ -428,30 +434,68 @@ export function postalCodeOf(postalCode: string | null | undefined, address: str
   return /(?:^|\D)(\d{5})(?:\D|$)/.exec(address ?? '')?.[1] ?? '';
 }
 
-const LABEL_TITLES = { sender: 'Відправник:', recipient: 'Отримувач:' } as const;
-
 const NONE: IBorderOptions = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
 const DASHED: IBorderOptions = { style: BorderStyle.DASHED, size: 6, color: '777777' };
 const DIVIDER: IBorderOptions = { style: BorderStyle.SINGLE, size: 4, color: 'BBBBBB' };
+const BOX: IBorderOptions = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
 const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE };
 
-/** One party of a label in the font, sizes and lines of the settings. */
-function labelBlock(title: string, party: LabelParty, s: LabelSettings): Paragraph[] {
+type LabelChild = Paragraph | Table;
+
+/** The index digit by digit in cells, as on Ukrposhta envelopes (empty cells — to write by hand). */
+function postalBoxes(code: string, s: LabelSettings): Table {
+  const side = Math.round(s.postalSize * 20 * 1.45);
+  const digits = code.padEnd(POSTAL_CODE_DIGITS).slice(0, POSTAL_CODE_DIGITS).split('');
+  return new Table({
+    rows: [
+      new TableRow({
+        height: { value: side, rule: HeightRule.EXACT },
+        children: digits.map(
+          (d) =>
+            new TableCell({
+              children: [p(d.trim(), { font: s.font, size: s.postalSize, bold: s.postalBold, align: 'center' })],
+              width: { size: side, type: WidthType.DXA },
+              verticalAlign: VerticalAlign.CENTER,
+              margins: { top: 0, bottom: 0, left: 0, right: 0 },
+              borders: { top: BOX, bottom: BOX, left: BOX, right: BOX },
+            }),
+        ),
+      }),
+    ],
+    width: { size: side * POSTAL_CODE_DIGITS, type: WidthType.DXA },
+    columnWidths: digits.map(() => side),
+    layout: TableLayoutType.FIXED,
+    alignment: s.align === 'center' ? AlignmentType.CENTER : AlignmentType.LEFT,
+    borders: NO_BORDERS,
+  });
+}
+
+/**
+ * One party of a label: the title («Від кого:» / «Кому:» or «Відправник:» / «Отримувач:»), then the lines in the
+ * order of the settings. The index is printed once — it was taken out of the address. A table cell must end with
+ * a paragraph, so after the cells of the index comes an empty one.
+ */
+function labelBlock(who: LabelPartyKey, party: LabelParty, s: LabelSettings): LabelChild[] {
   const o = { font: s.font, align: s.align };
-  const postal = party.postalCode || '________';
+  const lines: Record<LabelLine, LabelChild[]> = {
+    name: [p(blank(party.name), { ...o, bold: s.nameBold, size: s.nameSize })],
+    address: [p(blank(party.address), { ...o, size: s.addressSize })],
+    postalCode:
+      s.postalStyle === 'BOXES'
+        ? [p('', { size: 3 }), postalBoxes(party.postalCode, s), p('', { size: 3 })]
+        : [p(postalLine(party.postalCode, s.postalPrefix), { ...o, bold: s.postalBold, size: s.postalSize })],
+    phone: s.showPhone && party.phone ? [p(`тел. ${party.phone}`, { ...o, size: s.phoneSize })] : [],
+  };
+  const title = LABEL_TITLES[s.titleStyle][who];
   return [
     ...(s.showTitles ? [p(title, { ...o, bold: true, size: s.titleSize, spacingAfter: 60 })] : []),
-    p(blank(party.name), { ...o, bold: s.nameBold, size: s.nameSize }),
-    p(blank(party.address), { ...o, size: s.addressSize }),
-    p(s.postalPrefix ? `Індекс: ${postal}` : postal, {
-      ...o,
-      bold: s.postalBold,
-      size: s.postalSize,
-      spacingBefore: 60,
-    }),
-    ...(s.showPhone && party.phone ? [p(`тел. ${party.phone}`, { ...o, size: s.phoneSize })] : []),
+    ...s.lineOrder.flatMap((line) => lines[line]),
   ];
 }
+
+/** The parties of a label in the order of the settings (the first one — to the left or on top). */
+const orderedParties = (label: EnvelopeLabel, s: LabelSettings) =>
+  s.partyOrder.map((who) => ({ who, party: label[who] }));
 
 const chunk = <T>(items: T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(items.length / size) }, (_, i) => items.slice(i * size, (i + 1) * size));
@@ -482,7 +526,7 @@ function sheetPage(labels: EnvelopeLabel[], s: LabelSettings): Table {
   const total = columnWidths.reduce((a, b) => a + b, 0);
   const edge = s.cutBorder ? DASHED : NONE;
   const divider = s.cutBorder ? DIVIDER : NONE;
-  const cell = (children: Paragraph[], width: number, borders: { left: IBorderOptions; right: IBorderOptions }) =>
+  const cell = (children: LabelChild[], width: number, borders: { left: IBorderOptions; right: IBorderOptions }) =>
     new TableCell({
       children,
       width: { size: width, type: WidthType.DXA },
@@ -508,17 +552,15 @@ function sheetPage(labels: EnvelopeLabel[], s: LabelSettings): Table {
       if (!label) {
         labelCols.forEach((width) => cells.push(blankCell(width)));
       } else if (side) {
-        cells.push(
-          cell(labelBlock(LABEL_TITLES.sender, label.sender, s), labelCols[0], { left: edge, right: divider }),
-        );
-        cells.push(
-          cell(labelBlock(LABEL_TITLES.recipient, label.recipient, s), labelCols[1], { left: divider, right: edge }),
-        );
+        const [first, second] = orderedParties(label, s);
+        cells.push(cell(labelBlock(first.who, first.party, s), labelCols[0], { left: edge, right: divider }));
+        cells.push(cell(labelBlock(second.who, second.party, s), labelCols[1], { left: divider, right: edge }));
       } else {
+        const [first, second] = orderedParties(label, s);
         const both = [
-          ...labelBlock(LABEL_TITLES.sender, label.sender, s),
+          ...labelBlock(first.who, first.party, s),
           p('', { size: 6 }),
-          ...labelBlock(LABEL_TITLES.recipient, label.recipient, s),
+          ...labelBlock(second.who, second.party, s),
         ];
         cells.push(cell(both, w, { left: edge, right: edge }));
       }
@@ -574,7 +616,7 @@ function envelopePage(label: EnvelopeLabel, s: LabelSettings): Table {
         height: { value: twips(s.recipientYMm - s.senderYMm), rule: HeightRule.EXACT },
         children: [
           new TableCell({
-            children: labelBlock(LABEL_TITLES.sender, label.sender, s),
+            children: labelBlock('sender', label.sender, s),
             width: { size: total, type: WidthType.DXA },
             columnSpan: columnWidths.length,
             margins: { ...zero, right: Math.max(0, total - sender) },
@@ -587,7 +629,7 @@ function envelopePage(label: EnvelopeLabel, s: LabelSettings): Table {
         children: [
           ...(offset > 0 ? [blankCell(offset)] : []),
           new TableCell({
-            children: labelBlock(LABEL_TITLES.recipient, label.recipient, s),
+            children: labelBlock('recipient', label.recipient, s),
             width: { size: recipient, type: WidthType.DXA },
             margins: zero,
             borders: NO_BORDERS,

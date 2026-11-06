@@ -1,9 +1,14 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-import { LABEL_FONT_STACKS, LABEL_TITLES } from '../../constants/label-settings.constants';
+import {
+  LABEL_FONT_STACKS,
+  LABEL_TITLES,
+  POSTAL_CODE_DIGITS,
+} from '../../constants/label-settings.constants';
 import type {
   EnvelopeSize,
   LabelPage,
+  LabelPartyKey,
   LabelSettings,
 } from '../../interfaces/label-settings.interface';
 import { pageSize, postalLine } from '../../utils/label-settings.utils';
@@ -44,14 +49,21 @@ export class LabelSheetComponent {
   /** Gap and shadow between the pages on screen (none in print). */
   readonly spaced = input(true);
 
-  protected readonly titles = LABEL_TITLES;
-
   protected size(s: LabelSettings): EnvelopeSize {
     return pageSize(s);
   }
 
   protected font(s: LabelSettings): string {
     return LABEL_FONT_STACKS[s.font];
+  }
+
+  protected title(s: LabelSettings, who: LabelPartyKey): string {
+    return LABEL_TITLES[s.titleStyle][who];
+  }
+
+  /** Five cells of the index; empty ones when it is unknown — to write by hand. */
+  protected digits(code: string): string[] {
+    return code.padEnd(POSTAL_CODE_DIGITS).slice(0, POSTAL_CODE_DIGITS).split('');
   }
 
   protected postal(code: string, s: LabelSettings): string {

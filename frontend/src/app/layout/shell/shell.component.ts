@@ -1,3 +1,4 @@
+import { REPORT_NAMES } from '../../shared/constants/lists.constants';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -204,9 +205,9 @@ export class ShellComponent {
     {
       title: 'Звітність',
       items: [
-        { path: '/reports/lists', label: 'Списки (Дод. 5)', icon: 'table' },
-        { path: '/reports/operational', label: 'Відомість (Дод. 12)', icon: 'file' },
-        { path: '/reports/extracts', label: 'Витяги для ТЦК', icon: 'copy' },
+        { path: '/reports/lists', label: REPORT_NAMES.lists, icon: 'table' },
+        { path: '/reports/operational', label: REPORT_NAMES.operational, icon: 'file' },
+        { path: '/reports/extracts', label: REPORT_NAMES.extracts, icon: 'copy' },
       ],
     },
     {

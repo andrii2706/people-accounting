@@ -1,7 +1,7 @@
 <app-page-header
-  eyebrow="Додаток 5 до Порядку · витяги"
-  title="Витяги зі списків для ТЦК"
-  subtitle="Кожному ТЦК — витяг лише про осіб, які перебувають у ньому на обліку. Оберіть, які списки включити."
+  eyebrow="Додаток 5 до Порядку · виписки для звірок"
+  title="Виписки з списків персонального обліку для звірок"
+  subtitle="Кожному ТЦК — виписка для звірки лише про осіб, які перебувають у ньому на обліку. Оберіть, які списки включити."
 >
   <label class="flex items-center gap-2 text-sm">
     <span class="text-muted">Станом на</span>
@@ -24,8 +24,8 @@
 </div>
 
 <div class="mb-4 flex flex-wrap items-center gap-3">
-  <span class="text-sm text-muted">У витяг:</span>
-  <div class="segmented" role="group" aria-label="Списки у витязі">
+  <span class="text-sm text-muted">У виписку:</span>
+  <div class="segmented" role="group" aria-label="Списки у виписці">
     @for (o of sectionOptions; track o.value) {
       <button
         type="button"
@@ -58,7 +58,7 @@
 
 @if (needsEntity()) {
   <p class="mb-4 rounded-xl border border-warning/40 bg-[#fdf9f2] px-4 py-3 text-sm" role="status">
-    Юридичних осіб кілька — оберіть, від імені якої формуються витяги. Нижче — підсумок по всіх.
+    Юридичних осіб кілька — оберіть, від імені якої формуються виписки. Нижче — підсумок по всіх.
   </p>
 }
 
@@ -70,7 +70,8 @@
         @for (o of sectionOptions; track o.value) {
           <th class="text-right" [class.opacity-40]="!sections().has(o.value)">{{ o.label }}</th>
         }
-        <th class="text-right">У витязі</th>
+        <th class="text-right">У виписці</th>
+        <th title="Остання зареєстрована виписка цьому ТЦК">Останнє повідомлення</th>
         <th class="w-[260px]"><span class="sr-only">Дії</span></th>
       </tr>
     </thead>
@@ -83,7 +84,7 @@
             } @else {
               <span class="font-medium text-warning">ТЦК не вказано</span>
               <p class="text-xs text-muted">
-                Заповніть ТЦК у картках — інакше витяг нікуди надіслати
+                Заповніть ТЦК у картках — інакше виписку нікуди надіслати
               </p>
             }
           </td>
@@ -94,7 +95,7 @@
                   class="text-brand-600 hover:underline"
                   [href]="docxUrl(r.item.tckId, s)"
                   download
-                  title="Витяг лише з цього списку .docx"
+                  title="Виписка лише з цього списку .docx"
                   >{{ r.item.sections[s] }}</a
                 >
               } @else {
@@ -103,6 +104,21 @@
             </td>
           }
           <td class="text-right font-semibold tabular-nums">{{ r.count }}</td>
+          <td class="text-sm whitespace-nowrap">
+            @if (r.item.lastLetter; as l) {
+              <a
+                class="font-medium text-brand-600 hover:underline"
+                [routerLink]="['/letters', l.id]"
+                title="Відкрити лист"
+                >вих. № {{ l.number }}</a
+              >
+              <p class="text-xs text-muted">
+                від {{ l.date | uaDate }} · {{ l.status === 'SENT' ? 'передано' : 'чернетка' }}
+              </p>
+            } @else if (r.item.tckId) {
+              <span class="text-xs text-muted">ще не реєстрували</span>
+            }
+          </td>
           <td class="text-right whitespace-nowrap">
             @if (r.item.tckId && r.count) {
               @if (needsEntity()) {
@@ -112,7 +128,7 @@
                   class="btn btn-ghost btn-sm"
                   [href]="docxUrl(r.item.tckId)"
                   download
-                  title="Витяг .docx без реєстрації"
+                  title="Виписка .docx без реєстрації"
                   ><app-icon name="download" [size]="16" /> .docx</a
                 >
                 @if (auth.canEdit()) {
@@ -131,7 +147,7 @@
         </tr>
       } @empty {
         <tr>
-          <td colspan="7" class="py-10 text-center text-sm text-muted">
+          <td colspan="8" class="py-10 text-center text-sm text-muted">
             На цю дату у списках нікого немає.
           </td>
         </tr>
@@ -146,6 +162,7 @@
               {{ totals()[s] }}
             </td>
           }
+          <td></td>
           <td></td>
           <td></td>
         </tr>

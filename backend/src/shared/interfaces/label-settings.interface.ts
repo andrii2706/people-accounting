@@ -13,6 +13,18 @@ export type LabelLayout = 'SIDE_BY_SIDE' | 'STACKED';
 
 export type LabelAlign = 'left' | 'center';
 
+/** UKRPOSHTA — «Від кого:» / «Кому:», as on the envelopes of Ukrposhta; CLASSIC — «Відправник:» / «Отримувач:». */
+export type LabelTitleStyle = 'UKRPOSHTA' | 'CLASSIC';
+
+/** BOXES — the index digit by digit in cells, as on the envelopes; TEXT — «Індекс: 79000» or «79000». */
+export type PostalStyle = 'BOXES' | 'TEXT';
+
+/** A line of a party block; their order is set by dragging. */
+export type LabelLine = 'name' | 'address' | 'postalCode' | 'phone';
+
+/** Which party goes first on a label (to the left, or on top). */
+export type LabelPartyKey = 'sender' | 'recipient';
+
 /**
  * How the envelope labels of a legal entity look. Sizes of the text — in points, everything else — in millimetres.
  * Flat on purpose: one field of the form = one key.
@@ -30,10 +42,16 @@ export interface LabelSettings {
   postalBold: boolean;
   align: LabelAlign;
 
-  /** «Відправник:» / «Отримувач:» above the blocks. */
+  /** «Від кого:» / «Кому:» (or «Відправник:» / «Отримувач:») above the blocks. */
   showTitles: boolean;
+  titleStyle: LabelTitleStyle;
+  postalStyle: PostalStyle;
+  /** Lines of each block from top to bottom. */
+  lineOrder: LabelLine[];
+  /** On an A4 label: the first party is to the left (or on top). On an envelope the places decide. */
+  partyOrder: LabelPartyKey[];
   showPhone: boolean;
-  /** «Індекс: 79000» or just «79000». */
+  /** «Індекс: 79000» or just «79000» (postalStyle TEXT). */
   postalPrefix: boolean;
 
   /** A4 sheet. */

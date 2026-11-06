@@ -5,8 +5,12 @@ import type {
   LabelAlign,
   LabelFont,
   LabelLayout,
+  LabelLine,
   LabelMode,
+  LabelPartyKey,
   LabelSettings,
+  LabelTitleStyle,
+  PostalStyle,
 } from '../shared/interfaces/label-settings.interface.js';
 
 export const A4_MM: EnvelopeSize = { widthMm: 210, heightMm: 297 };
@@ -36,8 +40,22 @@ export const ENVELOPE_FORMATS: EnvelopeFormat[] = ['DL', 'C6', 'C5', 'C4'];
 export const LABEL_FONTS: LabelFont[] = ['Times New Roman', 'Arial', 'Calibri', 'Courier New'];
 export const LABEL_LAYOUTS: LabelLayout[] = ['SIDE_BY_SIDE', 'STACKED'];
 export const LABEL_ALIGNS: LabelAlign[] = ['left', 'center'];
+export const LABEL_TITLE_STYLES: LabelTitleStyle[] = ['UKRPOSHTA', 'CLASSIC'];
+export const POSTAL_STYLES: PostalStyle[] = ['BOXES', 'TEXT'];
+/** As Ukrposhta asks: the name, the address, the index the last line of the address; the phone apart. */
+export const LABEL_LINES: LabelLine[] = ['name', 'address', 'phone', 'postalCode'];
+export const LABEL_PARTIES: LabelPartyKey[] = ['sender', 'recipient'];
 
-/** As the labels looked before the settings: Times New Roman, one label across A4, sender | recipient. */
+/** Titles of the blocks. */
+export const LABEL_TITLES: Record<LabelTitleStyle, Record<LabelPartyKey, string>> = {
+  UKRPOSHTA: { sender: 'Від кого:', recipient: 'Кому:' },
+  CLASSIC: { sender: 'Відправник:', recipient: 'Отримувач:' },
+};
+
+/** Digits of a Ukrainian postal index — the number of cells. */
+export const POSTAL_CODE_DIGITS = 5;
+
+/** Times New Roman, one label across A4, sender | recipient, the template of Ukrposhta. */
 export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   mode: 'SHEET',
   font: 'Times New Roman',
@@ -50,6 +68,10 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   postalBold: true,
   align: 'left',
   showTitles: true,
+  titleStyle: 'UKRPOSHTA',
+  postalStyle: 'BOXES',
+  lineOrder: [...LABEL_LINES],
+  partyOrder: [...LABEL_PARTIES],
   showPhone: true,
   postalPrefix: true,
   layout: 'SIDE_BY_SIDE',
@@ -91,6 +113,16 @@ export const LABEL_JOURNAL_PREFIX = 'label:';
 export const LABEL_VALUE_TEXT: Record<string, string> = {
   SHEET: 'наклейки на A4',
   ENVELOPE: 'друк на конверті',
+  UKRPOSHTA: '«Від кого / Кому» (Укрпошта)',
+  CLASSIC: '«Відправник / Отримувач»',
+  BOXES: 'у клітинках',
+  TEXT: 'текстом',
+  name: 'назва',
+  address: 'адреса',
+  postalCode: 'індекс',
+  phone: 'телефон',
+  sender: 'відправник',
+  recipient: 'отримувач',
   SIDE_BY_SIDE: 'поруч',
   STACKED: 'одне під одним',
   left: 'ліворуч',

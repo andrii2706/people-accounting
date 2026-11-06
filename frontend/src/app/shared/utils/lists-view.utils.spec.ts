@@ -103,6 +103,7 @@ describe('витяги для ТЦК', () => {
       tckName: 'Сихівський РТЦК та СП',
       sections: { OFFICERS: 2, SOLDIERS: 5, WOMEN: 1, CONSCRIPTS: 3 },
       total: 11,
+      lastLetter: null,
     };
     expect(extractCount(item, new Set(['OFFICERS', 'WOMEN']))).toBe(3);
   });

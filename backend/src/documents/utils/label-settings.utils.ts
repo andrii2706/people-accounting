@@ -4,10 +4,19 @@ import {
   A4_MM,
   DEFAULT_LABEL_SETTINGS,
   ENVELOPE_SIZES,
+  LABEL_LINES,
+  LABEL_PARTIES,
   LABEL_SETTING_FIELDS,
   PAGE_TAIL_MM,
   PRINT_EDGE_MM,
 } from '../label-settings.constants.js';
+
+/** Every item of `all` exactly once, in any order. */
+export const isPermutation = (value: unknown, all: readonly string[]): boolean =>
+  Array.isArray(value) &&
+  value.length === all.length &&
+  new Set(value).size === all.length &&
+  value.every((v) => all.includes(v as string));
 
 /** Saved settings with the defaults for keys added later (or none saved — the defaults). */
 export function withLabelDefaults(saved: Partial<LabelSettings> | null | undefined): LabelSettings {
@@ -16,7 +25,23 @@ export function withLabelDefaults(saved: Partial<LabelSettings> | null | undefin
     const value = saved?.[key];
     if (value !== undefined && value !== null) (out as Record<string, unknown>)[key] = value;
   }
+  if (!isPermutation(out.lineOrder, LABEL_LINES)) out.lineOrder = [...LABEL_LINES];
+  if (!isPermutation(out.partyOrder, LABEL_PARTIES)) out.partyOrder = [...LABEL_PARTIES];
   return out;
+}
+
+/**
+ * The address without its postal index — the index is printed once, on its own line (or in the cells).
+ * «79000, м. Львів, вул. Зразкова, 1» → «м. Львів, вул. Зразкова, 1».
+ */
+export function stripPostalCode(address: string, code: string): string {
+  const text = address.trim();
+  if (!code) return text;
+  return text
+    .replace(new RegExp(`(^|[\\s,;])${code}(?=$|[\\s,;])`, 'g'), '$1')
+    .replace(/\s*([,;])(\s*[,;])+/g, '$1')
+    .replace(/^[\s,;]+|[\s,;]+$/g, '')
+    .replace(/\s{2,}/g, ' ');
 }
 
 /** Millimetres → twips of Word (1/1440 inch). */
@@ -88,3 +113,9 @@ export function labelSettingsProblems(s: LabelSettings): FieldError[] {
   }
   return out;
 }
+
+/** «Індекс: 79000» or just «79000»; a blank to write by hand when the code is unknown. */
+export const postalLine = (code: string, prefix: boolean) => {
+  const value = code || '________';
+  return prefix ? `Індекс: ${value}` : value;
+};

@@ -5,6 +5,7 @@ import {
   labelPages,
   labelSettingsProblems,
   labelsPerPage,
+  moveItem,
   pageRules,
   withEnvelope,
 } from './label-settings.utils';
@@ -23,6 +24,13 @@ describe('наклейки: розрахунки', () => {
     expect(labelsPerPage(s())).toBe(4);
     expect(labelsPerPage(s({ columns: 2, labelWidthMm: 80 }))).toBe(8);
     expect(labelsPerPage(s({ mode: 'ENVELOPE' }))).toBe(1);
+  });
+
+  it('перетягування: елемент переходить на нове місце, інші — по порядку', () => {
+    const lines = ['name', 'address', 'phone', 'postalCode'];
+    expect(moveItem(lines, 3, 0)).toEqual(['postalCode', 'name', 'address', 'phone']);
+    expect(moveItem(lines, 0, 2)).toEqual(['address', 'phone', 'name', 'postalCode']);
+    expect(lines).toEqual(['name', 'address', 'phone', 'postalCode']);
   });
 
   it('новий формат конверта переносить і місця блоків', () => {

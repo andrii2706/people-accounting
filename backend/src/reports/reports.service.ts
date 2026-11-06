@@ -30,11 +30,13 @@ import type {
   ListsDocxOptions,
   ListsFilter,
   TckExtractSummary,
+  TckLetterRef,
 } from '../shared/interfaces/report.interface.js';
 import type { OperationalRowData } from '../shared/interfaces/document.interface.js';
 import type { EntityQuota } from '../shared/interfaces/legal-entity.interface.js';
 import type { LetterNumberDate } from '../shared/interfaces/letter.interface.js';
 import { OPERATIONAL_REPORT_SINCE } from './reports.constants.js';
+import { OutgoingLetter } from '../letters/entities/outgoing-letter.entity.js';
 import { OPERATIONAL_REPORT_TITLES } from './reports.constants.js';
 import type { OperationalReportData } from '../shared/interfaces/document.interface.js';
 
@@ -170,9 +172,10 @@ export class ReportsService {
 
   /** Extracts overview: every TCK with the number of people in each of the four lists. */
   async extracts(date: IsoDate = todayIso(), legalEntityId: string | null = null): Promise<TckExtractSummary[]> {
-    const [data, tcks] = await Promise.all([
+    const [data, tcks, letters] = await Promise.all([
       this.lists(date, { legalEntityId }),
       this.tcks.find({ select: { id: true, name: true } }),
+      this.lastExtractLetters(legalEntityId),
     ]);
     const names = new Map(tcks.map((t) => [t.id, t.name]));
     const byTck = new Map<string | null, TckExtractSummary>();
@@ -184,6 +187,7 @@ export class ReportsService {
           tckName: row.tckId ? (names.get(row.tckId) ?? '') : '',
           sections: Object.fromEntries(LIST_SECTIONS.map((s) => [s, 0])) as Record<ListSection, number>,
           total: 0,
+          lastLetter: row.tckId ? (letters.get(row.tckId) ?? null) : null,
         };
         byTck.set(row.tckId, item);
       }
@@ -194,6 +198,24 @@ export class ReportsService {
     return [...byTck.values()].sort((a, b) =>
       !a.tckId ? 1 : !b.tckId ? -1 : a.tckName.localeCompare(b.tckName, 'uk'),
     );
+  }
+
+  /** The latest registered extract to each TCK (of one legal entity, or of all of them). */
+  private async lastExtractLetters(legalEntityId: string | null): Promise<Map<string, TckLetterRef>> {
+    const qb = this.employees.manager
+      .getRepository(OutgoingLetter)
+      .createQueryBuilder('l')
+      .select(['l.id', 'l.number', 'l.date', 'l.status', 'l.tckId'])
+      .where(`l.type = 'LISTS' AND l."tckId" IS NOT NULL AND (l.params->>'byTck') = 'true'`)
+      .orderBy('l.date', 'DESC')
+      .addOrderBy('l.sequence', 'DESC');
+    if (legalEntityId) qb.andWhere('l."legalEntityId" = :legalEntityId', { legalEntityId });
+    const out = new Map<string, TckLetterRef>();
+    for (const l of await qb.getMany()) {
+      if (l.tckId && !out.has(l.tckId))
+        out.set(l.tckId, { id: l.id, number: l.number, date: l.date, status: l.status });
+    }
+    return out;
   }
 
   /** Operational registration report (Annex 12) — formulas OCL!D12:I16. */

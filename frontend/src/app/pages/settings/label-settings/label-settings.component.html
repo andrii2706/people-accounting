@@ -48,6 +48,102 @@
       </div>
     </section>
 
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Шаблон і порядок</h2>
+      <p class="mb-4 text-xs text-muted">
+        За шаблоном Укрпошти: «Від кого» і «Кому», адреса, індекс — останнім рядком, у клітинках.
+        Індекс друкується один раз: з адреси його прибрано. Порядок рядків і блоків — перетягніть
+        мишкою або стрілками.
+      </p>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <div>
+          <span class="label">Підписи блоків</span>
+          <div class="segmented" role="group" aria-label="Підписи блоків">
+            @for (o of titleStyles; track o.value) {
+              <button
+                type="button"
+                class="segmented-item"
+                [attr.aria-pressed]="model().titleStyle === o.value"
+                (click)="set('titleStyle', o.value)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+        </div>
+        <div>
+          <span class="label">Індекс</span>
+          <div class="segmented" role="group" aria-label="Індекс">
+            @for (o of postalStyles; track o.value) {
+              <button
+                type="button"
+                class="segmented-item"
+                [attr.aria-pressed]="model().postalStyle === o.value"
+                (click)="set('postalStyle', o.value)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="mt-4 grid gap-2 text-sm">
+        <label class="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            class="size-4 cursor-pointer accent-brand-600"
+            [formField]="labelForm.showTitles"
+          />
+          Друкувати підписи блоків
+        </label>
+        @if (model().postalStyle === 'TEXT') {
+          <label class="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              class="size-4 cursor-pointer accent-brand-600"
+              [formField]="labelForm.postalPrefix"
+            />
+            Слово «Індекс:» перед індексом
+          </label>
+        }
+        <label class="flex cursor-pointer items-center gap-2">
+          <input
+            type="checkbox"
+            class="size-4 cursor-pointer accent-brand-600"
+            [formField]="labelForm.showPhone"
+          />
+          Телефон (якщо вказаний у юрособі чи ТЦК)
+        </label>
+      </div>
+      <div class="mt-5 grid gap-5 sm:grid-cols-2">
+        <div>
+          <span class="label">Рядки в блоці — згори вниз</span>
+          <app-sortable-list
+            ariaLabel="Порядок рядків"
+            [items]="lineItems()"
+            (reorder)="setLineOrder($event)"
+          />
+        </div>
+        <div>
+          <span class="label">
+            Блоки на наклейці —
+            {{ model().layout === 'STACKED' ? 'згори вниз' : 'зліва направо' }}
+          </span>
+          @if (model().mode === 'SHEET') {
+            <app-sortable-list
+              ariaLabel="Порядок блоків"
+              [items]="partyItems()"
+              (reorder)="setPartyOrder($event)"
+            />
+          } @else {
+            <p class="rounded-lg bg-sunken/60 px-3 py-2 text-xs text-muted">
+              На конверті місце кожного блоку задане в міліметрах — у розділі «Конверт».
+            </p>
+          }
+        </div>
+      </div>
+    </section>
+
     @if (model().mode === 'SHEET') {
       <section class="card p-5 sm:p-6">
         <h2 class="mb-1 font-semibold">Аркуш A4</h2>
@@ -247,37 +343,6 @@
             [formField]="labelForm.postalBold"
           />
           Індекс жирним
-        </label>
-      </div>
-    </section>
-
-    <section class="card p-5 sm:p-6">
-      <h2 class="mb-1 font-semibold">Що друкувати</h2>
-      <p class="mb-4 text-xs text-muted">Назва, адреса й індекс друкуються завжди.</p>
-      <div class="grid gap-2 text-sm">
-        <label class="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            class="size-4 cursor-pointer accent-brand-600"
-            [formField]="labelForm.showTitles"
-          />
-          Підписи «Відправник:» і «Отримувач:»
-        </label>
-        <label class="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            class="size-4 cursor-pointer accent-brand-600"
-            [formField]="labelForm.postalPrefix"
-          />
-          Слово «Індекс:» перед індексом
-        </label>
-        <label class="flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            class="size-4 cursor-pointer accent-brand-600"
-            [formField]="labelForm.showPhone"
-          />
-          Телефон (якщо вказаний у юрособі чи ТЦК)
         </label>
       </div>
     </section>

@@ -121,3 +121,11 @@ export const postalLine = (code: string, prefix: boolean) => {
   const value = code || '________';
   return prefix ? `Індекс: ${value}` : value;
 };
+
+/** The item moved from one place to another; the others keep their order. */
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
+  const out = [...items];
+  const [item] = out.splice(from, 1);
+  out.splice(to, 0, item);
+  return out;
+}

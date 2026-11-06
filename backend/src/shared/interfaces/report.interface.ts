@@ -1,4 +1,4 @@
-import type { LetterNumberDate } from './letter.interface.js';
+import type { LetterNumberDate, LetterStatus } from './letter.interface.js';
 import type { IsoDate } from './common.interface.js';
 import type { DutyCategory, ListGroup, ListSection } from './dictionary.interface.js';
 export interface ListRowView {
@@ -60,4 +60,12 @@ export interface TckExtractSummary {
   tckName: string;
   sections: Record<ListSection, number>;
   total: number;
+  /** The latest extract registered as a letter to this TCK: its outgoing number and date. */
+  lastLetter: TckLetterRef | null;
+}
+
+/** A registered letter to a TCK, for the extracts table. */
+export interface TckLetterRef extends LetterNumberDate {
+  id: string;
+  status: LetterStatus;
 }

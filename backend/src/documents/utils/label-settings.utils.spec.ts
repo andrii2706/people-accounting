@@ -4,7 +4,16 @@ import { buildEnvelopeLabels } from '../builders.js';
 import { DEFAULT_LABEL_SETTINGS, ENVELOPE_PLACEMENTS } from '../label-settings.constants.js';
 import type { EnvelopeLabel } from '../../shared/interfaces/document.interface.js';
 import type { LabelSettings } from '../../shared/interfaces/label-settings.interface.js';
-import { labelSettingsProblems, labelsPerPage, rowsPerPage, twips, withLabelDefaults } from './label-settings.utils.js';
+import {
+  labelSettingsProblems,
+  labelsPerPage,
+  rowsPerPage,
+  stripPostalCode,
+  twips,
+  withLabelDefaults,
+} from './label-settings.utils.js';
+import { senderParty } from './label-party.utils.js';
+import type { Organization } from '../../organization/organization.entity.js';
 
 const settings = (over: Partial<LabelSettings> = {}): LabelSettings => ({ ...DEFAULT_LABEL_SETTINGS, ...over });
 
@@ -23,6 +32,40 @@ describe('налаштування наклейок', () => {
   it('без збережених — як було раніше; нові ключі добираються зі стандартних', () => {
     expect(withLabelDefaults(null)).toEqual(DEFAULT_LABEL_SETTINGS);
     expect(withLabelDefaults({ font: 'Arial' })).toMatchObject({ font: 'Arial', nameSize: 13, mode: 'SHEET' });
+  });
+
+  it('зіпсований порядок рядків чи блоків — стандартний', () => {
+    expect(withLabelDefaults({ lineOrder: ['name', 'name', 'phone', 'address'] }).lineOrder).toEqual([
+      'name',
+      'address',
+      'phone',
+      'postalCode',
+    ]);
+    expect(withLabelDefaults({ partyOrder: ['recipient', 'sender'] }).partyOrder).toEqual(['recipient', 'sender']);
+  });
+
+  it('індекс лише один раз: прибирається з адреси', () => {
+    expect(stripPostalCode('79000, м. Львів, вул. Зразкова, 1', '79000')).toBe('м. Львів, вул. Зразкова, 1');
+    expect(stripPostalCode('вул. Умовна, 2, м. Київ, 02093', '02093')).toBe('вул. Умовна, 2, м. Київ');
+    expect(stripPostalCode('вул. Умовна, 2, 79007, м. Львів', '79007')).toBe('вул. Умовна, 2, м. Львів');
+    expect(stripPostalCode('вул. Умовна, 2 79007 м. Львів', '79007')).toBe('вул. Умовна, 2 м. Львів');
+    // інший п’ятизначний номер не чіпаємо
+    expect(stripPostalCode('вул. Умовна, 12345, м. Львів', '79007')).toBe('вул. Умовна, 12345, м. Львів');
+    expect(stripPostalCode('вул. Умовна, 2', '')).toBe('вул. Умовна, 2');
+  });
+
+  it('відправник: індекс з адреси, сама адреса — без нього', () => {
+    const org = {
+      shortName: 'ТОВ «Приклад»',
+      fullName: '',
+      address: '79000, м. Львів, вул. Тестова, 1',
+      postalCode: '',
+      phone: '',
+    };
+    expect(senderParty(org as unknown as Organization)).toMatchObject({
+      address: 'м. Львів, вул. Тестова, 1',
+      postalCode: '79000',
+    });
   });
 
   it('мм → twips', () => {
@@ -71,7 +114,13 @@ describe('наклейки .docx за налаштуваннями', () => {
       await buildEnvelopeLabels([
         {
           legalEntityId: 'le1',
-          settings: settings({ font: 'Arial', showTitles: false, showPhone: false, postalPrefix: false }),
+          settings: settings({
+            font: 'Arial',
+            showTitles: false,
+            showPhone: false,
+            postalPrefix: false,
+            postalStyle: 'TEXT',
+          }),
           labels: [LABEL],
         },
       ]),
@@ -88,9 +137,40 @@ describe('наклейки .docx за налаштуваннями', () => {
       await buildEnvelopeLabels([{ legalEntityId: 'le1', settings: settings(), labels: Array(9).fill(LABEL) }]),
     );
     expect(xml.match(/w:type="page"/g)).toHaveLength(2);
-    expect(xml.match(/Відправник:/g)).toHaveLength(9);
+    expect(xml.match(/Від кого:/g)).toHaveLength(9);
+    expect(xml.match(/Кому:/g)).toHaveLength(9);
     // наклейка точної висоти: 55 мм
     expect(xml).toContain(`w:val="${twips(55)}" w:hRule="exact"`);
+  });
+
+  it('шаблон Укрпошти: індекс у п’яти клітинках, по цифрі; без індексу — порожні клітинки', async () => {
+    const xml = await documentXml(
+      await buildEnvelopeLabels([{ legalEntityId: 'le1', settings: settings(), labels: [LABEL] }]),
+    );
+    // 79000 — цифри окремими клітинками
+    for (const d of ['7', '9', '0']) expect(xml).toContain(`<w:t xml:space="preserve">${d}</w:t>`);
+    expect(xml).not.toContain('Індекс:');
+    // клітинки є і в отримувача (індекс невідомий)
+    expect(xml.match(/<w:tblW w:type="dxa" w:w="2030"\/>/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it('порядок: отримувач ліворуч, індекс перед назвою', async () => {
+    const xml = await documentXml(
+      await buildEnvelopeLabels([
+        {
+          legalEntityId: 'le1',
+          settings: settings({
+            partyOrder: ['recipient', 'sender'],
+            lineOrder: ['postalCode', 'name', 'address', 'phone'],
+            postalStyle: 'TEXT',
+            titleStyle: 'CLASSIC',
+          }),
+          labels: [LABEL],
+        },
+      ]),
+    );
+    expect(xml.indexOf('Отримувач:')).toBeLessThan(xml.indexOf('Відправник:'));
+    expect(xml.indexOf('Індекс: 79000')).toBeLessThan(xml.indexOf('ТОВ «Приклад»'));
   });
 
   it('конверт DL: сторінка 220×110 мм, відступи — місце відправника', async () => {

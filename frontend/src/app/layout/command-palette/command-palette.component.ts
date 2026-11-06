@@ -1,3 +1,4 @@
+import { REPORT_NAMES } from '../../shared/constants/lists.constants';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -61,21 +62,21 @@ export class CommandPaletteComponent {
     {
       id: 'a-lists',
       icon: 'table',
-      title: 'Списки (Дод. 5)',
+      title: REPORT_NAMES.lists,
       hint: 'Звітність',
       go: () => this.open(['/reports/lists']),
     },
     {
       id: 'a-operational',
       icon: 'file',
-      title: 'Відомість (Дод. 12)',
+      title: REPORT_NAMES.operational,
       hint: 'Звітність',
       go: () => this.open(['/reports/operational']),
     },
     {
       id: 'a-extracts',
       icon: 'copy',
-      title: 'Витяги для ТЦК',
+      title: REPORT_NAMES.extracts,
       hint: 'Звітність',
       go: () => this.open(['/reports/extracts']),
     },

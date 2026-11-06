@@ -27,6 +27,7 @@ import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { LabelSheetComponent } from '../../../shared/components/label-sheet/label-sheet.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
+import { SortableListComponent } from '../../../shared/components/sortable-list/sortable-list.component';
 import {
   DEFAULT_LABEL_SETTINGS,
   ENVELOPE_OPTIONS,
@@ -36,14 +37,20 @@ import {
   LABEL_FONT_OPTIONS,
   LABEL_GEOMETRY_FIELDS,
   LABEL_LAYOUT_OPTIONS,
+  LABEL_LINE_LABELS,
   LABEL_MODE_OPTIONS,
+  LABEL_PARTY_LABELS,
+  LABEL_TITLE_STYLE_OPTIONS,
   LABEL_NUMBER_RULES,
   LABEL_PREVIEW_WIDTH_PX,
+  POSTAL_STYLE_OPTIONS,
   PX_PER_MM,
 } from '../../../shared/constants/label-settings.constants';
 import type {
   EnvelopeFormat,
+  LabelLine,
   LabelPage,
+  LabelPartyKey,
   LabelSettings,
   LabelSettingsPageData,
   LabelTestPrintState,
@@ -74,6 +81,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
     IconComponent,
     LabelSheetComponent,
     SelectComponent,
+    SortableListComponent,
     RouterLink,
   ],
   templateUrl: './label-settings.component.html',
@@ -94,6 +102,8 @@ export class LabelSettingsComponent {
   protected readonly layouts = LABEL_LAYOUT_OPTIONS;
   protected readonly aligns = LABEL_ALIGN_OPTIONS;
   protected readonly columnOptions = LABEL_COLUMN_OPTIONS;
+  protected readonly titleStyles = LABEL_TITLE_STYLE_OPTIONS;
+  protected readonly postalStyles = POSTAL_STYLE_OPTIONS;
 
   protected readonly model = linkedSignal<LabelSettings>(() => ({ ...this.data().settings }));
   protected readonly problems = computed(() => labelSettingsProblems(this.model()));
@@ -154,6 +164,21 @@ export class LabelSettingsComponent {
 
   protected set<K extends keyof LabelSettings>(key: K, value: LabelSettings[K]) {
     this.model.update((m) => ({ ...m, [key]: value }));
+  }
+
+  protected readonly lineItems = computed(() =>
+    this.model().lineOrder.map((value) => ({ value, label: LABEL_LINE_LABELS[value] })),
+  );
+  protected readonly partyItems = computed(() =>
+    this.model().partyOrder.map((value) => ({ value, label: LABEL_PARTY_LABELS[value] })),
+  );
+
+  protected setLineOrder(order: string[]) {
+    this.set('lineOrder', order as LabelLine[]);
+  }
+
+  protected setPartyOrder(order: string[]) {
+    this.set('partyOrder', order as LabelPartyKey[]);
   }
 
   protected setEnvelope(value: string) {

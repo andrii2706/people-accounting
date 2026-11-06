@@ -6,8 +6,12 @@ import type {
   LabelAlign,
   LabelFont,
   LabelLayout,
+  LabelLine,
   LabelMode,
+  LabelPartyKey,
   LabelSettings,
+  LabelTitleStyle,
+  PostalStyle,
 } from '../interfaces/label-settings.interface';
 
 /** The same values as on the server (documents/label-settings.constants.ts). */
@@ -57,6 +61,39 @@ export const ENVELOPE_PLACEMENTS: Record<EnvelopeFormat, EnvelopePlacement> = {
   },
 };
 
+/** As Ukrposhta asks: the name, the address, the index the last line; the phone apart. */
+export const LABEL_LINES: LabelLine[] = ['name', 'address', 'phone', 'postalCode'];
+export const LABEL_PARTIES: LabelPartyKey[] = ['sender', 'recipient'];
+
+export const LABEL_LINE_LABELS: Record<LabelLine, string> = {
+  name: 'Назва',
+  address: 'Адреса',
+  postalCode: 'Індекс',
+  phone: 'Телефон',
+};
+
+export const LABEL_PARTY_LABELS: Record<LabelPartyKey, string> = {
+  sender: 'Відправник (юрособа)',
+  recipient: 'Отримувач (ТЦК)',
+};
+
+export const LABEL_TITLES: Record<LabelTitleStyle, Record<LabelPartyKey, string>> = {
+  UKRPOSHTA: { sender: 'Від кого:', recipient: 'Кому:' },
+  CLASSIC: { sender: 'Відправник:', recipient: 'Отримувач:' },
+};
+
+export const POSTAL_CODE_DIGITS = 5;
+
+export const LABEL_TITLE_STYLE_OPTIONS: { value: LabelTitleStyle; label: string }[] = [
+  { value: 'UKRPOSHTA', label: '«Від кого» / «Кому»' },
+  { value: 'CLASSIC', label: '«Відправник» / «Отримувач»' },
+];
+
+export const POSTAL_STYLE_OPTIONS: { value: PostalStyle; label: string }[] = [
+  { value: 'BOXES', label: 'У клітинках' },
+  { value: 'TEXT', label: 'Текстом' },
+];
+
 export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   mode: 'SHEET',
   font: 'Times New Roman',
@@ -69,6 +106,10 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   postalBold: true,
   align: 'left',
   showTitles: true,
+  titleStyle: 'UKRPOSHTA',
+  postalStyle: 'BOXES',
+  lineOrder: [...LABEL_LINES],
+  partyOrder: [...LABEL_PARTIES],
   showPhone: true,
   postalPrefix: true,
   layout: 'SIDE_BY_SIDE',
@@ -138,8 +179,6 @@ export const LABEL_FONT_STACKS: Record<LabelFont, string> = {
   Calibri: "Calibri, 'Carlito', 'Segoe UI', sans-serif",
   'Courier New': "'Courier New', 'Liberation Mono', 'Cousine', monospace",
 };
-
-export const LABEL_TITLES = { sender: 'Відправник:', recipient: 'Отримувач:' } as const;
 
 /** The print page: white paper even with «background graphics» on. */
 export const PRINT_PAGE_RULES = '@media print { html, body { background: #fff !important; } }';

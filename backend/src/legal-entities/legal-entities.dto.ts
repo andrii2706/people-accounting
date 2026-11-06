@@ -2,6 +2,7 @@ import { applyDecorators } from '@nestjs/common';
 import { PartialType } from '@nestjs/swagger';
 import type { AccessRole } from '../shared/interfaces/legal-entity.interface.js';
 import {
+  IsArray,
   IsBoolean,
   IsIn,
   IsInt,
@@ -23,15 +24,24 @@ import {
   LABEL_FONTS,
   LABEL_LAYOUTS,
   LABEL_LIMITS,
+  LABEL_LINES,
   LABEL_MODES,
+  LABEL_PARTIES,
+  LABEL_TITLE_STYLES,
+  POSTAL_STYLES,
 } from '../documents/label-settings.constants.js';
+import { isPermutation } from '../documents/utils/label-settings.utils.js';
 import type {
   EnvelopeFormat,
   LabelAlign,
   LabelFont,
   LabelLayout,
+  LabelLine,
   LabelMode,
+  LabelPartyKey,
   LabelSettings,
+  LabelTitleStyle,
+  PostalStyle,
 } from '../shared/interfaces/label-settings.interface.js';
 
 const Required = (max: number, message: string) =>
@@ -139,6 +149,14 @@ export class LabelSettingsDto implements LabelSettings {
   @IsBoolean() postalBold: boolean;
   @IsIn(LABEL_ALIGNS, { message: 'Ліворуч або по центру' }) align: LabelAlign;
   @IsBoolean() showTitles: boolean;
+  @IsIn(LABEL_TITLE_STYLES, { message: 'Укрпошта або «Відправник / Отримувач»' }) titleStyle: LabelTitleStyle;
+  @IsIn(POSTAL_STYLES, { message: 'У клітинках або текстом' }) postalStyle: PostalStyle;
+  @IsArray()
+  @Rule((v: unknown) => isPermutation(v, LABEL_LINES), 'Кожен рядок — назва, адреса, індекс, телефон — один раз')
+  lineOrder: LabelLine[];
+  @IsArray()
+  @Rule((v: unknown) => isPermutation(v, LABEL_PARTIES), 'Відправник і отримувач — кожен один раз')
+  partyOrder: LabelPartyKey[];
   @IsBoolean() showPhone: boolean;
   @IsBoolean() postalPrefix: boolean;
 

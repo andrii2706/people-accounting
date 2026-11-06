@@ -17,7 +17,7 @@ export const REPORTS_ROUTES: Routes = [
   },
   {
     path: 'extracts',
-    title: 'Витяги зі списків для ТЦК · Військовий облік',
+    title: 'Виписки для звірок · Військовий облік',
     resolve: { extracts: extractsResolver },
     runGuardsAndResolvers: 'paramsOrQueryParamsChange',
     loadComponent: () => import('./extracts/extracts.component').then((m) => m.ExtractsComponent),

@@ -1,3 +1,4 @@
+import type { LetterStatus } from './letter.interface';
 import type { Warning } from './common.interface';
 import type { DutyCategory, ListGroup, ListSection } from './dictionary.interface';
 
@@ -155,6 +156,16 @@ export interface TckExtractSummary {
   tckName: string;
   sections: Record<ListSection, number>;
   total: number;
+  /** The latest extract registered as a letter to this TCK. */
+  lastLetter: TckLetterRef | null;
+}
+
+/** A registered letter to a TCK: its outgoing number and date. */
+export interface TckLetterRef {
+  id: string;
+  number: string;
+  date: string;
+  status: LetterStatus;
 }
 
 /** Quota use of one legal entity on the dashboard. */
