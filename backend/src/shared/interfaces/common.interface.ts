@@ -24,7 +24,10 @@ export type AuditAction =
   | 'LOGOUT'
   | 'PASSWORD_CHANGED'
   | 'PASSWORD_RESET'
-  | 'USER_UPDATED';
+  | 'USER_UPDATED'
+  | 'REGISTER'
+  | 'REGISTER_REJECTED'
+  | 'OFFER_SIGNED';
 
 /** Postgres error details of a TypeORM QueryFailedError. */
 export interface PgDriverError {

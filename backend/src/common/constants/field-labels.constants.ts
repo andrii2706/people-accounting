@@ -38,7 +38,11 @@ export const LEGAL_ENTITY_LABELS: Record<string, string> = {
   responsiblePhone: 'Телефон відповідального',
   responsibleUserId: 'Користувач системи',
   reservationQuotaPercent: 'Квота бронювання, %',
-  reservationQuotaBasis: 'Підстава квоти',
+  reservationQuotaDocName: 'Документ про критичність',
+  reservationQuotaAuthority: 'Орган, що видав документ',
+  reservationQuotaDocDate: 'Дата документа',
+  reservationQuotaDocNumber: 'Номер документа',
+  reservationQuotaValidUntil: 'Критичність до (включно)',
   notifyEmails: 'Додаткові email для нагадувань',
 };
 
@@ -112,6 +116,8 @@ export const AUTH_LABELS: Record<string, string> = {
   password: 'Пароль',
   currentPassword: 'Поточний пароль',
   newPassword: 'Новий пароль',
+  /** Raised by the service (a unique code), not by a request class. */
+  edrpou: 'Код ЄДРПОУ',
 };
 
 export const TCK_LABELS: Record<string, string> = {
@@ -170,6 +176,23 @@ export const LIST_ITEM_LABELS: Record<string, ListItemLabels> = {
     },
   },
   changeMeta: { title: 'Зміни', fields: { effectiveDate: 'Діють з', basis: 'Підстава' } },
+  seller: {
+    title: 'Постачальник',
+    fields: {
+      name: 'Назва',
+      code: 'Код ЄДРПОУ',
+      ipn: 'ІПН',
+      address: 'Адреса',
+      iban: 'IBAN',
+      bank: 'Банк',
+      phone: 'Телефон',
+      email: 'Email',
+      taxNote: 'Податковий статус',
+      vatPayer: 'Платник ПДВ',
+      signerName: 'Ім’я підписанта',
+      signerPosition: 'Посада підписанта',
+    },
+  },
 };
 
 export const BILLING_LABELS: Record<string, string> = {
@@ -179,7 +202,50 @@ export const BILLING_LABELS: Record<string, string> = {
   paymentContact: 'Контакт для оплати',
 };
 
+export const SIGNUP_LABELS: Record<string, string> = {
+  edrpou: 'Код ЄДРПОУ',
+  email: 'Робочий email',
+  consent: 'Згода',
+  website: 'Сайт',
+  signature: 'Файл підпису',
+};
+
+export const SUBSCRIPTION_LABELS: Record<string, string> = {
+  plan: 'Тариф',
+  note: 'Побажання',
+  monthlyPrice: 'Місячний тариф',
+  yearlyPrice: 'Річний тариф',
+  enterpriseText: 'Опис Enterprise',
+  serviceName: 'Назва послуги',
+  invoicePrefix: 'Префікс номера',
+  dueDays: 'Строк оплати',
+  trialDays: 'Пробний період',
+  until: 'Пробний період до',
+  months: 'Місяців',
+  total: 'Сума',
+  description: 'Рядок рахунку',
+  paidAt: 'Дата оплати',
+};
+
+export const ENTITY_DATABASE_LABELS: Record<string, string> = {
+  host: 'Адреса сервера',
+  port: 'Порт',
+  database: 'Назва бази',
+  username: 'Користувач',
+  password: 'Пароль',
+  sslMode: 'Шифрування',
+};
+
 export const LABELS_BY_REQUEST: Record<string, Record<string, string>> = {
+  SignupStatementDto: SIGNUP_LABELS,
+  SignupSignDto: SIGNUP_LABELS,
+  OfferSignDto: SIGNUP_LABELS,
+  ChoosePlanDto: SUBSCRIPTION_LABELS,
+  BillingSettingsDto: SUBSCRIPTION_LABELS,
+  ExtendTrialDto: SUBSCRIPTION_LABELS,
+  VendorInvoiceDto: SUBSCRIPTION_LABELS,
+  MarkPaidDto: SUBSCRIPTION_LABELS,
+  EntityDatabaseDto: ENTITY_DATABASE_LABELS,
   UpdateOrganizationDto: ORGANIZATION_LABELS,
   CreateLegalEntityDto: LEGAL_ENTITY_LABELS,
   UpdateLegalEntityDto: LEGAL_ENTITY_LABELS,

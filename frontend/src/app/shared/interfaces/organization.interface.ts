@@ -22,6 +22,10 @@ export interface NotificationStatus {
   recipients: number;
   mobilizationUntil: string | null;
   mobilizationDecree: string;
+  /** No decree yet — the term was extended by 90 days automatically. */
+  mobilizationEstimated: boolean;
+  /** The last term confirmed by a decree (or entered by hand). */
+  mobilizationConfirmedUntil: string | null;
   mobilizationCheckedAt: string | null;
 }
 

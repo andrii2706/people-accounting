@@ -22,7 +22,11 @@ export const EMPTY_LEGAL_ENTITY: LegalEntityForm = {
   responsiblePosition: '',
   responsiblePhone: '',
   reservationQuotaPercent: '',
-  reservationQuotaBasis: '',
+  reservationQuotaDocName: '',
+  reservationQuotaAuthority: '',
+  reservationQuotaDocDate: '',
+  reservationQuotaDocNumber: '',
+  reservationQuotaValidUntil: '',
   notifyEmails: '',
 };
 

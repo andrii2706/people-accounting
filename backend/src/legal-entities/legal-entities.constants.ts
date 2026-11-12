@@ -35,6 +35,8 @@ export const ENTITY_ACTION_LABELS: Record<string, string> = {
   CREATE: 'Додано юрособу',
   UPDATE: 'Змінено дані',
   DELETE: 'Видалено юрособу',
+  REGISTER: 'Зареєстровано керівником з КЕП',
+  OFFER_SIGNED: 'Оферту підписано КЕП керівника',
 };
 
 /** Journal fields that are not columns of the form. */
@@ -62,7 +64,11 @@ export const ENTITY_FORM_FIELDS = [
   'responsiblePosition',
   'responsiblePhone',
   'reservationQuotaPercent',
-  'reservationQuotaBasis',
+  'reservationQuotaDocName',
+  'reservationQuotaAuthority',
+  'reservationQuotaDocDate',
+  'reservationQuotaDocNumber',
+  'reservationQuotaValidUntil',
   'notifyEmails',
 ] as const;
 

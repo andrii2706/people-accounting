@@ -73,6 +73,16 @@ export class NotificationsService {
   }
 
   /** The letter with a temporary password from the access mailbox. Never throws: false — not sent. */
+  /** A plain letter to the given addresses (e.g. the vendor about an Enterprise request). Never throws. */
+  async sendTo(emails: string[], subject: string, text: string): Promise<boolean> {
+    try {
+      return await this.mail.send(emails, subject, text);
+    } catch (err) {
+      this.logger.error(`Не вдалося надіслати лист «${subject}»`, err as Error);
+      return false;
+    }
+  }
+
   async sendTemporaryPassword(mail: TemporaryPasswordMail): Promise<boolean> {
     try {
       const role = ROLE_ACCESS_TEXT[mail.role as UserRole] ?? ROLE_ACCESS_TEXT.HR;

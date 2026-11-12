@@ -35,6 +35,8 @@ export class NotificationsController {
         : (await this.notifications.recipients(scopedEntity(scope, parseEntityId(entity)))).length,
       mobilizationUntil: org?.mobilizationUntil ?? null,
       mobilizationDecree: org?.mobilizationDecree ?? '',
+      mobilizationEstimated: org?.mobilizationEstimated ?? false,
+      mobilizationConfirmedUntil: org?.mobilizationConfirmedUntil ?? null,
       mobilizationCheckedAt: org?.mobilizationCheckedAt ?? null,
     };
   }

@@ -1,3 +1,4 @@
+import { CopyrightComponent } from '../../../shared/components/copyright/copyright.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -25,7 +26,14 @@ import { passwordProblems } from '../../../shared/validators/password.validators
 @Component({
   selector: 'app-reset-password',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormField, FormFieldComponent, IconComponent, RouterLink, UaDateTimePipe],
+  imports: [
+    FormField,
+    FormFieldComponent,
+    IconComponent,
+    RouterLink,
+    UaDateTimePipe,
+    CopyrightComponent,
+  ],
   templateUrl: './reset-password.component.html',
 })
 export class ResetPasswordComponent {

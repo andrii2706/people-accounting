@@ -1,4 +1,5 @@
 import { REPORT_NAMES } from '../../shared/constants/lists.constants';
+import { CopyrightComponent } from '../../shared/components/copyright/copyright.component';
 import {
   afterNextRender,
   ChangeDetectionStrategy,
@@ -14,6 +15,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { IconComponent } from '../../shared/components/icon/icon.component';
+import { AccountService } from '../../shared/services/account.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { EmployeesService } from '../../shared/services/employees.service';
 import { IdleTimeoutService } from '../../shared/services/idle-timeout.service';
@@ -40,6 +42,7 @@ import type { NavGroup } from '../../shared/interfaces/ui.interface';
     InboxListComponent,
     CommandPaletteComponent,
     BillingNoticeComponent,
+    CopyrightComponent,
   ],
   host: {
     '(document:keydown.escape)': 'closeInbox()',
@@ -49,6 +52,7 @@ import type { NavGroup } from '../../shared/interfaces/ui.interface';
 })
 export class ShellComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly account = inject(AccountService);
   private readonly dict = inject(DictionariesService);
   protected readonly menuOpen = signal(false);
   /** Indicator shown while resolvers load data of the next page. */
@@ -100,7 +104,7 @@ export class ShellComponent {
     // refreshed at most once a minute while moving between pages; always fresh on the dashboard
     effect(() => {
       this.navigationTick();
-      if (!this.auth.isAuthenticated() || this.auth.mustChangePassword()) return;
+      if (!this.auth.isAuthenticated() || !this.auth.onboarded()) return;
       void this.inbox.refresh(untracked(() => this.router.url) === '/' ? 0 : 60_000);
     });
     // right after a sign-in: check the debt for using the system
@@ -184,9 +188,10 @@ export class ShellComponent {
     { initialValue: 0 },
   );
 
-  // re-request the counter after every navigation; not requested before the temporary password is changed
+  // re-request the counter after every navigation; not requested before the temporary password is changed,
+  // the agreement accepted and the legal entity added
   private readonly pending = inject(EmployeesService).pendingChangesResource(() =>
-    this.auth.mustChangePassword() ? undefined : this.navigationTick(),
+    !this.auth.onboarded() || this.auth.needsEntity() ? undefined : this.navigationTick(),
   );
   protected readonly pendingCount = computed(() =>
     this.pending.hasValue() ? this.pending.value().length : 0,

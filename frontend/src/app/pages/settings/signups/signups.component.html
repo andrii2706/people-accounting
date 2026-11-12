@@ -1,0 +1,92 @@
+<app-page-header
+  eyebrow="Налаштування"
+  title="Реєстрації компаній"
+  subtitle="Самостійні реєстрації з КЕП керівника: підтверджені й відхилені. Про кожну відхилену спробу адміністраторам приходить лист."
+>
+  <a routerLink="/settings" class="btn btn-ghost cursor-pointer"
+    ><app-icon name="arrowLeft" /> Назад</a
+  >
+</app-page-header>
+
+<label class="mb-4 inline-flex cursor-pointer items-center gap-2 text-sm">
+  <input
+    type="checkbox"
+    class="size-4 cursor-pointer accent-brand-600"
+    [checked]="onlyRefused()"
+    (change)="onlyRefused.set($any($event.target).checked)"
+  />
+  Лише відхилені ({{ refused() }})
+</label>
+
+<div class="card overflow-x-auto">
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Коли</th>
+        <th>Код ЄДРПОУ і email</th>
+        <th>Підписант (сертифікат)</th>
+        <th>Керівник за ЄДР</th>
+        <th>Результат</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (r of shown(); track r.id) {
+        <tr>
+          <td class="text-sm whitespace-nowrap">
+            {{ r.completedAt ?? r.createdAt | uaDateTime }}
+            <p class="text-xs text-muted">IP {{ r.ip || '—' }}</p>
+          </td>
+          <td>
+            <p class="font-mono text-sm">{{ r.edrpou }}</p>
+            <p class="text-xs break-all text-muted">{{ r.email }}</p>
+          </td>
+          <td class="text-sm">
+            {{ r.signerName || '—' }}
+            @if (r.signerDrfoMasked || r.signerEdrpou) {
+              <p class="text-xs text-muted">
+                @if (r.signerDrfoMasked) {
+                  РНОКПП {{ r.signerDrfoMasked }}
+                }
+                @if (r.signerEdrpou) {
+                  · ЄДРПОУ {{ r.signerEdrpou }}
+                }
+              </p>
+            }
+            @if (r.signerIssuer) {
+              <p class="text-xs text-muted">{{ r.signerIssuer }}</p>
+            }
+          </td>
+          <td class="text-sm">{{ r.registryHeadName || '—' }}</td>
+          <td class="text-sm">
+            @if (r.status === 'APPROVED') {
+              <span class="font-medium text-ok">Підтверджено</span>
+              @if (r.legalEntityId) {
+                <p>
+                  <a
+                    class="cursor-pointer text-xs text-brand-600 hover:underline"
+                    [routerLink]="['/settings/legal-entities', r.legalEntityId]"
+                    >Юрособа</a
+                  >
+                </p>
+              }
+            } @else {
+              <span class="font-medium text-danger">{{
+                r.reason ? reasons[r.reason] : 'Відхилено'
+              }}</span>
+              @if (r.reasonText) {
+                <p class="text-xs text-muted">{{ r.reasonText }}</p>
+              }
+            }
+            @if (r.kepLevel === 'BASIC') {
+              <p class="text-xs text-warning">Перевірка без ланцюжка (розробка)</p>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="5" class="py-10 text-center text-sm text-muted">Реєстрацій ще не було.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>

@@ -1,6 +1,8 @@
 import type { Routes } from '@angular/router';
 import {
+  entityDatabaseResolver,
   labelSettingsResolver,
+  signupsResolver,
   organizationSettingsResolver,
   usersResolver,
 } from './resolvers/settings.resolvers';
@@ -8,7 +10,7 @@ import {
   legalEntitiesResolver,
   legalEntityPageResolver,
 } from '../legal-entities/resolvers/legal-entities.resolvers';
-import { entityCreatorGuard, managerGuard } from '../../shared/guards/auth.guard';
+import { adminGuard, entityCreatorGuard, managerGuard } from '../../shared/guards/auth.guard';
 
 /**
  * Settings: the legal entities (requisites, head, responsible person, quota, reminder addresses, envelope labels),
@@ -56,6 +58,15 @@ export const SETTINGS_ROUTES: Routes = [
       import('./label-settings/label-settings.component').then((m) => m.LabelSettingsComponent),
   },
   {
+    path: 'legal-entities/:id/database',
+    canActivate: [managerGuard],
+    title: 'Власна база даних · Військовий облік',
+    resolve: { data: entityDatabaseResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () =>
+      import('./entity-database/entity-database.component').then((m) => m.EntityDatabaseComponent),
+  },
+  {
     path: 'system',
     title: 'Загальні параметри · Військовий облік',
     resolve: { settings: organizationSettingsResolver },
@@ -64,6 +75,14 @@ export const SETTINGS_ROUTES: Routes = [
       import('./organization-settings/organization-settings.component').then(
         (m) => m.OrganizationSettingsComponent,
       ),
+  },
+  {
+    path: 'signups',
+    canActivate: [adminGuard],
+    title: 'Реєстрації компаній · Військовий облік',
+    resolve: { rows: signupsResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('./signups/signups.component').then((m) => m.SignupsComponent),
   },
   {
     path: 'users',

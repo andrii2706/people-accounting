@@ -10,6 +10,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+# the IIT library for the KEP check (backend/iit/README.md); only README and the example without it
+COPY --from=build /app/iit ./iit
 COPY package.json ./
 RUN mkdir -p storage/files && chown -R node:node storage
 USER node

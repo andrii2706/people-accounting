@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
@@ -32,11 +32,14 @@ import type {
   UserRole,
 } from '../shared/interfaces/auth.interface.js';
 import { BCRYPT_ROUNDS } from './users.constants.js';
+import { SIGNUP_ISSUER } from '../subscriptions/subscriptions.constants.js';
 import { DUMMY_HASH, ROLE_LABELS } from './users.constants.js';
 
 @Injectable()
 export class UsersService {
   private readonly env = loadEnv();
+
+  private readonly logger = new Logger(UsersService.name);
 
   constructor(
     @InjectRepository(User) private readonly repo: Repository<User>,
@@ -347,6 +350,51 @@ export class UsersService {
       ...letter,
     });
     return { user, temporaryPassword, mailSent, expiresAt };
+  }
+
+  /**
+   * Self sign-up of a director: an account without a legal entity, the temporary password goes to the e-mail
+   * (that confirms the address). An e-mail already registered gets nothing — the answer is the same, so the
+   * form does not reveal who has an account.
+   */
+  /** Is the e-mail free (the sign-up checks it before creating the legal entity). */
+  emailTaken(email: string) {
+    return this.repo.exists({ where: { email: email.trim().toLowerCase() } });
+  }
+
+  /**
+   * The head of a company that signed up with KEP: a director of the new legal entity with a temporary password
+   * sent to the work e-mail (that also confirms the address).
+   */
+  async registerHead(fullName: string, rawEmail: string, legalEntityId: string): Promise<User> {
+    const email = rawEmail.trim().toLowerCase();
+    const temporaryPassword = generateTemporaryPassword(randomBytes);
+    const expiresAt = this.temporaryUntil();
+    const user = await this.create(
+      { email, fullName, role: 'DIRECTOR', password: temporaryPassword, legalEntityId },
+      { silent: true },
+    );
+    await this.repo.update(user.id, { temporaryPasswordExpiresAt: expiresAt, signupSource: 'SELF' });
+    const mailSent = await this.notifications.sendTemporaryPassword({
+      email,
+      fullName: user.fullName,
+      role: 'DIRECTOR',
+      temporaryPassword,
+      expiresAt,
+      kind: 'SIGNUP',
+      issuedBy: { ...SIGNUP_ISSUER, email: this.env.accessMailFrom },
+    });
+    // local development without a mailbox: the password is only in the server log
+    if (!mailSent && !this.env.isProduction) {
+      this.logger.warn(`[розробка] пошту не налаштовано — тимчасовий пароль для ${email}: ${temporaryPassword}`);
+    }
+    return user;
+  }
+
+  /** Active main administrators — they are told about refused sign-ups. */
+  async adminEmails(): Promise<string[]> {
+    const admins = await this.repo.find({ where: { role: 'ADMIN', isActive: true }, select: { email: true } });
+    return admins.map((a) => a.email);
   }
 
   /** Until when a temporary password issued now is valid. */

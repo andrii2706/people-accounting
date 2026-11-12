@@ -4,7 +4,14 @@ import { isPlatformServer } from '@angular/common';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { AccountService } from '../services/account.service';
+import {
+  PLAN_REQUIRED,
+  SUBSCRIPTION_EXPIRED,
+  TERMS_REQUIRED,
+} from '../constants/subscription.constants';
 import type { ApiError } from '../interfaces/common.interface';
+import { redirectOnce } from '../utils/router.utils';
 
 /**
  * All requests go to the relative `/api` of the same origin (dev proxy or the Express proxy in server.ts),
@@ -27,12 +34,13 @@ export const apiInterceptor: HttpInterceptorFn = (req, next) => {
         injector.get(AuthService).markSignedOut();
         void router.navigate(['/login'], { queryParams: { returnUrl: router.url, expired: 1 } });
       }
-      // temporary password not changed yet
-      if (
-        error.status === 403 &&
-        (error.error as ApiError | null)?.code === 'PASSWORD_CHANGE_REQUIRED'
-      ) {
-        void router.navigate(['/profile']);
+      // temporary password not changed yet; the agreement; the plan / the payment
+      const code = error.status === 403 ? (error.error as ApiError | null)?.code : undefined;
+      if (code === 'PASSWORD_CHANGE_REQUIRED') redirectOnce(router, '/profile');
+      if (code === TERMS_REQUIRED) redirectOnce(router, '/account/terms');
+      if (code === PLAN_REQUIRED || code === SUBSCRIPTION_EXPIRED) {
+        injector.get(AccountService).forget();
+        redirectOnce(router, code === PLAN_REQUIRED ? '/account/plans' : '/account/subscription');
       }
       return throwError(() => error);
     }),

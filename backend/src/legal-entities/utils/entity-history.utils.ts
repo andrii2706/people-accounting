@@ -8,6 +8,7 @@ import type { LabelSettings } from '../../shared/interfaces/label-settings.inter
 import type { AuditLog } from '../../employees/entities/audit-log.entity.js';
 import type { HistoryEntry } from '../../shared/interfaces/employee.interface.js';
 import { ENTITY_ACTION_LABELS, ENTITY_HISTORY_LABELS } from '../legal-entities.constants.js';
+import { formatUa } from '../../common/utils/dates.utils.js';
 
 /** A value as text: objects as JSON (never «[object Object]»). */
 function text(v: unknown): string {
@@ -52,6 +53,7 @@ export function entityHistory(rows: AuditLog[]): HistoryEntry[] {
   const format = (field: string, v: unknown): string => {
     if (v === null || v === undefined || v === '') return '—';
     if (field === 'reservationQuotaPercent') return `${text(v).replace('.', ',')}%`;
+    if (field === 'reservationQuotaDocDate' || field === 'reservationQuotaValidUntil') return formatUa(text(v), '—');
     if (field.startsWith(LABEL_JOURNAL_PREFIX)) {
       if (Array.isArray(v)) return v.map((x) => LABEL_VALUE_TEXT[text(x)] ?? text(x)).join(' → ');
       return LABEL_VALUE_TEXT[text(v)] ?? text(v).replace('.', ',');

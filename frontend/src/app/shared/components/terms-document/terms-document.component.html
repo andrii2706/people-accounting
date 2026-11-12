@@ -1,0 +1,25 @@
+<article class="space-y-5 text-sm leading-relaxed">
+  <header>
+    <h2 class="text-lg font-semibold leading-snug">{{ doc().title }}</h2>
+    <p class="mt-1 text-xs text-muted">
+      Редакція від {{ doc().version.split('-').reverse().join('.') }}
+    </p>
+  </header>
+  <p class="indent-8 text-justify hyphens-auto">{{ doc().intro }}</p>
+  @for (section of doc().sections; track section.title) {
+    <section>
+      <h3 class="mb-1.5 font-semibold">{{ section.title }}</h3>
+      @for (paragraph of section.paragraphs; track $index) {
+        <p class="mb-1.5 indent-8 text-justify hyphens-auto">{{ paragraph }}</p>
+      }
+    </section>
+  }
+  @if (sellerLines().length) {
+    <section>
+      <h3 class="mb-1.5 font-semibold">10. Реквізити Виконавця</h3>
+      @for (line of sellerLines(); track $index) {
+        <p>{{ line }}</p>
+      }
+    </section>
+  }
+</article>

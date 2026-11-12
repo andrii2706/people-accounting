@@ -15,7 +15,8 @@ import {
   Min,
   ValidateIf,
 } from 'class-validator';
-import { OptionalStr, PhoneField, Rule } from '../common/validators/validators.js';
+import { DateField, OptionalStr, PhoneField, Rule } from '../common/validators/validators.js';
+import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import { MESSAGE, PATTERN } from '../military/employee-rules.js';
 import { ACCESS_ROLES } from './legal-entities.constants.js';
 import {
@@ -72,7 +73,12 @@ export class CreateLegalEntityDto {
   @Min(0, { message: 'Не менше 0' })
   @Max(100, { message: 'Не більше 100' })
   reservationQuotaPercent?: number | null;
-  @OptionalStr(300) reservationQuotaBasis?: string;
+  /** The document on the criticality: name, authority, date, number; the criticality lasts until (inclusive). */
+  @OptionalStr(300) reservationQuotaDocName?: string;
+  @OptionalStr(300) reservationQuotaAuthority?: string;
+  @DateField() reservationQuotaDocDate?: IsoDate | null;
+  @OptionalStr(100) reservationQuotaDocNumber?: string;
+  @DateField() reservationQuotaValidUntil?: IsoDate | null;
   /** Extra e-mail addresses for reminders, comma-separated. */
   @OptionalStr(500)
   @Rule(

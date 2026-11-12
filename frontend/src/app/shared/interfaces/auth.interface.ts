@@ -16,6 +16,71 @@ export interface AuthUser {
   mustChangePassword: boolean;
   /** When the password stops working (HR / director — half a year after the change); null — never. */
   passwordExpiresAt?: string | null;
+  /** ADMIN — created by an administrator; SELF — the director signed up himself. */
+  signupSource?: SignupSource;
+  /** The legal entity has accepted the current offer (the head's KEP); true when not required. */
+  termsAccepted?: boolean;
+}
+
+export type SignupSource = 'ADMIN' | 'SELF';
+
+/** Step 1 of the sign-up: the code of the legal entity and the head's work e-mail. `website` is a trap for bots. */
+export interface SignupStatementRequest {
+  edrpou: string;
+  email: string;
+  consent: boolean;
+  website: string;
+}
+
+/** The statement the head signs with KEP (the same shape as the offer document). */
+export interface SignupStatement extends SignDocument {
+  id: string;
+  expiresAt: string;
+}
+
+/** A document offered for KEP signing: the exact bytes in base64. */
+export interface SignDocument {
+  fileName: string;
+  content: string;
+}
+
+export type SignupStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+
+export type SignupRejectReason =
+  | 'SIGNATURE_INVALID'
+  | 'CERT_EDRPOU_MISMATCH'
+  | 'NOT_IN_REGISTRY'
+  | 'TERMINATED'
+  | 'NOT_HEAD'
+  | 'ENTITY_EXISTS';
+
+/** A row of «Реєстрації компаній» (the main administrator). */
+export interface SignupRequestView {
+  id: string;
+  edrpou: string;
+  email: string;
+  status: SignupStatus;
+  reason: SignupRejectReason | null;
+  reasonText: string;
+  signerName: string;
+  signerDrfoMasked: string;
+  signerEdrpou: string;
+  signerIssuer: string;
+  registryHeadName: string;
+  kepLevel: KepLevel | null;
+  ip: string;
+  createdAt: string;
+  completedAt: string | null;
+  legalEntityId: string | null;
+}
+
+export type KepLevel = 'QUALIFIED' | 'BASIC';
+
+/** The IIT widget settings (signing right on the page). */
+export interface WidgetConfig {
+  enabled: boolean;
+  scriptUrl: string;
+  frameUrl: string;
 }
 
 /** Account in the user list (administration). */
@@ -105,4 +170,15 @@ export interface NewPasswordForm {
 export interface PasswordChangeRequestResult {
   mailSent: boolean;
   email: string;
+}
+
+/** GET /api/auth/register — is the self sign-up on. */
+export interface SignupInfo {
+  enabled: boolean;
+  widget: WidgetConfig;
+}
+
+/** A plain answer with a text for the user. */
+export interface MessageResponse {
+  message: string;
 }

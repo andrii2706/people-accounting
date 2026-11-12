@@ -321,7 +321,7 @@ export class ReportsService {
     const reserved = employed.filter((x) => x.d.reserved);
     const own = reserved.filter(({ e }) => e.reservedBy !== 'OTHER');
     const standing = all.map((e) => quotaStanding(e, date));
-    const quotas: EntityQuota[] = entities.map((entity) => entityQuota(entity, standing));
+    const quotas: EntityQuota[] = entities.map((entity) => entityQuota(entity, standing, date));
     // the card sums the entities that have a quota; without any quota — just how many are reserved
     const withQuota = quotas.filter((q) => q.quota !== null);
     const quota = withQuota.length ? withQuota.reduce((sum, q) => sum + q.quota!, 0) : null;

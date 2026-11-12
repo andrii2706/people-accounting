@@ -12,3 +12,7 @@ backend/storage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+# the IIT library is licensed separately — not in git (backend/iit/README.md)
+backend/iit/*
+!backend/iit/README.md
+!backend/iit/iit-loader.example.mjs

@@ -23,13 +23,19 @@ export function accessLetter(input: AccessLetterInput): MailLetter {
   const where = input.entityName ? ` ${input.entityName}` : '';
   const who = adminWho(input.adminName);
   const lead =
-    input.kind === 'RESET'
-      ? `${who} скинув пароль до вашого облікового запису в системі військового обліку${where}.`
-      : `${who} надав вам доступ до системи військового обліку${where}${input.asWhom ? ` як ${input.asWhom}` : ''}.`;
+    input.kind === 'SIGNUP'
+      ? 'Ви зареєструвалися в системі військового обліку. Після входу система попросить встановити власний пароль, ' +
+        'ознайомитися з договором, внести відомості про вашу юридичну особу та обрати тариф. ' +
+        'Перші 14 днів — пробний період без оплати.'
+      : input.kind === 'RESET'
+        ? `${who} скинув пароль до вашого облікового запису в системі військового обліку${where}.`
+        : `${who} надав вам доступ до системи військового обліку${where}${input.asWhom ? ` як ${input.asWhom}` : ''}.`;
   const subject =
-    input.kind === 'RESET'
-      ? `Новий тимчасовий пароль — військовий облік${where}`
-      : `Доступ до системи військового обліку${input.entityName ? ` — ${input.entityName}` : ''}`;
+    input.kind === 'SIGNUP'
+      ? 'Реєстрація в системі військового обліку'
+      : input.kind === 'RESET'
+        ? `Новий тимчасовий пароль — військовий облік${where}`
+        : `Доступ до системи військового обліку${input.entityName ? ` — ${input.entityName}` : ''}`;
   const footer = footerLine(input.entityName, input.entityCode);
   const steps = [
     'Увійдіть з логіном і тимчасовим паролем.',

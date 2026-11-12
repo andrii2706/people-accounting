@@ -3,7 +3,13 @@ import type { Employee } from '../../employees/entities/employee.entity.js';
 import { entityQuota, quotaPlaces, quotaStanding } from './quota.utils.js';
 
 const DATE = '2026-11-05';
-const ENTITY = { id: 'le1', fullName: 'ТОВ «Приклад»', shortName: '', reservationQuotaPercent: 50 };
+const ENTITY = {
+  id: 'le1',
+  fullName: 'ТОВ «Приклад»',
+  shortName: '',
+  reservationQuotaPercent: 50,
+  reservationQuotaValidUntil: null as string | null,
+};
 
 /** A working military-liable man of the entity (fictional). */
 function worker(overrides: Partial<Employee> = {}): Employee {
@@ -39,7 +45,7 @@ describe('квота бронювання у відсотках', () => {
       ...Array.from({ length: 4 }, () => worker(reservedOwn)),
       ...Array.from({ length: 16 }, () => worker()),
     ].map((e) => quotaStanding(e, DATE));
-    expect(entityQuota(ENTITY, staff)).toMatchObject({ base: 20, quota: 10, reservedCompany: 4, available: 6 });
+    expect(entityQuota(ENTITY, staff, DATE)).toMatchObject({ base: 20, quota: 10, reservedCompany: 4, available: 6 });
   });
 
   it('у базі лише працюючі військовозобов’язані чоловіки', () => {
@@ -53,17 +59,32 @@ describe('квота бронювання у відсотках', () => {
       worker({ reserved: true, reservedBy: 'OTHER', reservationUntil: '2027-01-01' }), // бронює інше підприємство
       worker({ legalEntityId: 'le2' }), // інша юрособа
     ].map((e) => quotaStanding(e, DATE));
-    expect(entityQuota(ENTITY, staff)).toMatchObject({ base: 1, quota: 0 });
+    expect(entityQuota(ENTITY, staff, DATE)).toMatchObject({ base: 1, quota: 0 });
   });
 
   it('без квоти — лише кількість заброньованих', () => {
     const staff = [worker(reservedOwn)].map((e) => quotaStanding(e, DATE));
-    expect(entityQuota({ ...ENTITY, reservationQuotaPercent: null }, staff)).toMatchObject({
+    expect(entityQuota({ ...ENTITY, reservationQuotaPercent: null }, staff, DATE)).toMatchObject({
       percent: null,
       quota: null,
       available: null,
       reservedCompany: 1,
       exceeded: false,
+    });
+  });
+
+  it('строк критичності — останній день включно; після нього вільних місць немає', () => {
+    const staff = Array.from({ length: 10 }, () => worker()).map((e) => quotaStanding(e, DATE));
+    expect(entityQuota({ ...ENTITY, reservationQuotaValidUntil: DATE }, staff, DATE)).toMatchObject({
+      quota: 5,
+      available: 5,
+      expired: false,
+      validUntil: DATE,
+    });
+    expect(entityQuota({ ...ENTITY, reservationQuotaValidUntil: '2000-01-01' }, staff, DATE)).toMatchObject({
+      quota: 5,
+      available: 0,
+      expired: true,
     });
   });
 });

@@ -8,7 +8,9 @@ import {
   signal,
 } from '@angular/core';
 import { email, form, FormField, required, submit } from '@angular/forms/signals';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
+import { CopyrightComponent } from '../../../shared/components/copyright/copyright.component';
+import { AccountService } from '../../../shared/services/account.service';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { AuthService } from '../../../shared/services/auth.service';
@@ -17,7 +19,7 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormField, FormFieldComponent, IconComponent],
+  imports: [FormField, FormFieldComponent, IconComponent, RouterLink, CopyrightComponent],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {
@@ -28,14 +30,25 @@ export class LoginComponent {
   readonly returnUrl = input<string>('/');
   /** ?reason=idle — signed out after 10 minutes of inactivity. */
   readonly reason = input<string>('');
+  /** ?signup=rejected — the KEP sign-up was not confirmed. */
+  readonly signup = input<string>('');
 
   protected readonly error = signal('');
+  /** The link «Зареєструвати компанію» — when the self sign-up is on. */
+  protected readonly signupEnabled = signal(false);
   protected readonly model = signal(this.prefilledBeforeHydration());
   protected readonly loginForm = form(this.model, (p) => {
     required(p.email, { message: 'Вкажіть email' });
     email(p.email, { message: 'Вкажіть email у форматі name@company.ua' });
     required(p.password, { message: 'Вкажіть пароль' });
   });
+
+  constructor() {
+    void inject(AccountService)
+      .registerInfo()
+      .then((info) => this.signupEnabled.set(info.enabled))
+      .catch(() => undefined);
+  }
 
   /**
    * The login page comes from SSR: a password manager (or a fast user) may fill the fields

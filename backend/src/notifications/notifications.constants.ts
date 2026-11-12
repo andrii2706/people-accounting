@@ -21,3 +21,8 @@ export const ACCESS_LETTER_COLORS = {
 
 /** The link in the «password expires» letter is valid for a week (the letter comes a month before). */
 export const PASSWORD_REMINDER_LINK_HOURS = 7 * 24;
+
+/** Every extension of general mobilization so far — for 90 days (the decrees, approved by the Verkhovna Rada). */
+export const MOBILIZATION_EXTENSION_DAYS = 90;
+
+export const MOBILIZATION_ESTIMATED_NOTE = 'очікується указ — продовжено автоматично на 90 діб';

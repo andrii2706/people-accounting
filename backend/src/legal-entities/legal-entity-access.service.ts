@@ -119,6 +119,8 @@ export class LegalEntityAccessService {
     if (!entity.headUserId) {
       await this.repo.update(id, { headUserId: director.id, headName: entity.headName.trim() || director.fullName });
     }
+    // a director who signed up himself — his legal entity works by subscription (plan, invoices)
+    if (director.signupSource === 'SELF') await this.repo.update(id, { billingRequired: true });
   }
 
   async change(id: string, person: EntityPerson, dto: ChangePersonDto, actor: AuthUser) {

@@ -76,3 +76,16 @@ export function employeeListQueryKey(route: ActivatedRouteSnapshot): string {
   const q = route.queryParamMap;
   return ['search', 'group', 'category', 'entity'].map((k) => q.get(k) ?? '').join('|');
 }
+
+/**
+ * Redirect from an API error (a temporary password, the agreement, the plan) — once: when the router is
+ * already there or on its way, a new navigation would cancel it and re-run the resolvers, whose requests
+ * fail the same way again (an endless loop of requests).
+ */
+export function redirectOnce(router: Router, path: string): void {
+  const nav = router.currentNavigation();
+  const heading = nav ? router.serializeUrl(nav.finalUrl ?? nav.extractedUrl) : router.url;
+  if (heading === path || heading.startsWith(`${path}?`) || heading.startsWith(`${path}/`)) return;
+  if (!nav && router.url.split('?')[0] === path) return;
+  void router.navigate([path]);
+}

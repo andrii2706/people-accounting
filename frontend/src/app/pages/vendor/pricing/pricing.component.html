@@ -1,0 +1,114 @@
+<form class="grid gap-6 lg:grid-cols-2" (submit)="save($event)" novalidate>
+  <section class="card space-y-4 p-5 sm:p-6">
+    <div>
+      <h1 class="text-xl font-semibold">Реквізити постачальника</h1>
+      <p class="mt-1 text-sm text-muted">
+        Друкуються в рахунках і в договорі. Без назви, коду, адреси, IBAN і банку рахунок не
+        сформується.
+        @if (!current().ready) {
+          <span class="font-medium text-warning">Зараз заповнено не все.</span>
+        }
+      </p>
+    </div>
+    <app-form-field label="Назва" [required]="true" hint="ТОВ «ПАВ ІТ»" [field]="f.seller.name">
+      <input class="input" [formField]="f.seller.name" />
+    </app-form-field>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-form-field label="Код за ЄДРПОУ" [required]="true" [field]="f.seller.code">
+        <input class="input font-mono" inputmode="numeric" [formField]="f.seller.code" />
+      </app-form-field>
+      <app-form-field label="ІПН" hint="Лише для платника ПДВ" [field]="f.seller.ipn">
+        <input class="input font-mono" inputmode="numeric" [formField]="f.seller.ipn" />
+      </app-form-field>
+    </div>
+    <app-form-field label="Адреса" [required]="true" [field]="f.seller.address">
+      <input class="input" [formField]="f.seller.address" />
+    </app-form-field>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-form-field label="IBAN" [required]="true" [field]="f.seller.iban">
+        <input class="input font-mono" [formField]="f.seller.iban" />
+      </app-form-field>
+      <app-form-field label="Банк" [required]="true" [field]="f.seller.bank">
+        <input class="input" [formField]="f.seller.bank" />
+      </app-form-field>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-form-field label="Телефон" [field]="f.seller.phone">
+        <app-phone-input [formField]="f.seller.phone" ariaLabel="Телефон" />
+      </app-form-field>
+      <app-form-field label="Email" hint="Сюди ж — заявки Enterprise" [field]="f.seller.email">
+        <input class="input" type="email" [formField]="f.seller.email" />
+      </app-form-field>
+    </div>
+    <label class="flex cursor-pointer items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        class="size-4 cursor-pointer accent-brand-600"
+        [formField]="f.seller.vatPayer"
+      />
+      Платник ПДВ — у рахунках ціна з ПДВ 20 % (у т.ч.)
+    </label>
+    <app-form-field
+      label="Податковий статус"
+      hint="Напр. «Платник єдиного податку 3 групи» — друкується під реквізитами"
+      [field]="f.seller.taxNote"
+    >
+      <input class="input" [formField]="f.seller.taxNote" />
+    </app-form-field>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-form-field label="Хто виписує: посада" [field]="f.seller.signerPosition">
+        <input class="input" [formField]="f.seller.signerPosition" />
+      </app-form-field>
+      <app-form-field label="Хто виписує: ім’я" [field]="f.seller.signerName">
+        <input class="input" [formField]="f.seller.signerName" />
+      </app-form-field>
+    </div>
+  </section>
+
+  <section class="card space-y-4 self-start p-5 sm:p-6">
+    <div>
+      <h2 class="text-xl font-semibold">Тарифи</h2>
+      <p class="mt-1 text-sm text-muted">
+        Сума до сплати, грн{{ model().seller.vatPayer ? ' (з ПДВ)' : '' }}. Порожня ціна — тариф
+        клієнтам не пропонується.
+      </p>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-form-field label="Місячний, грн" [field]="f.monthlyPrice">
+        <input class="input tabular-nums" inputmode="decimal" [formField]="f.monthlyPrice" />
+      </app-form-field>
+      <app-form-field label="Річний, грн" [field]="f.yearlyPrice">
+        <input class="input tabular-nums" inputmode="decimal" [formField]="f.yearlyPrice" />
+      </app-form-field>
+    </div>
+    <app-form-field
+      label="Опис Enterprise"
+      hint="Порожньо — стандартний текст про індивідуальні умови"
+      [field]="f.enterpriseText"
+    >
+      <textarea class="input min-h-20" [formField]="f.enterpriseText"></textarea>
+    </app-form-field>
+    <app-form-field label="Назва послуги в рахунку" [field]="f.serviceName">
+      <input class="input" [formField]="f.serviceName" />
+    </app-form-field>
+    <div class="grid gap-4 sm:grid-cols-3">
+      <app-form-field label="Префікс номера" hint="ВО → ВО-2026-0001" [field]="f.invoicePrefix">
+        <input class="input" [formField]="f.invoicePrefix" />
+      </app-form-field>
+      <app-form-field label="Строк оплати, днів" [field]="f.dueDays">
+        <input class="input" type="number" [formField]="f.dueDays" />
+      </app-form-field>
+      <app-form-field label="Пробний період, днів" [field]="f.trialDays">
+        <input class="input" type="number" [formField]="f.trialDays" />
+      </app-form-field>
+    </div>
+    <p class="rounded-lg bg-sunken/60 px-3 py-2 text-xs text-muted">
+      Текст договору (публічної оферти) — чернетка в коді
+      (backend/src/subscriptions/terms.constants.ts): перед запуском погодьте його з юристом. Нова
+      редакція — нова версія, і всі користувачі погоджуються з нею знову.
+    </p>
+    <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+      Зберегти
+    </button>
+  </section>
+</form>

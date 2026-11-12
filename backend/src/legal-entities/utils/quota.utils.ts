@@ -36,14 +36,17 @@ export function quotaStanding(e: Employee, date: IsoDate): QuotaStanding {
 
 /** Quota of one legal entity: places = percent × military-liable men, free = places − reserved by it. */
 export function entityQuota(
-  entity: Pick<LegalEntity, 'id' | 'fullName' | 'shortName' | 'reservationQuotaPercent'>,
+  entity: Pick<LegalEntity, 'id' | 'fullName' | 'shortName' | 'reservationQuotaPercent' | 'reservationQuotaValidUntil'>,
   staff: QuotaStanding[],
+  today: IsoDate,
 ): EntityQuota {
   const own = staff.filter((s) => s.legalEntityId === entity.id);
   const base = own.filter((s) => s.inBase).length;
   const reservedCompany = own.filter((s) => s.reservedOwn).length;
   const percent = entity.reservationQuotaPercent;
   const quota = quotaPlaces(percent, base);
+  const validUntil = entity.reservationQuotaValidUntil ?? null;
+  const expired = validUntil !== null && validUntil < today;
   return {
     id: entity.id,
     name: entity.shortName || entity.fullName,
@@ -51,7 +54,10 @@ export function entityQuota(
     base,
     quota,
     reservedCompany,
-    available: quota === null ? null : Math.max(quota - reservedCompany, 0),
+    // the criticality is over (the last day is inclusive) — the places stay for reference, none is free
+    available: quota === null ? null : expired ? 0 : Math.max(quota - reservedCompany, 0),
     exceeded: quota !== null && reservedCompany > quota,
+    validUntil,
+    expired,
   };
 }

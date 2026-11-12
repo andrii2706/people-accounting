@@ -6,13 +6,16 @@ export interface MailLetter {
 }
 
 /** What the caller knows about a temporary password to send (the rest is filled by the service). */
+/** NEW — an account by an administrator; RESET — a new temporary password; SIGNUP — signed up himself. */
+export type AccessLetterKind = 'NEW' | 'RESET' | 'SIGNUP';
+
 export interface TemporaryPasswordMail {
   email: string;
   fullName: string;
   role: string;
   temporaryPassword: string;
   expiresAt: Date;
-  kind: 'NEW' | 'RESET';
+  kind: AccessLetterKind;
   issuedBy: { fullName: string; email: string };
   entityName?: string;
   entityCode?: string;
@@ -32,7 +35,7 @@ export interface AccessLetterInput {
   roleLabel: string;
   roleHint: string;
   /** NEW — access given; RESET — the administrator reset the password. */
-  kind: 'NEW' | 'RESET';
+  kind: AccessLetterKind;
   /** «відповідальній особі за військовий облік» / «керівнику»; empty — no legal entity context. */
   asWhom: string;
   /** The legal entity («ТОВ «Приклад»») and its code; empty — the system in general. */

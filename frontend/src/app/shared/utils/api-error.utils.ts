@@ -35,6 +35,11 @@ export function fieldErrorLine(e: ApiFieldError): string {
   return e.label ? `${e.label}: ${e.message}` : e.message;
 }
 
+/** The machine code of an API error («SIGNUP_REJECTED», «TERMS_REQUIRED» …), or null. */
+export function apiErrorCode(error: unknown): string | null {
+  return body(error)?.code ?? null;
+}
+
 /** Status of an HTTP error (0 — no connection), or null for any other error. */
 export function apiErrorStatus(error: unknown): number | null {
   return error instanceof HttpErrorResponse ? error.status : null;

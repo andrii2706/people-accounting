@@ -75,7 +75,7 @@ export class LegalEntitiesService {
       responsibleUserId: e.responsibleUserId,
       employees: standing.filter((s) => s.employed && s.legalEntityId === e.id).length,
       allEmployees: allById.get(e.id) ?? 0,
-      quota: entityQuota(e, standing),
+      quota: entityQuota(e, standing, date),
     }));
   }
 
@@ -271,6 +271,9 @@ export class LegalEntitiesService {
     }
     if (out.phone !== undefined) out.phone = normalizePhone(out.phone);
     if (out.responsiblePhone !== undefined) out.responsiblePhone = normalizePhone(out.responsiblePhone);
+    // an empty date of the quota document — not set
+    if (out.reservationQuotaDocDate === '') out.reservationQuotaDocDate = null;
+    if (out.reservationQuotaValidUntil === '') out.reservationQuotaValidUntil = null;
     return out;
   }
 }

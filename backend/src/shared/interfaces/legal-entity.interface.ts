@@ -1,3 +1,5 @@
+import type { IsoDate } from './common.interface.js';
+
 /** Company data found in the Unified State Register by its code — to fill the legal entity form. */
 export interface RegistryCompany {
   edrpou: string;
@@ -7,6 +9,10 @@ export interface RegistryCompany {
   postalCode: string;
   /** As in the signature: «Іван ПЕТРЕНКО». */
   headName: string;
+  /** As in the register: «ПЕТРЕНКО ІВАН ІВАНОВИЧ» — to compare with a KEP certificate. */
+  headFullName: string;
+  /** The register states the company is terminated / being liquidated. */
+  terminated: boolean;
   /** Main activity (КВЕД) — for reference. */
   kved: string;
   /** Where the data came from — shown under the form. */
@@ -46,6 +52,10 @@ export interface EntityQuota {
   reservedCompany: number;
   available: number | null;
   exceeded: boolean;
+  /** The criticality lasts until (inclusive); null — not stated. */
+  validUntil: IsoDate | null;
+  /** The criticality is over: no free places under the quota. */
+  expired: boolean;
 }
 
 /** Raw answer of the ЄДР lookup service (field names as documented by the provider). */
@@ -57,6 +67,10 @@ export interface RegistryRawCompany {
   director?: string;
   kved?: string;
   kved_number?: string;
+  /** «зареєстровано» / «припинено» … — the providers name it differently. */
+  status?: string;
+  state?: string;
+  stan?: string;
 }
 
 /** Postgres row count by legal entity. */

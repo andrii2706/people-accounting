@@ -13,7 +13,13 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AllowPendingPasswordChange, AllowUnassigned, Roles } from '../common/decorators/auth.decorators.js';
+import {
+  AllowPendingPasswordChange,
+  AllowPendingTerms,
+  AllowUnassigned,
+  AllowUnpaid,
+  Roles,
+} from '../common/decorators/auth.decorators.js';
 import {
   CHANGE_TYPE_LABELS,
   DUTY_CATEGORY_LABELS,
@@ -41,6 +47,8 @@ export class DictionariesController {
    * Reference data without personal data — available even before the temporary password is changed (needed by the app shell).
    */
   @AllowPendingPasswordChange()
+  @AllowPendingTerms()
+  @AllowUnpaid()
   @AllowUnassigned()
   @Get('dictionaries')
   all() {
@@ -59,6 +67,8 @@ export class DictionariesController {
   }
 
   @AllowPendingPasswordChange()
+  @AllowPendingTerms()
+  @AllowUnpaid()
   @AllowUnassigned()
   @Get('tck')
   listTck() {

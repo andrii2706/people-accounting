@@ -37,7 +37,18 @@ export function toRegistryCompany(raw: RegistryRawCompany, code: string, source:
     address,
     postalCode: postalCodeFromAddress(address),
     headName: raw.director ? signatureName(raw.director) : '',
+    headFullName: (raw.director ?? '').trim().replace(/\s+/g, ' '),
+    terminated: isTerminated(raw),
     kved: [raw.kved_number, raw.kved].filter(Boolean).join(' '),
     source,
   };
+}
+
+/** «припинено», «в стані припинення», «ліквідація», «банкрутство» — the company may not sign up. */
+export function isTerminated(raw: RegistryRawCompany): boolean {
+  const status = [raw.status, raw.state, raw.stan]
+    .filter((v) => typeof v === 'string')
+    .join(' ')
+    .toLowerCase();
+  return /припин|ліквід|банкрут/.test(status);
 }

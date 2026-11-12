@@ -47,6 +47,13 @@ export class AuthService {
   );
   readonly roleLabel = computed(() => ROLE_LABELS[this._user()?.role ?? 'HR']);
   readonly mustChangePassword = computed(() => !!this._user()?.mustChangePassword);
+  /** The agreement still has to be accepted (after the password change). */
+  readonly needsTerms = computed(() => {
+    const u = this._user();
+    return !!u && !u.mustChangePassword && u.termsAccepted === false;
+  });
+  /** The temporary password is changed and the agreement accepted — the work data may be requested. */
+  readonly onboarded = computed(() => !this.mustChangePassword() && !this.needsTerms());
   readonly initials = computed(() =>
     (this._user()?.fullName ?? '')
       .split(/\s+/)
@@ -114,6 +121,11 @@ export class AuthService {
     );
     this._user.set(null);
     return result;
+  }
+
+  /** The server answered with the updated user (e.g. the agreement accepted). */
+  setUser(user: AuthUser) {
+    this._user.set(user);
   }
 
   /** The session ended on the server (idle timeout) — reset the state without a request. */

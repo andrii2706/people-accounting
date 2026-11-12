@@ -10,10 +10,8 @@ import { form, FormField, maxLength, submit, validate } from '@angular/forms/sig
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { BillingNoticeComponent } from '../../../shared/components/billing-notice/billing-notice.component';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
-import { IconComponent } from '../../../shared/components/icon/icon.component';
 import type { BillingForm, BillingRecord } from '../../../shared/interfaces/billing.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
-import { AuthService } from '../../../shared/services/auth.service';
 import { BillingService } from '../../../shared/services/billing.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { formSubmitErrors } from '../../../shared/utils/api-error.utils';
@@ -32,13 +30,11 @@ import { validateAmount } from '../../../shared/validators/billing.validators';
     FormFieldComponent,
     DateInputComponent,
     BillingNoticeComponent,
-    IconComponent,
     UaDateTimePipe,
   ],
   templateUrl: './billing-settings.component.html',
 })
 export class BillingSettingsComponent {
-  protected readonly auth = inject(AuthService);
   private readonly billing = inject(BillingService);
   private readonly toast = inject(ToastService);
 
@@ -79,9 +75,5 @@ export class BillingSettingsComponent {
         return formSubmitErrors(err, this.f, (m) => this.toast.error(m));
       }
     });
-  }
-
-  protected logout() {
-    void this.auth.logout();
   }
 }

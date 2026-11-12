@@ -18,6 +18,12 @@ import { OrganizationHead } from '../organization/organization-head.entity.js';
 import { Organization } from '../organization/organization.entity.js';
 import { ResponsiblePerson } from '../organization/responsible-person.entity.js';
 import { User } from '../users/user.entity.js';
+import { BillingSettings } from '../subscriptions/billing-settings.entity.js';
+import { Invoice } from '../subscriptions/invoice.entity.js';
+import { Subscription } from '../subscriptions/subscription.entity.js';
+import { EntityDatabase } from '../entity-databases/entity-database.entity.js';
+import { SignupRequest } from '../signup/signup-request.entity.js';
+import { OfferSignature } from '../subscriptions/offer-signature.entity.js';
 
 /** Explicit list of entities — no glob patterns, so it works correctly in ESM. */
 export const ENTITIES = [
@@ -41,4 +47,10 @@ export const ENTITIES = [
   BillingStatusEntity,
   LegalEntity,
   PasswordResetToken,
+  BillingSettings,
+  Subscription,
+  Invoice,
+  EntityDatabase,
+  SignupRequest,
+  OfferSignature,
 ];

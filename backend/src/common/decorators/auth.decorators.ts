@@ -4,6 +4,8 @@ import { entityScope } from '../utils/entity-scope.utils.js';
 import {
   ALLOW_UNASSIGNED,
   ALLOW_PENDING_PASSWORD,
+  ALLOW_PENDING_TERMS,
+  ALLOW_UNPAID,
   ALLOW_VENDOR,
   IS_PUBLIC,
   ROLES,
@@ -25,6 +27,12 @@ export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionConte
 
 /** Route open to the vendor account (it sees nothing else — no personal data). */
 export const AllowVendor = () => SetMetadata(ALLOW_VENDOR, true);
+
+/** Route available before the agreement is accepted (own profile, the agreement itself). */
+export const AllowPendingTerms = () => SetMetadata(ALLOW_PENDING_TERMS, true);
+
+/** Route available while no plan is chosen / the subscription has expired (the payment page). */
+export const AllowUnpaid = () => SetMetadata(ALLOW_UNPAID, true);
 
 /** Route open to an account without a legal entity (own profile, adding the legal entity by the director). */
 export const AllowUnassigned = () => SetMetadata(ALLOW_UNASSIGNED, true);

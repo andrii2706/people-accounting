@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
 import type { LegalEntitySummary } from '../../../shared/interfaces/legal-entity.interface';
@@ -19,7 +20,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 @Component({
   selector: 'app-legal-entity-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, IconComponent, RouterLink],
+  imports: [UaDatePipe, PageHeaderComponent, IconComponent, RouterLink],
   templateUrl: './legal-entity-list.component.html',
 })
 export class LegalEntityListComponent {

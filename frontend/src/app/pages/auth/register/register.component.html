@@ -1,0 +1,150 @@
+<div class="grid min-h-screen place-items-center bg-canvas p-6">
+  <section class="card w-full max-w-xl p-6 sm:p-8">
+    <div class="mb-6 flex items-center gap-3">
+      <span class="grid size-10 place-items-center rounded-lg bg-brand-700 text-brand-100"
+        ><app-icon name="shield" [size]="20"
+      /></span>
+      <span class="text-sm font-semibold">Військовий облік</span>
+    </div>
+
+    @if (done(); as message) {
+      <h1 class="text-2xl font-semibold tracking-tight">Перевірте пошту</h1>
+      <p class="mt-2 text-sm text-muted">{{ message }}</p>
+      <ol class="mt-5 list-decimal space-y-1.5 pl-5 text-sm">
+        <li>Увійдіть з робочим email і тимчасовим паролем з листа.</li>
+        <li>Встановіть власний пароль.</li>
+        <li>Підпишіть оферту КЕП керівника.</li>
+        <li>Оберіть тариф — перші 14 днів безоплатно.</li>
+      </ol>
+      <p class="mt-4 text-xs text-muted">
+        Реквізити юрособи вже внесено з ЄДР — перевірте їх у налаштуваннях.
+      </p>
+      <a routerLink="/login" class="btn btn-primary mt-6 w-full cursor-pointer">До входу</a>
+    } @else if (info.isLoading()) {
+      <p class="text-sm text-muted">Завантаження…</p>
+    } @else if (!info.value()?.enabled) {
+      <h1 class="text-2xl font-semibold tracking-tight">Реєстрація компанії</h1>
+      <p class="mt-2 text-sm text-muted">
+        Самостійна реєстрація зараз недоступна. Щоб отримати доступ, зверніться до постачальника.
+      </p>
+      <a routerLink="/login" class="btn btn-primary mt-6 w-full cursor-pointer">До входу</a>
+    } @else if (statement(); as s) {
+      <p class="text-xs font-medium tracking-wide text-muted uppercase">Крок 2/2 · підпис КЕП</p>
+      <h1 class="mt-1 text-2xl font-semibold tracking-tight">Підпишіть заяву</h1>
+      <p class="mt-1 mb-4 text-sm text-muted">
+        Заяву підписує <b>керівник</b> юрособи своїм кваліфікованим електронним підписом. Система
+        звірить підписанта з керівником за даними ЄДР — лише тоді реєстрацію буде підтверджено.
+      </p>
+      <pre
+        class="mb-4 max-h-56 overflow-auto rounded-lg bg-sunken/60 p-3 text-xs whitespace-pre-wrap"
+        >{{ statementText() }}</pre>
+      <app-kep-sign
+        [document]="s"
+        [widgetConfig]="info.value()!.widget"
+        [busy]="checking()"
+        signer="керівник юрособи"
+        (signed)="onSigned($event)"
+      />
+      @if (checking()) {
+        <p class="mt-3 text-sm text-muted" aria-live="polite">Перевіряємо підпис і дані ЄДР…</p>
+      }
+      @if (error()) {
+        <p
+          class="mt-4 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+          role="alert"
+        >
+          {{ error() }}
+        </p>
+      }
+      <button
+        type="button"
+        class="btn btn-ghost mt-4 cursor-pointer"
+        [disabled]="checking()"
+        (click)="restart()"
+      >
+        Змінити код або email
+      </button>
+    } @else {
+      <p class="text-xs font-medium tracking-wide text-muted uppercase">Крок 1/2 · дані</p>
+      <h1 class="mt-1 text-2xl font-semibold tracking-tight">Реєстрація компанії</h1>
+      <p class="mt-1 mb-6 text-sm text-muted">
+        Реєструє <b>керівник</b> юридичної особи з кваліфікованим електронним підписом (КЕП). Решту
+        користувачів додасте вже в системі.
+      </p>
+      <form class="space-y-4" (submit)="onSubmit($event)" novalidate>
+        <app-form-field
+          label="Код ЄДРПОУ юридичної особи"
+          [required]="true"
+          hint="8 цифр; реквізити й керівника буде взято з ЄДР"
+          [field]="registerForm.edrpou"
+        >
+          <input
+            class="input font-mono"
+            inputmode="numeric"
+            autocomplete="off"
+            [formField]="registerForm.edrpou"
+          />
+        </app-form-field>
+        <app-form-field
+          label="Робочий email керівника"
+          [required]="true"
+          hint="Сюди прийде тимчасовий пароль; це ваш логін"
+          [field]="registerForm.email"
+        >
+          <input class="input" type="email" autocomplete="email" [formField]="registerForm.email" />
+        </app-form-field>
+        <!-- people do not see this field; bots fill it -->
+        <div class="hidden" aria-hidden="true">
+          <label
+            >Сайт <input tabindex="-1" autocomplete="off" [formField]="registerForm.website"
+          /></label>
+        </div>
+        <label class="flex cursor-pointer items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            class="mt-0.5 size-4 shrink-0 cursor-pointer accent-brand-600"
+            [formField]="registerForm.consent"
+          />
+          <span>
+            Даю згоду на обробку моїх персональних даних (ПІБ і дані сертифіката КЕП, email) для
+            реєстрації та роботи в системі. З
+            <a
+              routerLink="/offer"
+              target="_blank"
+              class="cursor-pointer text-brand-600 hover:underline"
+              >офертою</a
+            >
+            ознайомлений(-а).
+          </span>
+        </label>
+        @if (registerForm.consent().touched() && registerForm.consent().invalid()) {
+          <p class="-mt-2 text-xs text-danger" role="alert">
+            Потрібна згода на обробку персональних даних
+          </p>
+        }
+        @if (error()) {
+          <p
+            class="rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+            role="alert"
+          >
+            {{ error() }}
+          </p>
+        }
+        <button
+          type="submit"
+          class="btn btn-primary w-full cursor-pointer py-2.5"
+          [disabled]="registerForm().submitting()"
+        >
+          {{ registerForm().submitting() ? 'Формуємо…' : 'Далі — підписати КЕП' }}
+        </button>
+      </form>
+      <p class="mt-6 text-center text-sm text-muted">
+        Вже є обліковий запис?
+        <a routerLink="/login" class="cursor-pointer font-medium text-brand-600 hover:underline"
+          >Увійти</a
+        >
+      </p>
+    }
+  </section>
+  <app-copyright class="py-6" />
+</div>

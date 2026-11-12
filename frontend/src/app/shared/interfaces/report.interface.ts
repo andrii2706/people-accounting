@@ -181,4 +181,8 @@ export interface EntityQuota {
   reservedCompany: number;
   available: number | null;
   exceeded: boolean;
+  /** The criticality lasts until (inclusive); null — not stated. */
+  validUntil: string | null;
+  /** The criticality is over: no free places. */
+  expired: boolean;
 }

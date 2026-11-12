@@ -11,13 +11,18 @@ import type { Response } from 'express';
 import type { Repository } from 'typeorm';
 import { SessionService } from '../../auth/session.service.js';
 import { toAuthUser } from '../../auth/utils/auth.utils.js';
+import { OfferGateService } from '../../subscriptions/offer-gate.service.js';
+import { SubscriptionGateService } from '../../subscriptions/subscription-gate.service.js';
+import { PLAN_REQUIRED, SUBSCRIPTION_EXPIRED, TERMS_REQUIRED } from '../../subscriptions/subscriptions.constants.js';
 import { loadEnv } from '../../config/env.js';
 import { passwordExpiresAt } from '../utils/password-policy.utils.js';
 import { User } from '../../users/user.entity.js';
 import type { MaybeAuthenticatedRequest, UserRole } from '../../shared/interfaces/auth.interface.js';
 import {
   ALLOW_PENDING_PASSWORD,
+  ALLOW_PENDING_TERMS,
   ALLOW_UNASSIGNED,
+  ALLOW_UNPAID,
   ALLOW_VENDOR,
   IS_PUBLIC,
   NO_LEGAL_ENTITY,
@@ -35,12 +40,15 @@ export class AuthGuard implements CanActivate {
     private readonly sessions: SessionService,
     private readonly reflector: Reflector,
     @InjectRepository(User) private readonly users: Repository<User>,
+    private readonly subscriptions: SubscriptionGateService,
+    private readonly offers: OfferGateService,
   ) {}
 
   private readonly env = loadEnv();
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const targets = [ctx.getHandler(), ctx.getClass()];
+    const allows = (key: string) => !!this.reflector.getAllAndOverride<boolean>(key, targets);
     if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC, targets)) return true;
 
     const http = ctx.switchToHttp();
@@ -71,7 +79,7 @@ export class AuthGuard implements CanActivate {
       await this.users.update(user.id, { mustChangePassword: true });
       user.mustChangePassword = true;
     }
-    req.user = toAuthUser(user);
+    req.user = toAuthUser(user, await this.offers.accepted(user));
 
     if (user.mustChangePassword && !this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_PASSWORD, targets)) {
       throw new ForbiddenException({
@@ -81,15 +89,26 @@ export class AuthGuard implements CanActivate {
       });
     }
 
+    // after the password — the offer: the head of the legal entity signs it with KEP; until then its users
+    // (not the main administrator, not the vendor) see only the offer page
+    if (!req.user.termsAccepted && !allows(ALLOW_PENDING_TERMS)) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: TERMS_REQUIRED,
+        message: 'Спершу керівник юрособи має підписати оферту КЕП',
+      });
+    }
+
     // the vendor account manages the payment status only and never reaches personal data
     if (user.role === 'VENDOR' && !this.reflector.getAllAndOverride<boolean>(ALLOW_VENDOR, targets)) {
       throw new ForbiddenException('Обліковий запис постачальника має доступ лише до сторінки оплати');
     }
 
-    // everyone except the main administrator works inside one legal entity; without it — only the profile
-    // and (the director) adding his legal entity
+    // everyone except the main administrator (and the vendor, who sees no legal entity data) works inside
+    // one legal entity; without it — only the profile and (the director) adding his legal entity
     if (
       user.role !== 'ADMIN' &&
+      user.role !== 'VENDOR' &&
       !user.legalEntityId &&
       !this.reflector.getAllAndOverride<boolean>(ALLOW_UNASSIGNED, targets)
     ) {
@@ -101,6 +120,28 @@ export class AuthGuard implements CanActivate {
             ? 'Спершу додайте свою юридичну особу'
             : 'Обліковий запис ще не прив’язано до юридичної особи — зверніться до головного адміністратора',
       });
+    }
+
+    // a legal entity that signed up itself works by subscription: a plan chosen, paid or in the free period
+    if (user.legalEntityId && user.role !== 'ADMIN' && user.role !== 'VENDOR' && !allows(ALLOW_UNPAID)) {
+      const gate = await this.subscriptions.gate(user.legalEntityId);
+      if (gate === 'PLAN_REQUIRED') {
+        throw new ForbiddenException({
+          statusCode: 403,
+          code: PLAN_REQUIRED,
+          message:
+            user.role === 'HR'
+              ? 'Керівник ще не обрав тариф — зверніться до нього'
+              : 'Оберіть тариф, щоб почати роботу',
+        });
+      }
+      if (gate === 'EXPIRED') {
+        throw new ForbiddenException({
+          statusCode: 403,
+          code: SUBSCRIPTION_EXPIRED,
+          message: 'Пробний період або оплачений строк закінчився — доступ відновиться після оплати рахунку',
+        });
+      }
     }
 
     const roles = this.reflector.getAllAndOverride<UserRole[] | undefined>(ROLES, targets);

@@ -94,4 +94,9 @@ export class DashboardComponent {
     if (!r?.quota) return 0;
     return Math.min(100, (r.reservedCompany / r.quota) * 100);
   });
+
+  /** Legal entities whose criticality is over — no new reservations under their quota. */
+  protected readonly expiredQuotas = computed(() =>
+    (this.data()?.reservation.entities ?? []).filter((q) => q.quota !== null && q.expired),
+  );
 }

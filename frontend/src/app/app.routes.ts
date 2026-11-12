@@ -6,6 +6,8 @@ import {
   guestGuard,
   passwordChangeGuard,
   staffGuard,
+  subscriptionGuard,
+  termsGuard,
   vendorGuard,
 } from './shared/guards/auth.guard';
 import { dictionariesResolver } from './shared/resolvers/dictionaries.resolver';
@@ -30,6 +32,28 @@ export const routes: Routes = [
       ),
   },
   {
+    // self sign-up of a director (the old flow — accounts by an administrator — stays)
+    path: 'register',
+    canActivate: [guestGuard],
+    title: 'Реєстрація · Військовий облік',
+    loadComponent: () =>
+      import('./pages/auth/register/register.component').then((m) => m.RegisterComponent),
+  },
+  {
+    // the public offer — readable before the sign-up
+    path: 'offer',
+    title: 'Договір · Військовий облік',
+    loadComponent: () =>
+      import('./pages/account/offer/offer.component').then((m) => m.OfferComponent),
+  },
+  {
+    // the agreement, the plans, the subscription — without the menu of the app
+    path: 'account',
+    canActivate: [authGuard, staffGuard],
+    canActivateChild: [passwordChangeGuard],
+    loadChildren: () => import('./pages/account/account.routes').then((m) => m.ACCOUNT_ROUTES),
+  },
+  {
     // the vendor account: debt for using the system, nothing else
     path: 'vendor',
     canActivate: [vendorGuard],
@@ -39,14 +63,14 @@ export const routes: Routes = [
     // printing from the browser (envelope labels) — without the menu of the app
     path: 'print',
     canActivate: [authGuard, staffGuard],
-    canActivateChild: [passwordChangeGuard, entityAssignedGuard],
+    canActivateChild: [passwordChangeGuard, termsGuard, entityAssignedGuard, subscriptionGuard],
     loadChildren: () => import('./pages/print/print.routes').then((m) => m.PRINT_ROUTES),
   },
   {
     path: '',
     component: ShellComponent,
     canActivate: [authGuard, staffGuard],
-    canActivateChild: [passwordChangeGuard, entityAssignedGuard],
+    canActivateChild: [passwordChangeGuard, termsGuard, entityAssignedGuard, subscriptionGuard],
     resolve: { dictionaries: dictionariesResolver },
     children: [
       {

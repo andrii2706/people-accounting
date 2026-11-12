@@ -66,6 +66,14 @@ export class Organization {
   @Column({ type: 'date', nullable: true })
   mobilizationUntil: string | null;
 
+  /** The last date confirmed by a decree (or entered by hand); `mobilizationUntil` may be ahead of it. */
+  @Column({ type: 'date', nullable: true })
+  mobilizationConfirmedUntil: string | null;
+
+  /** No decree yet: the term was extended by 90 days automatically. */
+  @Column({ type: 'boolean', default: false })
+  mobilizationEstimated: boolean;
+
   /** The decree the date comes from, e.g. «Указ № 1061/2026 від 26.10.2026». */
   @Column({ type: 'varchar', length: 300, default: '' })
   mobilizationDecree: string;

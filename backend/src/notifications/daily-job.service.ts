@@ -9,10 +9,16 @@ import { loadEnv } from '../config/env.js';
 import { Employee } from '../employees/entities/employee.entity.js';
 import { Organization } from '../organization/organization.entity.js';
 import { htmlToText, parseMobilizationTerm } from './utils/decree-parser.utils.js';
+import { applyMobilizationCheck } from './utils/mobilization-term.utils.js';
+import type { MobilizationTerm } from '../shared/interfaces/document.interface.js';
 import { NotificationsService } from './notifications.service.js';
 import type { ErrorWithCause, IsoDate } from '../shared/interfaces/common.interface.js';
 import type { DueDeferral } from '../shared/interfaces/employee.interface.js';
-import { MOBILIZATION_REMIND_DAYS } from './notifications.constants.js';
+import {
+  MOBILIZATION_ESTIMATED_NOTE,
+  MOBILIZATION_EXTENSION_DAYS,
+  MOBILIZATION_REMIND_DAYS,
+} from './notifications.constants.js';
 import { NIL_UUID } from '../common/constants/common.constants.js';
 import { PASSWORD_REMINDER_LINK_HOURS, REMIND_DAYS_BEFORE } from './notifications.constants.js';
 import { employeeFullName } from '../employees/utils/employee-text.utils.js';
@@ -41,7 +47,7 @@ export class DailyJobService {
   ) {}
 
   async run(today: IsoDate = todayIso()) {
-    const mobilization = await this.updateMobilization();
+    const mobilization = await this.updateMobilization(today);
     const org = await this.org();
     return {
       mobilization,
@@ -56,39 +62,27 @@ export class DailyJobService {
     return (await this.orgRepo.findOneBy({ id: 1 })) ?? this.orgRepo.create({ id: 1 });
   }
 
-  /** Reads the latest extension of general mobilization; a newer term is saved and announced. */
-  async updateMobilization() {
+  /**
+   * Reads the latest extension of general mobilization; a newer term is saved and announced. When the term has
+   * passed and no new decree is known (or the site is down), it is extended by 90 days, marked «очікується указ».
+   */
+  async updateMobilization(today: IsoDate = todayIso()) {
     const org = await this.org();
     const source = this.env.decreeSourceUrl;
+    let term: MobilizationTerm | null = null;
+    let failure: string | null = null;
     try {
       const res = await fetch(source, {
         headers: { 'User-Agent': 'military-registry/1.0 (mobilization term check)', Accept: 'text/html' },
         signal: AbortSignal.timeout(20_000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const term = parseMobilizationTerm(htmlToText(await res.text()));
+      term = parseMobilizationTerm(htmlToText(await res.text()));
       org.mobilizationCheckedAt = new Date();
       if (!term) {
-        await this.orgRepo.save(org);
         this.logger.warn(`У ${source} не знайдено строку мобілізації`);
-        return { ok: false, message: 'Строк мобілізації в тексті не знайдено' };
+        failure = 'Строк мобілізації в тексті не знайдено';
       }
-      const changed = !org.mobilizationUntil || term.until > org.mobilizationUntil;
-      if (changed) {
-        org.mobilizationUntil = term.until;
-        org.mobilizationDecree = `Указ Президента України ${term.decree}`.trim();
-        org.mobilizationSource = source;
-      }
-      await this.orgRepo.save(org);
-      if (changed) {
-        await this.notifications.notifyUsers(
-          `Мобілізацію продовжено до ${formatUa(term.until)}`,
-          `Строк проведення загальної мобілізації продовжено з ${formatUa(term.from)} на ${term.days} діб — до ${formatUa(term.until)}` +
-            `${term.decree ? ` (${org.mobilizationDecree})` : ''}.\n` +
-            'Відстрочки «до завершення мобілізації» діють до цієї дати.',
-        );
-      }
-      return { ok: true, until: term.until, decree: org.mobilizationDecree, changed };
     } catch (err) {
       this.logger.error(`Не вдалося перевірити укази (${source})`, err as Error);
       const cause = (err as ErrorWithCause).cause?.code;
@@ -98,11 +92,49 @@ export class DailyJobService {
           : cause
             ? `сайт недоступний (${cause})`
             : (err as Error).message;
-      return {
-        ok: false,
-        message: `Не вдалося перевірити укази: ${reason}. Вкажіть строк вручну або спробуйте пізніше.`,
-      };
+      failure = `Не вдалося перевірити укази: ${reason}. Вкажіть строк вручну або спробуйте пізніше.`;
     }
+
+    const { state, event } = applyMobilizationCheck(
+      {
+        until: org.mobilizationUntil,
+        confirmedUntil: org.mobilizationConfirmedUntil,
+        decree: org.mobilizationDecree,
+        estimated: org.mobilizationEstimated,
+      },
+      term,
+      today,
+    );
+    org.mobilizationUntil = state.until;
+    org.mobilizationConfirmedUntil = state.confirmedUntil;
+    org.mobilizationDecree = state.decree;
+    org.mobilizationEstimated = state.estimated;
+    if (event === 'decree' || event === 'confirmed') org.mobilizationSource = source;
+    await this.orgRepo.save(org);
+
+    if (event && state.until) {
+      const until = formatUa(state.until);
+      if (event === 'estimated') {
+        await this.notifications.notifyUsers(
+          `Мобілізацію продовжено до ${until} (очікується указ)`,
+          `Строк загальної мобілізації минув, а нового указу ще не знайдено. Як і кожне продовження досі, строк ` +
+            `подовжено на ${MOBILIZATION_EXTENSION_DAYS} діб — до ${until}, з позначкою «${MOBILIZATION_ESTIMATED_NOTE}».\n` +
+            'Коли указ з’явиться, дату буде уточнено автоматично. Відстрочки «до завершення мобілізації» діють до цієї дати.',
+        );
+      } else {
+        await this.notifications.notifyUsers(
+          event === 'confirmed'
+            ? `Указ підтвердив строк мобілізації до ${until}`
+            : `Мобілізацію продовжено до ${until}`,
+          `Строк проведення загальної мобілізації продовжено${term ? ` з ${formatUa(term.from)} на ${term.days} діб` : ''} — до ${until}` +
+            `${state.decree ? ` (${state.decree})` : ''}.\n` +
+            'Відстрочки «до завершення мобілізації» діють до цієї дати.',
+        );
+      }
+    }
+    const changed = event !== null;
+    if (failure) return { ok: false, message: failure, until: state.until, estimated: state.estimated, changed };
+    return { ok: true, until: state.until, decree: state.decree, estimated: state.estimated, changed };
   }
 
   /** If the term is about to end and no new decree has been found — remind to check it. */

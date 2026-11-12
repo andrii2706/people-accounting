@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { type CanActivateChildFn, type CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { AccountService } from '../services/account.service';
 import { ENTITY_MANAGER_ROLES } from '../constants/auth.constants';
 
 /** Authenticated users only; otherwise — to sign-in with a return URL. */
@@ -90,4 +91,35 @@ export const vendorGuard: CanActivateFn = async (_route, state) => {
   const user = await auth.ensureLoaded();
   if (!user) return router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
   return user.role === 'VENDOR' ? true : router.createUrlTree(['/']);
+};
+
+/** After the password — the agreement: until it is accepted only its page is open. */
+export const termsGuard: CanActivateChildFn = async (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  await auth.ensureLoaded();
+  if (!auth.needsTerms() || state.url.startsWith('/account/terms')) return true;
+  return router.createUrlTree(['/account/terms']);
+};
+
+/** Pages that stay open while the plan is not chosen / the access is suspended. */
+const OPEN_WITHOUT_PLAN = ['/profile', '/settings/legal-entities/new', '/no-entity'];
+
+/**
+ * A legal entity that signed up itself works by subscription: no plan — to the plans (the head) or to the
+ * subscription page (the others); the free period / the paid term is over — to the subscription page.
+ */
+export const subscriptionGuard: CanActivateChildFn = async (_route, state) => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const account = inject(AccountService);
+  const user = await auth.ensureLoaded();
+  if (!user?.legalEntityId || user.role === 'ADMIN' || user.role === 'VENDOR') return true;
+  if (OPEN_WITHOUT_PLAN.some((p) => state.url.startsWith(p))) return true;
+  const view = await account.subscriptionState().catch(() => null);
+  if (!view?.required) return true;
+  if (view.state === 'NONE') {
+    return router.createUrlTree([view.canManage ? '/account/plans' : '/account/subscription']);
+  }
+  return view.state === 'EXPIRED' ? router.createUrlTree(['/account/subscription']) : true;
 };

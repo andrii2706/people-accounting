@@ -1,0 +1,83 @@
+@let d = data();
+<div class="card p-5 sm:p-8">
+  @if (auth.user()?.signupSource === 'SELF') {
+    <p class="mb-2 text-xs font-semibold tracking-wider text-brand-600 uppercase">
+      Крок 2/3 · оферта
+    </p>
+  }
+  <h1 class="text-xl font-semibold">Публічна оферта</h1>
+  <p class="mt-1 mb-4 text-sm text-muted">
+    Договір з {{ d.terms.seller.name || 'постачальником' }} вважається укладеним, коли
+    <b>керівник</b> {{ d.status.entityName ? '«' + d.status.entityName + '»' : 'юрособи' }} підпише
+    заяву про прийняття оферти своїм кваліфікованим електронним підписом (КЕП).
+  </p>
+  <div class="max-h-[50vh] overflow-y-auto rounded-lg border border-line bg-surface p-4 sm:p-6">
+    <app-terms-document [doc]="d.terms" />
+  </div>
+
+  @if (d.status.signed) {
+    <p class="mt-5 rounded-lg bg-[#e3f1e5] px-3 py-2 text-sm text-ok" role="status">
+      Оферту підписано КЕП
+      @if (d.status.signerName) {
+        ({{ d.status.signerName }})
+      }
+      {{ d.status.signedAt | uaDateTime }}.
+    </p>
+  } @else if (!d.status.canSign) {
+    <div
+      class="mt-5 rounded-lg border border-warning/30 bg-[#fdf9f2] px-4 py-3 text-sm"
+      role="status"
+    >
+      <p class="font-medium text-warning">Очікується підпис керівника</p>
+      <p class="mt-1 text-muted">
+        Оферту від імені юрособи підписує {{ d.status.headName || 'керівник' }} своїм КЕП (в
+        обліковому записі директора або адміністратора юрособи). Щойно її буде підписано, ви зможете
+        працювати.
+      </p>
+    </div>
+    <div class="mt-5 flex flex-wrap gap-2">
+      <button type="button" class="btn btn-primary cursor-pointer" (click)="check()">
+        Перевірити ще раз
+      </button>
+      <button type="button" class="btn btn-ghost cursor-pointer" (click)="auth.logout()">
+        Вийти
+      </button>
+    </div>
+  } @else if (document(); as doc) {
+    <div class="mt-6 border-t border-line pt-5">
+      <h2 class="font-semibold">Підпис КЕП керівника</h2>
+      <p class="mt-1 mb-4 text-sm text-muted">
+        Підписує {{ d.status.headName || 'керівник юрособи' }}. Система звірить підписанта з
+        керівником за даними ЄДР.
+      </p>
+      <app-kep-sign
+        [document]="doc"
+        [widgetConfig]="d.status.widget"
+        [busy]="checking()"
+        [signer]="d.status.headName || 'керівник'"
+        (signed)="onSigned($event)"
+      />
+      @if (checking()) {
+        <p class="mt-3 text-sm text-muted" aria-live="polite">Перевіряємо підпис і дані ЄДР…</p>
+      }
+    </div>
+  } @else {
+    <div class="mt-5 flex flex-wrap gap-2">
+      <button
+        type="button"
+        class="btn btn-primary cursor-pointer"
+        [disabled]="forming()"
+        (click)="form()"
+      >
+        {{ forming() ? 'Формуємо…' : 'Підписати оферту КЕП' }}
+      </button>
+      <button type="button" class="btn btn-ghost cursor-pointer" (click)="auth.logout()">
+        Не погоджуюсь — вийти
+      </button>
+    </div>
+    <p class="mt-3 text-xs text-muted">
+      Буде сформовано документ: текст оферти цієї редакції ({{ d.status.version }}) і заява про її
+      прийняття з реквізитами юрособи. Його й підписує керівник.
+    </p>
+  }
+</div>

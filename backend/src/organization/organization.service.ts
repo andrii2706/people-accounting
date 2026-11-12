@@ -20,7 +20,13 @@ export class OrganizationService {
 
   async update(dto: UpdateOrganizationDto) {
     const org = await this.get();
+    const before = org.mobilizationUntil;
     Object.assign(org, dto);
+    // a date changed by hand is a confirmed one (the same date sent with other settings changes nothing)
+    if (dto.mobilizationUntil !== undefined && dto.mobilizationUntil !== before) {
+      org.mobilizationConfirmedUntil = dto.mobilizationUntil;
+      org.mobilizationEstimated = false;
+    }
     return this.orgRepo.save(org);
   }
 }

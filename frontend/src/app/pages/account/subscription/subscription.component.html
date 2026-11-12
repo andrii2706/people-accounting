@@ -1,0 +1,157 @@
+@let d = data();
+<div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Підписка й рахунки</h1>
+    <p class="mt-1 text-sm text-muted">
+      Доступ до системи, тариф і рахунки на оплату вашої юрособи.
+    </p>
+  </div>
+  @if (canWork()) {
+    <button type="button" class="btn btn-primary cursor-pointer" (click)="toWork()">
+      До роботи <app-icon name="arrowRight" />
+    </button>
+  }
+</div>
+
+@if (!d.required) {
+  <div class="card p-5 text-sm">
+    Ваша юридична особа працює за окремим договором — рахунки в системі не формуються.
+  </div>
+} @else {
+  <section class="card mb-6 grid gap-4 p-5 sm:grid-cols-3 sm:p-6">
+    <div>
+      <p class="text-xs text-muted">Стан</p>
+      <p
+        class="mt-1 text-lg font-semibold"
+        [class.text-danger]="d.state === 'EXPIRED'"
+        [class.text-ok]="d.state === 'ACTIVE'"
+      >
+        {{ stateLabels[d.state] }}
+      </p>
+      @if (d.daysLeft !== null && d.state !== 'EXPIRED') {
+        <p class="text-xs text-muted">лишилось днів: {{ d.daysLeft }}</p>
+      }
+    </div>
+    <div>
+      <p class="text-xs text-muted">Тариф</p>
+      <p class="mt-1 text-lg font-semibold">{{ d.plan ? planLabels[d.plan] : '—' }}</p>
+      @if (d.canManage) {
+        <a
+          routerLink="/account/plans"
+          class="text-xs text-brand-600 hover:underline cursor-pointer"
+          >{{ d.plan ? 'Змінити тариф' : 'Обрати тариф' }}</a
+        >
+      }
+    </div>
+    <div>
+      <p class="text-xs text-muted">Доступ</p>
+      @if (d.paidUntil) {
+        <p class="mt-1 text-lg font-semibold">оплачено до {{ d.paidUntil | uaDate }}</p>
+      } @else if (d.trialUntil) {
+        <p class="mt-1 text-lg font-semibold">пробний до {{ d.trialUntil | uaDate }}</p>
+      } @else {
+        <p class="mt-1 text-lg font-semibold">—</p>
+      }
+    </div>
+  </section>
+
+  @if (d.state === 'EXPIRED') {
+    <p
+      class="mb-6 rounded-lg border border-danger/20 bg-[#fdf1ef] px-4 py-3 text-sm text-danger"
+      role="alert"
+    >
+      Доступ до даних призупинено: пробний період або оплачений строк закінчився. Дані збережено —
+      роботу можна продовжити одразу після оплати рахунку.
+      @if (!d.canManage) {
+        Зверніться до керівника вашої юрособи.
+      }
+    </p>
+  }
+  @if (d.plan === 'ENTERPRISE' && d.enterpriseRequestedAt) {
+    <p class="mb-6 rounded-lg bg-sunken/60 px-4 py-3 text-sm">
+      Заявку Enterprise надіслано {{ d.enterpriseRequestedAt | uaDate }}. Постачальник зв’яжеться з
+      вами, погодить умови й виставить рахунок — він з’явиться тут.
+    </p>
+  }
+
+  <section class="card overflow-x-auto">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+      <h2 class="font-semibold">Рахунки</h2>
+      @if (canRenew()) {
+        <button
+          type="button"
+          class="btn btn-secondary cursor-pointer"
+          [disabled]="issuing()"
+          (click)="renew()"
+        >
+          <app-icon name="plus" /> Сформувати рахунок на наступний період
+        </button>
+      }
+    </div>
+    <table class="table-base">
+      <thead>
+        <tr>
+          <th>Номер і дата</th>
+          <th>Період</th>
+          <th class="text-right">Сума, грн</th>
+          <th>Стан</th>
+          <th class="text-right">Файл</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (i of d.invoices; track i.id) {
+          <tr [class.opacity-60]="i.status === 'CANCELLED'">
+            <td>
+              <p class="font-medium">№ {{ i.number }}</p>
+              <p class="text-xs text-muted">від {{ i.issuedAt | uaDate }}</p>
+            </td>
+            <td class="text-sm whitespace-nowrap">
+              {{ i.periodFrom | uaDate }} — {{ i.periodTo | uaDate }}
+            </td>
+            <td class="text-right tabular-nums">{{ money(i.total) }}</td>
+            <td class="text-sm">
+              <span
+                [class.text-ok]="i.status === 'PAID'"
+                [class.text-warning]="i.status === 'ISSUED'"
+                >{{ statusLabels[i.status] }}</span
+              >
+              @if (i.status === 'ISSUED') {
+                <p class="text-xs text-muted">сплатити до {{ i.dueDate | uaDate }}</p>
+              } @else if (i.paidAt) {
+                <p class="text-xs text-muted">{{ i.paidAt | uaDate }}</p>
+              }
+            </td>
+            <td class="text-right">
+              <a
+                class="btn btn-ghost btn-sm cursor-pointer"
+                [href]="invoiceUrl(i.id)"
+                download
+                title="Рахунок на оплату .docx"
+                ><app-icon name="download" /> .docx</a
+              >
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="py-10 text-center text-sm text-muted">
+              @if (!d.sellerReady) {
+                Рахунок з’явиться, щойно постачальник заповнить реквізити. Пробний період уже діє.
+              } @else if (d.plan === 'ENTERPRISE') {
+                Рахунок за тарифом Enterprise виставить постачальник після погодження умов.
+              } @else {
+                Рахунків ще немає.
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+  @if (openInvoice(); as inv) {
+    <p class="mt-4 text-xs text-muted">
+      У призначенні платежу вкажіть «Оплата за рахунком № {{ inv.number }}». Доступ продовжується
+      після надходження коштів — постачальник позначає оплату вручну, зазвичай протягом робочого
+      дня.
+    </p>
+  }
+}

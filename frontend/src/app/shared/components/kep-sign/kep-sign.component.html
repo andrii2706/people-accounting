@@ -1,0 +1,101 @@
+@if (widgetConfig().enabled) {
+  <div class="mb-4 inline-flex rounded-lg bg-sunken p-1 text-sm" role="tablist">
+    <button
+      type="button"
+      role="tab"
+      class="cursor-pointer rounded-md px-3 py-1"
+      [class]="mode() === 'widget' ? 'bg-surface font-medium shadow-sm' : 'text-muted'"
+      [attr.aria-selected]="mode() === 'widget'"
+      (click)="setMode('widget')"
+    >
+      Ключ КЕП тут
+    </button>
+    <button
+      type="button"
+      role="tab"
+      class="cursor-pointer rounded-md px-3 py-1"
+      [class]="mode() === 'upload' ? 'bg-surface font-medium shadow-sm' : 'text-muted'"
+      [attr.aria-selected]="mode() === 'upload'"
+      (click)="setMode('upload')"
+    >
+      Файл підпису .p7s
+    </button>
+  </div>
+}
+
+@if (mode() === 'widget' && widgetConfig().enabled) {
+  <p class="text-sm text-muted">
+    Віджет ІІТ працює з файловими ключами будь-якого кваліфікованого надавача, захищеними носіями й
+    хмарними КЕП (зокрема Дія.Підпис). Ключ і пароль обробляються у фреймі ІІТ — застосунок їх не
+    отримує.
+  </p>
+  <div
+    [id]="containerId"
+    class="mt-3 overflow-hidden rounded-lg border border-line [&>iframe]:h-[560px] [&>iframe]:w-full"
+    [class.hidden]="stage() === 'idle'"
+  ></div>
+  <div class="mt-3 flex flex-wrap gap-2">
+    @switch (stage()) {
+      @case ('idle') {
+        <button type="button" class="btn btn-primary cursor-pointer" (click)="readKey()">
+          <app-icon name="key" /> Зчитати ключ
+        </button>
+      }
+      @case ('reading') {
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="reset()">
+          Скасувати
+        </button>
+      }
+      @default {
+        <button
+          type="button"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="busy() || stage() === 'signing'"
+          (click)="signHere()"
+        >
+          <app-icon name="signature" />
+          {{ busy() || stage() === 'signing' ? 'Підписуємо й перевіряємо…' : 'Підписати' }}
+        </button>
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="reset()">
+          Інший ключ
+        </button>
+      }
+    }
+  </div>
+} @else {
+  <ol class="list-decimal space-y-2 pl-5 text-sm">
+    <li>
+      <button
+        type="button"
+        class="cursor-pointer font-medium text-brand-600 hover:underline"
+        (click)="download()"
+      >
+        <app-icon name="download" [size]="14" /> Завантажте файл {{ document().fileName }}
+      </button>
+    </li>
+    <li>
+      Підпишіть його КЕП ({{ signer() }}) будь-яким засобом:
+      @for (t of tools; track t.url; let last = $last) {
+        <a
+          class="text-brand-600 hover:underline"
+          [href]="t.url"
+          target="_blank"
+          rel="noopener noreferrer"
+          >{{ t.label }}</a
+        >{{ last ? ',' : ', ' }}
+      }
+      «ІІТ Користувач ЦСК», Вчасно тощо. Формат — <b>CAdES, окремий файл підпису (.p7s)</b>.
+    </li>
+    <li>Додайте отриманий файл .p7s:</li>
+  </ol>
+  <label class="btn btn-secondary mt-3 cursor-pointer" [class.opacity-60]="busy()">
+    <app-icon name="upload" /> {{ busy() ? 'Перевіряємо…' : 'Додати файл .p7s' }}
+    <input
+      type="file"
+      class="sr-only"
+      accept=".p7s,.p7m,.sig,.pem,application/pkcs7-signature"
+      [disabled]="busy()"
+      (change)="upload($event)"
+    />
+  </label>
+}

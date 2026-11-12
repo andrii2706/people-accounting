@@ -27,7 +27,7 @@ export class ProfileComponent {
 
   /** E-mail reminders on / off (not available until the temporary password is changed). */
   protected readonly preferences = httpResource<UserPreferences>(() =>
-    this.auth.mustChangePassword() ? undefined : '/api/auth/preferences',
+    !this.auth.onboarded() ? undefined : '/api/auth/preferences',
   );
   protected readonly savingNotify = signal(false);
 

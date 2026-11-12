@@ -39,14 +39,24 @@ export interface LegalEntityForm {
   responsiblePhone: string;
   /** Reservation quota in percent as typed ('' — not set). */
   reservationQuotaPercent: string;
-  reservationQuotaBasis: string;
+  /** The criticality document: name, issuing authority, date, number; the criticality lasts until (inclusive). */
+  reservationQuotaDocName: string;
+  reservationQuotaAuthority: string;
+  reservationQuotaDocDate: string;
+  reservationQuotaDocNumber: string;
+  reservationQuotaValidUntil: string;
   /** Extra e-mail addresses for reminders about its employees, comma-separated. */
   notifyEmails: string;
 }
 
 /** Request body of POST / PATCH: no user — null. */
-export interface LegalEntityBody extends Omit<LegalEntityForm, 'reservationQuotaPercent'> {
+export interface LegalEntityBody extends Omit<
+  LegalEntityForm,
+  'reservationQuotaPercent' | 'reservationQuotaDocDate' | 'reservationQuotaValidUntil'
+> {
   reservationQuotaPercent: number | null;
+  reservationQuotaDocDate: string | null;
+  reservationQuotaValidUntil: string | null;
 }
 
 export interface LegalEntity extends LegalEntityBody {
@@ -63,6 +73,8 @@ export interface RegistryCompany {
   address: string;
   postalCode: string;
   headName: string;
+  headFullName: string;
+  terminated: boolean;
   kved: string;
   source: string;
 }

@@ -12,6 +12,11 @@
       class="btn btn-secondary cursor-pointer"
       ><app-icon name="mail" /> Наклейки на конверти</a
     >
+    <a
+      [routerLink]="['/settings/legal-entities', entity.id, 'database']"
+      class="btn btn-secondary cursor-pointer"
+      ><app-icon name="database" /> Власна база даних</a
+    >
   }
 </app-page-header>
 
@@ -190,7 +195,7 @@
         і тих, кого бронює інше підприємство). Кількість місць рахується автоматично з округленням
         униз; вільні місця — мінус уже заброньовані цією юрособою.
       </p>
-      <div class="grid gap-4 sm:grid-cols-[10rem_1fr]">
+      <div class="grid gap-4 sm:grid-cols-[10rem_14rem]">
         <app-form-field
           label="Квота, %"
           hint="Порожньо — не задано"
@@ -204,13 +209,47 @@
           />
         </app-form-field>
         <app-form-field
-          label="Підстава"
-          hint="напр. рішення про критичність, наказ"
-          [field]="entityForm.reservationQuotaBasis"
+          label="Критичність до (включно)"
+          hint="Останній день, на який надано критичність"
+          [field]="entityForm.reservationQuotaValidUntil"
         >
-          <input class="input" [formField]="entityForm.reservationQuotaBasis" />
+          <app-date-input
+            [formField]="entityForm.reservationQuotaValidUntil"
+            ariaLabel="Критичність до (включно)"
+          />
         </app-form-field>
       </div>
+      <h3 class="mt-5 mb-3 text-sm font-semibold">Документ про критичність</h3>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <app-form-field
+          label="Назва документа"
+          hint="напр. рішення про визначення підприємства критично важливим"
+          [field]="entityForm.reservationQuotaDocName"
+        >
+          <input class="input" [formField]="entityForm.reservationQuotaDocName" />
+        </app-form-field>
+        <app-form-field
+          label="Орган, що видав"
+          hint="напр. Львівська обласна військова адміністрація"
+          [field]="entityForm.reservationQuotaAuthority"
+        >
+          <input class="input" [formField]="entityForm.reservationQuotaAuthority" />
+        </app-form-field>
+        <app-form-field label="Дата документа" [field]="entityForm.reservationQuotaDocDate">
+          <app-date-input
+            [formField]="entityForm.reservationQuotaDocDate"
+            ariaLabel="Дата документа"
+          />
+        </app-form-field>
+        <app-form-field label="Номер документа" [field]="entityForm.reservationQuotaDocNumber">
+          <input class="input" [formField]="entityForm.reservationQuotaDocNumber" />
+        </app-form-field>
+      </div>
+      @if (criticalityExpired()) {
+        <p class="mt-3 rounded-lg bg-[#fdf1ef] px-3 py-2 text-sm text-danger" role="alert">
+          Строк критичності минув — нових бронювань за квотою немає. Внесіть дані нового рішення.
+        </p>
+      }
       @if (quotaPreview(); as q) {
         <p class="mt-3 text-sm" [class.text-danger]="q.exceeded">
           Військовозобов’язаних чоловіків: <b class="tabular-nums">{{ q.base }}</b> → місць:

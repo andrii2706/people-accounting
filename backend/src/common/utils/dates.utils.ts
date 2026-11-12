@@ -80,3 +80,12 @@ export function fifthOfNextMonth(date: IsoDate): IsoDate {
   const [y, m] = date.split('-').map(Number);
   return m === 12 ? `${y + 1}-01-05` : `${y}-${String(m + 1).padStart(2, '0')}-05`;
 }
+
+/** The same day `months` later; the 31st of a shorter month becomes its last day. */
+export function addMonths(date: IsoDate, months: number): IsoDate {
+  const [y, m, d] = date.split('-').map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, last));
+  return target.toISOString().slice(0, 10);
+}

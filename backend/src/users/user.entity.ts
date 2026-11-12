@@ -1,5 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
-import type { UserRole } from '../shared/interfaces/auth.interface.js';
+import type { SignupSource, UserRole } from '../shared/interfaces/auth.interface.js';
 
 @Entity('users')
 export class User {
@@ -59,6 +59,10 @@ export class User {
   /** One-time entry while there is a debt for using the system: when it was used. */
   @Column({ type: 'timestamptz', nullable: true })
   debtGraceUsedAt: Date | null;
+
+  /** ADMIN — the account was created by an administrator; SELF — the director signed up himself. */
+  @Column({ type: 'varchar', length: 10, default: 'ADMIN' })
+  signupSource: SignupSource;
 
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt: Date;

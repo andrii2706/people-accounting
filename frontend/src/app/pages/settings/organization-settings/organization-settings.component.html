@@ -45,8 +45,9 @@
     <section class="card p-5 sm:p-6">
       <h2 class="mb-1 font-semibold">Строк мобілізації</h2>
       <p class="mb-4 text-xs text-muted">
-        Щодня підтягується з указів Президента на zakon.rada.gov.ua. Використовується для відстрочок
-        «до завершення мобілізації».
+        Щодня підтягується з указів Президента на zakon.rada.gov.ua. Кожне продовження — на 90 діб:
+        якщо строк минув, а указу ще немає, дата продовжується на 90 діб автоматично.
+        Використовується для відстрочок «до завершення мобілізації».
       </p>
       <dl class="mb-4 grid gap-1 text-sm">
         <div class="flex gap-2">
@@ -54,11 +55,27 @@
           <dd class="font-medium">
             @if (status().mobilizationUntil) {
               {{ status().mobilizationUntil | uaDate }}
+              @if (status().mobilizationEstimated) {
+                <span
+                  class="ml-1 rounded bg-warning/10 px-1.5 py-0.5 text-xs font-medium text-warning"
+                  >очікується указ</span
+                >
+              }
             } @else {
               не визначено
             }
           </dd>
         </div>
+        @if (status().mobilizationEstimated) {
+          <p class="rounded-lg bg-warning/10 px-3 py-2 text-xs text-warning">
+            Строк минув, а нового указу ще немає. Кожне продовження — на 90 діб, тому дату
+            продовжено автоматично.
+            @if (status().mobilizationConfirmedUntil) {
+              Останній указ — до {{ status().mobilizationConfirmedUntil | uaDate }}.
+            }
+            Щойно новий указ опублікують, дата оновиться з нього.
+          </p>
+        }
         @if (status().mobilizationDecree) {
           <div class="flex gap-2">
             <dt class="text-muted">Указ:</dt>

@@ -12,16 +12,25 @@ describe('apiInterceptor', () => {
   let backend: HttpTestingController;
   const navigate = vi.fn().mockResolvedValue(true);
   const markSignedOut = vi.fn();
+  /** The navigation in progress: null — none; otherwise the URL it is heading to. */
+  let heading: string | null = null;
+  const router = {
+    navigate,
+    url: '/employees',
+    currentNavigation: () => (heading ? { extractedUrl: heading, finalUrl: undefined } : null),
+    serializeUrl: (url: string) => url,
+  };
 
   beforeEach(() => {
     navigate.mockClear();
     markSignedOut.mockClear();
+    heading = null;
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([apiInterceptor])),
         provideHttpClientTesting(),
         { provide: PLATFORM_ID, useValue: 'browser' },
-        { provide: Router, useValue: { navigate, url: '/employees' } },
+        { provide: Router, useValue: router },
         { provide: AuthService, useValue: { markSignedOut } },
       ],
     });
@@ -53,6 +62,19 @@ describe('apiInterceptor', () => {
   it('з тимчасовим паролем веде в профіль', async () => {
     await fail('/api/employees', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
     expect(navigate).toHaveBeenCalledWith(['/profile']);
+  });
+
+  it('не перезапускає перехід, який уже йде в профіль (інакше — нескінченні запити резолверів)', async () => {
+    heading = '/profile';
+    await fail('/api/legal-entities', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('без обраного тарифу веде до тарифів, після завершення строку — до підписки', async () => {
+    await fail('/api/employees', 403, { code: 'PLAN_REQUIRED' });
+    expect(navigate).toHaveBeenCalledWith(['/account/plans']);
+    await fail('/api/employees', 403, { code: 'SUBSCRIPTION_EXPIRED' });
+    expect(navigate).toHaveBeenCalledWith(['/account/subscription']);
   });
 
   it('інші помилки лише передає далі', async () => {

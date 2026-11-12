@@ -1,0 +1,167 @@
+@let db = data().db;
+<app-page-header
+  [eyebrow]="data().entityName"
+  title="Власна база даних"
+  subtitle="Сервер PostgreSQL вашої компанії, де зберігатимуться дані працівників цієї юрособи."
+>
+  <a
+    [routerLink]="['/settings/legal-entities', data().entityId]"
+    class="btn btn-ghost cursor-pointer"
+    ><app-icon name="arrowLeft" /> До юрособи</a
+  >
+</app-page-header>
+
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+  <form class="card min-w-0 space-y-4 p-5 sm:p-6" (submit)="save($event)" novalidate>
+    <h2 class="font-semibold">Параметри підключення</h2>
+    <div class="grid gap-4 sm:grid-cols-[1fr_8rem]">
+      <app-form-field
+        label="Адреса сервера"
+        [required]="true"
+        hint="Ім’я або IP, напр. db.company.ua"
+        [field]="f.host"
+      >
+        <input class="input font-mono" autocomplete="off" spellcheck="false" [formField]="f.host" />
+      </app-form-field>
+      <app-form-field label="Порт" [required]="true" [field]="f.port">
+        <input class="input tabular-nums" type="number" [formField]="f.port" />
+      </app-form-field>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-form-field label="Назва бази" [required]="true" [field]="f.database">
+        <input
+          class="input font-mono"
+          autocomplete="off"
+          spellcheck="false"
+          [formField]="f.database"
+        />
+      </app-form-field>
+      <app-form-field label="Користувач" [required]="true" [field]="f.username">
+        <input
+          class="input font-mono"
+          autocomplete="off"
+          spellcheck="false"
+          [formField]="f.username"
+        />
+      </app-form-field>
+    </div>
+    <app-form-field
+      label="Пароль"
+      [required]="!db.hasPassword"
+      [hint]="
+        db.hasPassword
+          ? 'Збережено (зашифровано). Порожньо — залишити як є'
+          : 'Зберігається зашифрованим, назад не показується'
+      "
+      [field]="f.password"
+    >
+      <input class="input" type="password" autocomplete="new-password" [formField]="f.password" />
+    </app-form-field>
+    <app-form-field label="Шифрування з’єднання" [field]="f.sslMode">
+      <app-select
+        ariaLabel="Шифрування з’єднання"
+        [clearable]="false"
+        [options]="sslOptions()"
+        [value]="model().sslMode"
+        (valueChange)="setSsl($event)"
+      />
+    </app-form-field>
+    <div class="flex flex-wrap gap-2 pt-2">
+      <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+        Зберегти
+      </button>
+      @if (db.configured) {
+        <button
+          type="button"
+          class="btn btn-secondary cursor-pointer"
+          [disabled]="checking() || f().submitting()"
+          (click)="check()"
+        >
+          <app-icon name="database" /> {{ checking() ? 'Перевіряємо…' : 'Перевірити підключення' }}
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost cursor-pointer text-danger sm:ml-auto"
+          [disabled]="removing()"
+          (click)="remove()"
+        >
+          <app-icon name="trash" /> Видалити
+        </button>
+      }
+    </div>
+  </form>
+
+  <div class="grid min-w-0 content-start gap-6">
+    <section class="card p-5 sm:p-6" aria-live="polite">
+      <h2 class="mb-3 font-semibold">Стан</h2>
+      @if (!db.configured) {
+        <p class="text-sm text-muted">
+          Не підключено — дані працівників зберігаються в базі застосунку.
+        </p>
+      } @else {
+        <p
+          class="flex items-center gap-2 text-sm font-medium"
+          [class.text-ok]="db.status === 'OK'"
+          [class.text-danger]="db.status === 'ERROR'"
+        >
+          <app-icon
+            [name]="db.status === 'OK' ? 'check' : db.status === 'ERROR' ? 'alert' : 'clock'"
+          />
+          {{ statusLabels[db.status] }}
+        </p>
+        @if (db.lastCheckedAt) {
+          <p class="mt-1 text-xs text-muted">Перевірено {{ db.lastCheckedAt | uaDate }}</p>
+        }
+        @if (db.status === 'ERROR' && db.lastError) {
+          <p class="mt-3 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+            {{ db.lastError }}
+          </p>
+        }
+        @if (db.status === 'OK') {
+          <dl class="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+            <dt class="text-muted">Сервер</dt>
+            <dd class="min-w-0 break-words">{{ db.serverVersion }}</dd>
+            <dt class="text-muted">Створення таблиць</dt>
+            <dd>
+              @if (db.canCreate) {
+                дозволено
+              } @else {
+                <span class="text-warning"
+                  >немає права CREATE — надайте його користувачу перед перенесенням</span
+                >
+              }
+            </dd>
+          </dl>
+        }
+        @if (checkResult(); as r) {
+          @if (!r.ok && r.message !== db.lastError) {
+            <p class="mt-3 text-sm text-danger">{{ r.message }}</p>
+          }
+        }
+      }
+    </section>
+
+    <section class="card space-y-2 p-5 text-sm sm:p-6">
+      <h2 class="font-semibold">Як це працює</h2>
+      <ol class="list-decimal space-y-1 pl-5 text-muted">
+        <li>
+          Створіть на своєму сервері порожню базу й окремого користувача з правом створювати таблиці
+          в ній.
+        </li>
+        <li>
+          Відкрийте доступ із серверів застосунку (Google Cloud, Європа). Приватні адреси (10.x,
+          192.168.x, localhost) не приймаються.
+        </li>
+        <li>Збережіть параметри й натисніть «Перевірити підключення».</li>
+        <li>
+          Перенесення даних працівників у вашу базу — наступний етап: ми зв’яжемося, коли він буде
+          готовий. До того дані залишаються в базі застосунку.
+        </li>
+      </ol>
+      <p class="pt-1 text-xs text-muted">
+        Пароль зберігається зашифрованим (AES-256-GCM) і ніде не показується. Рекомендуємо
+        шифрування «з перевіркою сертифіката».
+      </p>
+    </section>
+  </div>
+</div>

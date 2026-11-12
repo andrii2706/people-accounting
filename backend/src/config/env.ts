@@ -4,7 +4,7 @@ import type { UserRole } from '../shared/interfaces/auth.interface.js';
  * and says clearly what to fix (instead of a stack trace from deep inside DI).
  */
 import { createHash, hkdfSync } from 'node:crypto';
-import type { AppEnv } from '../shared/interfaces/config.interface.js';
+import type { AppEnv, KepVerifierKind } from '../shared/interfaces/config.interface.js';
 
 const DEFAULT_DEV_ADMIN_PASSWORD = 'ChangeMe123!';
 
@@ -155,9 +155,27 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     decreeSourceUrl: env.DECREE_SOURCE_URL || 'https://zakon.rada.gov.ua/laws/show/65/2022',
     // free ЄДР lookup by code ({code} is replaced); empty — the «Підтягнути з ЄДР» button is off
     companyRegistryUrl: env.COMPANY_REGISTRY_URL ?? 'https://adm.tools/action/gov/api/?egrpou={code}',
+    // anyone may sign up as a director of his company (the old flow — accounts by the administrator — stays)
+    selfSignupEnabled: bool(env.SELF_SIGNUP_ENABLED, true),
+    // own databases of the legal entities: hosts of private networks / localhost only in development
+    allowPrivateDbHosts: bool(env.ALLOW_PRIVATE_DB_HOSTS, !isProduction),
+    // qualified e-signature check for the sign-up and the offer: 'iit' — the IIT library (chain, OCSP);
+    // 'basic' — only the structure / hash / ECDSA, without the chain (development only); '' — off
+    kepVerifier: kepVerifier(env.KEP_VERIFIER, isProduction),
+    // a module that creates the IIT EndUser object (see backend/iit/README.md)
+    iitLoaderPath: env.IIT_LOADER_PATH || 'iit/iit-loader.mjs',
   };
   if (env === process.env) cached = result;
   return result;
+}
+
+function kepVerifier(value: string | undefined, isProduction: boolean): KepVerifierKind {
+  const v = (value ?? '').trim().toLowerCase();
+  if (v !== '' && v !== 'iit' && v !== 'basic') throw new Error('KEP_VERIFIER: iit, basic або порожньо');
+  if (v === 'basic' && isProduction) {
+    throw new Error('KEP_VERIFIER=basic не перевіряє ланцюжок сертифіката — у продакшні лише iit');
+  }
+  return v as KepVerifierKind;
 }
 
 /** For ConfigModule.forRoot({ validate }) — fails with a clear message. */

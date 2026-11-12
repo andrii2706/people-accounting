@@ -17,6 +17,10 @@ import { StorageModule } from './storage/storage.service.js';
 import { UsersModule } from './users/users.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { InboxModule } from './inbox/inbox.module.js';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module.js';
+import { KepModule } from './kep/kep.module.js';
+import { SignupModule } from './signup/signup.module.js';
+import { EntityDatabasesModule } from './entity-databases/entity-databases.module.js';
 import { BillingModule } from './billing/billing.module.js';
 
 @Controller('health')
@@ -52,6 +56,10 @@ class HealthController {
     SignaturesModule,
     InboxModule,
     BillingModule,
+    KepModule,
+    SignupModule,
+    SubscriptionsModule,
+    EntityDatabasesModule,
   ],
   controllers: [HealthController],
 })

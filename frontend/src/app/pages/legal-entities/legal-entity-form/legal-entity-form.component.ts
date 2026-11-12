@@ -20,6 +20,8 @@ import { Router, RouterLink } from '@angular/router';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { todayIso } from '../../../shared/utils/date.utils';
 import { PhoneInputComponent } from '../../../shared/components/phone-input/phone-input.component';
 import { PersonAccessComponent } from '../person-access/person-access.component';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
@@ -57,6 +59,7 @@ import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
     FormFieldComponent,
     IconComponent,
     PhoneInputComponent,
+    DateInputComponent,
     PersonAccessComponent,
     RouterLink,
     UaDateTimePipe,
@@ -100,7 +103,15 @@ export class LegalEntityFormComponent {
     len(p.headName, 200);
     len(p.responsibleName, 200);
     len(p.responsiblePosition, 200);
-    len(p.reservationQuotaBasis, 300);
+    len(p.reservationQuotaDocName, 300);
+    len(p.reservationQuotaAuthority, 300);
+    len(p.reservationQuotaDocNumber, 100);
+    validate(p.reservationQuotaValidUntil, ({ value, valueOf }) => {
+      const from = valueOf(p.reservationQuotaDocDate);
+      return value() && from && value() < from
+        ? { kind: 'order', message: 'Не раніше дати документа' }
+        : undefined;
+    });
     len(p.notifyEmails, 500);
     validate(p.reservationQuotaPercent, ({ value }) => {
       const v = value().trim();
@@ -124,6 +135,12 @@ export class LegalEntityFormComponent {
   protected readonly youControl = computed(() => youControlUrl(this.model().edrpou));
 
   /** Live calculation under the quota field: places for the typed percent and how many are free. */
+  /** The last day of the criticality has passed — no new reservations under the quota. */
+  protected readonly criticalityExpired = computed(() => {
+    const until = this.model().reservationQuotaValidUntil;
+    return !!until && until < todayIso();
+  });
+
   protected readonly quotaPreview = computed(() => {
     const today = this.page().quota;
     const percent = parsePercent(this.model().reservationQuotaPercent);
@@ -134,7 +151,7 @@ export class LegalEntityFormComponent {
       base: today.base,
       places,
       reserved: today.reservedCompany,
-      free: Math.max(places - today.reservedCompany, 0),
+      free: this.criticalityExpired() ? 0 : Math.max(places - today.reservedCompany, 0),
       exceeded: today.reservedCompany > places,
     };
   });
@@ -200,7 +217,8 @@ export class LegalEntityFormComponent {
         // the director who has just added his legal entity belongs to it from now on
         const firstOwn = !entity && this.auth.needsEntity();
         if (firstOwn) await this.auth.refresh();
-        await this.dict.reloadLegalEntities();
+        // a legal entity that signed up itself: until a plan is chosen the list answers PLAN_REQUIRED
+        await this.dict.reloadLegalEntities().catch(() => undefined);
         this.toast.success(
           entity
             ? 'Юрособу збережено'

@@ -1,0 +1,209 @@
+@let d = data();
+<section class="card mb-6 overflow-x-auto">
+  <div class="border-b border-line px-5 py-4">
+    <h1 class="text-xl font-semibold">Підписки</h1>
+    <p class="mt-1 text-sm text-muted">
+      Юрособи, що зареєструвалися самі. Натисніть рядок — продовжити пробний період або виставити
+      рахунок вручну (Enterprise, особливі умови).
+    </p>
+  </div>
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Юрособа</th>
+        <th>Хто зареєструвався</th>
+        <th>Тариф</th>
+        <th>Стан</th>
+        <th>Пробний до</th>
+        <th>Оплачено до</th>
+        <th class="text-right">Неоплачених</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (s of d.subscriptions; track s.id) {
+        <tr
+          class="cursor-pointer hover:bg-sunken/50"
+          [class.bg-sunken]="selectedId() === s.id"
+          tabindex="0"
+          (click)="select(s)"
+          (keydown.enter)="select(s)"
+        >
+          <td>
+            <p class="font-medium">{{ s.entityName }}</p>
+            <p class="font-mono text-xs text-muted">{{ s.entityCode }}</p>
+          </td>
+          <td>
+            <p class="text-sm">{{ s.ownerName || '—' }}</p>
+            <p class="text-xs text-muted">{{ s.ownerEmail }}</p>
+          </td>
+          <td class="text-sm">
+            {{ planLabels[s.plan] }}
+            @if (s.plan === 'ENTERPRISE' && s.enterpriseRequestedAt) {
+              <p class="text-xs text-warning">заявка {{ s.enterpriseRequestedAt | uaDate }}</p>
+            }
+          </td>
+          <td class="text-sm">
+            <span
+              [class.text-danger]="s.state === 'EXPIRED'"
+              [class.text-ok]="s.state === 'ACTIVE'"
+              >{{ stateLabels[s.state] }}</span
+            >
+          </td>
+          <td class="text-sm whitespace-nowrap">{{ s.trialUntil | uaDate }}</td>
+          <td class="text-sm whitespace-nowrap">{{ s.paidUntil | uaDate: '—' }}</td>
+          <td class="text-right tabular-nums">{{ s.unpaidInvoices || '' }}</td>
+        </tr>
+        @if (selectedId() === s.id) {
+          <tr>
+            <td colspan="7" class="bg-sunken/40">
+              @if (s.enterpriseNote) {
+                <p class="mb-3 text-sm"><b>Побажання клієнта:</b> {{ s.enterpriseNote }}</p>
+              }
+              <div class="grid gap-4 md:grid-cols-[auto_1fr]">
+                <div class="space-y-2">
+                  <p class="text-sm font-semibold">Пробний період до</p>
+                  <div class="flex items-center gap-2">
+                    <app-date-input
+                      class="w-40"
+                      ariaLabel="Пробний період до"
+                      [value]="trialUntil()"
+                      (valueChange)="trialUntil.set($event)"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-secondary btn-sm cursor-pointer"
+                      [disabled]="busy()"
+                      (click)="extendTrial(s)"
+                    >
+                      Зберегти
+                    </button>
+                  </div>
+                </div>
+                <div class="space-y-2">
+                  <p class="text-sm font-semibold">Рахунок вручну</p>
+                  <div class="flex flex-wrap items-end gap-2">
+                    <label class="text-xs text-muted"
+                      >Місяців
+                      <input
+                        class="input w-20"
+                        type="number"
+                        min="1"
+                        max="36"
+                        [value]="months()"
+                        (input)="months.set(text($event))"
+                    /></label>
+                    <label class="text-xs text-muted"
+                      >Сума, грн
+                      <input
+                        class="input w-32 tabular-nums"
+                        inputmode="decimal"
+                        [value]="total()"
+                        (input)="total.set(text($event))"
+                    /></label>
+                    <label class="min-w-56 flex-1 text-xs text-muted"
+                      >Рядок рахунку (порожньо — стандартний)
+                      <input
+                        class="input"
+                        maxlength="500"
+                        [value]="description()"
+                        (input)="description.set(text($event))"
+                    /></label>
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm cursor-pointer"
+                      [disabled]="busy()"
+                      (click)="issue(s)"
+                    >
+                      Виставити
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        }
+      } @empty {
+        <tr>
+          <td colspan="7" class="py-10 text-center text-sm text-muted">
+            Ще ніхто не зареєструвався самостійно.
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>
+
+<section class="card overflow-x-auto">
+  <div class="border-b border-line px-5 py-4">
+    <h2 class="text-xl font-semibold">Рахунки</h2>
+    <p class="mt-1 text-sm text-muted">
+      Коли кошти надійшли — «Оплачено»: доступ клієнта продовжується до кінця періоду рахунку.
+    </p>
+  </div>
+  <table class="table-base">
+    <thead>
+      <tr>
+        <th>Номер і дата</th>
+        <th>Платник</th>
+        <th>Період</th>
+        <th class="text-right">Сума, грн</th>
+        <th>Стан</th>
+        <th class="text-right">Дії</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (i of d.invoices; track i.id) {
+        <tr [class.opacity-60]="i.status === 'CANCELLED'">
+          <td>
+            <p class="font-medium">№ {{ i.number }}</p>
+            <p class="text-xs text-muted">
+              від {{ i.issuedAt | uaDate }}, до {{ i.dueDate | uaDate }}
+            </p>
+          </td>
+          <td class="text-sm">{{ i.buyerName }}</td>
+          <td class="text-sm whitespace-nowrap">
+            {{ i.periodFrom | uaDate }} — {{ i.periodTo | uaDate }}
+          </td>
+          <td class="text-right whitespace-nowrap tabular-nums">{{ money(i.total) }}</td>
+          <td class="text-sm">
+            {{ statusLabels[i.status] }}
+            @if (i.paidAt) {
+              <p class="text-xs text-muted">{{ i.paidAt | uaDate }}</p>
+            }
+          </td>
+          <td class="text-right whitespace-nowrap">
+            <a
+              class="btn btn-ghost btn-sm cursor-pointer"
+              [href]="invoiceUrl(i.id)"
+              download
+              title="Рахунок .docx"
+              ><app-icon name="download" /> .docx</a
+            >
+            @if (i.status === 'ISSUED') {
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm cursor-pointer"
+                [disabled]="busy()"
+                (click)="markPaid(i)"
+              >
+                Оплачено
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm cursor-pointer text-danger"
+                [disabled]="busy()"
+                (click)="cancel(i)"
+              >
+                Скасувати
+              </button>
+            }
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="6" class="py-10 text-center text-sm text-muted">Рахунків ще немає.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</section>

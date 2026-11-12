@@ -95,7 +95,7 @@ function text(value: unknown): string {
   return typeof v?.valueBlock?.value === 'string' ? v.valueBlock.value.trim() : '';
 }
 
-function maskDrfo(value: string) {
+export function maskDrfo(value: string) {
   const digits = value.replace(/\D/g, '');
   return digits.length >= 4 ? `••••••${digits.slice(-4)}` : '';
 }

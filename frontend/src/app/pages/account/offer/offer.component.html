@@ -1,0 +1,25 @@
+<div class="min-h-screen bg-canvas px-4 py-8 sm:px-6">
+  <div class="mx-auto max-w-3xl">
+    <div class="mb-6 flex items-center justify-between gap-3">
+      <span class="flex items-center gap-3">
+        <span class="grid size-9 place-items-center rounded-[10px] bg-brand-600 text-white"
+          ><app-icon name="shield" [size]="18"
+        /></span>
+        <span class="font-semibold">Військовий облік</span>
+      </span>
+      <a routerLink="/register" class="btn btn-ghost cursor-pointer"
+        ><app-icon name="arrowLeft" /> До реєстрації</a
+      >
+    </div>
+    <div class="card p-5 sm:p-8">
+      @if (doc.value(); as d) {
+        <app-terms-document [doc]="d" />
+      } @else if (doc.error()) {
+        <p class="text-sm text-danger" role="alert">Не вдалося завантажити договір.</p>
+      } @else {
+        <p class="text-sm text-muted">Завантаження…</p>
+      }
+    </div>
+    <app-copyright class="py-6" />
+  </div>
+</div>

@@ -1119,7 +1119,9 @@
                         @if (mobilization.value()?.mobilizationUntil; as until) {
                           За останнім указом мобілізація триває до
                           <b class="text-ink">{{ until.split('-').reverse().join('.') }}</b>
-                          @if (mobilization.value()?.mobilizationDecree) {
+                          @if (mobilization.value()?.mobilizationEstimated) {
+                            (очікується указ — продовжено автоматично на 90 діб)
+                          } @else if (mobilization.value()?.mobilizationDecree) {
                             ({{ mobilization.value()?.mobilizationDecree }})
                           }
                           — дата оновлюється автоматично після кожного продовження.

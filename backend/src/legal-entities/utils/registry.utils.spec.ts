@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { normalizePhone } from '../../military/employee-rules.js';
-import { pickRegistryCompany, postalCodeFromAddress, signatureName, toRegistryCompany } from './registry.utils.js';
+import {
+  isTerminated,
+  pickRegistryCompany,
+  postalCodeFromAddress,
+  signatureName,
+  toRegistryCompany,
+} from './registry.utils.js';
 
 // all names and codes below are fictitious
 describe('registry utils', () => {
@@ -43,8 +49,17 @@ describe('registry utils', () => {
       shortName: 'ТОВ «ПРИКЛАД»',
       postalCode: '79000',
       headName: 'Іван ПРИКЛАДНИЙ',
+      headFullName: 'ПРИКЛАДНИЙ ІВАН ІВАНОВИЧ',
+      terminated: false,
       kved: '62.01 Розроблення програмного забезпечення',
     });
+  });
+
+  it('позначає припинені компанії', () => {
+    expect(isTerminated({ name: 'X', status: 'зареєстровано' })).toBe(false);
+    expect(isTerminated({ name: 'X', status: 'припинено' })).toBe(true);
+    expect(isTerminated({ name: 'X', stan: 'в стані припинення' })).toBe(true);
+    expect(isTerminated({ name: 'X' })).toBe(false);
   });
 });
 

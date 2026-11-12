@@ -11,7 +11,13 @@ export interface AuthUser {
   mustChangePassword: boolean;
   /** When the password stops working (HR / DIRECTOR — half a year after the change); null — never. */
   passwordExpiresAt?: string | null;
+  /** ADMIN — created by an administrator; SELF — signed up himself (a director of his company). */
+  signupSource?: SignupSource;
+  /** The current version of the agreement is accepted (the main administrator and the vendor — always). */
+  termsAccepted?: boolean;
 }
+
+export type SignupSource = 'ADMIN' | 'SELF';
 
 export interface SessionPayload {
   sub: string;

@@ -92,6 +92,11 @@
         } @else if (d.reservation.available !== null) {
           <span class="text-xs text-muted">вільно місць: {{ d.reservation.available }}</span>
         }
+        @for (q of expiredQuotas(); track q.id) {
+          <span class="text-xs text-danger"
+            >Критичність {{ q.name }} закінчилась {{ q.validUntil | uaDate }}</span
+          >
+        }
         @if (d.reservation.entities.length > 1) {
           <ul class="mt-1 space-y-0.5 text-xs text-muted">
             @for (q of d.reservation.entities; track q.id) {

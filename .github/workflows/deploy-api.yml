@@ -101,6 +101,7 @@ jobs:
           SIGN_WIDGET_FRAME_URL: ${{ vars.SIGN_WIDGET_FRAME_URL }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
           ACCESS_MAIL_FROM: ${{ vars.ACCESS_MAIL_FROM }}
+          IIT_BUCKET_PATH: ${{ vars.IIT_BUCKET_PATH }}
         run: |
           # shared by the migration job and the service
           jq -n --arg bucket "$GCP_BUCKET" '{
@@ -117,6 +118,14 @@ jobs:
           # letters with a temporary password go from a separate mailbox (ACCESS_MAIL_FROM + secret ACCESS_SMTP_URL)
           jq --arg from "$MAIL_FROM" --arg access "$ACCESS_MAIL_FROM" '. + { MAIL_FROM: $from, ACCESS_MAIL_FROM: $access }' \
              "$RUNNER_TEMP/env-service.json.tmp" > "$RUNNER_TEMP/env-service.json"
+          # qualified e-signature check (sign-up, offer): the IIT library is copied from a private bucket
+          # (backend/iit/README.md); without it the sign-up is off and the offer is not required
+          if [ -n "$IIT_BUCKET_PATH" ]; then
+            jq '. + { KEP_VERIFIER: "iit", IIT_LOADER_PATH: "iit/iit-loader.mjs" }' "$RUNNER_TEMP/env-service.json" \
+              > "$RUNNER_TEMP/env-service.json.kep" && mv "$RUNNER_TEMP/env-service.json.kep" "$RUNNER_TEMP/env-service.json"
+          else
+            echo "::warning::IIT_BUCKET_PATH не задано — реєстрація з КЕП вимкнена, оферта не вимагається"
+          fi
           jq 'keys' "$RUNNER_TEMP/env-service.json"
           # SMTP is optional: the secrets are attached only if they were created (see docs/DEPLOYMENT.md)
           MAIL_SECRETS=""
@@ -130,6 +139,10 @@ jobs:
             MAIL_SECRETS="${MAIL_SECRETS},ACCESS_SMTP_URL=ACCESS_SMTP_URL:latest"
           fi
           echo "SMTP_SECRET=${MAIL_SECRETS}" >> "$GITHUB_ENV"
+
+      - name: Бібліотека ІІТ для перевірки КЕП (необов'язково)
+        if: ${{ vars.IIT_BUCKET_PATH != '' }}
+        run: gcloud storage cp -r "${{ vars.IIT_BUCKET_PATH }}/*" backend/iit/
 
       - name: Збірка і публікація образу
         run: |

@@ -3,6 +3,22 @@ import type { ChangeType, ListSection } from './dictionary.interface.js';
 import type { Tck } from '../../dictionaries/tck.entity.js';
 import type { Organization } from '../../organization/organization.entity.js';
 import type { LetterNumberDate } from './letter.interface.js';
+/** What the system knows about the mobilization term (organization row). */
+export interface MobilizationState {
+  until: IsoDate | null;
+  /** The last date confirmed by a decree (or entered by hand). */
+  confirmedUntil: IsoDate | null;
+  decree: string;
+  /** The term was extended by 90 days automatically — the decree is still awaited. */
+  estimated: boolean;
+}
+
+/** The result of a check: the new state and what happened (null — nothing). */
+export interface MobilizationUpdate {
+  state: MobilizationState;
+  event: 'decree' | 'confirmed' | 'estimated' | null;
+}
+
 export interface MobilizationTerm {
   /** Start of the latest extension. */
   from: IsoDate;

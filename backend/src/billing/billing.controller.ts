@@ -3,7 +3,9 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
 import {
   AllowPendingPasswordChange,
+  AllowPendingTerms,
   AllowUnassigned,
+  AllowUnpaid,
   AllowVendor,
   CurrentUser,
   Roles,
@@ -24,6 +26,8 @@ export class BillingController {
   /** For every signed-in user: the block «Ласкаво просимо» / «Є заборгованість» after a sign-in. */
   @AllowVendor()
   @AllowPendingPasswordChange()
+  @AllowPendingTerms()
+  @AllowUnpaid()
   @AllowUnassigned()
   @Get('status')
   status(): Promise<BillingStatus> {

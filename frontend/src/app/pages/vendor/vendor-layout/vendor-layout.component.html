@@ -1,0 +1,31 @@
+<header class="border-b border-line bg-surface">
+  <div class="flex items-center justify-between gap-3 px-4 py-4 sm:px-6">
+    <div class="flex items-center gap-3">
+      <span class="grid size-9 place-items-center rounded-[10px] bg-brand-600 text-white"
+        ><app-icon name="shield" [size]="18"
+      /></span>
+      <div class="leading-tight">
+        <p class="font-semibold">Військовий облік</p>
+        <p class="text-xs text-muted">Постачальник · {{ auth.user()?.fullName }}</p>
+      </div>
+    </div>
+    <button type="button" class="btn btn-ghost cursor-pointer" (click)="auth.logout()">
+      <app-icon name="logout" /> Вийти
+    </button>
+  </div>
+  <nav class="flex gap-1 overflow-x-auto px-4 sm:px-6" aria-label="Розділи постачальника">
+    @for (t of tabs; track t.path) {
+      <a
+        [routerLink]="t.path"
+        routerLinkActive="border-brand-600 text-ink"
+        [routerLinkActiveOptions]="{ exact: t.exact }"
+        class="cursor-pointer border-b-2 border-transparent px-3 py-2.5 text-sm whitespace-nowrap text-muted hover:text-ink"
+        >{{ t.label }}</a
+      >
+    }
+  </nav>
+</header>
+<main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+  <router-outlet />
+</main>
+<app-copyright class="pb-6" />

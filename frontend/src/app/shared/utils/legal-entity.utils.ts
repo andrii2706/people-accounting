@@ -38,6 +38,8 @@ export function legalEntityBody(model: LegalEntityForm): LegalEntityBody {
   return {
     ...trimmed,
     reservationQuotaPercent: parsePercent(trimmed.reservationQuotaPercent),
+    reservationQuotaDocDate: trimmed.reservationQuotaDocDate || null,
+    reservationQuotaValidUntil: trimmed.reservationQuotaValidUntil || null,
   };
 }
 

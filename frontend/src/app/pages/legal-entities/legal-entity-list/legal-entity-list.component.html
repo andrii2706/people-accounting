@@ -14,6 +14,14 @@
       ><app-icon name="users" /> Користувачі</a
     >
   }
+  @if (auth.isAdmin()) {
+    <a
+      routerLink="/settings/signups"
+      class="btn btn-secondary cursor-pointer"
+      title="Хто й коли реєстрував юрособи з КЕП, відхилені спроби"
+      ><app-icon name="signature" /> Реєстрації</a
+    >
+  }
   @if (auth.canAddEntity()) {
     <a routerLink="/settings/legal-entities/new" class="btn btn-primary cursor-pointer"
       ><app-icon name="plus" /> Додати юрособу</a
@@ -90,11 +98,18 @@
               <p class="text-xs" [class]="e.quota.exceeded ? 'text-danger' : 'text-muted'">
                 @if (e.quota.exceeded) {
                   перевищено ·
+                } @else if (e.quota.expired) {
+                  критичність закінчилась ·
                 } @else {
                   вільно {{ e.quota.available }} ·
                 }
                 {{ percent(e.quota.percent!) }}% від {{ e.quota.base }} в/з
               </p>
+              @if (e.quota.validUntil) {
+                <p class="text-xs" [class]="e.quota.expired ? 'text-danger' : 'text-muted'">
+                  критичність до {{ e.quota.validUntil | uaDate }}
+                </p>
+              }
             } @else {
               {{ e.quota.reservedCompany }}
               <p class="text-xs text-muted">квоту не задано</p>
@@ -114,6 +129,13 @@
                 aria-label="Наклейки на конверти"
                 title="Наклейки на конверти: шрифт, розміри, A4 чи конверт"
                 ><app-icon name="mail" [size]="16"
+              /></a>
+              <a
+                class="icon-btn cursor-pointer"
+                [routerLink]="['/settings/legal-entities', e.id, 'database']"
+                aria-label="Власна база даних"
+                title="Власна база даних: підключення до сервера вашої компанії"
+                ><app-icon name="database" [size]="16"
               /></a>
               <a
                 class="icon-btn cursor-pointer"
