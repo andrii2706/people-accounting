@@ -1,3 +1,4 @@
+import type { ListRowMeta } from './list-settings.interface.js';
 import type { LetterNumberDate, LetterStatus } from './letter.interface.js';
 import type { IsoDate } from './common.interface.js';
 import type { DutyCategory, ListGroup, ListSection } from './dictionary.interface.js';
@@ -10,6 +11,8 @@ export interface ListRowView {
   category: DutyCategory | null;
   cells: string[];
   status: ListRowStatus;
+  /** For sorting and grouping by the list settings. */
+  meta: ListRowMeta;
 }
 
 /** Statuses for the on-screen list (badges and filters); the document uses only the cells. */
@@ -52,6 +55,10 @@ export interface ListsFilter {
 /** Lists / extract document: the filter plus the outgoing number and date of the letter. */
 export interface ListsDocxOptions extends ListsFilter {
   letter?: LetterNumberDate | null;
+  /** The rows of formed lists (a snapshot) instead of the data on the date. */
+  rows?: ListRowView[];
+  /** One list only. */
+  section?: ListSection | null;
 }
 
 /** One TCK in the extracts overview: how many people of each list are registered there. */
@@ -68,4 +75,21 @@ export interface TckExtractSummary {
 export interface TckLetterRef extends LetterNumberDate {
   id: string;
   status: LetterStatus;
+}
+
+/** What a lists document is made of (ListDocumentsService). */
+export interface ListsRenderRequest {
+  legalEntityId: string | null;
+  date: IsoDate;
+  rows: ListRowView[];
+  extract: boolean;
+  letter?: LetterNumberDate | null;
+  /** One list only; otherwise all four. */
+  section?: ListSection | null;
+}
+
+/** The rows of one list. */
+export interface ListPart {
+  section: ListSection;
+  rows: ListRowView[];
 }

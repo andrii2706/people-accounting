@@ -48,12 +48,15 @@ import {
 } from './docx-kit.js';
 import { inGenitive } from './name-declension.js';
 import type { ListSection } from '../shared/interfaces/dictionary.interface.js';
+import type { ListColumnKey } from '../shared/interfaces/list-settings.interface.js';
+import { formColumnNumbers } from '../reports/lists/utils/list-layout.utils.js';
 import type {
   NoticeSnapshot,
   CellSpec,
   NoticeItem,
   ChangeNoticeInput,
   ListsInput,
+  ListDocumentSection,
   OperationalInput,
   LabelParty,
   EnvelopeLabel,
@@ -306,55 +309,126 @@ function inventoryPage(input: InventoryInput): (Paragraph | Table)[] {
 /** Page margins of sheets GN* (landscape, 0.7" left/right, 0.75" top/bottom). */
 const LIST_MARGINS = { top: 1080, bottom: 1080, left: 1008, right: 1008 };
 
+/** «персонального військового обліку … , які працюють в …» — the line under the title of a list. */
+export function listSubtitle(section: ListSection | null, org: Organization) {
+  const whom = section ? LIST_SECTION_TITLES[section] : 'призовників, військовозобов’язаних та резервістів';
+  return `персонального військового обліку ${whom}, які працюють в ${blank(org.nameLocative || org.fullName)}`;
+}
+
+/** «СПИСКИ» / «ВИТЯГ ІЗ СПИСКІВ» unless the settings name it otherwise. */
+export const listTitle = (custom: string, extract: boolean) =>
+  custom.trim() || (extract ? 'ВИТЯГ ІЗ СПИСКІВ' : 'СПИСКИ');
+
 /**
  * Personal military registration lists laid out like sheets GN* of the Excel file: four separate lists
  * (officers; rank-and-file, sergeants and petty officers; women; conscripts — reservists together with
- * their composition), each on its own landscape page(s), one row per record, columns 1–18.
+ * their composition), each on its own landscape page(s). The columns, the order of the rows, the sub-headings,
+ * the heading and the signers — by the list settings of the legal entity (columns are numbered as in the form).
  */
 export async function buildLists(input: ListsInput): Promise<Buffer> {
   const contentWidth = A4.height - LIST_MARGINS.left - LIST_MARGINS.right;
-  const total = LIST_WIDTHS.reduce((a, b) => a + b, 0);
-  const widths = LIST_WIDTHS.map((w) => Math.floor((contentWidth * w) / total));
   const size = 8;
-  const header = [
-    LIST_TITLES.map((text) => ({ text, size: 7, align: 'center' as const })),
-    LIST_TITLES.map((_, i) => ({ text: String(i + 1), align: 'center' as const })),
-  ];
   const sign = [Math.round(contentWidth * 0.3), Math.round(contentWidth * 0.2), Math.round(contentWidth * 0.3)] as [
     number,
     number,
     number,
   ];
-  const orgText = input.org.nameLocative || input.org.fullName;
 
-  const groupSection = (list: ListSection | null, rows: string[][]) => {
-    const body = rows.length
-      ? rows.map((row) =>
-          row.map((text, i) => ({ text, size, align: i === 0 || i === 4 ? ('center' as const) : undefined })),
-        )
-      : [[{ text: 'Особи відсутні', colSpan: LIST_TITLES.length, align: 'center' as const, size }]];
-    const whom = list ? LIST_SECTION_TITLES[list] : 'призовників, військовозобов’язаних та резервістів';
+  const groupSection = (part: ListDocumentSection | null) => {
+    const columns = part?.layout.columns ?? [];
+    const indexes = columns.length ? formColumnNumbers(columns).map((n) => n - 1) : LIST_TITLES.map((_, i) => i);
+    const relative = indexes.map((i) => LIST_WIDTHS[i]);
+    const total = relative.reduce((a, b) => a + b, 0);
+    const widths = relative.map((w) => Math.floor((contentWidth * w) / total));
+    const header = [
+      indexes.map((i) => ({ text: LIST_TITLES[i], size: 7, align: 'center' as const })),
+      indexes.map((i) => ({ text: String(i + 1), align: 'center' as const })),
+    ];
+    const centered = new Set([0, 4]);
+    const body: CellSpec[][] = [];
+    for (const group of part?.layout.groups ?? []) {
+      if (group.title) body.push([{ text: group.title, bold: true, colSpan: indexes.length, size, keepNext: true }]);
+      for (const row of group.rows) {
+        body.push(
+          row.map((text, c) => ({ text, size, align: centered.has(indexes[c]) ? ('center' as const) : undefined })),
+        );
+      }
+    }
+    if (!body.length) body.push([{ text: 'Особи відсутні', colSpan: indexes.length, align: 'center', size }]);
+    const settings = part?.settings;
+    const signers = part?.signers ?? [{ position: input.org.headPosition, name: input.org.headName }];
     return section(
       [
-        p(`Вихідний номер   ${input.letter?.number ?? '__________'}`, { size: 10 }),
-        p(`Дата   ${input.letter ? `${formatUa(input.letter.date)} р.` : '__________'}`, { size: 10 }),
-        ...empty(1),
-        p(input.extract ? 'ВИТЯГ ІЗ СПИСКІВ' : 'СПИСКИ', { bold: true, align: 'center' }),
-        p(`персонального військового обліку ${whom}, які працюють в ${blank(orgText)}`, { align: 'center' }),
+        ...(settings?.showOutgoing === false
+          ? []
+          : [
+              p(`Вихідний номер   ${input.letter?.number ?? '__________'}`, { size: 10 }),
+              p(`Дата   ${input.letter ? `${formatUa(input.letter.date)} р.` : '__________'}`, { size: 10 }),
+              ...empty(1),
+            ]),
+        p(listTitle(settings?.title ?? '', input.extract), { bold: true, align: 'center' }),
+        p(settings?.subtitle.trim() || listSubtitle(part?.section ?? null, input.org), { align: 'center' }),
         p(`станом на ${formatUa(input.date)} року`, { align: 'center', spacingAfter: 160 }),
         table(header, body, widths, { size, headerSize: 7 }),
-        ...empty(2),
-        signature(input.org.headPosition, input.org.headName, sign),
+        ...signers.flatMap((s) => [...empty(2), signature(s.position, s.name, sign)]),
       ],
       true,
       LIST_MARGINS,
     );
   };
 
-  const sections = input.sections.filter((g) => g.rows.length);
+  const sections = input.sections.filter((g) => g.layout.count);
   return render(
-    sections.length ? sections.map((g) => groupSection(g.section, g.rows)) : [groupSection(null, [])],
+    sections.length ? sections.map((g) => groupSection(g)) : [groupSection(null)],
     input.extract ? 'Витяг зі списків' : 'Списки персонального військового обліку',
+  );
+}
+
+/**
+ * A starting Word template for a list: the heading, the table of the chosen columns with the row loop
+ * ({#rows} in the first cell, {/rows} in the last) and the signers — to be adjusted in Word and uploaded.
+ */
+export async function buildListTemplateExample(list: ListSection, columns: ListColumnKey[]): Promise<Buffer> {
+  const contentWidth = A4.height - LIST_MARGINS.left - LIST_MARGINS.right;
+  const indexes = formColumnNumbers(columns).map((n) => n - 1);
+  const relative = indexes.map((i) => LIST_WIDTHS[i]);
+  const total = relative.reduce((a, b) => a + b, 0);
+  const widths = relative.map((w) => Math.floor((contentWidth * w) / total));
+  const header = [
+    indexes.map((i) => ({ text: LIST_TITLES[i], size: 7, align: 'center' as const })),
+    indexes.map((i) => ({ text: String(i + 1), align: 'center' as const })),
+  ];
+  const last = columns.length - 1;
+  const row = columns.map((key, c) => {
+    const tag = key === 'number' ? '{n}' : `{${key}}`;
+    return { text: `${c === 0 ? '{#rows}' : ''}${tag}${c === last ? '{/rows}' : ''}`, size: 8 };
+  });
+  const sign = [Math.round(contentWidth * 0.3), Math.round(contentWidth * 0.2), Math.round(contentWidth * 0.3)] as [
+    number,
+    number,
+    number,
+  ];
+  return render(
+    [
+      section(
+        [
+          p('Вихідний номер   {outNumber}', { size: 10 }),
+          p('Дата   {outDate}', { size: 10 }),
+          ...empty(1),
+          p('{title}', { bold: true, align: 'center' }),
+          p('{subtitle}', { align: 'center' }),
+          p('станом на {date} року', { align: 'center', spacingAfter: 160 }),
+          table(header, [row], widths, { size: 8, headerSize: 7 }),
+          ...empty(1),
+          p('{#signers}', { size: 2 }),
+          signature('{position}', '{name}', sign),
+          p('{/signers}', { size: 2 }),
+        ],
+        true,
+        LIST_MARGINS,
+      ),
+    ],
+    `Шаблон: ${LIST_SECTION_TITLES[list]}`,
   );
 }
 

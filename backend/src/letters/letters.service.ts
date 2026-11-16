@@ -18,6 +18,7 @@ import { EXTERNAL_NO_DOCUMENT, LABELS_MAX_LETTERS } from './letters.constants.js
 import { senderParty, tckParty } from '../documents/utils/label-party.utils.js';
 import type { LabelPrintData, LabelPrintGroup } from '../shared/interfaces/label-settings.interface.js';
 import { ReportsService } from '../reports/reports.service.js';
+import { ListSnapshotsService } from '../reports/lists/list-snapshots.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { LetterSignature } from './entities/letter-signature.entity.js';
 import { OutgoingLetter } from './entities/outgoing-letter.entity.js';
@@ -34,7 +35,7 @@ import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 import { assertInScope, inScope } from '../common/utils/entity-scope.utils.js';
 import type { LabelParty, NoticeSnapshot } from '../shared/interfaces/document.interface.js';
 import type { MaxNumberRow } from '../shared/interfaces/letter.interface.js';
-import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
+import { documentMime, P7S_MIME } from '../common/constants/mime.constants.js';
 import { sha256 } from '../common/utils/hash.utils.js';
 import { LETTER_TYPE_TITLES } from './letters.constants.js';
 import { employeesCount, noticeBatches } from './utils/letters.utils.js';
@@ -54,6 +55,7 @@ export class LettersService {
     private readonly reports: ReportsService,
     private readonly legalEntities: LegalEntitiesService,
     private readonly storage: StorageService,
+    private readonly listSnapshots: ListSnapshotsService,
   ) {}
 
   /** Notice letter for one employee (kept for the employee card and older clients). */
@@ -321,6 +323,10 @@ export class LettersService {
     const byTck = dto.type === 'LISTS' && !!dto.byTck;
     if (byTck && !tck) throw fieldErrors([{ field: 'tckId', message: 'Оберіть ТЦК, якому надсилається витяг' }]);
     const legalEntityId = await this.legalEntities.forDocument(dto.legalEntityId);
+    // formed lists are registered as they are: their date, their legal entity
+    const snapshot =
+      dto.type === 'LISTS' && dto.snapshotId ? await this.listSnapshots.rowsFor(dto.snapshotId, legalEntityId) : null;
+    const reportDate = snapshot?.date ?? dto.reportDate;
     const extract = !!dto.employeeIds?.length || byTck;
     const id = await this.dataSource.transaction(async (m) => {
       const letter = await this.newLetter(m, {
@@ -328,13 +334,14 @@ export class LettersService {
         type: dto.type,
         date: dto.date ?? todayIso(),
         number: dto.number,
-        subject: `${LETTER_TYPE_TITLES[dto.type]}${extract ? ' (витяг)' : ''} станом на ${formatUa(dto.reportDate)}`,
+        subject: `${LETTER_TYPE_TITLES[dto.type]}${extract ? ' (витяг)' : ''} станом на ${formatUa(reportDate)}`,
         tckId: tck?.id ?? null,
         params: {
-          reportDate: dto.reportDate,
+          reportDate,
           groups: dto.groups ?? null,
           employeeIds: dto.employeeIds ?? null,
           ...(byTck ? { byTck: true } : {}),
+          ...(snapshot ? { snapshotId: snapshot.id } : {}),
         },
         createdById: user.id,
       });
@@ -509,14 +516,20 @@ export class LettersService {
     const reportDate = params.reportDate ?? letter.date;
     if (letter.type === 'LISTS') {
       const extract = !!params.employeeIds?.length || !!params.byTck;
-      const buffer = await this.reports.listsDocx(reportDate, {
+      // formed lists: the letter prints exactly the rows that were formed
+      const rows = params.snapshotId
+        ? (await this.listSnapshots.rowsFor(params.snapshotId, letter.legalEntityId)).rows
+        : undefined;
+      const doc = await this.reports.listsDocx(reportDate, {
         groups: params.groups ?? LIST_GROUPS,
         onlyIds: params.employeeIds ?? undefined,
         tckId: params.byTck ? letter.tckId : null,
         letter: ref,
         legalEntityId: letter.legalEntityId,
+        rows,
       });
-      return { buffer, filename: `${extract ? 'Витяг' : 'Списки'} ${safeNumber} ${reportDate}.docx` };
+      const ext = doc.kind === 'zip' ? 'zip' : 'docx';
+      return { buffer: doc.buffer, filename: `${extract ? 'Витяг' : 'Списки'} ${safeNumber} ${reportDate}.${ext}` };
     }
     if (letter.type === 'OPERATIONAL_REPORT') {
       const buffer = await this.reports.operationalDocx(reportDate, ref, letter.legalEntityId);
@@ -544,7 +557,7 @@ export class LettersService {
     const sigs = await this.signatureRepo.find({ where: { letterId: id }, order: { createdAt: 'ASC' } });
     if (!sigs.length) return null;
     const { buffer, filename } = await this.frozenDocument(id);
-    const attachments = [{ filename, content: buffer, contentType: DOCX_MIME }];
+    const attachments = [{ filename, content: buffer, contentType: documentMime(filename) }];
     for (const [i, sig] of sigs.entries()) {
       attachments.push({
         filename: sigs.length === 1 ? `${filename}.p7s` : `${filename}.${i + 1}.p7s`,

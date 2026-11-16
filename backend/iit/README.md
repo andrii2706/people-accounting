@@ -6,20 +6,23 @@
 
 ## Встановлення
 
+**Продакшн** — `scripts/setup-iit.sh <архів ІІТ> <GCP-проєкт>` (див. docs/DEPLOYMENT.md § 6г-1): бібліотека
+їде в приватний бакет, деплой додає її в образ разом зі свіжими списками надавачів і перевіряє.
+
+**Локально:**
+
 1. Завантажте бібліотеку підпису для Node.js з сайту ІІТ: <https://iit.com.ua/downloads>
-   (розділ «Бібліотеки підпису»). Розпакуйте її в цю папку (`backend/iit/`).
-2. Завантажте з <https://czo.gov.ua/download/> актуальні файли **CAs.json** і **CACertificates.p7b**
-   (перелік кваліфікованих надавачів і їхні сертифікати) і покладіть сюди ж. Оновлюйте їх, коли ЦЗО
-   публікує нові.
-3. Скопіюйте `iit-loader.example.mjs` → `iit-loader.mjs` і, якщо треба, підправте шлях і назву експорту
-   бібліотеки (див. коментарі у файлі та документацію з пакета ІІТ).
+   (розділ «Бібліотеки підпису») і розпакуйте її в цю папку (`backend/iit/`) — модуль (`euscp.js`,
+   `euscp.node`, `EUSignCP.js` або `eusign.js`) може лежати тут або на один рівень глибше.
+2. Завантажте `CAs.json` і `CACertificates.p7b` з <https://czo.gov.ua/download/certificates/> сюди ж.
+3. `iit-loader.mjs` редагувати не треба: він сам знаходить модуль і експорт `EndUser`. Якщо пакет вашої
+   версії влаштований інакше — змінні `IIT_MODULE` (шлях відносно цієї папки) та `IIT_EXPORT`.
 4. Змінні API:
    ```
    KEP_VERIFIER=iit
    IIT_LOADER_PATH=iit/iit-loader.mjs     # відносно робочої папки API (у Docker — /app)
    ```
-5. Перевірка: `node --input-type=module -e "import('./iit/iit-loader.mjs').then(m => m.createVerifier()).then(() => console.log('ok'))"`
-   у папці `backend`.
+5. Перевірка: `node iit/check.mjs` у папці `backend`.
 
 Сервер викликає лише `VerifyData(дані, підпис)` і читає з результату `ownerInfo`
 (`subjFullName`/`subjCN`, `subjEDRPOUCode`, `subjDRFOCode`, `issuerCN`, `serial`) і `timeInfo`.
@@ -34,5 +37,6 @@
   (будь-хто може зробити такий підпис самопідписаним сертифікатом). У продакшні API з таким значенням
   не запуститься.
 
-Файли бібліотеки ІІТ і `iit-loader.mjs` не потрапляють у git (`.gitignore`) — у Docker-образ їх
-додає крок збірки з Secret Manager / бакета (див. docs/DEPLOYMENT.md § 6г-1).
+Файли бібліотеки ІІТ і списки надавачів не потрапляють у git (`.gitignore`) — у Docker-образ їх додає
+деплой із приватного бакета й czo.gov.ua (див. docs/DEPLOYMENT.md § 6г-1). У git лише `iit-loader.mjs`,
+`check.mjs` і цей README.

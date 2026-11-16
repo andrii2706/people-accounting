@@ -12,6 +12,7 @@ import { decimalColumn } from '../common/utils/column.utils.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import { User } from '../users/user.entity.js';
 import type { LabelSettings } from '../shared/interfaces/label-settings.interface.js';
+import type { ListSettings } from '../shared/interfaces/list-settings.interface.js';
 
 /**
  * A legal entity of the client (a company of the group). Employees belong to one; lists, TCK notices and reports
@@ -122,6 +123,10 @@ export class LegalEntity {
   /** How its envelope labels are printed (font, sizes, A4 sheet or envelope). null — the defaults. */
   @Column({ type: 'jsonb', nullable: true })
   labelSettings: Partial<LabelSettings> | null;
+
+  /** How its four lists look (columns, order, heading, signers, Word templates). null — the defaults. */
+  @Column({ type: 'jsonb', nullable: true })
+  listSettings: Partial<ListSettings> | null;
 
   /** The user account of the responsible person (who works in the system), if any. */
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })

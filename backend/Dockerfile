@@ -1,16 +1,17 @@
-FROM node:22-alpine AS build
+# Debian (glibc), not Alpine: the IIT library for Node.js may ship a native module built for glibc
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
 RUN npm run build && npm prune --omit=dev --legacy-peer-deps
 
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
-# the IIT library for the KEP check (backend/iit/README.md); only README and the example without it
+# the IIT library for the KEP check (backend/iit/README.md); without it — only the loader, the check and README
 COPY --from=build /app/iit ./iit
 COPY package.json ./
 RUN mkdir -p storage/files && chown -R node:node storage

@@ -87,4 +87,16 @@ describe('квота бронювання у відсотках', () => {
       expired: true,
     });
   });
+
+  it('мобілізовані: з 18.05.2024 у базі квоти, раніше — ні', () => {
+    const staff = [
+      worker({ mobilizedAt: '2024-05-18' }),
+      worker({ mobilizedAt: '2025-03-01' }),
+      worker({ mobilizedAt: '2024-05-17' }),
+      worker({ mobilizedAt: '2023-01-10' }),
+      worker({ mobilizedAt: '2023-01-10', demobilizedAt: '2024-01-10' }), // повернувся — звичайний працівник
+      worker(),
+    ].map((e) => quotaStanding(e, DATE));
+    expect(entityQuota(ENTITY, staff, DATE)).toMatchObject({ base: 4, mobilizedInBase: 2, quota: 2 });
+  });
 });

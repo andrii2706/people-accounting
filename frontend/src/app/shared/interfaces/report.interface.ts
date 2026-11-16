@@ -176,6 +176,8 @@ export interface EntityQuota {
   percent: number | null;
   /** Working military-liable men (without those reserved by another enterprise). */
   base: number;
+  /** Of the base: mobilized from 18.05.2024 (those mobilized earlier are not counted). */
+  mobilizedInBase: number;
   /** Places = percent × base, rounded down (null — no quota). */
   quota: number | null;
   reservedCompany: number;

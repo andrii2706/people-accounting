@@ -6,7 +6,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { loadEnv } from '../config/env.js';
 import { LetterSignature } from '../letters/entities/letter-signature.entity.js';
 import { OutgoingLetter } from '../letters/entities/outgoing-letter.entity.js';
-import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
+import { documentMime, P7S_MIME } from '../common/constants/mime.constants.js';
 import { LettersService } from '../letters/letters.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import { parseAndVerifySignature, SignatureFileError } from './utils/cms.utils.js';
@@ -63,8 +63,9 @@ export class SignaturesService {
 
     const { buffer, filename } = await this.lettersService.document(id);
     const hash = sha256(buffer);
-    const key = `letters/${letter.year}/${letter.id}/document-${hash.slice(0, 16)}.docx`;
-    if (!(await this.storage.exists(key))) await this.storage.put(key, buffer, DOCX_MIME);
+    const ext = /\.zip$/i.test(filename) ? 'zip' : 'docx';
+    const key = `letters/${letter.year}/${letter.id}/document-${hash.slice(0, 16)}.${ext}`;
+    if (!(await this.storage.exists(key))) await this.storage.put(key, buffer, documentMime(filename));
 
     await this.dataSource.transaction(async (m) => {
       const locked = await m

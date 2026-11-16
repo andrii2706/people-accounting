@@ -1,6 +1,7 @@
 import type { Employee } from '../../employees/entities/employee.entity.js';
 import { toMilitaryRecord } from '../../employees/utils/employee-view.utils.js';
-import { dutyCategory, isEmployedAt, isReservedAt } from '../../military/military-logic.js';
+import { dutyCategory, isEmployedAt, isMobilizedAt, isReservedAt } from '../../military/military-logic.js';
+import { QUOTA_MOBILIZED_FROM } from '../legal-entities.constants.js';
 import type { IsoDate } from '../../shared/interfaces/common.interface.js';
 import type { EntityQuota, QuotaStanding } from '../../shared/interfaces/legal-entity.interface.js';
 import type { LegalEntity } from '../legal-entity.entity.js';
@@ -19,17 +20,24 @@ export function quotaStanding(e: Employee, date: IsoDate): QuotaStanding {
   const r = toMilitaryRecord(e);
   const employed = isEmployedAt(r, date);
   const reserved = employed && isReservedAt(r, date);
+  // mobilized employees keep their job: they count only when mobilized from 18.05.2024 (the date the rules
+  // of the quota changed); those mobilized earlier stay out of the base
+  const mobilized = employed && isMobilizedAt(r, date);
+  const mobilizedCounted = mobilized && !!e.mobilizedAt && e.mobilizedAt >= QUOTA_MOBILIZED_FROM;
+  const inBase =
+    employed &&
+    e.gender === 'M' &&
+    e.militaryRegistered &&
+    dutyCategory(r) === 'LIABLE' &&
+    // the base: working military-liable men (no conscripts, no reservists, no women);
+    // those reserved by another enterprise do not count — they are not this entity's to reserve
+    !(reserved && e.reservedBy === 'OTHER') &&
+    (!mobilized || mobilizedCounted);
   return {
     legalEntityId: e.legalEntityId,
     employed,
-    // the base: working military-liable men (no conscripts, no reservists, no women);
-    // those reserved by another enterprise do not count — they are not this entity's to reserve
-    inBase:
-      employed &&
-      e.gender === 'M' &&
-      e.militaryRegistered &&
-      dutyCategory(r) === 'LIABLE' &&
-      !(reserved && e.reservedBy === 'OTHER'),
+    inBase,
+    mobilizedInBase: inBase && mobilizedCounted,
     reservedOwn: reserved && e.reservedBy !== 'OTHER',
   };
 }
@@ -42,6 +50,7 @@ export function entityQuota(
 ): EntityQuota {
   const own = staff.filter((s) => s.legalEntityId === entity.id);
   const base = own.filter((s) => s.inBase).length;
+  const mobilizedInBase = own.filter((s) => s.mobilizedInBase).length;
   const reservedCompany = own.filter((s) => s.reservedOwn).length;
   const percent = entity.reservationQuotaPercent;
   const quota = quotaPlaces(percent, base);
@@ -52,6 +61,7 @@ export function entityQuota(
     name: entity.shortName || entity.fullName,
     percent,
     base,
+    mobilizedInBase,
     quota,
     reservedCompany,
     // the criticality is over (the last day is inclusive) — the places stay for reference, none is free

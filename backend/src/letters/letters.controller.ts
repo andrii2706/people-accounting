@@ -3,7 +3,7 @@ import type { LabelPrintData } from '../shared/interfaces/label-settings.interfa
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
 import { CurrentUser, EntityScope } from '../common/decorators/auth.decorators.js';
-import { docxFile } from '../common/utils/file-response.utils.js';
+import { docxFile, documentFile } from '../common/utils/file-response.utils.js';
 import {
   CreateChangeNoticeDto,
   CreateChangeNoticesDto,
@@ -131,7 +131,7 @@ export class LettersController {
     await this.letters.assertAccess(id, scope);
     const { buffer, filename } = await this.letters.document(id);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
-    return docxFile(buffer, filename);
+    return documentFile(buffer, filename);
   }
 
   /** Mark as handed over to the TCK (Ukrposhta, by hand, document management system, e-cabinet). */

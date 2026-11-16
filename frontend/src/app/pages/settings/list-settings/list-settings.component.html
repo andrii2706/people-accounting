@@ -1,0 +1,283 @@
+@let s = model();
+<app-page-header
+  [eyebrow]="data().entityName"
+  title="Вигляд списків"
+  subtitle="Як друкуються списки персонального обліку цієї юрособи: колонки, порядок, шапка, підписи — або ваш власний шаблон Word для кожного списку."
+>
+  <a routerLink="/reports/lists" class="btn btn-ghost cursor-pointer"
+    ><app-icon name="arrowLeft" /> До списків</a
+  >
+</app-page-header>
+
+<div class="mb-5 overflow-x-auto">
+  <div class="segmented" role="tablist" aria-label="Список">
+    @for (t of tabs; track t.value) {
+      <button
+        type="button"
+        role="tab"
+        class="segmented-item cursor-pointer whitespace-nowrap"
+        [attr.aria-selected]="section() === t.value"
+        (click)="selectSection(t.value)"
+      >
+        {{ t.label }}
+        @if (settings()[t.value].template) {
+          <app-icon name="file" [size]="14" class="text-brand-600" />
+        }
+      </button>
+    }
+  </div>
+</div>
+
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+  <form class="grid min-w-0 content-start gap-6" (submit)="save($event)" novalidate>
+    <section class="card p-5 sm:p-6">
+      <div class="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 class="font-semibold">Колонки</h2>
+        <button
+          type="button"
+          class="cursor-pointer text-xs text-brand-600 hover:underline"
+          (click)="allColumns()"
+        >
+          Усі 18 за формою
+        </button>
+      </div>
+      <p class="mb-4 text-xs text-muted">
+        Позначте, які графи друкувати, і перетягніть їх у потрібному порядку. «№» — завжди перша.
+        @if (template()) {
+          <span class="text-warning"
+            >Зараз діє власний шаблон Word — колонки задає сам шаблон.</span
+          >
+        }
+      </p>
+      <div class="grid gap-5 md:grid-cols-2">
+        <div class="space-y-1.5" role="group" aria-label="Колонки, що друкуються">
+          @for (c of columnOptions; track c.value) {
+            <label
+              class="flex items-center gap-2 text-sm"
+              [class.cursor-pointer]="c.value !== 'number'"
+            >
+              <input
+                type="checkbox"
+                class="size-4 cursor-pointer accent-brand-600 disabled:cursor-default"
+                [checked]="chosen().has(c.value)"
+                [disabled]="c.value === 'number'"
+                (change)="toggle(c.value, $event)"
+              />
+              <span class="w-8 text-xs text-muted tabular-nums">гр. {{ c.form }}</span>
+              <span class="min-w-0 flex-1">{{ c.label }}</span>
+            </label>
+          }
+        </div>
+        <div class="min-w-0">
+          <span class="label">Порядок у документі — зліва направо</span>
+          @if (columnItems().length) {
+            <app-sortable-list
+              ariaLabel="Порядок колонок"
+              [items]="columnItems()"
+              (reorder)="reorder($event)"
+            />
+          } @else {
+            <p class="rounded-lg bg-sunken/60 px-3 py-2 text-xs text-muted">
+              Лише «№» — позначте хоча б ПІБ.
+            </p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-4 font-semibold">Порядок і групування</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <label class="text-sm">
+          <span class="label">Порядок осіб</span>
+          <app-select
+            ariaLabel="Порядок осіб"
+            [clearable]="false"
+            [options]="sortOptions"
+            [value]="s.sort"
+            (valueChange)="setSort($event)"
+          />
+        </label>
+        <label class="text-sm">
+          <span class="label">Підзаголовки</span>
+          <app-select
+            ariaLabel="Підзаголовки"
+            [clearable]="false"
+            [options]="groupingOptions"
+            [value]="s.groupBy"
+            (valueChange)="setGrouping($event)"
+          />
+        </label>
+      </div>
+      <p class="mt-3 text-xs text-muted">
+        Нумерація наскрізна для всього списку. Групи без ТЦК чи підрозділу — у кінці, «не вказано».
+      </p>
+    </section>
+
+    <section class="card space-y-4 p-5 sm:p-6">
+      <h2 class="font-semibold">Шапка</h2>
+      <app-form-field
+        label="Заголовок"
+        hint="Порожньо — «СПИСКИ» (у витягу — «ВИТЯГ ІЗ СПИСКІВ»)"
+        [field]="settingsForm.title"
+      >
+        <input class="input" placeholder="СПИСКИ" [formField]="settingsForm.title" />
+      </app-form-field>
+      <app-form-field
+        label="Рядок під заголовком"
+        hint="Порожньо — «персонального військового обліку … , які працюють в …» з назвою юрособи"
+        [field]="settingsForm.subtitle"
+      >
+        <textarea class="input min-h-20" rows="2" [formField]="settingsForm.subtitle"></textarea>
+      </app-form-field>
+      <label class="flex cursor-pointer items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="size-4 cursor-pointer accent-brand-600 disabled:cursor-default"
+          [checked]="s.showOutgoing"
+          (change)="setShowOutgoing($event)"
+        />
+        Рядки «Вихідний номер / Дата» над заголовком
+      </label>
+    </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Підписи</h2>
+      <p class="mb-4 text-xs text-muted">
+        Порожньо — підписує керівник юрособи (посада й ім’я з картки юрособи). До
+        {{ maxSigners }} підписантів, згори вниз.
+      </p>
+      <div class="space-y-3">
+        @for (signer of settingsForm.signers; track $index; let i = $index) {
+          <div class="grid items-start gap-3 sm:grid-cols-[1fr_1fr_auto]">
+            <app-form-field label="Посада" [required]="true" [field]="signer.position">
+              <input class="input" [formField]="signer.position" />
+            </app-form-field>
+            <app-form-field label="Ім’я ПРІЗВИЩЕ" [required]="true" [field]="signer.name">
+              <input class="input" [formField]="signer.name" />
+            </app-form-field>
+            <button
+              type="button"
+              class="icon-btn mt-6 cursor-pointer justify-self-end"
+              [attr.aria-label]="'Прибрати підписанта ' + (i + 1)"
+              title="Прибрати"
+              (click)="removeSigner(i)"
+            >
+              <app-icon name="x" [size]="16" />
+            </button>
+          </div>
+        }
+      </div>
+      @if (s.signers.length < maxSigners) {
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm mt-3 cursor-pointer"
+          (click)="addSigner()"
+        >
+          <app-icon name="plus" /> Додати підписанта
+        </button>
+      }
+    </section>
+
+    <div class="flex flex-wrap items-center gap-2">
+      <button
+        type="submit"
+        class="btn btn-primary cursor-pointer"
+        [disabled]="settingsForm().submitting() || !dirty()"
+      >
+        Зберегти
+      </button>
+      @if (dirty()) {
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="reset()">
+          Скасувати зміни
+        </button>
+        <span class="text-xs text-warning">Є незбережені зміни</span>
+      }
+    </div>
+  </form>
+
+  <aside class="grid min-w-0 content-start gap-6">
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Шаблон Word</h2>
+      @if (template(); as t) {
+        <div class="mt-3 flex items-start gap-3 rounded-lg border border-line p-3">
+          <app-icon name="file" class="mt-0.5 text-brand-600" />
+          <div class="min-w-0 flex-1 text-sm">
+            <p class="font-medium break-words">{{ t.fileName }}</p>
+            <p class="text-xs text-muted">
+              {{ fileSize(t.size) }} · завантажено {{ t.uploadedAt | uaDateTime }}
+            </p>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-muted">
+          Документ цього списку формується за шаблоном. Порядок осіб, підзаголовки, заголовок і
+          підписанти — з налаштувань ліворуч.
+        </p>
+      } @else {
+        <p class="mt-1 text-sm text-muted">
+          Не завантажено — документ у вбудованому вигляді за формою Додатка 5.
+        </p>
+      }
+      <div class="mt-4 flex flex-wrap gap-2">
+        <label
+          class="btn btn-primary btn-sm cursor-pointer"
+          [class.pointer-events-none]="busy()"
+          [class.opacity-60]="busy()"
+        >
+          <app-icon name="upload" /> {{ template() ? 'Замінити' : 'Завантажити свій .docx' }}
+          <input
+            type="file"
+            class="sr-only"
+            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            [disabled]="busy()"
+            (change)="upload($event)"
+          />
+        </label>
+        @if (template()) {
+          <a class="btn btn-secondary btn-sm cursor-pointer" [href]="templateUrl()" download
+            ><app-icon name="download" /> Поточний</a
+          >
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm cursor-pointer text-danger"
+            [disabled]="busy()"
+            (click)="removeTemplate()"
+          >
+            <app-icon name="trash" /> Прибрати
+          </button>
+        }
+      </div>
+      <div class="mt-5 rounded-lg bg-sunken/60 p-3 text-xs text-muted">
+        <p class="mb-2 font-medium text-ink">Як зробити свій шаблон</p>
+        <ol class="list-decimal space-y-1 pl-4">
+          <li>
+            Завантажте
+            <a class="cursor-pointer text-brand-600 hover:underline" [href]="exampleUrl()" download
+              >приклад шаблону</a
+            >
+            — у ньому вже стоять мітки для збережених колонок.
+          </li>
+          <li>Відкрийте у Word і оформіть як потрібно: шрифти, ширини, шапку, логотип.</li>
+          <li>Мітки у фігурних дужках не змінюйте — їх перелік нижче.</li>
+          <li>Збережіть як «Документ Word (.docx)» і завантажте сюди — ми перевіримо мітки.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="card overflow-hidden">
+      <h2 class="border-b border-line px-5 py-3 font-semibold">Мітки для шаблону</h2>
+      <div class="max-h-[32rem] overflow-y-auto">
+        <table class="table-base text-xs">
+          <tbody>
+            @for (p of data().placeholders; track p.tag) {
+              <tr>
+                <td class="font-mono break-all whitespace-normal text-brand-700">{{ p.tag }}</td>
+                <td class="text-muted">{{ p.description }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </aside>
+</div>

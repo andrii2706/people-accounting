@@ -74,3 +74,9 @@ export const ENTITY_FORM_FIELDS = [
 
 /** A legal entity of another scope is answered like a missing one. */
 export const ENTITY_NOT_FOUND = 'Юридичну особу не знайдено';
+
+/**
+ * Mobilized employees count in the base of the reservation quota only when mobilized from this date
+ * (the law of 18.05.2024); mobilized earlier — not counted.
+ */
+export const QUOTA_MOBILIZED_FROM = '2024-05-18';

@@ -149,6 +149,7 @@ export class LegalEntityFormComponent {
     const places = quotaPlaces(percent, today.base)!;
     return {
       base: today.base,
+      mobilized: today.mobilizedInBase,
       places,
       reserved: today.reservedCompany,
       free: this.criticalityExpired() ? 0 : Math.max(places - today.reservedCompany, 0),

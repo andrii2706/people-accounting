@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { isIsoDate, todayIso } from '../../common/utils/dates.utils.js';
-import { LIST_GROUPS } from '../../military/dictionaries.js';
-import type { ListGroup } from '../../shared/interfaces/dictionary.interface.js';
+import { LIST_GROUPS, LIST_SECTIONS } from '../../military/dictionaries.js';
+import type { ListGroup, ListSection } from '../../shared/interfaces/dictionary.interface.js';
 
 /** ?date= → ISO date (today by default). */
 export function parseReportDate(value?: string) {
@@ -32,4 +32,11 @@ export function parseTckId(value?: string): string | null {
   if (!value) return null;
   if (!UUID.test(value)) throw new BadRequestException('Некоректний ТЦК');
   return value;
+}
+
+/** ?section=OFFICERS → one list; empty — all four. */
+export function parseListSection(value?: string): ListSection | null {
+  if (!value) return null;
+  if (!LIST_SECTIONS.includes(value as ListSection)) throw new BadRequestException('Невідомий список');
+  return value as ListSection;
 }

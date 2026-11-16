@@ -103,7 +103,9 @@
                 } @else {
                   вільно {{ e.quota.available }} ·
                 }
-                {{ percent(e.quota.percent!) }}% від {{ e.quota.base }} в/з
+                {{ percent(e.quota.percent!) }}% від {{ e.quota.base }} в/з{{
+                  e.quota.mobilizedInBase ? ', у т.ч. ' + e.quota.mobilizedInBase + ' мобіліз.' : ''
+                }}
               </p>
               @if (e.quota.validUntil) {
                 <p class="text-xs" [class]="e.quota.expired ? 'text-danger' : 'text-muted'">

@@ -47,6 +47,8 @@ export interface EntityQuota {
   percent: number | null;
   /** Working military-liable men (without those reserved by another enterprise). */
   base: number;
+  /** Of the base: mobilized from 18.05.2024 (those mobilized earlier are not in the base). */
+  mobilizedInBase: number;
   /** Places = percent × base, rounded down (null — no quota). */
   quota: number | null;
   reservedCompany: number;
@@ -124,6 +126,8 @@ export interface QuotaStanding {
   employed: boolean;
   /** Counted in the base of the quota (a working military-liable man). */
   inBase: boolean;
+  /** …of them mobilized from 18.05.2024 (still counted). */
+  mobilizedInBase: boolean;
   /** Reserved by his own enterprise (uses a place). */
   reservedOwn: boolean;
 }

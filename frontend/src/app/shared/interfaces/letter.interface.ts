@@ -102,6 +102,8 @@ export interface ReportLetterRequest {
   /** Extract about the people registered at `tckId`. */
   byTck?: boolean;
   legalEntityId?: string;
+  /** Formed lists («Сформувати»): the letter prints exactly them. */
+  snapshotId?: string;
 }
 
 /** POST /api/letters/external-notice — a notice sent to the TCK before the system. */

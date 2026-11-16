@@ -65,6 +65,8 @@ export class CreateReportLetterDto {
   @IsOptional() @IsBoolean() byTck?: boolean;
   /** Sender; required when there are several legal entities. */
   @IsOptional() @IsUUID() legalEntityId?: string;
+  /** Formed lists to register (LISTS): the letter prints exactly them. */
+  @IsOptional() @IsUUID() snapshotId?: string;
   @IsOptional() @IsIsoDate() date?: string;
   @IsOptional() @IsString() @MaxLength(50) number?: string;
 }

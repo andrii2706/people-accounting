@@ -11,6 +11,8 @@ import type { EntityDatabasePageData } from '../../../shared/interfaces/entity-d
 import { EntityDatabaseService } from '../../../shared/services/entity-database.service';
 import { AccountService } from '../../../shared/services/account.service';
 import type { SignupRequestView } from '../../../shared/interfaces/auth.interface';
+import type { ListSettingsPageData } from '../../../shared/interfaces/list-settings.interface';
+import { ListsService } from '../../../shared/services/lists.service';
 import { resolveOr } from '../../../shared/utils/router.utils';
 
 /** Several requests of the settings page — in parallel, in one resolver. */
@@ -63,5 +65,23 @@ export const entityDatabaseResolver: ResolveFn<EntityDatabasePageData> = (route)
       })),
     ),
     '/settings',
+  ) as never;
+};
+
+/** How the lists of a legal entity look (columns, order, heading, signers, Word templates) and its name. */
+export const listSettingsResolver: ResolveFn<ListSettingsPageData> = (route) => {
+  const id = route.paramMap.get('id')!;
+  return resolveOr(
+    forkJoin({
+      page: inject(ListsService).settings(id),
+      entity: inject(LegalEntitiesService).get(id),
+    }).pipe(
+      map(({ page, entity }) => ({
+        ...page,
+        entityId: entity.id,
+        entityName: entity.shortName || entity.fullName,
+      })),
+    ),
+    '/reports/lists',
   ) as never;
 };

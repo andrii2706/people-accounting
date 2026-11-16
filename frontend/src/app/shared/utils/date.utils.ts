@@ -68,3 +68,6 @@ export function addDaysIso(iso: string, days: number): string {
 /** Report date — in the ?date=YYYY-MM-DD query parameter (today by default). */
 export const reportDateOrToday = (date: string | null) =>
   date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : todayIso();
+
+/** Timestamp (ISO, UTC) → «26.10.2026, 13:15» in Kyiv time. */
+export const formatKyivDateTime = (iso: string) => KYIV_DATETIME.format(new Date(iso));

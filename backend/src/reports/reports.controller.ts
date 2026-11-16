@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
 import { NIL_UUID } from '../common/constants/common.constants.js';
-import { docxFile } from '../common/utils/file-response.utils.js';
+import { docxFile, listsFile } from '../common/utils/file-response.utils.js';
 import { parseEntityId, parseListGroups, parseReportDate, parseTckId } from './utils/report-params.utils.js';
 import { CurrentUser, EntityScope } from '../common/decorators/auth.decorators.js';
 import { scopedEntity } from '../common/utils/entity-scope.utils.js';
@@ -64,13 +64,13 @@ export class ReportsController {
       { lists: [null, `${d} ${groups ?? 'all'}${ids ? ` ids=${ids}` : ''}${tckId ? ` tck=${tckId}` : ''}`] },
       user,
     );
-    const buffer = await this.reports.listsDocx(d, {
+    const doc = await this.reports.listsDocx(d, {
       groups: parseListGroups(groups),
       onlyIds: ids?.split(',').filter(Boolean),
       legalEntityId: scopedEntity(scope, parseEntityId(entity)),
       tckId,
     });
-    return docxFile(buffer, `${ids || tckId ? 'Витяг' : 'Списки'} військового обліку ${d}.docx`);
+    return listsFile(doc, `${ids || tckId ? 'Витяг' : 'Списки'} військового обліку ${d}`);
   }
 
   @Get('operational')

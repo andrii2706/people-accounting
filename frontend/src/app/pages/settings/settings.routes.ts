@@ -2,6 +2,7 @@ import type { Routes } from '@angular/router';
 import {
   entityDatabaseResolver,
   labelSettingsResolver,
+  listSettingsResolver,
   signupsResolver,
   organizationSettingsResolver,
   usersResolver,
@@ -10,7 +11,12 @@ import {
   legalEntitiesResolver,
   legalEntityPageResolver,
 } from '../legal-entities/resolvers/legal-entities.resolvers';
-import { adminGuard, entityCreatorGuard, managerGuard } from '../../shared/guards/auth.guard';
+import {
+  adminGuard,
+  editorGuard,
+  entityCreatorGuard,
+  managerGuard,
+} from '../../shared/guards/auth.guard';
 
 /**
  * Settings: the legal entities (requisites, head, responsible person, quota, reminder addresses, envelope labels),
@@ -56,6 +62,16 @@ export const SETTINGS_ROUTES: Routes = [
     runGuardsAndResolvers: 'always',
     loadComponent: () =>
       import('./label-settings/label-settings.component').then((m) => m.LabelSettingsComponent),
+  },
+  {
+    // managers and HR: both prepare the lists
+    path: 'legal-entities/:id/lists',
+    canActivate: [editorGuard],
+    title: 'Вигляд списків · Військовий облік',
+    resolve: { data: listSettingsResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () =>
+      import('./list-settings/list-settings.component').then((m) => m.ListSettingsComponent),
   },
   {
     path: 'legal-entities/:id/database',

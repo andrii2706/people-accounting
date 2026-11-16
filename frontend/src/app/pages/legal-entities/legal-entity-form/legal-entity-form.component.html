@@ -8,6 +8,11 @@
   >
   @if (page().entity; as entity) {
     <a
+      [routerLink]="['/settings/legal-entities', entity.id, 'lists']"
+      class="btn btn-secondary cursor-pointer"
+      ><app-icon name="table" /> Вигляд списків</a
+    >
+    <a
       [routerLink]="['/settings/legal-entities', entity.id, 'labels']"
       class="btn btn-secondary cursor-pointer"
       ><app-icon name="mail" /> Наклейки на конверти</a
@@ -192,8 +197,9 @@
       <h2 class="mb-1 font-semibold">Квота бронювання</h2>
       <p class="mb-4 text-xs text-muted">
         Відсоток від працюючих військовозобов’язаних чоловіків юрособи (без призовників, резервістів
-        і тих, кого бронює інше підприємство). Кількість місць рахується автоматично з округленням
-        униз; вільні місця — мінус уже заброньовані цією юрособою.
+        і тих, кого бронює інше підприємство). Мобілізовані працівники враховуються, якщо їх
+        мобілізовано з 18.05.2024; мобілізованих раніше не враховано. Кількість місць рахується
+        автоматично з округленням униз; вільні місця — мінус уже заброньовані цією юрособою.
       </p>
       <div class="grid gap-4 sm:grid-cols-[10rem_14rem]">
         <app-form-field
@@ -252,7 +258,12 @@
       }
       @if (quotaPreview(); as q) {
         <p class="mt-3 text-sm" [class.text-danger]="q.exceeded">
-          Військовозобов’язаних чоловіків: <b class="tabular-nums">{{ q.base }}</b> → місць:
+          Військовозобов’язаних чоловіків: <b class="tabular-nums">{{ q.base }}</b>
+          @if (q.mobilized) {
+            (у т.ч. мобілізованих з 18.05.2024: <b class="tabular-nums">{{ q.mobilized }}</b
+            >)
+          }
+          → місць:
           <b class="tabular-nums">{{ q.places }}</b> · заброньовано:
           <b class="tabular-nums">{{ q.reserved }}</b> ·
           @if (q.exceeded) {

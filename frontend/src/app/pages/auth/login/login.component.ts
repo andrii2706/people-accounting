@@ -1,3 +1,4 @@
+import { REPORT_NAMES } from '../../../shared/constants/lists.constants';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -36,6 +37,12 @@ export class LoginComponent {
   protected readonly error = signal('');
   /** The link «Зареєструвати компанію» — when the self sign-up is on. */
   protected readonly signupEnabled = signal(false);
+  /** The three reports — each its own paragraph under the title (the left panel). */
+  protected readonly reportNames = [
+    REPORT_NAMES.lists,
+    REPORT_NAMES.operational,
+    REPORT_NAMES.extracts,
+  ];
   protected readonly model = signal(this.prefilledBeforeHydration());
   protected readonly loginForm = form(this.model, (p) => {
     required(p.email, { message: 'Вкажіть email' });

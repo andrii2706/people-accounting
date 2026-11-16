@@ -34,4 +34,6 @@ export interface LetterParams {
   employeeIds?: string[] | null;
   /** Extract about the people registered at the letter's TCK. */
   byTck?: boolean;
+  /** Formed lists («Сформувати») the letter prints. */
+  snapshotId?: string;
 }

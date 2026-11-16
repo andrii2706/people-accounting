@@ -3,7 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
 import { CurrentUser, EntityScope } from '../common/decorators/auth.decorators.js';
 import { LettersService } from '../letters/letters.service.js';
-import { DOCX_MIME, P7S_MIME } from '../common/constants/mime.constants.js';
+import { documentMime, P7S_MIME } from '../common/constants/mime.constants.js';
 import { attachmentFile } from '../common/utils/file-response.utils.js';
 import { AddSignatureDto } from './signatures.dto.js';
 import { SignaturesService } from './signatures.service.js';
@@ -54,7 +54,7 @@ export class SignaturesController {
     await this.letters.assertAccess(id, scope);
     const { buffer, filename } = await this.signatures.frozenDocument(id);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
-    return attachmentFile(buffer, filename, DOCX_MIME);
+    return attachmentFile(buffer, filename, documentMime(filename));
   }
 
   @Post('letters/:id/signatures')

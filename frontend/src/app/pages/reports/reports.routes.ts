@@ -1,7 +1,7 @@
 import type { Routes } from '@angular/router';
 import {
   extractsResolver,
-  listsReportResolver,
+  listsPageResolver,
   operationalReportResolver,
 } from './resolvers/report.resolvers';
 
@@ -11,7 +11,7 @@ export const REPORTS_ROUTES: Routes = [
   {
     path: 'lists',
     title: 'Списки персонального обліку · Військовий облік',
-    resolve: { report: listsReportResolver },
+    resolve: { page: listsPageResolver },
     runGuardsAndResolvers: 'paramsOrQueryParamsChange',
     loadComponent: () => import('./lists/lists.component').then((m) => m.ListsComponent),
   },

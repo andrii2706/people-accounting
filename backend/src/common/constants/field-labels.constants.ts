@@ -236,7 +236,23 @@ export const ENTITY_DATABASE_LABELS: Record<string, string> = {
   sslMode: 'Шифрування',
 };
 
+export const LIST_SETTINGS_LABELS: Record<string, string> = {
+  date: 'Станом на',
+  legalEntityId: 'Юридична особа',
+  columns: 'Колонки',
+  sort: 'Порядок',
+  groupBy: 'Групування',
+  title: 'Заголовок',
+  subtitle: 'Підзаголовок',
+  showOutgoing: 'Вихідний номер і дата',
+  signers: 'Підписанти',
+  position: 'Посада',
+  name: 'Ім’я та прізвище',
+};
+
 export const LABELS_BY_REQUEST: Record<string, Record<string, string>> = {
+  CreateListSnapshotDto: LIST_SETTINGS_LABELS,
+  ListSectionSettingsDto: LIST_SETTINGS_LABELS,
   SignupStatementDto: SIGNUP_LABELS,
   SignupSignDto: SIGNUP_LABELS,
   OfferSignDto: SIGNUP_LABELS,

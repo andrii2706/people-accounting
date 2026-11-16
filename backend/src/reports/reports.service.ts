@@ -2,7 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { formatUa, todayIso } from '../common/utils/dates.utils.js';
-import { buildLists, buildOperationalReport } from '../documents/builders.js';
+import { buildOperationalReport } from '../documents/builders.js';
+import { ListDocumentsService } from './lists/list-documents.service.js';
+import type { RenderedListDocument } from '../shared/interfaces/list-settings.interface.js';
 import { deriveEmployee, toMilitaryRecord } from '../employees/utils/employee-view.utils.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { Employee } from '../employees/entities/employee.entity.js';
@@ -48,6 +50,7 @@ export class ReportsService {
     @InjectRepository(Tck) private readonly tcks: Repository<Tck>,
     private readonly org: OrganizationService,
     private readonly legalEntities: LegalEntitiesService,
+    private readonly listDocuments: ListDocumentsService,
   ) {}
 
   /** Employees of one legal entity, or of all of them (null). */
@@ -130,6 +133,7 @@ export class ReportsService {
         section: listSection(group),
         category,
         cells: personalListCells(e, date, notices.texts.get(e.id) ?? ''),
+        meta: { rankCode: e.rankCode, birthDate: e.birthDate, department: e.department ?? '' },
         status: listRowStatus(e, date, {
           mobilizationUntil: org.mobilizationUntil,
           alertDays: org.alertDays,
@@ -154,19 +158,17 @@ export class ReportsService {
    * Lists (Annex 5) as .docx. With specific employees or a TCK it is an extract («ВИТЯГ ІЗ СПИСКІВ»):
    * extracts are sent to every TCK about the people registered there.
    */
-  async listsDocx(date: IsoDate, options: ListsDocxOptions = {}) {
+  async listsDocx(date: IsoDate, options: ListsDocxOptions = {}): Promise<RenderedListDocument> {
     const entityId = await this.legalEntities.forDocument(options.legalEntityId);
-    const data = await this.lists(date, { ...options, legalEntityId: entityId });
-    const org = await this.legalEntities.requisites(entityId);
-    return buildLists({
+    // formed lists (a snapshot) are printed as they were; otherwise — the data on the date
+    const rows = options.rows ?? (await this.lists(date, { ...options, legalEntityId: entityId })).rows;
+    return this.listDocuments.render({
+      legalEntityId: entityId,
       date,
+      rows,
       extract: !!options.onlyIds?.length || !!options.tckId,
-      sections: LIST_SECTIONS.map((section) => ({
-        section,
-        rows: data.rows.filter((r) => r.section === section).map((r) => r.cells),
-      })),
-      org,
       letter: options.letter,
+      section: options.section,
     });
   }
 

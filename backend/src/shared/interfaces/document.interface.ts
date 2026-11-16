@@ -1,5 +1,6 @@
 import type { IsoDate } from './common.interface.js';
 import type { ChangeType, ListSection } from './dictionary.interface.js';
+import type { ListLayout, ListSectionSettings, ListSigner } from './list-settings.interface.js';
 import type { Tck } from '../../dictionaries/tck.entity.js';
 import type { Organization } from '../../organization/organization.entity.js';
 import type { LetterNumberDate } from './letter.interface.js';
@@ -109,10 +110,18 @@ export interface ChangeNoticeInput {
 export interface ListsInput {
   date: IsoDate;
   extract: boolean;
-  /** The four lists (officers, soldiers, women, conscripts); every row has 18 cells (see military/personal-list.ts). */
-  sections: { section: ListSection; rows: string[][] }[];
+  /** The four lists (officers, soldiers, women, conscripts) laid out by their settings. */
+  sections: ListDocumentSection[];
   org: Organization;
   letter?: LetterNumberDate | null;
+}
+
+/** One list of the built-in document: the rows by the settings and who signs. */
+export interface ListDocumentSection {
+  section: ListSection;
+  layout: ListLayout;
+  settings: ListSectionSettings;
+  signers: ListSigner[];
 }
 
 export interface OperationalRowData {
