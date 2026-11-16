@@ -101,7 +101,6 @@ jobs:
           SIGN_WIDGET_FRAME_URL: ${{ vars.SIGN_WIDGET_FRAME_URL }}
           MAIL_FROM: ${{ vars.MAIL_FROM }}
           ACCESS_MAIL_FROM: ${{ vars.ACCESS_MAIL_FROM }}
-          IIT_BUCKET_PATH: ${{ vars.IIT_BUCKET_PATH }}
           KEP_MODE: ${{ vars.KEP_MODE }}
           KEP_OCSP: ${{ vars.KEP_OCSP }}
           OFFER_REQUIRED_FOR: ${{ vars.OFFER_REQUIRED_FOR }}
@@ -121,13 +120,10 @@ jobs:
           # letters with a temporary password go from a separate mailbox (ACCESS_MAIL_FROM + secret ACCESS_SMTP_URL)
           jq --arg from "$MAIL_FROM" --arg access "$ACCESS_MAIL_FROM" '. + { MAIL_FROM: $from, ACCESS_MAIL_FROM: $access }' \
              "$RUNNER_TEMP/env-service.json.tmp" > "$RUNNER_TEMP/env-service.json"
-          # qualified e-signature check (sign-up, offer): by default the open-source jkurwa (KEP_VERIFIER=dstu);
-          # the IIT library instead when IIT_BUCKET_PATH is set; GitHub variable KEP_MODE=off — no KEP at all
+          # qualified e-signature check (sign-up, offer): the open-source jkurwa (KEP_VERIFIER=dstu,
+          # backend/kep/README.md); GitHub variable KEP_MODE=off — no KEP at all
           if [ "$KEP_MODE" = "off" ]; then
             echo "::warning::KEP_MODE=off — реєстрація з КЕП вимкнена, оферта не вимагається"
-          elif [ -n "$IIT_BUCKET_PATH" ]; then
-            jq '. + { KEP_VERIFIER: "iit", IIT_LOADER_PATH: "iit/iit-loader.mjs" }' "$RUNNER_TEMP/env-service.json" \
-              > "$RUNNER_TEMP/env-service.json.kep" && mv "$RUNNER_TEMP/env-service.json.kep" "$RUNNER_TEMP/env-service.json"
           else
             jq '. + { KEP_VERIFIER: "dstu" }' "$RUNNER_TEMP/env-service.json" \
               > "$RUNNER_TEMP/env-service.json.kep" && mv "$RUNNER_TEMP/env-service.json.kep" "$RUNNER_TEMP/env-service.json"
@@ -162,31 +158,6 @@ jobs:
           else
             echo "::warning::czo.gov.ua не відповідає — копії в образі не буде, API завантажить перелік під час роботи"
           fi
-
-      - uses: actions/setup-node@v4
-        if: ${{ vars.IIT_BUCKET_PATH != '' }}
-        with:
-          node-version: 22
-
-      # The IIT library comes from the private bucket (scripts/setup-iit.sh puts it there); the lists of
-      # qualified providers — fresh from czo.gov.ua on every deploy. The smoke test fails the deploy
-      # instead of shipping a sign-up that answers «бібліотека недоступна».
-      - name: Бібліотека ІІТ і списки надавачів для перевірки КЕП (необов'язково)
-        if: ${{ vars.IIT_BUCKET_PATH != '' }}
-        working-directory: backend
-        run: |
-          gcloud storage cp -r "${{ vars.IIT_BUCKET_PATH }}/*" iit/
-          for f in CAs.json CACertificates.p7b; do
-            if curl -fsSL --retry 3 -o "iit/$f.new" "https://czo.gov.ua/download/certificates/$f"; then
-              mv "iit/$f.new" "iit/$f"
-            elif [ -f "iit/$f" ]; then
-              echo "::warning::czo.gov.ua не відповідає — використовую $f з бакета"
-            else
-              echo "::error::Не вдалося завантажити $f з czo.gov.ua, і в бакеті його немає"
-              exit 1
-            fi
-          done
-          node iit/check.mjs
 
       - name: Збірка і публікація образу
         run: |

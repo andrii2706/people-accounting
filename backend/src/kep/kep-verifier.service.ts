@@ -1,18 +1,9 @@
-import { BadRequestException, Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
-import { resolve } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { loadEnv } from '../config/env.js';
-import type {
-  IitLoaderModule,
-  IitSignInfo,
-  IitVerifier,
-  KepCheck,
-  KepSigner,
-} from '../shared/interfaces/kep.interface.js';
+import type { KepCheck, KepSigner } from '../shared/interfaces/kep.interface.js';
 import { normalizeSignatureFile, parseAndVerifySignature, SignatureFileError } from '../signatures/utils/cms.utils.js';
 import { DstuVerifier } from './dstu-verifier.js';
 import { KEP_NOT_CONFIGURED, KEP_NOT_CONFIGURED_MESSAGE } from './kep.constants.js';
-import { signerFromIit } from './utils/iit.utils.js';
 import { certificateFullName } from './utils/person-name.utils.js';
 
 /**
@@ -21,7 +12,6 @@ import { certificateFullName } from './utils/person-name.utils.js';
  * Unlike the signatures under letters (the TCK checks them itself), here the signature IS the proof
  * of who acts, so the check must cover the chain to a qualified provider and the certificate status:
  *  • KEP_VERIFIER=dstu — the open-source jkurwa (DSTU 4145): chain to the ЦЗО list, key usage, OCSP;
- *  • KEP_VERIFIER=iit — the IIT library (backend/iit/README.md): DSTU 4145 / ECDSA / RSA, chain, OCSP;
  *  • KEP_VERIFIER=basic — structure, hash, ECDSA/RSA without the chain — local development only
  *    (env.ts refuses it in production);
  *  • not set — `available` is false: the sign-up is off and the offer is not required.
@@ -29,8 +19,6 @@ import { certificateFullName } from './utils/person-name.utils.js';
 @Injectable()
 export class KepVerifierService {
   private readonly env = loadEnv();
-  private readonly logger = new Logger(KepVerifierService.name);
-  private iit: Promise<IitVerifier> | null = null;
   private dstu: DstuVerifier | null = null;
 
   get available(): boolean {
@@ -57,11 +45,7 @@ export class KepVerifierService {
       throw new BadRequestException('Не вдалося прочитати файл підпису — оберіть файл .p7s');
     }
     const signer =
-      this.env.kepVerifier === 'dstu'
-        ? await this.viaDstu(document, der)
-        : this.env.kepVerifier === 'iit'
-          ? await this.viaIit(document, der)
-          : await this.basic(document, der);
+      this.env.kepVerifier === 'dstu' ? await this.viaDstu(document, der) : await this.basic(document, der);
     if (!signer.fullName.trim()) throw new BadRequestException('У сертифікаті підписувача немає імені');
     return { signer, level: this.level, der };
   }
@@ -97,41 +81,5 @@ export class KepVerifierService {
       ocsp: this.env.kepOcsp,
     });
     return this.dstu.verify(document, der);
-  }
-
-  private async viaIit(document: Buffer, der: Buffer): Promise<KepSigner> {
-    const lib = await this.loadIit();
-    let result: IitSignInfo | IitSignInfo[];
-    try {
-      result = await lib.VerifyData(new Uint8Array(document), new Uint8Array(der));
-    } catch (err) {
-      // the IIT errors are user-readable: «Сертифікат відкликано», «Підпис не відповідає даним» …
-      const message = err instanceof Error ? err.message : String((err as { message?: unknown })?.message ?? err);
-      throw new BadRequestException(`Підпис не пройшов перевірку: ${message}`);
-    }
-    const infos = Array.isArray(result) ? result : [result];
-    if (infos.length !== 1) throw new BadRequestException('Потрібен рівно один підпис — керівника');
-    return signerFromIit(infos[0]);
-  }
-
-  private loadIit(): Promise<IitVerifier> {
-    this.iit ??= (async () => {
-      const path = resolve(process.cwd(), this.env.iitLoaderPath);
-      try {
-        const mod = (await import(pathToFileURL(path).href)) as IitLoaderModule;
-        const verifier = await mod.createVerifier();
-        this.logger.log('Бібліотеку ІІТ ініціалізовано');
-        return verifier;
-      } catch (err) {
-        this.iit = null;
-        this.logger.error(`Не вдалося завантажити бібліотеку ІІТ (${path}): ${String(err)}`);
-        throw new ServiceUnavailableException({
-          statusCode: 503,
-          code: KEP_NOT_CONFIGURED,
-          message: 'Бібліотека перевірки підпису недоступна. Спробуйте пізніше або зверніться до постачальника.',
-        });
-      }
-    })();
-    return this.iit;
   }
 }

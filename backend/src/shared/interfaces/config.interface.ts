@@ -71,7 +71,6 @@ export interface AppEnv {
   allowPrivateDbHosts: boolean;
   /** How a qualified e-signature is checked for the sign-up and the offer ('' — not configured). */
   kepVerifier: KepVerifierKind;
-  iitLoaderPath: string;
   /** KEP_VERIFIER=dstu: where the list of qualified providers' certificates is taken (czo.gov.ua). */
   kepCaUrl: string;
   /** …and the copy bundled into the image by the deploy, used when czo.gov.ua does not answer. */
@@ -84,6 +83,6 @@ export interface AppEnv {
   companyRegistryUrl: string;
 }
 
-export type KepVerifierKind = 'dstu' | 'iit' | 'basic' | '';
+export type KepVerifierKind = 'dstu' | 'basic' | '';
 export type KepOcspMode = 'strict' | 'lax';
 export type OfferScope = 'all' | 'self';

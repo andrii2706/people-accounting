@@ -7,8 +7,7 @@ import { resolve } from 'node:path';
 import type { KepOcspMode } from '../shared/interfaces/config.interface.js';
 import type { KepSigner } from '../shared/interfaces/kep.interface.js';
 import { DSTU_ERRORS, KEP_CA_REFRESH_HOURS, KEP_FETCH_TIMEOUT_MS, KEP_NOT_CONFIGURED } from './kep.constants.js';
-import { dstuFailure, signInfoFromDstu } from './utils/dstu.utils.js';
-import { signerFromIit } from './utils/iit.utils.js';
+import { dstuFailure, signerFromDstu } from './utils/dstu.utils.js';
 
 const gostHash = (data: Uint8Array) => gost89.gosthash(data);
 const kupynaHash = (data: Uint8Array) => dstu7564.computeHash(32, data);
@@ -28,7 +27,7 @@ export interface DstuVerifierOptions {
 }
 
 /**
- * KEP_VERIFIER=dstu — the open-source jkurwa (github.com/dstucrypt/jkurwa) instead of the licensed IIT library:
+ * KEP_VERIFIER=dstu — the open-source jkurwa (github.com/dstucrypt/jkurwa):
  * the CAdES signature (DSTU 4145), the chain to a qualified provider from the list of ЦЗО (czo.gov.ua),
  * the key usage «підпис», the validity on the signing date and the status of the certificate (OCSP).
  */
@@ -76,7 +75,7 @@ export class DstuVerifier {
       throw new BadRequestException(DSTU_ERRORS.ocspUnavailable);
     }
     const entry = checked.pipe.at(-1)!;
-    return signerFromIit(signInfoFromDstu(entry, serial));
+    return signerFromDstu(entry, serial);
   }
 
   private async unwrap(box: Box, der: Buffer, document: Buffer, ocsp?: 'lax'): Promise<JkUnwrapResult> {

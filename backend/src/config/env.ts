@@ -160,11 +160,9 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     selfSignupEnabled: bool(env.SELF_SIGNUP_ENABLED, true),
     // own databases of the legal entities: hosts of private networks / localhost only in development
     allowPrivateDbHosts: bool(env.ALLOW_PRIVATE_DB_HOSTS, !isProduction),
-    // qualified e-signature check for the sign-up and the offer: 'iit' — the IIT library (chain, OCSP);
+    // qualified e-signature check for the sign-up and the offer: 'dstu' — jkurwa (chain to the ЦЗО list, OCSP);
     // 'basic' — only the structure / hash / ECDSA, without the chain (development only); '' — off
     kepVerifier: kepVerifier(env.KEP_VERIFIER, isProduction),
-    // a module that creates the IIT EndUser object (see backend/iit/README.md)
-    iitLoaderPath: env.IIT_LOADER_PATH || 'iit/iit-loader.mjs',
     kepCaUrl: env.KEP_CA_URL || KEP_CA_URL_DEFAULT,
     kepCaFile: env.KEP_CA_FILE || 'kep/CACertificates.p7b',
     kepOcsp: oneOf<KepOcspMode>('KEP_OCSP', env.KEP_OCSP, ['strict', 'lax'], 'strict'),
@@ -176,11 +174,9 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
 
 function kepVerifier(value: string | undefined, isProduction: boolean): KepVerifierKind {
   const v = (value ?? '').trim().toLowerCase();
-  if (v !== '' && v !== 'dstu' && v !== 'iit' && v !== 'basic') {
-    throw new Error('KEP_VERIFIER: dstu, iit, basic або порожньо');
-  }
+  if (v !== '' && v !== 'dstu' && v !== 'basic') throw new Error('KEP_VERIFIER: dstu, basic або порожньо');
   if (v === 'basic' && isProduction) {
-    throw new Error('KEP_VERIFIER=basic не перевіряє ланцюжок сертифіката — у продакшні лише dstu або iit');
+    throw new Error('KEP_VERIFIER=basic не перевіряє ланцюжок сертифіката — у продакшні лише dstu');
   }
   return v as KepVerifierKind;
 }

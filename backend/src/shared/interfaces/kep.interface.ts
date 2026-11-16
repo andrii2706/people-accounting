@@ -14,7 +14,7 @@ export interface KepSigner {
 }
 
 /**
- * QUALIFIED — checked by the IIT library: the signature, the chain to a qualified provider, the status (OCSP);
+ * QUALIFIED — checked with jkurwa: the signature, the chain to a qualified provider (ЦЗО), the status (OCSP);
  * BASIC — only the structure, the hash and ECDSA/RSA (no chain) — development only.
  */
 export type KepLevel = 'QUALIFIED' | 'BASIC';
@@ -24,29 +24,4 @@ export interface KepCheck {
   level: KepLevel;
   /** The signature as DER — stored unchanged as the proof. */
   der: Buffer;
-}
-
-/** EndUserOwnerInfo of the IIT library (the fields we use). */
-export interface IitOwnerInfo {
-  issuerCN?: string;
-  serial?: string;
-  subjCN?: string;
-  subjFullName?: string;
-  subjEDRPOUCode?: string;
-  subjDRFOCode?: string;
-}
-
-/** EndUserSignInfo of the IIT library (the fields we use). */
-export interface IitSignInfo {
-  ownerInfo?: IitOwnerInfo;
-  timeInfo?: { isTimeAvail?: boolean; time?: Date | string };
-}
-
-/** What the loader (backend/iit/iit-loader.mjs) returns: an initialized IIT EndUser object. */
-export interface IitVerifier {
-  VerifyData(data: Uint8Array, sign: Uint8Array, signIndex?: number): Promise<IitSignInfo | IitSignInfo[]>;
-}
-
-export interface IitLoaderModule {
-  createVerifier(): Promise<IitVerifier>;
 }

@@ -1,5 +1,6 @@
 import type { JkPipeEntry } from 'jkurwa';
-import type { IitSignInfo } from '../../shared/interfaces/kep.interface.js';
+import type { KepSigner } from '../../shared/interfaces/kep.interface.js';
+import { maskDrfo } from '../../signatures/utils/cms.utils.js';
 import { DSTU_ERRORS } from '../kep.constants.js';
 
 const EDRPOU_IN_SUBJECT = /NTRUA-(\d{8})/;
@@ -11,27 +12,21 @@ function asDate(value: number | Date | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-/**
- * A verified signer of jkurwa → the shape of the IIT EndUserSignInfo, so both verifiers end in the same
- * `signerFromIit` (one place that masks the RNOKPP and builds the signer).
- */
-export function signInfoFromDstu(entry: JkPipeEntry, serial: string): IitSignInfo {
+/** A verified signer of jkurwa → the signer (the RNOKPP is masked at once and never kept in full). */
+export function signerFromDstu(entry: JkPipeEntry, serial: string): KepSigner {
   const subject = entry.cert?.subject ?? {};
   const issuer = entry.cert?.issuer ?? {};
   const ipn = entry.cert?.extension.ipn ?? {};
   const fullName = subject['commonName'] || [subject['surname'], subject['givenName']].filter(Boolean).join(' ') || '';
   const edrpou = ipn.EDRPOU || EDRPOU_IN_SUBJECT.exec(subject['organizationIdentifier'] ?? '')?.[1] || '';
   const drfo = ipn.DRFO || DRFO_IN_SUBJECT.exec(subject['serialNumber'] ?? '')?.[1] || '';
-  const time = asDate(entry.tokenTime) ?? asDate(entry.contentTime) ?? asDate(entry.signingTime);
   return {
-    ownerInfo: {
-      subjFullName: fullName,
-      subjEDRPOUCode: edrpou,
-      subjDRFOCode: drfo,
-      issuerCN: issuer['commonName'] || issuer['organizationName'] || '',
-      serial,
-    },
-    timeInfo: time ? { isTimeAvail: true, time } : { isTimeAvail: false },
+    fullName: fullName.trim(),
+    edrpou: edrpou.trim(),
+    drfoMasked: drfo ? maskDrfo(drfo) : '',
+    issuer: issuer['commonName'] || issuer['organizationName'] || '',
+    serial,
+    signedAt: asDate(entry.tokenTime) ?? asDate(entry.contentTime) ?? asDate(entry.signingTime),
   };
 }
 

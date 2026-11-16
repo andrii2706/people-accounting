@@ -12,10 +12,5 @@ backend/storage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
-# the IIT library is licensed separately — not in git (backend/iit/README.md)
-backend/iit/*
-!backend/iit/README.md
-!backend/iit/iit-loader.mjs
-!backend/iit/check.mjs
 # the ЦЗО list of providers is downloaded by the deploy (backend/kep/README.md)
 backend/kep/*.p7b
