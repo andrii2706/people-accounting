@@ -17,3 +17,5 @@ backend/iit/*
 !backend/iit/README.md
 !backend/iit/iit-loader.mjs
 !backend/iit/check.mjs
+# the ЦЗО list of providers is downloaded by the deploy (backend/kep/README.md)
+backend/kep/*.p7b

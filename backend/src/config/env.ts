@@ -4,7 +4,8 @@ import type { UserRole } from '../shared/interfaces/auth.interface.js';
  * and says clearly what to fix (instead of a stack trace from deep inside DI).
  */
 import { createHash, hkdfSync } from 'node:crypto';
-import type { AppEnv, KepVerifierKind } from '../shared/interfaces/config.interface.js';
+import type { AppEnv, KepOcspMode, KepVerifierKind, OfferScope } from '../shared/interfaces/config.interface.js';
+import { KEP_CA_URL_DEFAULT } from '../kep/kep.constants.js';
 
 const DEFAULT_DEV_ADMIN_PASSWORD = 'ChangeMe123!';
 
@@ -164,6 +165,10 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     kepVerifier: kepVerifier(env.KEP_VERIFIER, isProduction),
     // a module that creates the IIT EndUser object (see backend/iit/README.md)
     iitLoaderPath: env.IIT_LOADER_PATH || 'iit/iit-loader.mjs',
+    kepCaUrl: env.KEP_CA_URL || KEP_CA_URL_DEFAULT,
+    kepCaFile: env.KEP_CA_FILE || 'kep/CACertificates.p7b',
+    kepOcsp: oneOf<KepOcspMode>('KEP_OCSP', env.KEP_OCSP, ['strict', 'lax'], 'strict'),
+    offerRequiredFor: oneOf<OfferScope>('OFFER_REQUIRED_FOR', env.OFFER_REQUIRED_FOR, ['all', 'self'], 'self'),
   };
   if (env === process.env) cached = result;
   return result;
@@ -171,9 +176,11 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
 
 function kepVerifier(value: string | undefined, isProduction: boolean): KepVerifierKind {
   const v = (value ?? '').trim().toLowerCase();
-  if (v !== '' && v !== 'iit' && v !== 'basic') throw new Error('KEP_VERIFIER: iit, basic або порожньо');
+  if (v !== '' && v !== 'dstu' && v !== 'iit' && v !== 'basic') {
+    throw new Error('KEP_VERIFIER: dstu, iit, basic або порожньо');
+  }
   if (v === 'basic' && isProduction) {
-    throw new Error('KEP_VERIFIER=basic не перевіряє ланцюжок сертифіката — у продакшні лише iit');
+    throw new Error('KEP_VERIFIER=basic не перевіряє ланцюжок сертифіката — у продакшні лише dstu або iit');
   }
   return v as KepVerifierKind;
 }
@@ -182,4 +189,11 @@ function kepVerifier(value: string | undefined, isProduction: boolean): KepVerif
 export function validateEnv(raw: Record<string, unknown>) {
   loadEnv(raw as NodeJS.ProcessEnv);
   return raw;
+}
+
+function oneOf<T extends string>(name: string, value: string | undefined, allowed: readonly T[], fallback: T): T {
+  const v = (value ?? '').trim().toLowerCase();
+  if (!v) return fallback;
+  if (!allowed.includes(v as T)) throw new Error(`${name}: ${allowed.join(' або ')}`);
+  return v as T;
 }

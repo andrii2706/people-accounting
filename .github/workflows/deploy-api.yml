@@ -102,6 +102,9 @@ jobs:
           MAIL_FROM: ${{ vars.MAIL_FROM }}
           ACCESS_MAIL_FROM: ${{ vars.ACCESS_MAIL_FROM }}
           IIT_BUCKET_PATH: ${{ vars.IIT_BUCKET_PATH }}
+          KEP_MODE: ${{ vars.KEP_MODE }}
+          KEP_OCSP: ${{ vars.KEP_OCSP }}
+          OFFER_REQUIRED_FOR: ${{ vars.OFFER_REQUIRED_FOR }}
         run: |
           # shared by the migration job and the service
           jq -n --arg bucket "$GCP_BUCKET" '{
@@ -118,14 +121,24 @@ jobs:
           # letters with a temporary password go from a separate mailbox (ACCESS_MAIL_FROM + secret ACCESS_SMTP_URL)
           jq --arg from "$MAIL_FROM" --arg access "$ACCESS_MAIL_FROM" '. + { MAIL_FROM: $from, ACCESS_MAIL_FROM: $access }' \
              "$RUNNER_TEMP/env-service.json.tmp" > "$RUNNER_TEMP/env-service.json"
-          # qualified e-signature check (sign-up, offer): the IIT library is copied from a private bucket
-          # (backend/iit/README.md); without it the sign-up is off and the offer is not required
-          if [ -n "$IIT_BUCKET_PATH" ]; then
+          # qualified e-signature check (sign-up, offer): by default the open-source jkurwa (KEP_VERIFIER=dstu);
+          # the IIT library instead when IIT_BUCKET_PATH is set; GitHub variable KEP_MODE=off — no KEP at all
+          if [ "$KEP_MODE" = "off" ]; then
+            echo "::warning::KEP_MODE=off — реєстрація з КЕП вимкнена, оферта не вимагається"
+          elif [ -n "$IIT_BUCKET_PATH" ]; then
             jq '. + { KEP_VERIFIER: "iit", IIT_LOADER_PATH: "iit/iit-loader.mjs" }' "$RUNNER_TEMP/env-service.json" \
               > "$RUNNER_TEMP/env-service.json.kep" && mv "$RUNNER_TEMP/env-service.json.kep" "$RUNNER_TEMP/env-service.json"
           else
-            echo "::warning::IIT_BUCKET_PATH не задано — реєстрація з КЕП вимкнена, оферта не вимагається (налаштування: scripts/setup-iit.sh)"
+            jq '. + { KEP_VERIFIER: "dstu" }' "$RUNNER_TEMP/env-service.json" \
+              > "$RUNNER_TEMP/env-service.json.kep" && mv "$RUNNER_TEMP/env-service.json.kep" "$RUNNER_TEMP/env-service.json"
           fi
+          # optional: OCSP strict|lax, who signs the offer all|self (defaults: strict, self)
+          for v in KEP_OCSP OFFER_REQUIRED_FOR; do
+            if [ -n "${!v}" ]; then
+              jq --arg k "$v" --arg val "${!v}" '. + { ($k): $val }' "$RUNNER_TEMP/env-service.json" \
+                > "$RUNNER_TEMP/env-service.json.opt" && mv "$RUNNER_TEMP/env-service.json.opt" "$RUNNER_TEMP/env-service.json"
+            fi
+          done
           jq 'keys' "$RUNNER_TEMP/env-service.json"
           # SMTP is optional: the secrets are attached only if they were created (see docs/DEPLOYMENT.md)
           MAIL_SECRETS=""
@@ -139,6 +152,16 @@ jobs:
             MAIL_SECRETS="${MAIL_SECRETS},ACCESS_SMTP_URL=ACCESS_SMTP_URL:latest"
           fi
           echo "SMTP_SECRET=${MAIL_SECRETS}" >> "$GITHUB_ENV"
+
+      # The list of qualified providers for KEP_VERIFIER=dstu goes into the image as a fallback copy:
+      # the API fetches a fresh one from czo.gov.ua itself and falls back to this file if the site is down.
+      - name: Перелік кваліфікованих надавачів (ЦЗО) для перевірки КЕП
+        run: |
+          if curl -fsSL --retry 3 -o backend/kep/CACertificates.p7b https://czo.gov.ua/download/certificates/CACertificates.p7b; then
+            ls -l backend/kep/CACertificates.p7b
+          else
+            echo "::warning::czo.gov.ua не відповідає — копії в образі не буде, API завантажить перелік під час роботи"
+          fi
 
       - uses: actions/setup-node@v4
         if: ${{ vars.IIT_BUCKET_PATH != '' }}

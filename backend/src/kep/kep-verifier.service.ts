@@ -10,6 +10,7 @@ import type {
   KepSigner,
 } from '../shared/interfaces/kep.interface.js';
 import { normalizeSignatureFile, parseAndVerifySignature, SignatureFileError } from '../signatures/utils/cms.utils.js';
+import { DstuVerifier } from './dstu-verifier.js';
 import { KEP_NOT_CONFIGURED, KEP_NOT_CONFIGURED_MESSAGE } from './kep.constants.js';
 import { signerFromIit } from './utils/iit.utils.js';
 import { certificateFullName } from './utils/person-name.utils.js';
@@ -19,6 +20,7 @@ import { certificateFullName } from './utils/person-name.utils.js';
  *
  * Unlike the signatures under letters (the TCK checks them itself), here the signature IS the proof
  * of who acts, so the check must cover the chain to a qualified provider and the certificate status:
+ *  • KEP_VERIFIER=dstu — the open-source jkurwa (DSTU 4145): chain to the ЦЗО list, key usage, OCSP;
  *  • KEP_VERIFIER=iit — the IIT library (backend/iit/README.md): DSTU 4145 / ECDSA / RSA, chain, OCSP;
  *  • KEP_VERIFIER=basic — structure, hash, ECDSA/RSA without the chain — local development only
  *    (env.ts refuses it in production);
@@ -29,13 +31,14 @@ export class KepVerifierService {
   private readonly env = loadEnv();
   private readonly logger = new Logger(KepVerifierService.name);
   private iit: Promise<IitVerifier> | null = null;
+  private dstu: DstuVerifier | null = null;
 
   get available(): boolean {
     return this.env.kepVerifier !== '';
   }
 
   get level() {
-    return this.env.kepVerifier === 'iit' ? 'QUALIFIED' : 'BASIC';
+    return this.env.kepVerifier === 'basic' ? 'BASIC' : 'QUALIFIED';
   }
 
   /** The detached signature `file` (.p7s: DER, base64 or PEM) of exactly `document`, one signer. */
@@ -53,7 +56,12 @@ export class KepVerifierService {
     } catch {
       throw new BadRequestException('Не вдалося прочитати файл підпису — оберіть файл .p7s');
     }
-    const signer = this.env.kepVerifier === 'iit' ? await this.viaIit(document, der) : await this.basic(document, der);
+    const signer =
+      this.env.kepVerifier === 'dstu'
+        ? await this.viaDstu(document, der)
+        : this.env.kepVerifier === 'iit'
+          ? await this.viaIit(document, der)
+          : await this.basic(document, der);
     if (!signer.fullName.trim()) throw new BadRequestException('У сертифікаті підписувача немає імені');
     return { signer, level: this.level, der };
   }
@@ -80,6 +88,15 @@ export class KepVerifierService {
       if (err instanceof SignatureFileError) throw new BadRequestException(err.message);
       throw err;
     }
+  }
+
+  private viaDstu(document: Buffer, der: Buffer): Promise<KepSigner> {
+    this.dstu ??= new DstuVerifier({
+      caUrl: this.env.kepCaUrl,
+      caFile: this.env.kepCaFile,
+      ocsp: this.env.kepOcsp,
+    });
+    return this.dstu.verify(document, der);
   }
 
   private async viaIit(document: Buffer, der: Buffer): Promise<KepSigner> {

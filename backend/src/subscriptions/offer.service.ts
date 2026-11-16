@@ -56,7 +56,7 @@ export class OfferService {
     });
     return {
       version: TERMS_VERSION,
-      required: this.gate.required(user),
+      required: this.gate.required(user, !!entity?.billingRequired),
       signed: entity?.offerVersion === TERMS_VERSION,
       signedAt: entity?.offerVersion === TERMS_VERSION ? entity.offerSignedAt : null,
       signerName: signed?.signerName ?? '',

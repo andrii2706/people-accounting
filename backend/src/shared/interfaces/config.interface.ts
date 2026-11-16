@@ -72,8 +72,18 @@ export interface AppEnv {
   /** How a qualified e-signature is checked for the sign-up and the offer ('' — not configured). */
   kepVerifier: KepVerifierKind;
   iitLoaderPath: string;
+  /** KEP_VERIFIER=dstu: where the list of qualified providers' certificates is taken (czo.gov.ua). */
+  kepCaUrl: string;
+  /** …and the copy bundled into the image by the deploy, used when czo.gov.ua does not answer. */
+  kepCaFile: string;
+  /** Certificate status (OCSP): strict — no answer means no; lax — only «revoked» refuses. */
+  kepOcsp: KepOcspMode;
+  /** Who must sign the offer once KEP is on: every legal entity or only the self-registered ones. */
+  offerRequiredFor: OfferScope;
   /** ЄДР lookup URL with {code}; empty — lookup off. */
   companyRegistryUrl: string;
 }
 
-export type KepVerifierKind = 'iit' | 'basic' | '';
+export type KepVerifierKind = 'dstu' | 'iit' | 'basic' | '';
+export type KepOcspMode = 'strict' | 'lax';
+export type OfferScope = 'all' | 'self';

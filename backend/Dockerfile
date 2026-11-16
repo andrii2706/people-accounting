@@ -16,6 +16,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 # the IIT library for the KEP check (backend/iit/README.md); without it — only the loader, the check and README
 COPY --from=build /app/iit ./iit
+# fallback copy of the ЦЗО list of qualified providers (KEP_VERIFIER=dstu downloads a fresh one itself)
+COPY --from=build /app/kep ./kep
 COPY package.json ./
 RUN mkdir -p storage/files && chown -R node:node storage
 USER node
