@@ -101,6 +101,7 @@ export function emptyEmployeeForm(today: string): EmployeeFormModel {
     deferralMobilizationBasis: '',
     deferralUntil: '',
     deferralUntilMobilizationEnd: false,
+    partTimeNotInQuota: false,
     deferralKind: 'NONE',
     reserveTeamNumber: '',
     mobilizationOrderDate: '',
@@ -278,6 +279,8 @@ export function formToPayload(
   }
   delete payload['deferralKind'];
   Object.assign(payload, effectiveDeferral(model));
+  // «сумісник — не враховується у квоту» goes only together with a deferral
+  payload['partTimeNotInQuota'] = hasDeferral(model) && model.partTimeNotInQuota;
   // the next ВЛК is kept only together with a deferral
   if (!hasDeferral(model)) payload['nextVlkDate'] = null;
   // dismissal fields are sent only together with the date

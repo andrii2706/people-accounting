@@ -113,6 +113,8 @@ export interface EmployeeFormModel {
   deferralMobilizationBasis: string;
   deferralUntil: string;
   deferralUntilMobilizationEnd: boolean;
+  /** Works part-time — not counted in the reservation quota (only with a deferral). */
+  partTimeNotInQuota: boolean;
   /** Form only: which deferral the person has (one of the two). */
   deferralKind: DeferralKind;
   reserveTeamNumber: string;

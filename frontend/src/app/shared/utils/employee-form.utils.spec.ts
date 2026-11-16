@@ -49,6 +49,15 @@ describe('employee form model', () => {
       ).toBeNull();
     });
 
+    it('«сумісник — не у квоті» — лише разом з відстрочкою', () => {
+      const deferral = { deferralKind: 'MOBILIZATION' as const, deferralMobilizationBasis: 'п. 9' };
+      expect(payload({ ...deferral, partTimeNotInQuota: true })['partTimeNotInQuota']).toBe(true);
+      expect(payload({ partTimeNotInQuota: true })['partTimeNotInQuota']).toBe(false);
+      expect(
+        payload({ ...deferral, reserved: true, partTimeNotInQuota: true })['partTimeNotInQuota'],
+      ).toBe(false);
+    });
+
     it('ID-картка не має серії', () => {
       expect(payload({ passportType: 'ID_CARD', passportSeries: 'кв' })['passportSeries']).toBe('');
       expect(payload({ passportType: 'BOOK', passportSeries: 'кв' })['passportSeries']).toBe('КВ');

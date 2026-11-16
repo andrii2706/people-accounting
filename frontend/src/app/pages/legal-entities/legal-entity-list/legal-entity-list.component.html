@@ -104,7 +104,11 @@
                   вільно {{ e.quota.available }} ·
                 }
                 {{ percent(e.quota.percent!) }}% від {{ e.quota.base }} в/з{{
-                  e.quota.mobilizedInBase ? ', у т.ч. ' + e.quota.mobilizedInBase + ' мобіліз.' : ''
+                  e.quota.mobilizedInBase
+                    ? ', у т.ч. ' + e.quota.mobilizedInBase + ' мобіліз.'
+                    : ''
+                }}{{
+                  e.quota.partTimeExcluded ? ', без ' + e.quota.partTimeExcluded + ' сумісн.' : ''
                 }}
               </p>
               @if (e.quota.validUntil) {

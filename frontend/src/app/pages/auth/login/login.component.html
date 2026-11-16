@@ -28,6 +28,10 @@
   </section>
 
   <section class="flex flex-col items-center justify-center p-6 sm:p-12">
+    <!-- the left panel is hidden on narrow screens: the rights notice goes above the form there -->
+    <p class="mb-8 w-full max-w-sm text-xs text-muted lg:hidden">
+      Майнові права належать ТОВ «ПАВ ІТ»
+    </p>
     <form class="w-full max-w-sm" (submit)="onSubmit($event)" novalidate>
       <h2 class="text-2xl font-semibold tracking-tight">Вхід</h2>
       <p class="mt-1 mb-8 text-sm text-muted">

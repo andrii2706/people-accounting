@@ -281,6 +281,13 @@ export class Employee {
   @Column({ type: 'boolean', default: false })
   deferralUntilMobilizationEnd: boolean;
 
+  /**
+   * Works part-time («за сумісництвом») — not counted in the base of the reservation quota of this legal entity.
+   * Set only together with a deferral; cleared when the deferral is removed or the employee is reserved.
+   */
+  @Column({ type: 'boolean', default: false })
+  partTimeNotInQuota: boolean;
+
   /** Service in the reserve — team number. Present ⇒ reservist. */
   @Column({ type: 'varchar', length: 100, default: '' })
   reserveTeamNumber: string;

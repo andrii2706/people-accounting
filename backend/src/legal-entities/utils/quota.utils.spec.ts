@@ -99,4 +99,15 @@ describe('квота бронювання у відсотках', () => {
     ].map((e) => quotaStanding(e, DATE));
     expect(entityQuota(ENTITY, staff, DATE)).toMatchObject({ base: 4, mobilizedInBase: 2, quota: 2 });
   });
+
+  it('сумісники з відстрочкою, відмічені «не враховується у квоту», — поза базою', () => {
+    const partTimer = { deferralMobilizationBasis: 'п. 9 ч. 1 ст. 23', partTimeNotInQuota: true };
+    const staff = [
+      ...Array.from({ length: 8 }, () => worker()),
+      worker(partTimer),
+      worker(partTimer),
+      worker({ ...partTimer, dismissalDate: '2026-01-31' }), // звільнений — не рахується взагалі
+    ].map((e) => quotaStanding(e, DATE));
+    expect(entityQuota(ENTITY, staff, DATE)).toMatchObject({ base: 8, partTimeExcluded: 2, quota: 4 });
+  });
 });

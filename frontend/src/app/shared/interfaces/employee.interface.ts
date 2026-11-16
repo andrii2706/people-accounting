@@ -171,6 +171,8 @@ export interface Employee {
   deferralMobilizationBasis: string;
   deferralUntil: string | null;
   deferralUntilMobilizationEnd: boolean;
+  /** Works part-time — not counted in the reservation quota (only with a deferral). */
+  partTimeNotInQuota: boolean;
   reserveTeamNumber: string;
   mobilizationOrderDate: string | null;
   militaryServiceInfo: string;

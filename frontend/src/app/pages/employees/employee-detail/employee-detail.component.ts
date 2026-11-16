@@ -169,6 +169,9 @@ export class EmployeeDetailComponent {
             : e.deferralUntil && `до ${d(e.deferralUntil)}`,
         ),
       },
+      ...(e.partTimeNotInQuota
+        ? [{ label: 'Квота бронювання', value: 'не враховується — працює за сумісництвом' }]
+        : []),
       { label: 'Служба в резерві (№ команди)', value: e.reserveTeamNumber },
       {
         label: 'Мобілізаційне розпорядження',

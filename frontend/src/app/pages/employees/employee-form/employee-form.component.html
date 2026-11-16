@@ -1135,6 +1135,23 @@
                       </app-form-field>
                     }
                   }
+
+                  @if (!model().reserved && model().deferralKind !== 'NONE') {
+                    <label class="flex items-start gap-2.5 text-sm">
+                      <input
+                        type="checkbox"
+                        class="mt-0.5 size-4 accent-brand-600 cursor-pointer"
+                        [formField]="f.partTimeNotInQuota"
+                      />
+                      <span>
+                        <span class="font-medium">Працює за сумісництвом</span>
+                        <span class="block text-xs text-muted"
+                          >Не враховується у квоту бронювання цієї юрособи — ні в кількість
+                          військовозобов’язаних, ні в місця</span
+                        >
+                      </span>
+                    </label>
+                  }
                 </div>
               </section>
 

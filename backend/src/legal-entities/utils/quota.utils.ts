@@ -32,12 +32,15 @@ export function quotaStanding(e: Employee, date: IsoDate): QuotaStanding {
     // the base: working military-liable men (no conscripts, no reservists, no women);
     // those reserved by another enterprise do not count — they are not this entity's to reserve
     !(reserved && e.reservedBy === 'OTHER') &&
+    // a part-timer with a deferral is counted at his main job, not here
+    !e.partTimeNotInQuota &&
     (!mobilized || mobilizedCounted);
   return {
     legalEntityId: e.legalEntityId,
     employed,
     inBase,
     mobilizedInBase: inBase && mobilizedCounted,
+    partTimeExcluded: employed && !!e.partTimeNotInQuota,
     reservedOwn: reserved && e.reservedBy !== 'OTHER',
   };
 }
@@ -51,6 +54,7 @@ export function entityQuota(
   const own = staff.filter((s) => s.legalEntityId === entity.id);
   const base = own.filter((s) => s.inBase).length;
   const mobilizedInBase = own.filter((s) => s.mobilizedInBase).length;
+  const partTimeExcluded = own.filter((s) => s.partTimeExcluded).length;
   const reservedCompany = own.filter((s) => s.reservedOwn).length;
   const percent = entity.reservationQuotaPercent;
   const quota = quotaPlaces(percent, base);
@@ -62,6 +66,7 @@ export function entityQuota(
     percent,
     base,
     mobilizedInBase,
+    partTimeExcluded,
     quota,
     reservedCompany,
     // the criticality is over (the last day is inclusive) — the places stay for reference, none is free

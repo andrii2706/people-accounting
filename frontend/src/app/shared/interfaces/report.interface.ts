@@ -178,6 +178,8 @@ export interface EntityQuota {
   base: number;
   /** Of the base: mobilized from 18.05.2024 (those mobilized earlier are not counted). */
   mobilizedInBase: number;
+  /** Part-timers with a deferral marked «не враховується у квоту» — left out of the base. */
+  partTimeExcluded: number;
   /** Places = percent × base, rounded down (null — no quota). */
   quota: number | null;
   reservedCompany: number;

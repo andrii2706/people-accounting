@@ -263,6 +263,10 @@
             (у т.ч. мобілізованих з 18.05.2024: <b class="tabular-nums">{{ q.mobilized }}</b
             >)
           }
+          @if (q.partTime) {
+            (без сумісників з відстрочкою: <b class="tabular-nums">{{ q.partTime }}</b
+            >)
+          }
           → місць:
           <b class="tabular-nums">{{ q.places }}</b> · заброньовано:
           <b class="tabular-nums">{{ q.reserved }}</b> ·

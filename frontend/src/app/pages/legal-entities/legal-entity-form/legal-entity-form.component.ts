@@ -150,6 +150,7 @@ export class LegalEntityFormComponent {
     return {
       base: today.base,
       mobilized: today.mobilizedInBase,
+      partTime: today.partTimeExcluded,
       places,
       reserved: today.reservedCompany,
       free: this.criticalityExpired() ? 0 : Math.max(places - today.reservedCompany, 0),

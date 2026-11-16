@@ -18,6 +18,7 @@ import { LabelSettings1793330000000 } from './1793330000000-LabelSettings.js';
 import { SelfService1793340000000 } from './1793340000000-SelfService.js';
 import { KepSignup1793350000000 } from './1793350000000-KepSignup.js';
 import { ListSnapshots1793360000000 } from './1793360000000-ListSnapshots.js';
+import { PartTimeQuota1793370000000 } from './1793370000000-PartTimeQuota.js';
 import { TckPostalCodes1793310000000 } from './1793310000000-TckPostalCodes.js';
 import { QuotaPercent1793300000000 } from './1793300000000-QuotaPercent.js';
 import { PasswordResetTokens1793290000000 } from './1793290000000-PasswordResetTokens.js';
@@ -49,4 +50,5 @@ export const MIGRATIONS: Function[] = [
   SelfService1793340000000,
   KepSignup1793350000000,
   ListSnapshots1793360000000,
+  PartTimeQuota1793370000000,
 ];

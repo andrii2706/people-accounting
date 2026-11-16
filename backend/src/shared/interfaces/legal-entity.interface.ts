@@ -49,6 +49,8 @@ export interface EntityQuota {
   base: number;
   /** Of the base: mobilized from 18.05.2024 (those mobilized earlier are not in the base). */
   mobilizedInBase: number;
+  /** Working part-timers with a deferral marked «не враховується у квоту» — left out of the base. */
+  partTimeExcluded: number;
   /** Places = percent × base, rounded down (null — no quota). */
   quota: number | null;
   reservedCompany: number;
@@ -128,6 +130,8 @@ export interface QuotaStanding {
   inBase: boolean;
   /** …of them mobilized from 18.05.2024 (still counted). */
   mobilizedInBase: boolean;
+  /** A working part-timer marked «не враховується у квоту бронювання». */
+  partTimeExcluded: boolean;
   /** Reserved by his own enterprise (uses a place). */
   reservedOwn: boolean;
 }

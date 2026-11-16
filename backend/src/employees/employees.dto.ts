@@ -290,6 +290,8 @@ export class CreateEmployeeDto {
   @DateField() deferralUntil?: string | null;
   /** Deferral «до завершення мобілізації» instead of a date. */
   @IsOptional() @IsBoolean() deferralUntilMobilizationEnd?: boolean;
+  /** Works part-time — not counted in the reservation quota (only with a deferral). */
+  @IsOptional() @IsBoolean() partTimeNotInQuota?: boolean;
   @EmployeeStr('reserveTeamNumber') reserveTeamNumber?: string;
   @PastDate() mobilizationOrderDate?: string | null;
   @EmployeeStr('militaryServiceInfo') militaryServiceInfo?: string;

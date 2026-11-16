@@ -133,6 +133,7 @@ export const FIELD_LABELS: Record<string, string> = {
   deferralMobilizationBasis: 'Відстрочка від мобілізації',
   deferralUntil: 'Відстрочка до',
   deferralUntilMobilizationEnd: 'Відстрочка до завершення мобілізації',
+  partTimeNotInQuota: 'Сумісник — не враховується у квоту бронювання',
   reserveTeamNumber: 'Служба в резерві — № команди',
   mobilizationOrderDate: 'Мобілізаційне розпорядження від',
   militaryServiceInfo: 'Відомості про військову службу',

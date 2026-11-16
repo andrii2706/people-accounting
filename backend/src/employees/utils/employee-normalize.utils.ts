@@ -38,6 +38,7 @@ export function applyDeferral(e: Employee) {
     e.deferralMobilizationBasis = '';
     e.deferralUntil = null;
     e.deferralUntilMobilizationEnd = false;
+    e.partTimeNotInQuota = false;
     e.nextVlkDate = null;
     return;
   }
@@ -55,6 +56,8 @@ export function applyDeferral(e: Employee) {
   if (e.deferralUntilMobilizationEnd) e.deferralUntil = null;
   // the next ВЛК is tracked only for a deferral
   const hasDeferral = !!(e.deferralConscriptionBasis?.trim() || e.deferralMobilizationBasis?.trim());
+  // «сумісник — не в квоті» is a mark of a person with a deferral
+  if (!hasDeferral) e.partTimeNotInQuota = false;
   if (!hasDeferral && !e.deferralUntil && !e.deferralUntilMobilizationEnd) e.nextVlkDate = null;
 }
 
