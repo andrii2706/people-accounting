@@ -1,12 +1,16 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { Logger } from '@nestjs/common';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { Repository } from 'typeorm';
 import type { Organization } from '../organization/organization.entity.js';
 import { DailyJobService } from './daily-job.service.js';
 import type { NotificationsService } from './notifications.service.js';
 
-// loadEnv() runs in the constructor: a minimal development configuration (no real secrets)
+// loadEnv() runs in the constructor: a minimal development configuration (no real secrets); fixed test keys
+// keep the «ключі похідні від JWT_SECRET» warning out of the output
 process.env['DATABASE_URL'] ??= 'postgres://test:test@localhost/test';
 process.env['JWT_SECRET'] ??= 'test-only-secret-0123456789abcdef-0123';
+process.env['DATA_ENCRYPTION_KEY'] ??= Buffer.alloc(32, 1).toString('base64');
+process.env['BLIND_INDEX_KEY'] ??= Buffer.alloc(32, 2).toString('base64');
 
 const LIST = `<h3><a href="/documents/10612026-62225">УКАЗ ПРЕЗИДЕНТА УКРАЇНИ №1061/2026</a></h3>
   <p>26 жовтня 2026 року</p><p>Про продовження строку проведення загальної мобілізації</p>`;
@@ -38,6 +42,9 @@ const connectTimeout = () =>
   Object.assign(new TypeError('fetch failed'), { cause: { code: 'UND_ERR_CONNECT_TIMEOUT' } });
 
 describe('строк мобілізації, коли zakon.rada.gov.ua недоступний', () => {
+  // the site failures are simulated on purpose — their log lines are not test failures
+  beforeAll(() => Logger.overrideLogger(false));
+  afterAll(() => Logger.overrideLogger(['log', 'error', 'warn', 'debug', 'verbose']));
   afterEach(() => vi.unstubAllGlobals());
 
   it('бере строк з указу на president.gov.ua', async () => {

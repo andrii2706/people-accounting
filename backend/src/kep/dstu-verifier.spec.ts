@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { Logger } from '@nestjs/common';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { DstuVerifier } from './dstu-verifier.js';
 import { DSTU_ERRORS } from './kep.constants.js';
 
@@ -19,6 +20,10 @@ function verifier(caList: Buffer, ocsp: 'strict' | 'lax' = 'lax') {
 }
 
 describe('перевірка КЕП бібліотекою jkurwa (ДСТУ 4145)', () => {
+  // the failures below are simulated on purpose — their log lines are not test failures
+  beforeAll(() => Logger.overrideLogger(false));
+  afterAll(() => Logger.overrideLogger(['log', 'error', 'warn', 'debug', 'verbose']));
+
   it('підпис ДСТУ 4145 з ГОСТ 34.311: підписувач і надавач з ланцюжка ЦЗО', async () => {
     const signer = await verifier(fixture('CZO-CA-LIST.p7s')).verify(SIGNED_TEXT, fixture('test-gost-czo.p7s'));
     expect(signer.fullName).toBe('ТЕСТ Тестовий Тест Тестович');
