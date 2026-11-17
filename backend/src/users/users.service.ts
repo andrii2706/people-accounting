@@ -273,7 +273,23 @@ export class UsersService {
       throw new BadRequestException('Не можна заблокувати себе або змінити власну роль');
     }
     const changes: Partial<User> = {};
-    if (dto.fullName !== undefined) changes.fullName = dto.fullName;
+    if (dto.fullName !== undefined && dto.fullName.trim() !== user.fullName) {
+      changes.fullName = dto.fullName.trim().replace(/\s+/g, ' ');
+    }
+    const email = dto.email?.trim().toLowerCase();
+    if (email && email !== user.email) {
+      if (await this.repo.exists({ where: { email } })) {
+        throw fieldErrors([{ field: 'email', message: 'Користувач з таким email уже існує' }]);
+      }
+      if (user.role === 'ADMIN' && user.email === this.env.adminEmail?.toLowerCase()) {
+        // the first administrator from ADMIN_EMAIL would be created again on the next start
+        throw fieldErrors([
+          { field: 'email', message: 'Email першого адміністратора задано в ADMIN_EMAIL — змініть його там' },
+        ]);
+      }
+      changes.email = email;
+      changes.tokenVersion = user.tokenVersion + 1; // a new login — sign in again everywhere
+    }
     // the role and the legal entity are checked together: e.g. HR needs one, the main administrator has none
     const role = dto.role ?? user.role;
     const legalEntityId =
@@ -292,6 +308,14 @@ export class UsersService {
     }
     if (dto.notify !== undefined) changes.notify = dto.notify;
     if (Object.keys(changes).length) await this.repo.update(id, changes);
+    if (changes.email) {
+      // both addresses learn about it: the old one — in case the change was not theirs
+      const text =
+        `Email для входу в систему військового обліку змінено: ${user.email} → ${changes.email}. ` +
+        'Увійдіть з новою адресою (пароль той самий). Якщо ви цього не очікували — зверніться до адміністратора.';
+      await this.notifications.notifyUser(user.email, 'Змінено email для входу', text);
+      await this.notifications.notifyUser(changes.email, 'Змінено email для входу', text);
+    }
     if (changes.role) {
       await this.notifications.notifyUser(
         user.email,

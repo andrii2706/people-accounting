@@ -60,8 +60,44 @@
         @for (u of users(); track u.id) {
           <tr>
             <td>
-              <p class="font-medium">{{ u.fullName }}</p>
-              <p class="text-xs text-muted">{{ u.email }}</p>
+              @if (editModel().id === u.id) {
+                <form class="w-64 space-y-2" (submit)="saveEdit($event, u)" novalidate>
+                  <app-form-field label="Ім’я та прізвище" [field]="editForm.fullName">
+                    <input class="input" [formField]="editForm.fullName" />
+                  </app-form-field>
+                  <app-form-field
+                    label="Email для входу"
+                    hint="Після зміни — вхід з новою адресою"
+                    [field]="editForm.email"
+                  >
+                    <input
+                      class="input"
+                      type="email"
+                      autocomplete="off"
+                      [formField]="editForm.email"
+                    />
+                  </app-form-field>
+                  <div class="flex gap-2">
+                    <button
+                      type="submit"
+                      class="btn btn-primary btn-sm cursor-pointer"
+                      [disabled]="editForm().submitting()"
+                    >
+                      Зберегти
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm cursor-pointer"
+                      (click)="cancelEdit()"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <p class="font-medium">{{ u.fullName }}</p>
+                <p class="text-xs text-muted">{{ u.email }}</p>
+              }
             </td>
             @if (auth.isAdmin()) {
               <td>
@@ -133,6 +169,16 @@
               @if (!canManage(u)) {
                 <span class="text-xs text-muted">керує головний адміністратор</span>
               } @else {
+                @if (editModel().id !== u.id) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm cursor-pointer"
+                    title="Виправити ім’я або email для входу"
+                    (click)="startEdit(u)"
+                  >
+                    Редагувати
+                  </button>
+                }
                 @if (lockedIds().has(u.id)) {
                   <button
                     type="button"

@@ -20,6 +20,7 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import type {
   IssuedPassword,
   ManagedUser,
+  UserEditModel,
   UserRole,
 } from '../../../shared/interfaces/auth.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
@@ -127,6 +128,50 @@ export class UsersComponent {
         : undefined,
     );
   });
+
+  /** «Редагувати»: name and e-mail of one user, right in the table. */
+  protected readonly editModel = signal<UserEditModel>({ id: '', fullName: '', email: '' });
+  protected readonly editForm = form(this.editModel, (p) => {
+    required(p.fullName, { message: 'Вкажіть ім’я' });
+    maxLength(p.fullName, 200, { message: 'Не більше 200 символів' });
+    required(p.email, { message: 'Вкажіть email' });
+    pattern(p.email, PATTERN.email, { message: MESSAGE.email });
+    maxLength(p.email, 200, { message: 'Не більше 200 символів' });
+  });
+
+  protected startEdit(u: ManagedUser) {
+    this.editModel.set({ id: u.id, fullName: u.fullName, email: u.email });
+    this.editForm().reset();
+  }
+
+  protected cancelEdit() {
+    this.editModel.set({ id: '', fullName: '', email: '' });
+  }
+
+  protected async saveEdit(event: Event, u: ManagedUser) {
+    event.preventDefault();
+    const emailChanged = this.editModel().email.trim().toLowerCase() !== u.email;
+    if (
+      emailChanged &&
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        `Змінити email для входу на ${this.editModel().email.trim()}? Сесії «${u.fullName}» буде завершено, лист прийде на стару й нову адреси.`,
+      )
+    )
+      return;
+    await submit(this.editForm, async () => {
+      try {
+        const { fullName, email } = this.editModel();
+        await this.usersService.update(u.id, { fullName: fullName.trim(), email: email.trim() });
+        this.cancelEdit();
+        this.toast.success(emailChanged ? 'Збережено. Email для входу змінено' : 'Збережено');
+        await this.refresh();
+        return undefined;
+      } catch (err) {
+        return formSubmitErrors(err, this.editForm, (m) => this.toast.error(m));
+      }
+    });
+  }
 
   protected async create(event: Event) {
     event.preventDefault();

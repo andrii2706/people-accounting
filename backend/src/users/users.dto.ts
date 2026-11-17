@@ -41,7 +41,15 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @MaxLength(200, { message: 'Не більше 200 символів' })
+  @Rule((v: string) => v.trim().length > 0, 'Вкажіть ім’я')
   fullName?: string;
+
+  /** The login e-mail: fixing a typo or a new work address. The old sessions end. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200, { message: 'Не більше 200 символів' })
+  @Rule((v: string) => PATTERN.email.test(v.trim()), MESSAGE.email)
+  email?: string;
 
   @IsOptional()
   @IsIn(USER_ROLES)

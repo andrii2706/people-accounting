@@ -59,18 +59,17 @@ export class UsersController {
     @CurrentUser() actor: AuthUser,
     @EntityScope() scope: Scope,
   ) {
-    await this.manageable(id, actor);
+    const before = await this.manageable(id, actor);
     if (dto.role) this.assertRole(actor, dto.role);
     // another legal entity — only the main administrator
     if (dto.legalEntityId !== undefined) assertInScope(scope, dto.legalEntityId, 'Юридичну особу не знайдено');
     const user = await this.users.update(id, dto, actor.id);
-    await this.audit.log(
-      'user',
-      id,
-      'USER_UPDATED',
-      Object.fromEntries(Object.entries(dto).map(([k, v]) => [k, [null, v]])),
-      actor,
-    );
+    // the journal keeps what was and what became (a fixed name or e-mail stays traceable)
+    const changed = Object.keys(dto)
+      .map((k) => k as keyof UpdateUserDto)
+      .filter((k) => before[k] !== user[k])
+      .map((k) => [k, [before[k] ?? null, user[k] ?? null]]);
+    if (changed.length) await this.audit.log('user', id, 'USER_UPDATED', Object.fromEntries(changed), actor);
     return user;
   }
 

@@ -127,7 +127,16 @@ export interface UpdateUserRequest {
   role?: UserRole;
   legalEntityId?: string | null;
   fullName?: string;
+  /** The login e-mail (a typo or a new work address); the user's sessions end. */
+  email?: string;
   notify?: boolean;
+}
+
+/** The inline form «Редагувати» in the user list. */
+export interface UserEditModel {
+  id: string;
+  fullName: string;
+  email: string;
 }
 
 /** POST /api/users/:id/reset-password */
