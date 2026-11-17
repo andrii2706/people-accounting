@@ -26,3 +26,34 @@ export const PASSWORD_REMINDER_LINK_HOURS = 7 * 24;
 export const MOBILIZATION_EXTENSION_DAYS = 90;
 
 export const MOBILIZATION_ESTIMATED_NOTE = 'очікується указ — продовжено автоматично на 90 діб';
+
+/** Genitive month names as decrees write them («31 жовтня 2026 року»). */
+export const UA_MONTHS_GENITIVE: Record<string, number> = {
+  січня: 1,
+  лютого: 2,
+  березня: 3,
+  квітня: 4,
+  травня: 5,
+  червня: 6,
+  липня: 7,
+  серпня: 8,
+  вересня: 9,
+  жовтня: 10,
+  листопада: 11,
+  грудня: 12,
+};
+
+/**
+ * The fallback source of the mobilization term: the list of presidential decrees. zakon.rada.gov.ua does not
+ * always answer requests from outside Ukraine (the API runs in Google Cloud), president.gov.ua does.
+ */
+export const DECREE_FALLBACK_URL_DEFAULT = 'https://www.president.gov.ua/documents/decrees';
+/** The extension decree comes out shortly before the term ends: the list is searched from this many days before it. */
+export const DECREE_SEARCH_BEFORE_END_DAYS = 60;
+/** With no known term — this far back. */
+export const DECREE_SEARCH_WITHOUT_TERM_DAYS = 150;
+/** At most this many pages of the list (20 decrees each) per check. */
+export const DECREE_LIST_MAX_PAGES = 20;
+/** One request to a decree site. */
+export const DECREE_FETCH_TIMEOUT_MS = 20_000;
+export const DECREE_USER_AGENT = 'military-registry/1.0 (mobilization term check)';

@@ -8,21 +8,7 @@
  */
 import { addDays } from '../../common/utils/dates.utils.js';
 import type { MobilizationTerm } from '../../shared/interfaces/document.interface.js';
-
-const MONTHS: Record<string, number> = {
-  січня: 1,
-  лютого: 2,
-  березня: 3,
-  квітня: 4,
-  травня: 5,
-  червня: 6,
-  липня: 7,
-  серпня: 8,
-  вересня: 9,
-  жовтня: 10,
-  листопада: 11,
-  грудня: 12,
-};
+import { UA_MONTHS_GENITIVE } from '../notifications.constants.js';
 
 /** HTML → plain text (tags removed, entities decoded, whitespace collapsed). */
 export function htmlToText(html: string): string {
@@ -44,7 +30,7 @@ const PATTERN =
 export function parseMobilizationTerm(text: string): MobilizationTerm | null {
   let best: MobilizationTerm | null = null;
   for (const m of text.matchAll(PATTERN)) {
-    const month = MONTHS[m[2].toLowerCase()];
+    const month = UA_MONTHS_GENITIVE[m[2].toLowerCase()];
     if (!month) continue;
     const from = `${m[3]}-${String(month).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
     const days = Number(m[4]);

@@ -12,6 +12,8 @@ RUN DATABASE_URL=postgres://build:build@localhost/build JWT_SECRET=build-only-no
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# IPv4 first: Cloud Run has no IPv6 egress, an AAAA record of a site would otherwise end in a connect timeout
+ENV NODE_OPTIONS=--dns-result-order=ipv4first
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 # fallback copy of the ЦЗО list of qualified providers (KEP_VERIFIER=dstu downloads a fresh one itself)

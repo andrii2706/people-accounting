@@ -65,6 +65,8 @@ export interface AppEnv {
   appUrl: string;
   /** Where the daily job looks for the presidential decrees on mobilization. */
   decreeSourceUrl: string;
+  /** The fallback: the list of presidential decrees (president.gov.ua); empty — off. */
+  decreeFallbackUrl: string;
   /** Self sign-up of directors (SELF_SIGNUP_ENABLED). */
   selfSignupEnabled: boolean;
   /** Own databases of the legal entities may be in private networks / on localhost (development). */

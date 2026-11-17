@@ -6,6 +6,7 @@ import type { UserRole } from '../shared/interfaces/auth.interface.js';
 import { createHash, hkdfSync } from 'node:crypto';
 import type { AppEnv, KepOcspMode, KepVerifierKind, OfferScope } from '../shared/interfaces/config.interface.js';
 import { KEP_CA_URL_DEFAULT } from '../kep/kep.constants.js';
+import { DECREE_FALLBACK_URL_DEFAULT } from '../notifications/notifications.constants.js';
 
 const DEFAULT_DEV_ADMIN_PASSWORD = 'ChangeMe123!';
 
@@ -154,6 +155,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     passwordLinkHours: int(env.PASSWORD_LINK_HOURS, 72),
     appUrl: env.APP_URL || list(env.APP_ORIGIN)[0] || 'http://localhost:4200',
     decreeSourceUrl: env.DECREE_SOURCE_URL || 'https://zakon.rada.gov.ua/laws/show/65/2022',
+    decreeFallbackUrl: env.DECREE_FALLBACK_URL ?? DECREE_FALLBACK_URL_DEFAULT,
     // free ЄДР lookup by code ({code} is replaced); empty — the «Підтягнути з ЄДР» button is off
     companyRegistryUrl: env.COMPANY_REGISTRY_URL ?? 'https://adm.tools/action/gov/api/?egrpou={code}',
     // anyone may sign up as a director of his company (the old flow — accounts by the administrator — stays)

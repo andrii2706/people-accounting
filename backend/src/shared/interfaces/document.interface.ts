@@ -29,6 +29,18 @@ export interface MobilizationTerm {
   decree: string;
 }
 
+/** One entry of the list of presidential decrees (president.gov.ua/documents/decrees). */
+export interface DecreeListItem {
+  /** The page of the decree. */
+  url: string;
+  /** «1061/2026». */
+  number: string;
+  /** The date of signing; null — not found next to the entry. */
+  date: IsoDate | null;
+  /** The text of the entry: number, date, title. */
+  text: string;
+}
+
 export interface PersonName {
   lastName: string;
   firstName: string;
