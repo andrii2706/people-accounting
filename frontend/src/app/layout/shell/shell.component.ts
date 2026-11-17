@@ -28,7 +28,7 @@ import type { InboxItem } from '../../shared/interfaces/inbox.interface';
 import { NavigationStateService } from '../../shared/services/navigation-state.service';
 import { CommandPaletteComponent } from '../command-palette/command-palette.component';
 import { DictionariesService } from '../../shared/services/dictionaries.service';
-import { legalEntityName } from '../../shared/utils/legal-entity.utils';
+import { legalEntitiesCount, legalEntityName } from '../../shared/utils/legal-entity.utils';
 import type { NavGroup } from '../../shared/interfaces/ui.interface';
 
 @Component({
@@ -72,18 +72,26 @@ export class ShellComponent {
     month: 'long',
     year: 'numeric',
   }).format(new Date());
-  /** Company name under the app title: the only legal entity, or how many there are. */
+  /**
+   * Company name under the app title: the user's legal entity. Only the main administrator sees how many legal
+   * entities the system holds — nobody else learns about the other clients.
+   */
   protected readonly orgName = computed(() => {
     const entities = this.dict.legalEntities();
+    if (!this.auth.isAdmin()) {
+      const own = entities.find((e) => e.id === this.auth.user()?.legalEntityId) ?? entities[0];
+      return own ? legalEntityName(own) : '';
+    }
     if (entities.length === 1) return legalEntityName(entities[0]);
-    return entities.length ? `${entities.length} юридичні особи` : '';
+    return entities.length ? legalEntitiesCount(entities.length) : '';
   });
   protected readonly welcomeOpen = signal(false);
   private readonly billingService = inject(BillingService);
   /** Debt check after a sign-in; null — not loaded (the window then shows only the notifications). */
   protected readonly billing = signal<BillingStatus | null>(null);
   private readonly billingChecked = signal(false);
-  protected readonly userName = computed(() => this.auth.user()?.fullName.trim() ?? '');
+  /** The welcome after a sign-in addresses the person in the vocative («п. Галино»), never «Галина Петренко». */
+  protected readonly userAddress = computed(() => this.auth.user()?.address ?? '');
   protected readonly welcomeItems = computed(() => this.inbox.unread().slice(0, 6));
   protected readonly unreadByKind = computed(() => {
     const unread = this.inbox.unread();

@@ -13,6 +13,8 @@ import { OrganizationService } from './organization.service.js';
 export class OrganizationController {
   constructor(private readonly org: OrganizationService) {}
 
+  /** The settings of the whole system — only the main administrator (the others do not see that it is shared). */
+  @Roles('ADMIN')
   @AllowUnassigned()
   @Get()
   get() {

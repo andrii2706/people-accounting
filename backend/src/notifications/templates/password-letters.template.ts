@@ -22,7 +22,7 @@ const AUTO = 'Лист надіслано автоматично з адреси
  * The current password keeps working until that date.
  */
 export function passwordExpiringLetter(input: PasswordExpiringLetterInput): MailLetter {
-  const greeting = input.greetingName || input.fullName;
+  const greeting = input.greetingName;
   const date = kyivDate(input.expiresAt);
   const days = Math.max(0, Math.ceil((input.expiresAt.getTime() - Date.now()) / 86_400_000));
   const linkUntil = kyivDateTime(input.linkExpiresAt);
@@ -39,7 +39,7 @@ export function passwordExpiringLetter(input: PasswordExpiringLetterInput): Mail
   ];
 
   const text = [
-    `Добрий день, ${greeting}!`,
+    greeting ? `Добрий день, ${greeting}!` : 'Добрий день!',
     '',
     lead,
     after,
@@ -87,7 +87,7 @@ export function passwordExpiringLetter(input: PasswordExpiringLetterInput): Mail
  * until it is changed, the system lets the user only into the password change.
  */
 export function passwordChangeLetter(input: PasswordChangeLetterInput): MailLetter {
-  const greeting = input.greetingName || input.fullName;
+  const greeting = input.greetingName;
   const linkUntil = kyivDateTime(input.linkExpiresAt);
   const footer = footerLine(input.entityName, input.entityCode);
   const subject = `Змініть пароль до військового обліку${input.entityName ? ` — ${input.entityName}` : ''}`;
@@ -102,7 +102,7 @@ export function passwordChangeLetter(input: PasswordChangeLetterInput): MailLett
   ];
 
   const text = [
-    `Добрий день, ${greeting}!`,
+    greeting ? `Добрий день, ${greeting}!` : 'Добрий день!',
     '',
     lead,
     after,

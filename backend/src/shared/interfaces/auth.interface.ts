@@ -15,6 +15,8 @@ export interface AuthUser {
   signupSource?: SignupSource;
   /** The current version of the agreement is accepted (the main administrator and the vendor — always). */
   termsAccepted?: boolean;
+  /** How the screen addresses the person, in the vocative: «п. Галино»; '' — without a name. */
+  address?: string;
 }
 
 export type SignupSource = 'ADMIN' | 'SELF';

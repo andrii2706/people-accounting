@@ -24,6 +24,7 @@ import {
   CurrentUser,
   Public,
 } from '../common/decorators/auth.decorators.js';
+import { LOGIN_ATTEMPTS_PER_MINUTE } from '../common/constants/auth.constants.js';
 import { BILLING_BLOCKED_MESSAGE, BILLING_DEBT_CODE } from '../billing/billing.constants.js';
 import { BillingService } from '../billing/billing.service.js';
 import { OfferGateService } from '../subscriptions/offer-gate.service.js';
@@ -36,7 +37,7 @@ import { SessionService } from './session.service.js';
 import type { AuthUser, SessionResponse } from '../shared/interfaces/auth.interface.js';
 import { ChangePasswordDto, ResetPasswordDto } from './auth.dto.js';
 import { LoginDto } from './auth.dto.js';
-import { toAuthUser } from './utils/auth.utils.js';
+import { toAuthUser, withAddress } from './utils/auth.utils.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -49,9 +50,9 @@ export class AuthController {
     private readonly offers: OfferGateService,
   ) {}
 
-  /** At most 5 attempts per minute from one address + account lockout after a series of failures. */
+  /** A limit of attempts per minute from one address + account lockout after a series of failures. */
   @Public()
-  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Throttle({ default: { limit: LOGIN_ATTEMPTS_PER_MINUTE, ttl: 60_000 } })
   @Post('login')
   @HttpCode(200)
   async login(
@@ -93,7 +94,7 @@ export class AuthController {
     }
     await this.sessions.issue(res, user);
     await this.audit.log('auth', user.id, 'LOGIN', { ip: [null, ip] }, user);
-    return toAuthUser(user, await this.offers.accepted(user));
+    return withAddress(toAuthUser(user, await this.offers.accepted(user)));
   }
 
   @Public()
@@ -113,7 +114,7 @@ export class AuthController {
     if (!payload || this.sessions.isExpiredAbsolutely(payload)) return { user: null };
     const user = await this.users.findForSession(payload.sub);
     if (!user?.isActive || user.tokenVersion !== payload.ver) return { user: null };
-    return { user: toAuthUser(user, await this.offers.accepted(user)) };
+    return { user: await withAddress(toAuthUser(user, await this.offers.accepted(user))) };
   }
 
   @AllowVendor()
@@ -122,8 +123,8 @@ export class AuthController {
   @AllowUnpaid()
   @AllowUnassigned()
   @Get('me')
-  me(@CurrentUser() user: AuthUser): AuthUser {
-    return user;
+  me(@CurrentUser() user: AuthUser): Promise<AuthUser> {
+    return withAddress(user);
   }
 
   /** Change own password. All other sessions of the user are terminated. */
@@ -144,7 +145,7 @@ export class AuthController {
     const user = await this.users.changeOwnPassword(current.id, dto.currentPassword, dto.newPassword);
     await this.sessions.issue(res, user);
     await this.audit.log('auth', user.id, 'PASSWORD_CHANGED', {}, current);
-    return toAuthUser(user, current.termsAccepted ?? true);
+    return withAddress(toAuthUser(user, current.termsAccepted ?? true));
   }
 
   /** Who a link from a letter is for (the «new password» page); 400 — invalid / used / expired. */

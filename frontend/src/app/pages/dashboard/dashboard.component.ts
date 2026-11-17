@@ -36,8 +36,9 @@ export class DashboardComponent {
           : hour < 18
             ? 'Доброго дня'
             : 'Доброго вечора';
-    const name = this.auth.user()?.fullName.split(' ')[0];
-    return name ? `${hello}, ${name}` : hello;
+    // «Доброго дня, п. Галино» — the vocative comes from the server; without it — no name rather than «Галина»
+    const address = this.auth.user()?.address;
+    return address ? `${hello}, ${address}` : hello;
   });
 
   /** «Що зробити сьогодні» — from the same notifications as the bell. */

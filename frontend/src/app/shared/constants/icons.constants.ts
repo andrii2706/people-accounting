@@ -9,6 +9,7 @@ export const ICON_PATHS = {
   file: 'M14 3H6v18h12V7zM14 3v4h4M9 13h6M9 17h6',
   table: 'M3 5h18v14H3zM3 10h18M3 15h18M9 5v14',
   grip: 'M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01',
+  more: 'M12 5h.01M12 12h.01M12 19h.01',
   database: 'M3 5a9 3 0 1 0 18 0a9 3 0 1 0-18 0M3 5v14a9 3 0 0 0 18 0V5M3 12a9 3 0 0 0 18 0',
   printer: 'M6 9V3h12v6M6 18H3V9h18v9h-3M6 14h12v7H6z',
   settings:

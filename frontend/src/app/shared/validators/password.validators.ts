@@ -1,3 +1,4 @@
+import { HANDED_OVER_PASSWORD, HANDED_OVER_PASSWORD_PROBLEM } from '../constants/auth.constants';
 /** Password policy — the same as on the backend (backend/src/common/password-policy.ts). */
 export const PASSWORD_MIN_LENGTH = 12;
 
@@ -12,5 +13,12 @@ export function passwordProblems(password: string, email?: string): string[] {
   const local = email?.split('@')[0]?.toLowerCase();
   if (local && local.length >= 4 && password.toLowerCase().includes(local))
     problems.push('без частини email');
+  return problems;
+}
+
+/** The temporary password the administrator types for a user: the policy + only characters that cannot be misread. */
+export function temporaryPasswordProblems(password: string, email?: string): string[] {
+  const problems = passwordProblems(password, email);
+  if (password && !HANDED_OVER_PASSWORD.test(password)) problems.push(HANDED_OVER_PASSWORD_PROBLEM);
   return problems;
 }

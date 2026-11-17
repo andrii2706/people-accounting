@@ -12,7 +12,9 @@ import {
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { debounceTime, distinctUntilChanged, skip } from 'rxjs';
+import { ActionsMenuComponent } from '../../../shared/components/actions-menu/actions-menu.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
+import type { MenuAction } from '../../../shared/interfaces/ui.interface';
 import type {
   EmployeeList,
   EmployeeListItem,
@@ -51,6 +53,7 @@ import {
   imports: [
     RouterLink,
     IconComponent,
+    ActionsMenuComponent,
     UaDatePipe,
     EmployeePreviewComponent,
     InViewDirective,
@@ -237,6 +240,28 @@ export class EmployeeListComponent {
 
   protected clearSelection() {
     this.selected.set(new Set());
+  }
+
+  /** The «⋯» menu of a row (a click on the row itself opens the preview too). */
+  protected employeeActions(item: EmployeeListItem, previewed: boolean): MenuAction[] {
+    const actions: MenuAction[] = [
+      {
+        label: previewed ? 'Сховати перегляд' : 'Переглянути',
+        icon: 'eye',
+        run: () => this.preview(item),
+      },
+    ];
+    if (this.auth.canEdit())
+      actions.push(
+        { label: 'Редагувати', icon: 'edit', run: () => this.edit(item) },
+        {
+          label: 'Копіювати',
+          icon: 'copy',
+          hint: 'Нова картка з тими самими даними',
+          run: () => this.copy(item),
+        },
+      );
+    return actions;
   }
 
   protected preview(item: EmployeeListItem) {

@@ -3,12 +3,14 @@
   title="Юридичні особи"
   subtitle="Кожен працівник належить юрособі: списки, відомості й листи до ТЦК формуються від її імені, з її керівником і відповідальним. Квота бронювання й адреси нагадувань — теж у юрособі."
 >
-  <a
-    routerLink="/settings/system"
-    class="btn btn-ghost cursor-pointer"
-    title="Строки попереджень і строк мобілізації — однакові для всіх юросіб"
-    ><app-icon name="settings" /> Загальні параметри</a
-  >
+  @if (auth.isAdmin()) {
+    <a
+      routerLink="/settings/system"
+      class="btn btn-ghost cursor-pointer"
+      title="Строки попереджень і строк мобілізації — однакові для всіх юросіб"
+      ><app-icon name="settings" /> Загальні параметри</a
+    >
+  }
   @if (auth.isEntityManager()) {
     <a routerLink="/settings/users" class="btn btn-secondary cursor-pointer"
       ><app-icon name="users" /> Користувачі</a
@@ -128,44 +130,9 @@
             }
           </td>
           <td class="text-right whitespace-nowrap">
-            @if (auth.isEntityManager()) {
-              <a
-                class="icon-btn cursor-pointer"
-                [routerLink]="['/settings/legal-entities', e.id, 'labels']"
-                aria-label="Наклейки на конверти"
-                title="Наклейки на конверти: шрифт, розміри, A4 чи конверт"
-                ><app-icon name="mail" [size]="16"
-              /></a>
-              <a
-                class="icon-btn cursor-pointer"
-                [routerLink]="['/settings/legal-entities', e.id, 'database']"
-                aria-label="Власна база даних"
-                title="Власна база даних: підключення до сервера вашої компанії"
-                ><app-icon name="database" [size]="16"
-              /></a>
-              <a
-                class="icon-btn cursor-pointer"
-                [routerLink]="['/settings/legal-entities', e.id]"
-                aria-label="Редагувати"
-                title="Редагувати"
-                ><app-icon name="edit" [size]="16"
-              /></a>
-            }
-            @if (auth.isAdmin()) {
-              <button
-                type="button"
-                class="icon-btn cursor-pointer text-danger hover:text-danger"
-                [disabled]="e.allEmployees > 0"
-                [title]="
-                  e.allEmployees > 0
-                    ? 'Спершу переведіть працівників (разом зі звільненими) в іншу юрособу'
-                    : 'Видалити юрособу'
-                "
-                aria-label="Видалити"
-                (click)="remove(e)"
-              >
-                <app-icon name="trash" [size]="16" />
-              </button>
+            @let actions = entityActions(e);
+            @if (actions.length) {
+              <app-actions-menu [actions]="actions" [label]="'Дії: ' + name(e)" />
             }
           </td>
         </tr>

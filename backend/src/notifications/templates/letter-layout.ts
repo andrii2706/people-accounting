@@ -69,7 +69,7 @@ export function letterHtml(l: LetterLayout): string {
   </tr></table>
 </td></tr>
 <tr><td style="padding:30px 28px 8px;">
-  <p style="margin:0 0 14px;font-size:20px;font-weight:600;line-height:1.3;">Добрий день, ${esc(l.greeting)}!</p>
+  <p style="margin:0 0 14px;font-size:20px;font-weight:600;line-height:1.3;">Добрий день${l.greeting ? `, ${esc(l.greeting)}` : ''}!</p>
   ${l.paragraphs.map((p, i) => `<p style="margin:0 0 ${i === l.paragraphs.length - 1 ? 22 : 14}px;font-size:15px;line-height:1.6;">${p}</p>`).join('\n  ')}
 </td></tr>
 ${box}

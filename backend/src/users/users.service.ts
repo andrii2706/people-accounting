@@ -2,13 +2,14 @@ import { BadRequestException, Injectable, Logger, NotFoundException } from '@nes
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
-import { IsNull, Not, Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { PasswordResetToken } from './password-reset-token.entity.js';
 import { sha256 } from '../common/utils/hash.utils.js';
 import {
   generateTemporaryPassword,
   passwordExpiresAt,
   passwordProblems,
+  temporaryPasswordProblems,
 } from '../common/utils/password-policy.utils.js';
 import { fieldErrors } from '../common/validators/validators.js';
 import { loadEnv } from '../config/env.js';
@@ -144,10 +145,20 @@ export class UsersService {
    * The vendor account is not shown and cannot be changed by the client's admin.
    */
   list(scope: Scope = null) {
-    return this.repo.find({
-      where: { role: Not('VENDOR'), ...(scope ? { legalEntityId: scope } : {}) },
-      order: { fullName: 'ASC' },
-    });
+    const qb = this.managed().orderBy('u.fullName', 'ASC');
+    if (scope) qb.andWhere('u.legalEntityId = :scope', { scope });
+    return qb.getMany();
+  }
+
+  /**
+   * Accounts as the administrator sees them: with the end of the temporary password — he must see that it has
+   * expired (unlocking or activating the account does not bring an expired one back; only «Скинути пароль»).
+   */
+  private managed() {
+    return this.repo
+      .createQueryBuilder('u')
+      .addSelect('u.temporaryPasswordExpiresAt')
+      .where('u.role <> :vendor', { vendor: 'VENDOR' });
   }
 
   /** The legal entity of an account must fit its role and exist. */
@@ -172,7 +183,7 @@ export class UsersService {
   }
 
   async findById(id: string) {
-    const user = await this.repo.findOneBy({ id, role: Not('VENDOR') });
+    const user = await this.managed().andWhere('u.id = :id', { id }).getOne();
     if (!user) throw new NotFoundException('Користувача не знайдено');
     return user;
   }
@@ -224,7 +235,8 @@ export class UsersService {
     const email = dto.email.toLowerCase();
     if (await this.repo.exists({ where: { email } }))
       throw fieldErrors([{ field: 'email', message: 'Користувач з таким email уже існує' }]);
-    this.assertPolicy(dto.password, email);
+    // typed by the administrator for someone else — only characters that cannot be misread in the letter
+    this.assertPolicy(dto.password, email, 'password', opts.issuedBy ? temporaryPasswordProblems : passwordProblems);
     const role = dto.role ?? 'HR';
     const legalEntityId = role === 'ADMIN' ? null : (dto.legalEntityId ?? null);
     await this.checkEntity(role, legalEntityId);
@@ -529,8 +541,8 @@ export class UsersService {
     );
   }
 
-  private assertPolicy(password: string, email: string, field = 'password') {
-    const problems = passwordProblems(password, email);
+  private assertPolicy(password: string, email: string, field = 'password', check = passwordProblems) {
+    const problems = check(password, email);
     if (problems.length) throw fieldErrors([{ field, message: `Потрібно: ${problems.join(', ')}` }]);
   }
 }

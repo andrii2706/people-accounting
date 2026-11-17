@@ -282,38 +282,10 @@
               }
             </td>
             <td class="text-right whitespace-nowrap" (click)="$event.stopPropagation()">
-              <button
-                type="button"
-                class="icon-btn"
-                [class.!bg-brand-100]="active"
-                [class.!text-brand-700]="active"
-                title="Переглянути"
-                [attr.aria-label]="'Переглянути: ' + e.fullName"
-                [attr.aria-pressed]="active"
-                (click)="preview(e)"
-              >
-                <app-icon name="eye" [size]="16" />
-              </button>
-              @if (auth.canEdit()) {
-                <button
-                  type="button"
-                  class="icon-btn"
-                  title="Редагувати"
-                  [attr.aria-label]="'Редагувати: ' + e.fullName"
-                  (click)="edit(e)"
-                >
-                  <app-icon name="edit" [size]="16" />
-                </button>
-                <button
-                  type="button"
-                  class="icon-btn"
-                  title="Копіювати"
-                  [attr.aria-label]="'Копіювати: ' + e.fullName"
-                  (click)="copy(e)"
-                >
-                  <app-icon name="copy" [size]="16" />
-                </button>
-              }
+              <app-actions-menu
+                [actions]="employeeActions(e, active)"
+                [label]="'Дії: ' + e.fullName"
+              />
             </td>
           </tr>
         } @empty {

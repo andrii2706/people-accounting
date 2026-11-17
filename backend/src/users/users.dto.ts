@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
-import { passwordProblems } from '../common/utils/password-policy.utils.js';
+import { temporaryPasswordProblems } from '../common/utils/password-policy.utils.js';
 import { Rule } from '../common/validators/validators.js';
 import { MESSAGE, PATTERN } from '../military/employee-rules.js';
 import type { UserRole } from '../shared/interfaces/auth.interface.js';
@@ -13,11 +13,14 @@ export class CreateUserDto {
   @Rule((v: string) => PATTERN.email.test(v), MESSAGE.email)
   email: string;
 
-  /** Temporary password — the user changes it on first sign-in. */
+  /** Temporary password — the user changes it on first sign-in. Only what can be retyped from a letter. */
   @IsString()
   @IsNotEmpty({ message: 'Вкажіть тимчасовий пароль' })
   @MaxLength(200, { message: 'Не більше 200 символів' })
-  @Rule((v: string) => passwordProblems(v).length === 0, (v: string) => `Потрібно: ${passwordProblems(v).join(', ')}`)
+  @Rule(
+    (v: string) => temporaryPasswordProblems(v).length === 0,
+    (v: string) => `Потрібно: ${temporaryPasswordProblems(v).join(', ')}`,
+  )
   password: string;
 
   @IsString()

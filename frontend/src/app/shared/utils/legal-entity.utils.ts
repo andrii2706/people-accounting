@@ -84,3 +84,18 @@ export function quotaPlaces(percent: number | null, base: number): number | null
 export function percentText(percent: number): string {
   return String(percent).replace('.', ',');
 }
+
+/** «1 юридична особа», «3 юридичні особи», «5 юридичних осіб», «12 юридичних осіб». */
+export function legalEntitiesCount(n: number): string {
+  const tens = n % 100;
+  const ones = n % 10;
+  const words =
+    tens >= 11 && tens <= 14
+      ? 'юридичних осіб'
+      : ones === 1
+        ? 'юридична особа'
+        : ones >= 2 && ones <= 4
+          ? 'юридичні особи'
+          : 'юридичних осіб';
+  return `${n} ${words}`;
+}

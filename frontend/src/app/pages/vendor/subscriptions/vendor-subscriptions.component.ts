@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
-import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { ActionsMenuComponent } from '../../../shared/components/actions-menu/actions-menu.component';
+import type { MenuAction } from '../../../shared/interfaces/ui.interface';
 import {
   INVOICE_STATUS_LABELS,
   PLAN_LABELS,
@@ -26,7 +27,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 @Component({
   selector: 'app-vendor-subscriptions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, UaDatePipe, DateInputComponent],
+  imports: [UaDatePipe, DateInputComponent, ActionsMenuComponent],
   templateUrl: './vendor-subscriptions.component.html',
 })
 export class VendorSubscriptionsComponent {
@@ -98,6 +99,30 @@ export class VendorSubscriptionsComponent {
     );
   }
 
+  /** The «⋯» menu of an invoice: the file always; paid / cancelled — while it is issued. */
+  protected invoiceActions(inv: InvoiceView): MenuAction[] {
+    const actions: MenuAction[] = [
+      { label: 'Рахунок .docx', icon: 'download', href: this.invoiceUrl(inv.id) },
+    ];
+    if (inv.status === 'ISSUED')
+      actions.push(
+        {
+          label: 'Позначити оплаченим',
+          icon: 'check',
+          disabled: this.busy(),
+          run: () => this.markPaid(inv),
+        },
+        {
+          label: 'Скасувати рахунок',
+          icon: 'x',
+          danger: true,
+          disabled: this.busy(),
+          run: () => this.cancel(inv),
+        },
+      );
+    return actions;
+  }
+
   protected markPaid(inv: InvoiceView) {
     void this.run(
       () => this.service.markPaid(inv.id),
@@ -106,6 +131,8 @@ export class VendorSubscriptionsComponent {
   }
 
   protected cancel(inv: InvoiceView) {
+    if (typeof window !== 'undefined' && !window.confirm(`Скасувати рахунок № ${inv.number}?`))
+      return;
     void this.run(() => this.service.cancel(inv.id), `Рахунок № ${inv.number} скасовано`);
   }
 

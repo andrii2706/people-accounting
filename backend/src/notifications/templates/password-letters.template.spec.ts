@@ -5,7 +5,7 @@ import { passwordChangeLetter, passwordExpiringLetter } from './password-letters
 // fictitious people and company
 const common = {
   fullName: 'Ольга ОБЛІКОВА',
-  greetingName: 'Ольго',
+  greetingName: 'п. Ольго',
   login: 'o.oblikova@example.com',
   link: 'https://oblik.example.com/reset-password?token=abc',
   linkExpiresAt: new Date(Date.now() + 7 * 86_400_000),

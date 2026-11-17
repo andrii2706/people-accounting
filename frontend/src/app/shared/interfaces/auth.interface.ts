@@ -20,6 +20,8 @@ export interface AuthUser {
   signupSource?: SignupSource;
   /** The legal entity has accepted the current offer (the head's KEP); true when not required. */
   termsAccepted?: boolean;
+  /** How the screen addresses the person, in the vocative: «п. Галино»; '' — without a name. */
+  address?: string;
 }
 
 export type SignupSource = 'ADMIN' | 'SELF';
@@ -94,6 +96,8 @@ export interface ManagedUser {
   /** Receives e-mail reminders. */
   notify?: boolean;
   mustChangePassword: boolean;
+  /** Until when the temporary password from the administrator opens the account (null — not temporary). */
+  temporaryPasswordExpiresAt?: string | null;
   lockedUntil: string | null;
   lastLoginAt: string | null;
   passwordChangedAt: string | null;

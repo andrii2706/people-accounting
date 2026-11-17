@@ -77,3 +77,29 @@ export interface ReportView {
   icon: IconName;
   hint: string;
 }
+
+/**
+ * One item of a row's «⋯» menu: an action, a page of the app or a file.
+ * Items the user may not use are simply left out; a `danger` item goes last, after a divider.
+ */
+export interface MenuAction {
+  label: string;
+  icon?: IconName;
+  /** Destructive (block, delete, cancel) — red, separated from the rest. */
+  danger?: boolean;
+  disabled?: boolean;
+  /** A second line: why the item is disabled or what exactly it does. */
+  hint?: string;
+  /** A page of the app (routerLink). */
+  link?: string | readonly unknown[];
+  /** A file to download. */
+  href?: string;
+  run?: () => unknown;
+}
+
+/** Where the open menu stands (position: fixed — a table that scrolls sideways does not cut it off). */
+export interface MenuPosition {
+  right: number;
+  top: number | null;
+  bottom: number | null;
+}

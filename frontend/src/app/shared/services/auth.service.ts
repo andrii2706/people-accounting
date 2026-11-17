@@ -125,7 +125,9 @@ export class AuthService {
 
   /** The server answered with the updated user (e.g. the agreement accepted). */
   setUser(user: AuthUser) {
-    this._user.set(user);
+    // other answers carry no address («п. Галино») — the one from the session stays
+    const previous = this._user();
+    this._user.set({ address: previous?.id === user.id ? previous.address : undefined, ...user });
   }
 
   /** The session ended on the server (idle timeout) — reset the state without a request. */

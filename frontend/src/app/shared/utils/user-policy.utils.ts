@@ -23,3 +23,18 @@ export function canManageUser(
 export function roleNeedsEntity(role: UserRole): boolean {
   return role === 'ENTITY_ADMIN' || role === 'HR';
 }
+
+/**
+ * The temporary password of the account has expired: it no longer opens the account, and neither «Розблокувати
+ * вхід» nor «Активувати» brings it back — only «Скинути пароль» (a new one).
+ */
+export function temporaryPasswordExpired(
+  user: Pick<ManagedUser, 'mustChangePassword' | 'temporaryPasswordExpiresAt'>,
+  now = Date.now(),
+): boolean {
+  return (
+    user.mustChangePassword &&
+    !!user.temporaryPasswordExpiresAt &&
+    Date.parse(user.temporaryPasswordExpiresAt) <= now
+  );
+}

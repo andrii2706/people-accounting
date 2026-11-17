@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { loadEnv } from '../config/env.js';
-import { vocativeGivenName } from '../documents/name-declension.js';
+import { addressOf } from '../documents/name-declension.js';
 import type { PasswordLinkMail, TemporaryPasswordMail } from '../shared/interfaces/mail.interface.js';
 import { passwordChangeLetter, passwordExpiringLetter } from './templates/password-letters.template.js';
 import type { UserRole } from '../shared/interfaces/auth.interface.js';
@@ -88,7 +88,7 @@ export class NotificationsService {
       const role = ROLE_ACCESS_TEXT[mail.role as UserRole] ?? ROLE_ACCESS_TEXT.HR;
       const letter = accessLetter({
         fullName: mail.fullName,
-        greetingName: await vocativeGivenName(mail.fullName),
+        greetingName: await addressOf(mail.fullName),
         login: mail.email,
         temporaryPassword: mail.temporaryPassword,
         expiresAt: mail.expiresAt,
@@ -115,7 +115,7 @@ export class NotificationsService {
       const entity = await this.legalEntities.entityOfUser(mail.userId);
       const letter = passwordExpiringLetter({
         fullName: mail.fullName,
-        greetingName: await vocativeGivenName(mail.fullName),
+        greetingName: await addressOf(mail.fullName),
         login: mail.email,
         expiresAt: mail.passwordExpiresAt,
         link: mail.link,
@@ -137,7 +137,7 @@ export class NotificationsService {
       const entity = await this.legalEntities.entityOfUser(mail.userId);
       const letter = passwordChangeLetter({
         fullName: mail.fullName,
-        greetingName: await vocativeGivenName(mail.fullName),
+        greetingName: await addressOf(mail.fullName),
         login: mail.email,
         link: mail.link,
         linkExpiresAt: mail.linkExpiresAt,

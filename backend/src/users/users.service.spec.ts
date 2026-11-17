@@ -67,3 +67,19 @@ describe('редагування користувача', () => {
     expect(mails).toEqual([]);
   });
 });
+
+describe('створення користувача адміністратором', () => {
+  it('тимчасовий пароль з кириличною літерою чи пробілом — помилка біля поля, обліковий запис не створено', async () => {
+    const save = vi.fn();
+    const repo = { exists: async () => false, save, create: (u: unknown) => u } as unknown as Repository<User>;
+    const service = new UsersService(repo, {} as Repository<PasswordResetToken>, {} as NotificationsService);
+    for (const password of ['Sony\u0430h#Lis2026q', 'Sonyah#Lis2026q '])
+      await expect(
+        service.create(
+          { email: 'olena@example.test', fullName: 'Олена Вигадана', password, role: 'ADMIN' },
+          { issuedBy: { id: 'admin', role: 'ADMIN' } as never },
+        ),
+      ).rejects.toMatchObject({ response: { errors: [expect.objectContaining({ field: 'password' })] } });
+    expect(save).not.toHaveBeenCalled();
+  });
+});

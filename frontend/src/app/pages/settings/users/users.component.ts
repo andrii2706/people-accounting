@@ -24,17 +24,23 @@ import type {
   UserRole,
 } from '../../../shared/interfaces/auth.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
+import { KYIV_DATETIME } from '../../../shared/utils/date.utils';
 import { AuthService } from '../../../shared/services/auth.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { UsersService } from '../../../shared/services/users.service';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
-import { passwordProblems } from '../../../shared/validators/password.validators';
+import { temporaryPasswordProblems } from '../../../shared/validators/password.validators';
 import { SelectComponent } from '../../../shared/components/select/select.component';
-import type { SelectOption } from '../../../shared/interfaces/ui.interface';
+import { ActionsMenuComponent } from '../../../shared/components/actions-menu/actions-menu.component';
+import type { MenuAction, SelectOption } from '../../../shared/interfaces/ui.interface';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
-import { canManageUser, roleNeedsEntity } from '../../../shared/utils/user-policy.utils';
+import {
+  canManageUser,
+  roleNeedsEntity,
+  temporaryPasswordExpired,
+} from '../../../shared/utils/user-policy.utils';
 import { legalEntityName } from '../../../shared/utils/legal-entity.utils';
 
 /**
@@ -45,6 +51,7 @@ import { legalEntityName } from '../../../shared/utils/legal-entity.utils';
   selector: 'app-users',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    ActionsMenuComponent,
     SelectComponent,
     PageHeaderComponent,
     FormField,
@@ -99,6 +106,56 @@ export class UsersComponent {
     return canManageUser(this.auth.user(), u);
   }
 
+  /** The «⋯» menu of a row: what the signed-in user may do with this account. */
+  protected userActions(u: ManagedUser): MenuAction[] {
+    const actions: MenuAction[] = [];
+    if (this.editModel().id !== u.id)
+      actions.push({
+        label: 'Редагувати',
+        icon: 'edit',
+        hint: 'Ім’я та email для входу',
+        run: () => this.startEdit(u),
+      });
+    if (this.lockedIds().has(u.id))
+      actions.push({
+        label: 'Розблокувати вхід',
+        icon: 'key',
+        hint: 'Вхід заблоковано після невдалих спроб',
+        run: () => this.unlock(u),
+      });
+    if (u.isActive)
+      actions.push({
+        label: 'Лист на зміну пароля',
+        icon: 'mail',
+        hint: 'Посилання на пошту; до зміни — лише сторінка пароля',
+        run: () => this.requestPasswordChange(u),
+      });
+    actions.push({
+      label: 'Скинути пароль',
+      icon: 'lock',
+      hint: 'Новий тимчасовий пароль; старий перестає діяти одразу',
+      run: () => this.resetPassword(u),
+    });
+    if (u.id !== this.auth.user()?.id)
+      actions.push(
+        u.isActive
+          ? {
+              label: 'Заблокувати',
+              icon: 'x',
+              danger: true,
+              hint: 'Усі сесії завершаться одразу',
+              run: () => this.toggle(u),
+            }
+          : { label: 'Активувати', icon: 'check', run: () => this.toggle(u) },
+      );
+    return actions;
+  }
+
+  /** The temporary password no longer opens the account — the row says so and points to «Скинути пароль». */
+  protected expired(u: ManagedUser) {
+    return temporaryPasswordExpired(u, this.now());
+  }
+
   private readonly blank = {
     fullName: '',
     email: '',
@@ -113,7 +170,7 @@ export class UsersComponent {
     pattern(p.email, PATTERN.email, { message: MESSAGE.email });
     required(p.password, { message: 'Вкажіть тимчасовий пароль' });
     validate(p.password, ({ value, valueOf }) => {
-      const problems = passwordProblems(value(), valueOf(p.email));
+      const problems = temporaryPasswordProblems(value(), valueOf(p.email));
       return problems.length
         ? { kind: 'policy', message: `Потрібно: ${problems.join(', ')}` }
         : undefined;
@@ -178,14 +235,17 @@ export class UsersComponent {
     await submit(this.userForm, async () => {
       try {
         const { legalEntityId, ...rest } = this.userModel();
-        await this.usersService.create({
+        const created = await this.usersService.create({
           ...rest,
           legalEntityId: rest.role === 'ADMIN' ? null : legalEntityId || null,
         });
         this.userModel.set({ ...this.blank });
         this.userForm().reset();
+        const until = created.temporaryPasswordExpiresAt
+          ? ` Тимчасовий пароль діє до ${KYIV_DATETIME.format(new Date(created.temporaryPasswordExpiresAt))}.`
+          : '';
         this.toast.success(
-          'Користувача створено. Лист з паролем надіслано на його email (якщо пошту налаштовано); при першому вході він змінить пароль.',
+          `Користувача створено. Лист з паролем надіслано на його email (якщо пошту налаштовано); при першому вході він змінить пароль.${until}`,
         );
         await this.refresh();
         return undefined;
@@ -196,9 +256,11 @@ export class UsersComponent {
   }
 
   protected toggle(u: ManagedUser) {
+    if (!u.isActive)
+      return this.restore(() => this.usersService.update(u.id, { isActive: true }), 'Розблоковано');
     return this.run(
-      () => this.usersService.update(u.id, { isActive: !u.isActive }),
-      u.isActive ? 'Заблоковано, сесії завершено' : 'Розблоковано',
+      () => this.usersService.update(u.id, { isActive: false }),
+      'Заблоковано, сесії завершено',
     );
   }
 
@@ -221,7 +283,31 @@ export class UsersComponent {
   }
 
   protected unlock(u: ManagedUser) {
-    return this.run(() => this.usersService.unlock(u.id), 'Вхід розблоковано');
+    return this.restore(() => this.usersService.unlock(u.id), 'Вхід розблоковано');
+  }
+
+  /**
+   * «Розблокувати вхід» / «Активувати» give the access back but not an expired temporary password: the old one
+   * still does not open the account. The administrator is told at once and may issue a new one right away.
+   */
+  private async restore(action: () => Promise<ManagedUser>, success: string) {
+    try {
+      const user = await action();
+      await this.refresh();
+      if (!temporaryPasswordExpired(user)) {
+        this.toast.success(success);
+        return;
+      }
+      this.toast.error(
+        `${success}, але тимчасовий пароль «${user.fullName}» прострочено — зі старим увійти не вийде.`,
+      );
+      await this.resetPassword(
+        user,
+        `Тимчасовий пароль «${user.fullName}» прострочено, тому зі старим паролем увійти не вийде. Видати новий тимчасовий пароль зараз?`,
+      );
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err));
+    }
   }
 
   /** Letter 2: «change your password» with a link; until changed the user gets only the password page. */
@@ -246,12 +332,11 @@ export class UsersComponent {
     }
   }
 
-  protected async resetPassword(u: ManagedUser) {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm(`Скинути пароль для «${u.fullName}»? Усі його сесії буде завершено.`)
-    )
-      return;
+  protected async resetPassword(
+    u: ManagedUser,
+    question = `Скинути пароль для «${u.fullName}»? Усі його сесії буде завершено.`,
+  ) {
+    if (typeof window !== 'undefined' && !window.confirm(question)) return;
     try {
       const { temporaryPassword, mailSent, expiresAt } = await this.usersService.resetPassword(
         u.id,

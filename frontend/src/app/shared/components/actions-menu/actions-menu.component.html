@@ -1,0 +1,83 @@
+<button
+  #trigger
+  type="button"
+  class="icon-btn cursor-pointer"
+  aria-haspopup="menu"
+  [class.!bg-sunken]="open()"
+  [attr.aria-expanded]="open()"
+  [attr.aria-controls]="open() ? menuId : null"
+  [attr.aria-label]="label()"
+  [title]="label()"
+  (click)="toggle()"
+  (keydown)="onTriggerKeydown($event)"
+>
+  <app-icon name="more" [size]="18" />
+</button>
+
+@if (open()) {
+  <div
+    #panel
+    role="menu"
+    class="fixed z-50 w-64 max-w-[calc(100vw-16px)] overflow-y-auto rounded-xl border border-line bg-surface py-1 text-left text-sm whitespace-normal shadow-lg"
+    style="max-height: min(70vh, 420px)"
+    [id]="menuId"
+    [attr.aria-label]="label()"
+    [style.right.px]="position().right"
+    [style.top.px]="position().top"
+    [style.bottom.px]="position().bottom"
+    (keydown)="onMenuKeydown($event)"
+  >
+    @for (a of items(); track a.label; let i = $index) {
+      @if (i === dividerAt()) {
+        <div role="separator" class="my-1 border-t border-line"></div>
+      }
+      @if (a.link && !a.disabled) {
+        <a
+          role="menuitem"
+          tabindex="-1"
+          class="menu-item cursor-pointer"
+          [routerLink]="a.link"
+          (click)="select(a)"
+        >
+          <ng-container *ngTemplateOutlet="content; context: { $implicit: a }" />
+        </a>
+      } @else if (a.href && !a.disabled) {
+        <a
+          role="menuitem"
+          tabindex="-1"
+          class="menu-item cursor-pointer"
+          download
+          [href]="a.href"
+          (click)="select(a)"
+        >
+          <ng-container *ngTemplateOutlet="content; context: { $implicit: a }" />
+        </a>
+      } @else {
+        <button
+          type="button"
+          role="menuitem"
+          tabindex="-1"
+          class="menu-item"
+          [class.cursor-pointer]="!a.disabled"
+          [class.text-danger]="a.danger"
+          [attr.aria-disabled]="a.disabled || null"
+          (click)="select(a)"
+        >
+          <ng-container *ngTemplateOutlet="content; context: { $implicit: a }" />
+        </button>
+      }
+    }
+  </div>
+}
+
+<ng-template #content let-a>
+  @if (a.icon) {
+    <app-icon class="mt-0.5" [name]="a.icon" [size]="16" />
+  }
+  <span class="min-w-0">
+    {{ a.label }}
+    @if (a.hint) {
+      <span class="block text-xs font-normal text-muted">{{ a.hint }}</span>
+    }
+  </span>
+</ng-template>

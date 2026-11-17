@@ -14,7 +14,7 @@ import { IconComponent } from '../icon/icon.component';
 })
 export class BillingNoticeComponent {
   readonly status = input.required<BillingStatus>();
-  /** First name of the user for «Ласкаво просимо, …». */
+  /** How to address the user, in the vocative: «Ласкаво просимо, п. Галино!»; empty — without a name. */
   readonly name = input('');
 
   protected readonly text = BILLING_TEXT;

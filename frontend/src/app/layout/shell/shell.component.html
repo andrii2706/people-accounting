@@ -258,7 +258,7 @@
       <h2 id="welcome-title" class="sr-only">Після входу</h2>
       @if (billing(); as b) {
         <div class="px-5 pt-5" [class.pb-5]="!inbox.unreadCount()">
-          <app-billing-notice [status]="b" [name]="userName()" />
+          <app-billing-notice [status]="b" [name]="userAddress()" />
         </div>
       }
       @if (inbox.unreadCount()) {

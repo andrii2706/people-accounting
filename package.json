@@ -6,6 +6,7 @@
     "prepare": "husky",
     "check:backend": "npm --prefix backend run typecheck && npm --prefix backend run lint && npm --prefix backend test",
     "check:frontend": "npm --prefix frontend run format:check && npm --prefix frontend run test:ci && npm --prefix frontend run build",
+    "check:frontend:quick": "npm --prefix frontend run format:check && npm --prefix frontend run test:ci && npm --prefix frontend run typecheck",
     "check": "npm run check:backend && npm run check:frontend"
   },
   "devDependencies": {

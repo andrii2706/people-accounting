@@ -60,3 +60,11 @@ export const ENTITY_ISSUED_ROLES: UserRole[] = ['HR', 'DIRECTOR'];
 
 /** Roles that run a legal entity: its card, the access of its people, its accounts. */
 export const ENTITY_MANAGER_ROLES: UserRole[] = ['ADMIN', 'ENTITY_ADMIN', 'DIRECTOR'];
+
+/**
+ * A password the administrator types for someone else: printable Latin characters without spaces (the same as
+ * on the backend). A Cyrillic «а/о/с/е/і/р/х» looks like the Latin one but is another character, and a space at
+ * the end is invisible — the user would type a different password and never get in.
+ */
+export const HANDED_OVER_PASSWORD = /^[\x21-\x7E]+$/;
+export const HANDED_OVER_PASSWORD_PROBLEM = 'лише латинські літери, цифри й символи, без пробілів';

@@ -84,6 +84,7 @@ export const SETTINGS_ROUTES: Routes = [
   },
   {
     path: 'system',
+    canActivate: [adminGuard],
     title: 'Загальні параметри · Військовий облік',
     resolve: { settings: organizationSettingsResolver },
     runGuardsAndResolvers: 'always',

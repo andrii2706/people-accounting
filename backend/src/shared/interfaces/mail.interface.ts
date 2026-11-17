@@ -26,7 +26,7 @@ export interface TemporaryPasswordMail {
 export interface AccessLetterInput {
   /** Who gets access — signature form «Ольга ОБЛІКОВА». */
   fullName: string;
-  /** Vocative for the greeting («Ольго»); empty — the full name is used. */
+  /** The address in the vocative («п. Ольго»); empty — just «Добрий день!» (never the name in the nominative). */
   greetingName: string;
   login: string;
   temporaryPassword: string;

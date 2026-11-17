@@ -1,4 +1,5 @@
 import type { PasswordAgeFields, UserRole } from '../../shared/interfaces/auth.interface.js';
+import { HANDED_OVER_PASSWORD, HANDED_OVER_PASSWORD_PROBLEM } from '../constants/auth.constants.js';
 /** Password policy for access to personal data. */
 export const PASSWORD_MIN_LENGTH = 12;
 
@@ -10,6 +11,13 @@ export function passwordProblems(password: string, email?: string): string[] {
   if (/^(.)\1+$/.test(password)) problems.push('не однакові символи');
   const local = email?.split('@')[0]?.toLowerCase();
   if (local && local.length >= 4 && password.toLowerCase().includes(local)) problems.push('без частини email');
+  return problems;
+}
+
+/** The temporary password the administrator types for a user: the policy + only characters that cannot be misread. */
+export function temporaryPasswordProblems(password: string, email?: string): string[] {
+  const problems = passwordProblems(password, email);
+  if (password && !HANDED_OVER_PASSWORD.test(password)) problems.push(HANDED_OVER_PASSWORD_PROBLEM);
   return problems;
 }
 

@@ -1,5 +1,5 @@
 import { EMPTY_LEGAL_ENTITY } from '../constants/legal-entity.constants';
-import { legalEntityBody, legalEntityToForm } from './legal-entity.utils';
+import { legalEntitiesCount, legalEntityBody, legalEntityToForm } from './legal-entity.utils';
 import type { LegalEntity } from '../interfaces/legal-entity.interface';
 
 describe('legalEntityBody', () => {
@@ -30,5 +30,15 @@ describe('legalEntityToForm', () => {
     } as LegalEntity);
     expect(form.reservationQuotaDocDate).toBe('');
     expect(form.reservationQuotaValidUntil).toBe('2027-01-01');
+  });
+});
+
+describe('кількість юросіб (бачить лише головний адміністратор)', () => {
+  it('узгоджує число з іменником', () => {
+    expect(legalEntitiesCount(1)).toBe('1 юридична особа');
+    expect(legalEntitiesCount(3)).toBe('3 юридичні особи');
+    expect(legalEntitiesCount(5)).toBe('5 юридичних осіб');
+    expect(legalEntitiesCount(12)).toBe('12 юридичних осіб');
+    expect(legalEntitiesCount(22)).toBe('22 юридичні особи');
   });
 });

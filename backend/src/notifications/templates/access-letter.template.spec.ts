@@ -4,7 +4,7 @@ import { accessLetter } from './access-letter.template.js';
 // fictitious people and company
 const base = {
   fullName: 'Ольга ОБЛІКОВА',
-  greetingName: 'Ольго',
+  greetingName: 'п. Ольго',
   login: 'o.oblikova@example.com',
   temporaryPassword: 'Kx7mPq2RtW9vHn4L',
   expiresAt: new Date(Date.now() + 72 * 3_600_000),
@@ -24,7 +24,7 @@ describe('лист з тимчасовим паролем', () => {
     const l = accessLetter(base);
     expect(l.subject).toBe('Доступ до системи військового обліку — ТОВ «Приклад»');
     for (const part of [l.text, l.html!]) {
-      expect(part).toContain('Добрий день, Ольго!');
+      expect(part).toContain('Добрий день, п. Ольго!');
       expect(part).toContain('o.oblikova@example.com');
       expect(part).toContain('Kx7mPq2RtW9vHn4L');
       expect(part).toMatch(/Діє до .*\(72 год\.\)/);
@@ -43,7 +43,9 @@ describe('лист з тимчасовим паролем', () => {
     const l = accessLetter({ ...base, entityName: 'ТОВ <script>alert(1)</script>', greetingName: '' });
     expect(l.html).not.toContain('<script>');
     expect(l.html).toContain('&lt;script&gt;');
-    expect(l.text).toContain('Добрий день, Ольга ОБЛІКОВА!');
+    // the name could not be put in the vocative — no name at all rather than «Добрий день, Ольга ОБЛІКОВА!»
+    expect(l.text).toContain('Добрий день!');
+    expect(l.text).not.toContain('Ольга ОБЛІКОВА!');
   });
 
   it('обліковий запис «Адміністратор» без імені — «Адміністратор системи»', () => {

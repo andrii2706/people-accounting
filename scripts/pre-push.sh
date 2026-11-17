@@ -30,7 +30,18 @@ if [ "$run_backend" = true ]; then
   npm run --silent check:backend
 fi
 if [ "$run_frontend" = true ]; then
-  echo "▶ frontend: formatting, tests, build"
-  npm run --silent check:frontend
+  case "$(uname -s)" in
+    MINGW* | MSYS* | CYGWIN*)
+      # Windows (Git Bash): the SSR route extraction of `ng build` fails inside Node's require(esm) there
+      # («Cannot read properties of undefined (reading 'exports')») — code and templates are checked by ngc,
+      # the full SSR build runs in CI on Linux
+      echo "▶ frontend: formatting, tests, types and templates (full SSR build — in CI)"
+      npm run --silent check:frontend:quick
+      ;;
+    *)
+      echo "▶ frontend: formatting, tests, build"
+      npm run --silent check:frontend
+      ;;
+  esac
 fi
 echo "✔ pre-push: all checks passed"

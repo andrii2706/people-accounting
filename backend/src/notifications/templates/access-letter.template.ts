@@ -19,7 +19,7 @@ export function accessLetter(input: AccessLetterInput): MailLetter {
   const until = kyivDateTime(input.expiresAt);
   const loginUrl = `${input.appUrl.replace(/\/+$/, '')}/login`;
   const host = input.appUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-  const greeting = input.greetingName || input.fullName;
+  const greeting = input.greetingName;
   const where = input.entityName ? ` ${input.entityName}` : '';
   const who = adminWho(input.adminName);
   const lead =
@@ -44,7 +44,7 @@ export function accessLetter(input: AccessLetterInput): MailLetter {
   ];
 
   const text = [
-    `Добрий день, ${greeting}!`,
+    greeting ? `Добрий день, ${greeting}!` : 'Добрий день!',
     '',
     `${lead} Ваша роль: ${input.roleLabel}.`,
     '',

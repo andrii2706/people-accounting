@@ -1,3 +1,4 @@
+import { addressOf } from '../../documents/name-declension.js';
 import { loadEnv } from '../../config/env.js';
 import { passwordExpiresAt } from '../../common/utils/password-policy.utils.js';
 import type { AuthUser, PasswordAgeFields } from '../../shared/interfaces/auth.interface.js';
@@ -24,3 +25,8 @@ export const toAuthUser = (u: AuthUser & Partial<PasswordAgeFields>, offerAccept
     termsAccepted: offerAccepted,
   };
 };
+
+/** The user for the frontend's session + how to address him («п. Галино») — for the greeting on the screen. */
+export async function withAddress(user: AuthUser): Promise<AuthUser> {
+  return { ...user, address: await addressOf(user.fullName) };
+}

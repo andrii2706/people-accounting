@@ -152,7 +152,24 @@
                 >
               }
               @if (u.mustChangePassword) {
-                <p class="text-xs text-muted">тимчасовий пароль</p>
+                @if (expired(u)) {
+                  <p
+                    class="text-xs font-medium text-warning"
+                    title="Старий пароль не діє — натисніть «Скинути пароль»"
+                  >
+                    тимчасовий пароль прострочено
+                  </p>
+                } @else if (u.temporaryPasswordExpiresAt) {
+                  <p class="text-xs text-muted">
+                    тимчасовий пароль до {{ u.temporaryPasswordExpiresAt | uaDateTime }}
+                  </p>
+                } @else {
+                  <p class="text-xs text-muted">має змінити пароль</p>
+                }
+              } @else if (u.passwordChangedAt) {
+                <p class="text-xs text-muted">
+                  пароль змінено {{ u.passwordChangedAt | uaDateTime }}
+                </p>
               }
             </td>
             <td>
@@ -169,53 +186,7 @@
               @if (!canManage(u)) {
                 <span class="text-xs text-muted">керує головний адміністратор</span>
               } @else {
-                @if (editModel().id !== u.id) {
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm cursor-pointer"
-                    title="Виправити ім’я або email для входу"
-                    (click)="startEdit(u)"
-                  >
-                    Редагувати
-                  </button>
-                }
-                @if (lockedIds().has(u.id)) {
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm cursor-pointer"
-                    (click)="unlock(u)"
-                  >
-                    Розблокувати вхід
-                  </button>
-                }
-                @if (u.isActive) {
-                  <button
-                    type="button"
-                    class="btn btn-ghost btn-sm cursor-pointer"
-                    title="Лист з посиланням на зміну пароля; поки не змінить — лише сторінка пароля"
-                    (click)="requestPasswordChange(u)"
-                  >
-                    Лист на зміну пароля
-                  </button>
-                }
-                <button
-                  type="button"
-                  class="btn btn-ghost btn-sm cursor-pointer"
-                  title="Новий тимчасовий пароль (лист і показ один раз); старий перестає діяти одразу"
-                  (click)="resetPassword(u)"
-                >
-                  Скинути пароль
-                </button>
-                @if (u.id !== auth.user()?.id) {
-                  <button
-                    type="button"
-                    class="btn btn-sm cursor-pointer"
-                    [class]="u.isActive ? 'btn-danger' : 'btn-secondary'"
-                    (click)="toggle(u)"
-                  >
-                    {{ u.isActive ? 'Заблокувати' : 'Активувати' }}
-                  </button>
-                }
+                <app-actions-menu [actions]="userActions(u)" [label]="'Дії: ' + u.fullName" />
               }
             </td>
           </tr>
@@ -246,7 +217,7 @@
       label="Тимчасовий пароль"
       [required]="true"
       [field]="userForm.password"
-      hint="Щонайменше 12 символів, літери й цифри, без частини email. Користувач змінить його при першому вході."
+      hint="Щонайменше 12 символів: латинські літери, цифри й символи, без пробілів і частини email. Діє обмежений час (зазвичай 72 год.) — користувач змінить його при першому вході."
     >
       <input
         class="input"
