@@ -2,6 +2,7 @@ import type { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
 import {
   authGuard,
+  moduleGuard,
   entityAssignedGuard,
   guestGuard,
   passwordChangeGuard,
@@ -40,6 +41,13 @@ export const routes: Routes = [
       import('./pages/auth/register/register.component').then((m) => m.RegisterComponent),
   },
   {
+    // an account without «Військовий облік»: the portal of the domain lists its modules
+    path: 'no-module',
+    title: 'Модуль не підключено · Військовий облік',
+    loadComponent: () =>
+      import('./pages/no-module/no-module.component').then((m) => m.NoModuleComponent),
+  },
+  {
     // the public offer — readable before the sign-up
     path: 'offer',
     title: 'Договір · Військовий облік',
@@ -49,7 +57,7 @@ export const routes: Routes = [
   {
     // the agreement, the plans, the subscription — without the menu of the app
     path: 'account',
-    canActivate: [authGuard, staffGuard],
+    canActivate: [authGuard, moduleGuard, staffGuard],
     canActivateChild: [passwordChangeGuard],
     loadChildren: () => import('./pages/account/account.routes').then((m) => m.ACCOUNT_ROUTES),
   },
@@ -62,14 +70,14 @@ export const routes: Routes = [
   {
     // printing from the browser (envelope labels) — without the menu of the app
     path: 'print',
-    canActivate: [authGuard, staffGuard],
+    canActivate: [authGuard, moduleGuard, staffGuard],
     canActivateChild: [passwordChangeGuard, termsGuard, entityAssignedGuard, subscriptionGuard],
     loadChildren: () => import('./pages/print/print.routes').then((m) => m.PRINT_ROUTES),
   },
   {
     path: '',
     component: ShellComponent,
-    canActivate: [authGuard, staffGuard],
+    canActivate: [authGuard, moduleGuard, staffGuard],
     canActivateChild: [passwordChangeGuard, termsGuard, entityAssignedGuard, subscriptionGuard],
     resolve: { dictionaries: dictionariesResolver },
     children: [

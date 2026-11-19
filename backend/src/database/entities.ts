@@ -22,6 +22,8 @@ import { BillingSettings } from '../subscriptions/billing-settings.entity.js';
 import { Invoice } from '../subscriptions/invoice.entity.js';
 import { Subscription } from '../subscriptions/subscription.entity.js';
 import { EntityDatabase } from '../entity-databases/entity-database.entity.js';
+import { HrSyncBatch } from '../hr-sync/entities/hr-sync-batch.entity.js';
+import { HrSyncSettings } from '../hr-sync/entities/hr-sync-settings.entity.js';
 import { SignupRequest } from '../signup/signup-request.entity.js';
 import { OfferSignature } from '../subscriptions/offer-signature.entity.js';
 import { ListSnapshot } from '../reports/lists/list-snapshot.entity.js';
@@ -52,6 +54,8 @@ export const ENTITIES = [
   Subscription,
   Invoice,
   EntityDatabase,
+  HrSyncSettings,
+  HrSyncBatch,
   SignupRequest,
   OfferSignature,
   ListSnapshot,

@@ -57,9 +57,9 @@ export class DictionariesService {
   load(): Observable<void> {
     if (this._dictionaries()) return of(undefined);
     this.inFlight ??= forkJoin({
-      dictionaries: this.http.get<Dictionaries>('/api/dictionaries'),
-      tcks: this.http.get<Tck[]>('/api/tck'),
-      legalEntities: this.http.get<LegalEntitySummary[]>('/api/legal-entities'),
+      dictionaries: this.http.get<Dictionaries>('api/dictionaries'),
+      tcks: this.http.get<Tck[]>('api/tck'),
+      legalEntities: this.http.get<LegalEntitySummary[]>('api/legal-entities'),
     }).pipe(
       tap(({ dictionaries, tcks, legalEntities }) => {
         this._dictionaries.set(dictionaries);
@@ -74,22 +74,22 @@ export class DictionariesService {
   }
 
   async reloadTcks() {
-    this._tcks.set(await firstValueFrom(this.http.get<Tck[]>('/api/tck')));
+    this._tcks.set(await firstValueFrom(this.http.get<Tck[]>('api/tck')));
   }
 
   async reloadLegalEntities() {
     this._legalEntities.set(
-      await firstValueFrom(this.http.get<LegalEntitySummary[]>('/api/legal-entities')),
+      await firstValueFrom(this.http.get<LegalEntitySummary[]>('api/legal-entities')),
     );
   }
 
   importTck(items: TckImportItem[]) {
-    return firstValueFrom(this.http.post<TckImportResult>('/api/tck/import', { items }));
+    return firstValueFrom(this.http.post<TckImportResult>('api/tck/import', { items }));
   }
 
   saveTck(body: Partial<Tck>, id?: string) {
     return firstValueFrom(
-      id ? this.http.patch<Tck>(`/api/tck/${id}`, body) : this.http.post<Tck>('/api/tck', body),
+      id ? this.http.patch<Tck>(`api/tck/${id}`, body) : this.http.post<Tck>('api/tck', body),
     );
   }
 

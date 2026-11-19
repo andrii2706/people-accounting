@@ -25,7 +25,7 @@ export class EmployeePreviewComponent {
   readonly closed = output<void>();
 
   protected readonly details = httpResource<EmployeeDetails>(
-    () => `/api/employees/${this.item().id}`,
+    () => `api/employees/${this.item().id}`,
   );
   protected readonly d = computed(() => (this.details.hasValue() ? this.details.value() : null));
 

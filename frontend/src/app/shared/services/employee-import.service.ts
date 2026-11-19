@@ -15,18 +15,18 @@ import type {
 export class EmployeeImportService {
   private readonly http = inject(HttpClient);
 
-  readonly templateUrl = '/api/employees/import/template';
+  readonly templateUrl = 'api/employees/import/template';
 
   /** The file is read on the server and checked; nothing is saved yet. */
   preview(file: File) {
     const body = new FormData();
     body.append('file', file, file.name);
-    return firstValueFrom(this.http.post<ImportPreview>('/api/employees/import/preview', body));
+    return firstValueFrom(this.http.post<ImportPreview>('api/employees/import/preview', body));
   }
 
   check(rows: ImportRow[]) {
     return firstValueFrom(
-      this.http.post<CheckedImportRow[]>('/api/employees/import/check', {
+      this.http.post<CheckedImportRow[]>('api/employees/import/check', {
         rows: rows.map(toPlainImportRow),
       }),
     );
@@ -34,7 +34,7 @@ export class EmployeeImportService {
 
   commit(rows: ImportRow[], options: ImportCommitOptions) {
     return firstValueFrom(
-      this.http.post<ImportResult>('/api/employees/import/commit', {
+      this.http.post<ImportResult>('api/employees/import/commit', {
         rows: rows.map(toPlainImportRow),
         ...options,
         legalEntityId: options.legalEntityId || undefined,

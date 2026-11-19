@@ -9,6 +9,8 @@ import type { LabelSettingsPageData } from '../../../shared/interfaces/label-set
 import { LegalEntitiesService } from '../../../shared/services/legal-entities.service';
 import type { EntityDatabasePageData } from '../../../shared/interfaces/entity-database.interface';
 import { EntityDatabaseService } from '../../../shared/services/entity-database.service';
+import type { HrSyncPageData } from '../../../shared/interfaces/hr-sync.interface';
+import { HrSyncService } from '../../../shared/services/hr-sync.service';
 import { AccountService } from '../../../shared/services/account.service';
 import type { SignupRequestView } from '../../../shared/interfaces/auth.interface';
 import type { ListSettingsPageData } from '../../../shared/interfaces/list-settings.interface';
@@ -62,6 +64,28 @@ export const entityDatabaseResolver: ResolveFn<EntityDatabasePageData> = (route)
         db,
         entityId: entity.id,
         entityName: entity.shortName || entity.fullName,
+      })),
+    ),
+    '/settings',
+  ) as never;
+};
+
+/** «Інтеграція з 1С»: the settings (without the password and the key), the latest deliveries, the legal entity. */
+export const hrSyncResolver: ResolveFn<HrSyncPageData> = (route) => {
+  const id = route.paramMap.get('id')!;
+  const sync = inject(HrSyncService);
+  return resolveOr(
+    forkJoin({
+      settings: sync.get(id),
+      history: sync.history(id),
+      entity: inject(LegalEntitiesService).get(id),
+    }).pipe(
+      map(({ settings, history, entity }) => ({
+        settings,
+        history,
+        entityId: entity.id,
+        entityName: entity.shortName || entity.fullName,
+        edrpou: entity.edrpou,
       })),
     ),
     '/settings',

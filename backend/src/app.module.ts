@@ -22,6 +22,7 @@ import { KepModule } from './kep/kep.module.js';
 import { SignupModule } from './signup/signup.module.js';
 import { EntityDatabasesModule } from './entity-databases/entity-databases.module.js';
 import { BillingModule } from './billing/billing.module.js';
+import { HrSyncModule } from './hr-sync/hr-sync.module.js';
 
 @Controller('health')
 class HealthController {
@@ -60,6 +61,7 @@ class HealthController {
     SignupModule,
     SubscriptionsModule,
     EntityDatabasesModule,
+    HrSyncModule,
   ],
   controllers: [HealthController],
 })

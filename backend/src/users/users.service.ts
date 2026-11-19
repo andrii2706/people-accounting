@@ -17,7 +17,7 @@ import { NotificationsService } from '../notifications/notifications.service.js'
 import type { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { User } from './user.entity.js';
 import { LegalEntity } from '../legal-entities/legal-entity.entity.js';
-import { roleEntityProblem } from './utils/user-policy.utils.js';
+import { normalizeModules, roleEntityProblem } from './utils/user-policy.utils.js';
 import type {
   EntityAccountContext,
   AuthUser,
@@ -246,6 +246,7 @@ export class UsersService {
         fullName: dto.fullName,
         role,
         legalEntityId,
+        modules: normalizeModules(dto.modules),
         passwordHash: await bcrypt.hash(dto.password, BCRYPT_ROUNDS),
         // a password set by an administrator is temporary
         mustChangePassword: opts.mustChangePassword ?? true,
@@ -319,6 +320,17 @@ export class UsersService {
       changes.tokenVersion = user.tokenVersion + 1; // lockout — instant sign-out from all sessions
     }
     if (dto.notify !== undefined) changes.notify = dto.notify;
+    if (dto.modules !== undefined) {
+      const modules = normalizeModules(dto.modules);
+      if (id === actorId && !modules.includes('oblik')) {
+        throw new BadRequestException('Не можна забрати в себе доступ до військового обліку');
+      }
+      if (modules.join(',') !== normalizeModules(user.modules).join(',')) {
+        changes.modules = modules;
+        // the applications are in the session token: the other applications must not keep a removed one
+        changes.tokenVersion = user.tokenVersion + 1;
+      }
+    }
     if (Object.keys(changes).length) await this.repo.update(id, changes);
     if (changes.email) {
       // both addresses learn about it: the old one — in case the change was not theirs

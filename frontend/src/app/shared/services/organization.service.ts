@@ -14,27 +14,25 @@ export class OrganizationService {
   private readonly http = inject(HttpClient);
 
   organization() {
-    return this.http.get<Organization>('/api/organization');
+    return this.http.get<Organization>('api/organization');
   }
 
   update(body: Partial<Organization>) {
-    return firstValueFrom(this.http.put<Organization>('/api/organization', body));
+    return firstValueFrom(this.http.put<Organization>('api/organization', body));
   }
 
   /** E-mail status; with `entity` — recipients of that legal entity's reminders. */
   notificationStatus(entity = '') {
-    return this.http.get<NotificationStatus>('/api/notifications/status', {
+    return this.http.get<NotificationStatus>('api/notifications/status', {
       params: entity ? { entity } : {},
     });
   }
 
   testMail() {
-    return firstValueFrom(this.http.post<TestMailResult>('/api/notifications/test', {}));
+    return firstValueFrom(this.http.post<TestMailResult>('api/notifications/test', {}));
   }
 
   checkDecrees() {
-    return firstValueFrom(
-      this.http.post<DecreeCheckResult>('/api/notifications/check-decrees', {}),
-    );
+    return firstValueFrom(this.http.post<DecreeCheckResult>('api/notifications/check-decrees', {}));
   }
 }

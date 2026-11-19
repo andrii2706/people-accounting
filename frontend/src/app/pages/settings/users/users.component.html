@@ -130,6 +130,44 @@
               } @else {
                 <span class="text-sm">{{ roleLabel(u.role) }}</span>
               }
+              @if (modulesEdit().id === u.id) {
+                <fieldset class="mt-2 w-56 space-y-1.5 rounded-lg border border-line p-2.5">
+                  <legend class="px-1 text-xs font-medium text-muted">Модулі</legend>
+                  @for (a of apps; track a.id) {
+                    <label class="flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        class="size-4 cursor-pointer accent-brand-600"
+                        [checked]="modulesEdit().modules.includes(a.id)"
+                        [disabled]="a.id === 'oblik' && u.id === auth.user()?.id"
+                        (change)="toggleEditModule(a.id)"
+                      />
+                      <span>{{ a.title }}</span>
+                      @if (!a.ready) {
+                        <span class="text-xs text-muted">незабаром</span>
+                      }
+                    </label>
+                  }
+                  <div class="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      class="btn btn-primary btn-sm cursor-pointer"
+                      (click)="saveModules(u)"
+                    >
+                      Зберегти
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-sm cursor-pointer"
+                      (click)="modulesEdit.set({ id: '', modules: [] })"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </fieldset>
+              } @else {
+                <p class="mt-1 text-xs text-muted">{{ modulesLabel(u) }}</p>
+              }
             </td>
             <td class="text-sm whitespace-nowrap text-muted">
               {{ u.lastLoginAt | uaDateTime: 'ще не входив' }}
@@ -259,6 +297,25 @@
           [formField]="$any(userForm.legalEntityId)"
         />
       </app-form-field>
+    }
+    @if (userModel().role !== 'ADMIN') {
+      <fieldset class="space-y-1.5">
+        <legend class="label">Модулі</legend>
+        @for (a of apps; track a.id) {
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              class="size-4 cursor-pointer accent-brand-600"
+              [checked]="newModules().includes(a.id)"
+              (change)="toggleNewModule(a.id)"
+            />
+            <span>{{ a.title }}</span>
+            @if (!a.ready) {
+              <span class="text-xs text-muted">незабаром</span>
+            }
+          </label>
+        }
+      </fieldset>
     }
     <button
       type="submit"

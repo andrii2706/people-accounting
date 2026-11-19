@@ -14,44 +14,44 @@ export class VendorBillingService {
   private readonly http = inject(HttpClient);
 
   settings() {
-    return this.http.get<BillingSettingsView>('/api/billing/settings');
+    return this.http.get<BillingSettingsView>('api/billing/settings');
   }
 
   saveSettings(body: Omit<BillingSettingsView, 'ready'>) {
-    return firstValueFrom(this.http.put<BillingSettingsView>('/api/billing/settings', body));
+    return firstValueFrom(this.http.put<BillingSettingsView>('api/billing/settings', body));
   }
 
   subscriptions() {
-    return this.http.get<VendorSubscriptionRow[]>('/api/billing/subscriptions');
+    return this.http.get<VendorSubscriptionRow[]>('api/billing/subscriptions');
   }
 
   invoices() {
-    return this.http.get<InvoiceView[]>('/api/billing/invoices');
+    return this.http.get<InvoiceView[]>('api/billing/invoices');
   }
 
   extendTrial(id: string, until: string) {
     return firstValueFrom(
-      this.http.post<VendorSubscriptionRow>(`/api/billing/subscriptions/${id}/trial`, { until }),
+      this.http.post<VendorSubscriptionRow>(`api/billing/subscriptions/${id}/trial`, { until }),
     );
   }
 
   issueInvoice(id: string, body: VendorInvoiceRequest) {
     return firstValueFrom(
-      this.http.post<InvoiceView>(`/api/billing/subscriptions/${id}/invoices`, body),
+      this.http.post<InvoiceView>(`api/billing/subscriptions/${id}/invoices`, body),
     );
   }
 
   markPaid(id: string, paidAt?: string) {
     return firstValueFrom(
-      this.http.post<InvoiceView>(`/api/billing/invoices/${id}/paid`, paidAt ? { paidAt } : {}),
+      this.http.post<InvoiceView>(`api/billing/invoices/${id}/paid`, paidAt ? { paidAt } : {}),
     );
   }
 
   cancel(id: string) {
-    return firstValueFrom(this.http.post<InvoiceView>(`/api/billing/invoices/${id}/cancel`, {}));
+    return firstValueFrom(this.http.post<InvoiceView>(`api/billing/invoices/${id}/cancel`, {}));
   }
 
   invoiceUrl(id: string) {
-    return `/api/subscription/invoices/${id}/docx`;
+    return `api/subscription/invoices/${id}/docx`;
   }
 }

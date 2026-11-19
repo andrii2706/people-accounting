@@ -22,6 +22,11 @@
       class="btn btn-secondary cursor-pointer"
       ><app-icon name="database" /> Власна база даних</a
     >
+    <a
+      [routerLink]="['/settings/legal-entities', entity.id, '1c']"
+      class="btn btn-secondary cursor-pointer"
+      ><app-icon name="download" /> Інтеграція з 1С</a
+    >
   }
 </app-page-header>
 

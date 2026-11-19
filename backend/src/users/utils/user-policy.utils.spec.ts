@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canManage, issuableRoles, roleEntityProblem } from './user-policy.utils.js';
+import { canManage, issuableRoles, normalizeModules, roleEntityProblem } from './user-policy.utils.js';
 
 const A = 'a0000000-0000-4000-8000-000000000001';
 const B = 'b0000000-0000-4000-8000-000000000002';
@@ -31,5 +31,16 @@ describe('ролі й юрособи', () => {
     expect(roleEntityProblem('ENTITY_ADMIN', null)).toBe('Оберіть юридичну особу');
     expect(roleEntityProblem('DIRECTOR', null)).toBeNull();
     expect(roleEntityProblem('HR', A)).toBeNull();
+  });
+});
+
+describe('normalizeModules', () => {
+  it('keeps known applications in the order of the domain, without repeats', () => {
+    expect(normalizeModules(['kadry', 'oblik', 'kadry', 'nonsense'])).toEqual(['oblik', 'kadry']);
+  });
+
+  it('nothing chosen — «Військовий облік»', () => {
+    expect(normalizeModules([])).toEqual(['oblik']);
+    expect(normalizeModules(undefined)).toEqual(['oblik']);
   });
 });

@@ -10,7 +10,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
 import type { Repository } from 'typeorm';
 import { SessionService } from '../../auth/session.service.js';
-import { toAuthUser } from '../../auth/utils/auth.utils.js';
+import { modulesOf, toAuthUser } from '../../auth/utils/auth.utils.js';
+import { MODULE_NOT_CONNECTED } from '../../platform/contracts/session.js';
 import { OfferGateService } from '../../subscriptions/offer-gate.service.js';
 import { SubscriptionGateService } from '../../subscriptions/subscription-gate.service.js';
 import { PLAN_REQUIRED, SUBSCRIPTION_EXPIRED, TERMS_REQUIRED } from '../../subscriptions/subscriptions.constants.js';
@@ -19,6 +20,7 @@ import { passwordExpiresAt } from '../utils/password-policy.utils.js';
 import { User } from '../../users/user.entity.js';
 import type { MaybeAuthenticatedRequest, UserRole } from '../../shared/interfaces/auth.interface.js';
 import {
+  IDENTITY_ROUTE,
   ALLOW_PENDING_PASSWORD,
   ALLOW_PENDING_TERMS,
   ALLOW_UNASSIGNED,
@@ -34,6 +36,9 @@ import {
  * Global guard. The session is an httpOnly cookie only (Bearer tokens are deliberately not accepted).
  * Checks the user in the DB on every request: locked / password changed ⇒ the session is invalid immediately.
  */
+/** This application among the applications of the domain (platform/contracts/apps). */
+const THIS_APP = 'oblik';
+
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
@@ -80,6 +85,16 @@ export class AuthGuard implements CanActivate {
       user.mustChangePassword = true;
     }
     req.user = toAuthUser(user, await this.offers.accepted(user));
+
+    // «Військовий облік» is one application of the domain: an account without it (only «Кадровий облік») is let
+    // in only to the sign-in service (/api/auth/*)
+    if (!modulesOf(user).includes(THIS_APP) && !allows(IDENTITY_ROUTE)) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: MODULE_NOT_CONNECTED,
+        message: 'Військовий облік не підключено для вашого облікового запису',
+      });
+    }
 
     if (user.mustChangePassword && !this.reflector.getAllAndOverride<boolean>(ALLOW_PENDING_PASSWORD, targets)) {
       throw new ForbiddenException({

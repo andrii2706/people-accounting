@@ -24,6 +24,21 @@
         <p class="truncate text-xs text-muted">{{ orgName() || 'персонал підприємства' }}</p>
       </div>
     </div>
+    @if (otherApps().length) {
+      <!-- the other applications of the domain: plain links, the session is shared — no sign-in again -->
+      <nav
+        class="mx-3 mb-1 rounded-xl bg-sunken p-1 text-[13px] lg:hidden xl:block"
+        aria-label="Застосунки"
+      >
+        @for (a of otherApps(); track a.path) {
+          <a
+            [href]="a.path"
+            class="block truncate rounded-lg px-3 py-1.5 text-muted hover:bg-surface hover:text-ink"
+            >{{ a.title }}</a
+          >
+        }
+      </nav>
+    }
 
     <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-1" aria-label="Головне меню">
       @for (group of navGroups(); track group.title) {

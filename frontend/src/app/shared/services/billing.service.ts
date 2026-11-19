@@ -13,14 +13,14 @@ export class BillingService {
   private readonly http = inject(HttpClient);
 
   status() {
-    return firstValueFrom(this.http.get<BillingStatus>('/api/billing/status'));
+    return firstValueFrom(this.http.get<BillingStatus>('api/billing/status'));
   }
 
   record() {
-    return this.http.get<BillingRecord>('/api/billing');
+    return this.http.get<BillingRecord>('api/billing');
   }
 
   update(body: UpdateBillingRequest) {
-    return firstValueFrom(this.http.put<BillingRecord>('/api/billing', body));
+    return firstValueFrom(this.http.put<BillingRecord>('api/billing', body));
   }
 }

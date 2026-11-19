@@ -58,6 +58,13 @@ export class LegalEntityListComponent {
           link: ['/settings/legal-entities', e.id, 'database'],
         },
       );
+    if (this.auth.canEdit())
+      actions.push({
+        label: 'Інтеграція з 1С',
+        icon: 'download',
+        hint: 'Працівники з ЗУП / BAS',
+        link: ['/settings/legal-entities', e.id, '1c'],
+      });
     if (this.auth.isAdmin())
       actions.push({
         label: 'Видалити юрособу',

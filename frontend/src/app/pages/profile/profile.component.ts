@@ -1,4 +1,5 @@
 import { UaDatePipe } from '../../shared/pipes/ua-date.pipe';
+import { PasswordInputComponent } from '../../shared/components/password-input/password-input.component';
 import { HttpClient, httpResource } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -16,7 +17,7 @@ import type { UserPreferences } from '../../shared/interfaces/auth.interface';
 @Component({
   selector: 'app-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, FormField, FormFieldComponent, UaDatePipe],
+  imports: [PasswordInputComponent, PageHeaderComponent, FormField, FormFieldComponent, UaDatePipe],
   templateUrl: './profile.component.html',
 })
 export class ProfileComponent {
@@ -27,7 +28,7 @@ export class ProfileComponent {
 
   /** E-mail reminders on / off (not available until the temporary password is changed). */
   protected readonly preferences = httpResource<UserPreferences>(() =>
-    !this.auth.onboarded() ? undefined : '/api/auth/preferences',
+    !this.auth.onboarded() ? undefined : 'api/auth/preferences',
   );
   protected readonly savingNotify = signal(false);
 
@@ -35,7 +36,7 @@ export class ProfileComponent {
     this.savingNotify.set(true);
     try {
       const value = await firstValueFrom(
-        this.http.patch<UserPreferences>('/api/auth/preferences', { notify }),
+        this.http.patch<UserPreferences>('api/auth/preferences', { notify }),
       );
       this.preferences.set(value);
       this.toast.success(notify ? 'Сповіщення на пошту увімкнено' : 'Сповіщення вимкнено');

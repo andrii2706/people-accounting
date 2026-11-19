@@ -1,0 +1,602 @@
+@let s = data().settings;
+@let m = model();
+<app-page-header
+  [eyebrow]="data().entityName"
+  title="Інтеграція з 1С"
+  subtitle="Нові працівники, зміни ПІБ і посади, звільнення приходять з 1С / BAS. Зміни, про які треба повідомити ТЦК, стають у чергу повідомлень."
+>
+  <a
+    [routerLink]="['/settings/legal-entities', data().entityId]"
+    class="btn btn-ghost cursor-pointer"
+    ><app-icon name="arrowLeft" /> До юрособи</a
+  >
+</app-page-header>
+
+<div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+  <form class="grid min-w-0 content-start gap-6" (submit)="save($event)" novalidate>
+    @if (!canConfigure()) {
+      <p class="rounded-lg bg-sunken px-4 py-3 text-sm text-muted">
+        Підключення налаштовує керівник або адміністратор юрособи. Ви можете отримувати дані,
+        переглядати й застосовувати їх.
+      </p>
+    }
+
+    <section class="card space-y-4 p-5 sm:p-6">
+      <h2 class="font-semibold">Звідки беремо працівників</h2>
+      <app-form-field label="Облікова система" [field]="f.system">
+        <app-select
+          ariaLabel="Облікова система"
+          [clearable]="false"
+          [searchable]="false"
+          [disabled]="!canConfigure()"
+          [options]="systemOptions"
+          [value]="m.system"
+          (valueChange)="setSystem($event)"
+        />
+      </app-form-field>
+      <fieldset class="space-y-2">
+        <legend class="mb-2 text-sm font-medium">Як дані потрапляють сюди</legend>
+        <div class="grid gap-2 lg:grid-cols-3">
+          @for (mode of modes; track mode) {
+            @let disabled = !canConfigure() || (mode === 'ODATA' && m.system === 'OTHER');
+            <button
+              type="button"
+              class="flex min-w-0 cursor-pointer flex-col items-start gap-1 rounded-xl border p-3 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+              [class.border-brand-600]="m.mode === mode"
+              [class.bg-brand-50]="m.mode === mode"
+              [class.border-line]="m.mode !== mode"
+              [attr.aria-pressed]="m.mode === mode"
+              [disabled]="disabled"
+              (click)="setMode(mode)"
+            >
+              <span class="font-medium">{{ modeText[mode].label }}</span>
+              <span class="text-xs text-muted">{{ modeText[mode].hint }}</span>
+            </button>
+          }
+        </div>
+      </fieldset>
+    </section>
+
+    @if (m.mode === 'ODATA') {
+      <section class="card space-y-4 p-5 sm:p-6">
+        <h2 class="font-semibold">Публікація бази 1С</h2>
+        <app-form-field
+          label="Адреса публікації"
+          [required]="true"
+          hint="Напр. https://1c.company.ua/zup — адреса, за якою база опублікована на веб-сервері"
+          [field]="f.odataUrl"
+        >
+          <input
+            class="input font-mono"
+            autocomplete="off"
+            spellcheck="false"
+            inputmode="url"
+            [formField]="f.odataUrl"
+          />
+        </app-form-field>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <app-form-field
+            label="Користувач 1С"
+            [required]="true"
+            hint="Окремий, лише з правом читання"
+            [field]="f.odataUser"
+          >
+            <input class="input" autocomplete="off" spellcheck="false" [formField]="f.odataUser" />
+          </app-form-field>
+          <app-form-field
+            label="Пароль"
+            [required]="!s.hasOdataPassword"
+            [hint]="
+              s.hasOdataPassword
+                ? 'Збережено (зашифровано). Порожньо — залишити як є'
+                : 'Зберігається зашифрованим, назад не показується'
+            "
+            [field]="f.odataPassword"
+          >
+            <app-password-input>
+              <input
+                class="input"
+                type="password"
+                autocomplete="new-password"
+                [formField]="f.odataPassword"
+              />
+            </app-password-input>
+          </app-form-field>
+        </div>
+        <app-form-field
+          label="Код ЄДРПОУ організації в 1С"
+          [hint]="
+            'Якщо в базі кілька організацій. Порожньо — код юрособи' +
+            (data().edrpou ? ' (' + data().edrpou + ')' : '')
+          "
+          [field]="f.organizationCode"
+        >
+          <input
+            class="input w-40 font-mono tabular-nums"
+            inputmode="numeric"
+            [formField]="f.organizationCode"
+          />
+        </app-form-field>
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              class="size-4 accent-brand-600"
+              [formField]="f.scheduleEnabled"
+            />
+            Читати щодня о
+          </label>
+          <div class="w-28">
+            <app-select
+              ariaLabel="Година щоденного читання"
+              [clearable]="false"
+              [searchable]="false"
+              [disabled]="!canConfigure() || !m.scheduleEnabled"
+              [options]="hourOptions"
+              [value]="'' + m.scheduleHour"
+              (valueChange)="setHour($event)"
+            />
+          </div>
+          <span class="text-xs text-muted">за Києвом</span>
+        </div>
+        @if (s.configured && s.mode === 'ODATA') {
+          <div class="flex flex-wrap gap-2 pt-1">
+            @if (canConfigure()) {
+              <button
+                type="button"
+                class="btn btn-secondary cursor-pointer"
+                [disabled]="busy() !== ''"
+                (click)="check()"
+              >
+                <app-icon name="check" />
+                {{ busy() === 'check' ? 'Перевіряємо…' : 'Перевірити з’єднання' }}
+              </button>
+            }
+          </div>
+        }
+        @if (checkResult(); as r) {
+          <div
+            class="space-y-2 rounded-lg px-4 py-3 text-sm"
+            [class.bg-ok/10]="r.ok"
+            [class.bg-danger/10]="!r.ok"
+            aria-live="polite"
+          >
+            <p class="font-medium" [class.text-ok]="r.ok" [class.text-danger]="!r.ok">
+              {{ r.message }}
+            </p>
+            @if (r.detected) {
+              <p>Конфігурація: {{ r.detected }}</p>
+            }
+            @if (r.organizations.length) {
+              <p class="text-muted">
+                Організації в базі:
+                @for (o of r.organizations; track o.code + o.name; let last = $last) {
+                  {{ o.name }}
+                  @if (o.code) {
+                    ({{ o.code }})
+                  }
+                  {{ last ? '' : '; ' }}
+                }
+              </p>
+            }
+            @if (r.missing.length) {
+              <p class="text-warning">
+                Не опубліковано (додайте до складу OData в 1С, якщо потрібні ці дані):
+                {{ r.missing.join(', ') }}
+              </p>
+            }
+          </div>
+        }
+      </section>
+    }
+
+    @if (m.mode === 'FILE') {
+      <section class="card space-y-2 p-5 text-sm sm:p-6">
+        <h2 class="font-semibold">Файл з 1С</h2>
+        <p class="text-muted">
+          Сформуйте в 1С звіт зі списком працівників (ПІБ, дата народження, РНОКПП, посада, дата
+          прийняття), збережіть як Excel і завантажте в «Працівники → Імпорт». Колонки розпізнаються
+          автоматично.
+        </p>
+        <a routerLink="/employees/import" class="btn btn-secondary w-fit cursor-pointer"
+          ><app-icon name="upload" /> До імпорту</a
+        >
+      </section>
+    } @else {
+      <section class="card space-y-4 p-5 sm:p-6">
+        <h2 class="font-semibold">Що робити з даними</h2>
+        <label class="flex cursor-pointer items-start gap-3 text-sm">
+          <input type="checkbox" class="mt-0.5 size-4 accent-brand-600" [formField]="f.autoApply" />
+          <span>
+            <span class="font-medium">Застосовувати одразу</span>
+            <span class="block text-xs text-muted"
+              >Інакше кожне отримання чекає на перегляд і кнопку «Застосувати». Розбіжності й
+              помилки ніколи не застосовуються самі.</span
+            >
+          </span>
+        </label>
+        <app-form-field
+          label="Військові дані з 1С"
+          hint="Звання, ВОС, ТЦК, придатність, документ. Кадрові дані (ПІБ, посада, звільнення) завжди беруться з 1С."
+          [field]="f.militaryPolicy"
+        >
+          <app-select
+            ariaLabel="Військові дані з 1С"
+            [clearable]="false"
+            [searchable]="false"
+            [disabled]="!canConfigure()"
+            [options]="policyOptions"
+            [value]="m.militaryPolicy"
+            (valueChange)="setPolicy($event)"
+          />
+        </app-form-field>
+        <label class="flex cursor-pointer items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            class="mt-0.5 size-4 accent-brand-600"
+            [formField]="f.importDismissed"
+          />
+          <span>
+            <span class="font-medium">Додавати й звільнених</span>
+            <span class="block text-xs text-muted"
+              >Зазвичай ні: про їхнє звільнення ТЦК уже повідомлено. Звільнення тих, хто вже є тут,
+              переноситься завжди.</span
+            >
+          </span>
+        </label>
+      </section>
+    }
+
+    @if (canConfigure()) {
+      <div class="flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+          Зберегти
+        </button>
+        @if (s.configured) {
+          <button
+            type="button"
+            class="btn btn-ghost cursor-pointer text-danger sm:ml-auto"
+            [disabled]="busy() !== ''"
+            (click)="remove()"
+          >
+            <app-icon name="trash" />
+            {{ confirmRemove() ? 'Так, вимкнути й видалити історію' : 'Вимкнути інтеграцію' }}
+          </button>
+        }
+      </div>
+    }
+  </form>
+
+  <div class="grid min-w-0 content-start gap-6">
+    @if (s.configured && s.mode === 'PUSH') {
+      <section class="card min-w-0 space-y-3 p-5 text-sm sm:p-6">
+        <h2 class="font-semibold">Ключ для 1С</h2>
+        @if (issuedToken(); as token) {
+          <div class="space-y-2 rounded-lg border border-warning/40 bg-warning/10 p-3">
+            <p class="font-medium text-warning">
+              Скопіюйте ключ зараз — більше він не показується.
+            </p>
+            <code
+              class="block break-all rounded bg-surface px-2 py-1.5 font-mono text-xs select-all"
+              >{{ token }}</code
+            >
+            <button
+              type="button"
+              class="btn btn-secondary cursor-pointer"
+              (click)="copy(token, 'Ключ')"
+            >
+              <app-icon name="copy" /> Скопіювати ключ
+            </button>
+          </div>
+        } @else if (s.tokenPrefix) {
+          <p class="flex items-center gap-2">
+            <app-icon name="key" />
+            <span class="font-mono">{{ s.tokenPrefix }}_…</span>
+            <span class="text-muted">видано {{ s.tokenIssuedAt | uaDate }}</span>
+          </p>
+        } @else {
+          <p class="text-muted">Ключ ще не видано — 1С не зможе надсилати дані.</p>
+        }
+        <div class="min-w-0">
+          <p class="mb-1 text-xs text-muted">Адреса, куди 1С надсилає дані</p>
+          <div class="flex min-w-0 items-center gap-2">
+            <code class="min-w-0 flex-1 truncate rounded bg-sunken px-2 py-1.5 font-mono text-xs">{{
+              pushUrl() || '…'
+            }}</code>
+            <button
+              type="button"
+              class="btn btn-ghost cursor-pointer"
+              aria-label="Скопіювати адресу"
+              [disabled]="!pushUrl()"
+              (click)="copy(pushUrl(), 'Адресу')"
+            >
+              <app-icon name="copy" />
+            </button>
+          </div>
+        </div>
+        @if (canConfigure()) {
+          <div class="flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="btn btn-secondary cursor-pointer"
+              [disabled]="busy() !== ''"
+              (click)="issueToken()"
+            >
+              <app-icon name="key" />
+              {{ s.tokenPrefix ? 'Видати новий ключ' : 'Видати ключ' }}
+            </button>
+            @if (s.tokenPrefix) {
+              <button
+                type="button"
+                class="btn btn-ghost cursor-pointer text-danger"
+                [disabled]="busy() !== ''"
+                (click)="revokeToken()"
+              >
+                {{ confirmRevoke() ? 'Так, відкликати' : 'Відкликати' }}
+              </button>
+            }
+          </div>
+          @if (s.tokenPrefix && !issuedToken()) {
+            <p class="text-xs text-muted">Новий ключ одразу скасовує попередній.</p>
+          }
+        }
+        <ol class="list-decimal space-y-1 border-t border-line pt-3 pl-5 text-muted">
+          <li>
+            Завантажте
+            <a
+              class="cursor-pointer text-brand-600 underline"
+              [href]="processorUrls.object"
+              download
+              >модуль обробки</a
+            >
+            і
+            <a class="cursor-pointer text-brand-600 underline" [href]="processorUrls.form" download
+              >модуль форми</a
+            >, складіть із них зовнішню обробку й додайте її в 1С як додаткову обробку (це зробить
+            програміст 1С за 15 хвилин).
+          </li>
+          <li>Вставте в неї адресу й ключ, натисніть «Перевірити підключення».</li>
+          <li>Увімкніть регламентне завдання — 1С надсилатиме працівників щодня.</li>
+        </ol>
+      </section>
+    }
+
+    <section class="card min-w-0 space-y-3 p-5 text-sm sm:p-6" aria-live="polite">
+      <div class="flex flex-wrap items-center gap-2">
+        <h2 class="mr-auto font-semibold">Отримання</h2>
+        @if (s.configured && s.mode === 'ODATA') {
+          <button
+            type="button"
+            class="btn btn-secondary cursor-pointer"
+            [disabled]="busy() !== ''"
+            (click)="pull()"
+          >
+            <app-icon name="download" />
+            {{ busy() === 'pull' ? 'Отримуємо…' : 'Отримати зараз' }}
+          </button>
+        }
+      </div>
+      @if (!s.configured) {
+        <p class="text-muted">Інтеграцію не налаштовано.</p>
+      } @else {
+        @if (s.lastRunAt) {
+          <p>
+            Останнє: {{ time(s.lastRunAt) }}
+            @if (s.lastStatus; as st) {
+              —
+              <span
+                [class.text-ok]="statusText[st].tone === 'ok'"
+                [class.text-warning]="statusText[st].tone === 'warn'"
+                [class.text-danger]="statusText[st].tone === 'danger'"
+                >{{ statusText[st].label }}</span
+              >
+            }
+          </p>
+          @if (s.lastMessage) {
+            <p class="text-muted">{{ s.lastMessage }}</p>
+          }
+        }
+        @if (data().history.length === 0) {
+          <p class="text-muted">Даних з 1С ще не було.</p>
+        } @else {
+          <ul class="divide-y divide-line overflow-hidden rounded-lg border border-line">
+            @for (b of data().history; track b.id) {
+              <li>
+                <button
+                  type="button"
+                  class="flex w-full cursor-pointer flex-col gap-0.5 px-3 py-2 text-left hover:bg-sunken"
+                  [class.bg-sunken]="batch()?.id === b.id"
+                  [attr.aria-expanded]="batch()?.id === b.id"
+                  (click)="open(b.id)"
+                >
+                  <span class="flex flex-wrap items-center gap-x-2">
+                    <span class="font-medium tabular-nums">{{ time(b.receivedAt) }}</span>
+                    <span class="text-xs text-muted">{{ sourceLabels[b.source] }}</span>
+                    <span
+                      class="ml-auto text-xs font-medium"
+                      [class.text-ok]="statusText[b.status].tone === 'ok'"
+                      [class.text-warning]="statusText[b.status].tone === 'warn'"
+                      [class.text-danger]="statusText[b.status].tone === 'danger'"
+                      [class.text-muted]="statusText[b.status].tone === 'muted'"
+                      >{{ statusText[b.status].label }}</span
+                    >
+                  </span>
+                  <span class="text-xs text-muted"
+                    >{{ countsText(b.counts) }} · усього {{ b.counts.total }}</span
+                  >
+                </button>
+              </li>
+            }
+          </ul>
+          <p class="text-xs text-muted">Історія зберігається 30 днів.</p>
+        }
+      }
+    </section>
+  </div>
+</div>
+
+@if (batch(); as b) {
+  <section class="card mt-6 overflow-hidden" aria-label="Перегляд отримання">
+    <div class="flex flex-wrap items-center gap-3 border-b border-line p-4 sm:px-6">
+      <div class="mr-auto min-w-0">
+        <h2 class="font-semibold">Отримання {{ time(b.receivedAt) }}</h2>
+        <p class="text-sm text-muted">
+          {{ statusText[b.status].label }}
+          @if (b.appliedAt) {
+            · {{ time(b.appliedAt) }}, {{ b.appliedBy }}
+          }
+        </p>
+      </div>
+      @if (b.status === 'PENDING') {
+        <button
+          type="button"
+          class="btn btn-ghost cursor-pointer"
+          [disabled]="busy() !== ''"
+          (click)="discard()"
+        >
+          Відхилити
+        </button>
+        <button
+          type="button"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="busy() !== '' || b.counts.create + b.counts.update + b.counts.dismiss === 0"
+          (click)="apply()"
+        >
+          <app-icon name="check" />
+          {{ busy() === 'apply' ? 'Застосовуємо…' : 'Застосувати' }}
+        </button>
+      }
+      <button
+        type="button"
+        class="btn btn-ghost cursor-pointer"
+        aria-label="Закрити перегляд"
+        (click)="batch.set(null)"
+      >
+        <app-icon name="x" />
+      </button>
+    </div>
+    @if (b.status === 'PENDING') {
+      <p class="border-b border-line bg-sunken px-4 py-2 text-xs text-muted sm:px-6">
+        Під час застосування дані ще раз порівнюються з картками — якщо хтось щойно змінив картку,
+        врахується її поточний стан.
+      </p>
+    }
+    <div class="flex flex-wrap gap-2 px-4 pt-3 sm:px-6" role="group" aria-label="Фільтр">
+      <button
+        type="button"
+        class="cursor-pointer rounded-full border px-3 py-1 text-xs font-medium"
+        [attr.aria-pressed]="actionFilter() === ''"
+        [class.border-brand-600]="actionFilter() === ''"
+        [class.bg-brand-50]="actionFilter() === ''"
+        [class.border-line]="actionFilter() !== ''"
+        (click)="actionFilter.set('')"
+      >
+        Усі {{ b.items.length }}
+      </button>
+      @for (a of batchActions(); track a.action) {
+        <button
+          type="button"
+          class="cursor-pointer rounded-full border px-3 py-1 text-xs font-medium"
+          [attr.aria-pressed]="actionFilter() === a.action"
+          [class.border-brand-600]="actionFilter() === a.action"
+          [class.bg-brand-50]="actionFilter() === a.action"
+          [class.border-line]="actionFilter() !== a.action"
+          (click)="actionFilter.set(a.action)"
+        >
+          {{ actionText[a.action].label }} {{ a.count }}
+        </button>
+      }
+    </div>
+    <div class="overflow-x-auto p-4 sm:px-6">
+      <table class="table-base text-sm">
+        <thead>
+          <tr>
+            <th class="w-36">Дія</th>
+            <th>Працівник</th>
+            <th>Що зміниться</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of batchItems(); track item.key) {
+            <tr>
+              <td class="align-top">
+                <span
+                  class="inline-block rounded-full px-2 py-0.5 text-xs font-medium"
+                  [class.bg-ok/10]="actionText[item.action].tone === 'ok'"
+                  [class.text-ok]="actionText[item.action].tone === 'ok'"
+                  [class.bg-info/10]="actionText[item.action].tone === 'info'"
+                  [class.text-info]="actionText[item.action].tone === 'info'"
+                  [class.bg-warning/10]="actionText[item.action].tone === 'warn'"
+                  [class.text-warning]="actionText[item.action].tone === 'warn'"
+                  [class.bg-danger/10]="actionText[item.action].tone === 'danger'"
+                  [class.text-danger]="actionText[item.action].tone === 'danger'"
+                  [class.bg-sunken]="actionText[item.action].tone === 'muted'"
+                  [class.text-muted]="actionText[item.action].tone === 'muted'"
+                  >{{ actionText[item.action].label }}</span
+                >
+                @if (item.result === 'OK') {
+                  <span class="mt-1 block text-xs text-ok">виконано</span>
+                } @else if (item.result === 'FAILED') {
+                  <span class="mt-1 block text-xs text-danger">не виконано</span>
+                }
+              </td>
+              <td class="align-top">
+                @if (item.employeeId) {
+                  <a
+                    class="cursor-pointer font-medium text-brand-600 hover:underline"
+                    [routerLink]="['/employees', item.employeeId]"
+                    >{{ item.fullName }}</a
+                  >
+                } @else {
+                  <span class="font-medium">{{ item.fullName }}</span>
+                }
+                @if (item.personnelNumber) {
+                  <span class="block text-xs text-muted">таб. № {{ item.personnelNumber }}</span>
+                }
+              </td>
+              <td class="min-w-0 align-top">
+                @if (item.changes.length) {
+                  <ul class="space-y-0.5">
+                    @for (c of item.changes; track c.field) {
+                      <li class="break-words">
+                        <span class="text-muted">{{ c.label }}:</span>
+                        @if (c.from) {
+                          <span class="line-through decoration-muted/60">{{ c.from }}</span> →
+                        }
+                        <span class="font-medium">{{ c.to }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+                @for (msg of item.messages; track $index) {
+                  <p
+                    class="break-words text-xs"
+                    [class.text-danger]="
+                      item.action === 'ERROR' ||
+                      item.action === 'CONFLICT' ||
+                      item.result === 'FAILED'
+                    "
+                    [class.text-muted]="
+                      item.action !== 'ERROR' &&
+                      item.action !== 'CONFLICT' &&
+                      item.result !== 'FAILED'
+                    "
+                  >
+                    {{ msg }}
+                  </p>
+                }
+                @if (!item.changes.length && !item.messages.length) {
+                  <span class="text-muted">—</span>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="3" class="text-center text-muted">Нічого не знайдено</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}

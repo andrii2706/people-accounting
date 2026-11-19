@@ -55,7 +55,9 @@
       "
       [field]="f.password"
     >
-      <input class="input" type="password" autocomplete="new-password" [formField]="f.password" />
+      <app-password-input>
+        <input class="input" type="password" autocomplete="new-password" [formField]="f.password" />
+      </app-password-input>
     </app-form-field>
     <app-form-field label="Шифрування з’єднання" [field]="f.sslMode">
       <app-select

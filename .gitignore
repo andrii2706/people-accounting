@@ -14,3 +14,5 @@ backend/storage/
 !.vscode/extensions.json
 # the ЦЗО list of providers is downloaded by the deploy (backend/kep/README.md)
 backend/kep/*.p7b
+# the data of the 1C test stand (scripts/fake-1c)
+scripts/fake-1c/data.json

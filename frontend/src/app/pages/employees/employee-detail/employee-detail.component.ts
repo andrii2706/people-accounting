@@ -88,7 +88,7 @@ export class EmployeeDetailComponent {
 
   /** Mobilization term — for deferrals «до завершення мобілізації». */
   protected readonly mobilization = httpResource<NotificationStatus>(
-    () => '/api/notifications/status',
+    () => 'api/notifications/status',
   );
 
   protected readonly sections = computed<InfoSection[]>(() => {

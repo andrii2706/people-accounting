@@ -1,6 +1,7 @@
 import type { Routes } from '@angular/router';
 import {
   entityDatabaseResolver,
+  hrSyncResolver,
   labelSettingsResolver,
   listSettingsResolver,
   signupsResolver,
@@ -81,6 +82,15 @@ export const SETTINGS_ROUTES: Routes = [
     runGuardsAndResolvers: 'always',
     loadComponent: () =>
       import('./entity-database/entity-database.component').then((m) => m.EntityDatabaseComponent),
+  },
+  {
+    // the connection is set by the managers; HR reviews and applies the deliveries (the page shows what is allowed)
+    path: 'legal-entities/:id/1c',
+    canActivate: [editorGuard],
+    title: 'Інтеграція з 1С · Військовий облік',
+    resolve: { data: hrSyncResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('./hr-sync/hr-sync.component').then((m) => m.HrSyncComponent),
   },
   {
     path: 'system',

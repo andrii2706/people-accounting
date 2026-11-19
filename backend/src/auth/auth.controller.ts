@@ -12,7 +12,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service.js';
 import {
@@ -22,6 +22,7 @@ import {
   AllowUnpaid,
   AllowVendor,
   CurrentUser,
+  IdentityRoute,
   Public,
 } from '../common/decorators/auth.decorators.js';
 import { LOGIN_ATTEMPTS_PER_MINUTE } from '../common/constants/auth.constants.js';
@@ -40,6 +41,7 @@ import { LoginDto } from './auth.dto.js';
 import { toAuthUser, withAddress } from './utils/auth.utils.js';
 
 @ApiTags('auth')
+@IdentityRoute()
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -95,6 +97,14 @@ export class AuthController {
     await this.sessions.issue(res, user);
     await this.audit.log('auth', user.id, 'LOGIN', { ip: [null, ip] }, user);
     return withAddress(toAuthUser(user, await this.offers.accepted(user)));
+  }
+
+  /** The public key of the shared session — portal, kadry and docs check the session with it. */
+  @Public()
+  @SkipThrottle()
+  @Get('.well-known/jwks.json')
+  jwks() {
+    return this.sessions.jwks();
   }
 
   @Public()

@@ -1,3 +1,4 @@
+import { APP_IDS } from '../../platform/contracts/apps.js';
 import type { AuthUser, UserRole } from '../../shared/interfaces/auth.interface.js';
 import { ROLES_ISSUED_BY_ENTITY, USER_ROLES } from '../users.constants.js';
 
@@ -30,4 +31,14 @@ export function roleEntityProblem(role: UserRole, legalEntityId: string | null):
   if ((role === 'ENTITY_ADMIN' || role === 'HR') && !legalEntityId) return 'Оберіть юридичну особу';
   // a director may be without one: he adds his legal entity himself
   return null;
+}
+
+/**
+ * The applications of an account as stored: known ids only, without repeats, in the order of the domain
+ * (platform/contracts/apps); nothing chosen — «Військовий облік», as every account had before the portal.
+ */
+export function normalizeModules(modules: readonly string[] | undefined | null): string[] {
+  const chosen = new Set((modules ?? []).map((m) => m.trim()));
+  const known = APP_IDS.filter((id) => chosen.has(id));
+  return known.length ? [...known] : ['oblik'];
 }

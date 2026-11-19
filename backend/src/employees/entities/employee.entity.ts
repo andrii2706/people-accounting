@@ -288,6 +288,10 @@ export class Employee {
   @Column({ type: 'boolean', default: false })
   partTimeNotInQuota: boolean;
 
+  /** The reference of the person in 1C (ЗУП / BAS) — set by the integration, recognises him next time. */
+  @Column({ type: 'varchar', length: 64, default: '' })
+  externalId: string;
+
   /** Service in the reserve — team number. Present ⇒ reservist. */
   @Column({ type: 'varchar', length: 100, default: '' })
   reserveTeamNumber: string;

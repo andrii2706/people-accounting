@@ -17,6 +17,8 @@ export interface AuthUser {
   termsAccepted?: boolean;
   /** How the screen addresses the person, in the vocative: «п. Галино»; '' — without a name. */
   address?: string;
+  /** The applications the account may open (oblik, kadry, docs). */
+  modules?: string[];
 }
 
 export type SignupSource = 'ADMIN' | 'SELF';
@@ -28,6 +30,11 @@ export interface SessionPayload {
   /** Session start (seconds) — for the absolute session lifetime limit. */
   sst: number;
   role: UserRole;
+  /** The shared session (ES256): the legal entity and the applications — for the other applications. */
+  ent?: string | null;
+  mods?: string[];
+  iss?: string;
+  aud?: string;
   iat?: number;
   exp?: number;
 }
@@ -67,6 +74,8 @@ export interface SessionSubject {
   id: string;
   role: UserRole;
   tokenVersion: number;
+  legalEntityId?: string | null;
+  modules?: string[];
 }
 
 /** Lookup of a user together with the password hash. */

@@ -17,41 +17,41 @@ export class LettersService {
   private readonly http = inject(HttpClient);
 
   list(params: Record<string, string>) {
-    return this.http.get<Letter[]>('/api/letters', { params });
+    return this.http.get<Letter[]>('api/letters', { params });
   }
 
   details(id: string) {
-    return this.http.get<LetterDetails>(`/api/letters/${id}`);
+    return this.http.get<LetterDetails>(`api/letters/${id}`);
   }
 
   documentUrl(id: string) {
-    return `/api/letters/${id}/docx`;
+    return `api/letters/${id}/docx`;
   }
 
   /** Notices for several employees — the server creates one letter per TCK. */
   createChangeNotices(employeeIds: string[], changeIds?: string[]) {
     return firstValueFrom(
-      this.http.post<LetterDetails[]>('/api/letters/change-notices', { employeeIds, changeIds }),
+      this.http.post<LetterDetails[]>('api/letters/change-notices', { employeeIds, changeIds }),
     );
   }
 
   /** Stored notices of an employee (history in the employee card). */
   employeeNotices(employeeId: string) {
-    return this.http.get<EmployeeNotice[]>('/api/change-notices', { params: { employeeId } });
+    return this.http.get<EmployeeNotice[]>('api/change-notices', { params: { employeeId } });
   }
 
   noticeDocxUrl(noticeId: string) {
-    return `/api/change-notices/${noticeId}/docx`;
+    return `api/change-notices/${noticeId}/docx`;
   }
 
   /** Envelope labels (sender / recipient) for one or many letters, .docx. */
   labelsUrl(letterIds: string[]) {
-    return `/api/letters/labels?ids=${letterIds.join(',')}`;
+    return `api/letters/labels?ids=${letterIds.join(',')}`;
   }
 
   /** The same labels for printing from the browser — with the label settings of each legal entity. */
   labelPrintData(letterIds: string[]) {
-    return this.http.get<LabelPrintData>('/api/letters/labels/print', {
+    return this.http.get<LabelPrintData>('api/letters/labels/print', {
       params: { ids: letterIds.join(',') },
     });
   }
@@ -63,29 +63,29 @@ export class LettersService {
 
   createChangeNotice(employeeId: string, changeIds?: string[]) {
     return firstValueFrom(
-      this.http.post<LetterDetails>('/api/letters/change-notice', { employeeId, changeIds }),
+      this.http.post<LetterDetails>('api/letters/change-notice', { employeeId, changeIds }),
     );
   }
 
   createReport(body: ReportLetterRequest) {
-    return firstValueFrom(this.http.post<LetterDetails>('/api/letters/report', body));
+    return firstValueFrom(this.http.post<LetterDetails>('api/letters/report', body));
   }
 
   /** A notice sent before the system: stored with its real number, without a document. */
   createExternalNotice(body: ExternalNoticeRequest) {
-    return firstValueFrom(this.http.post<LetterDetails>('/api/letters/external-notice', body));
+    return firstValueFrom(this.http.post<LetterDetails>('api/letters/external-notice', body));
   }
 
   update(id: string, body: LetterUpdate) {
-    return firstValueFrom(this.http.patch<LetterDetails>(`/api/letters/${id}`, body));
+    return firstValueFrom(this.http.patch<LetterDetails>(`api/letters/${id}`, body));
   }
 
   remove(id: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/letters/${id}`));
+    return firstValueFrom(this.http.delete<void>(`api/letters/${id}`));
   }
 
   /** The letter was handed over to the TCK outside the system (Ukrposhta, by hand, document management system, e-cabinet). */
   markSent(id: string) {
-    return firstValueFrom(this.http.post<LetterDetails>(`/api/letters/${id}/mark-sent`, {}));
+    return firstValueFrom(this.http.post<LetterDetails>(`api/letters/${id}/mark-sent`, {}));
   }
 }

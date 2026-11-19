@@ -68,3 +68,6 @@ export const ENTITY_MANAGER_ROLES: UserRole[] = ['ADMIN', 'ENTITY_ADMIN', 'DIREC
  */
 export const HANDED_OVER_PASSWORD = /^[\x21-\x7E]+$/;
 export const HANDED_OVER_PASSWORD_PROBLEM = 'лише латинські літери, цифри й символи, без пробілів';
+
+/** Where an account without «Військовий облік» goes: the portal of the domain says which modules it has. */
+export const MODULE_DENIED_URL = '/?denied=oblik';

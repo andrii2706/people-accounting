@@ -24,6 +24,7 @@ env:
   SERVICE: military-registry-api
   MIGRATE_JOB: military-registry-migrate
   DAILY_JOB: military-registry-daily
+  HR_SYNC_JOB: military-registry-hr-sync
   IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/military-registry/api:${{ github.sha }}
   # Shared by the service and the migration job
   SECRETS: >-
@@ -243,3 +244,30 @@ jobs:
             exit 0
           fi
           echo "Щоденна задача: щодня о 07:00 (Київ)"
+
+      # Hourly job: the daily reads of 1C over OData (each legal entity at the hour chosen in its settings)
+      - name: Читання з 1С щогодини (Cloud Run Job + Cloud Scheduler)
+        run: |
+          gcloud run jobs deploy "$HR_SYNC_JOB" \
+            --image "$IMAGE" --region "$REGION" \
+            --service-account "${{ vars.GCP_API_SA }}" \
+            --set-cloudsql-instances "${{ vars.GCP_SQL_INSTANCE }}" \
+            --set-secrets "${SECRETS}${SMTP_SECRET}" \
+            --env-vars-file "$RUNNER_TEMP/env-service.json" \
+            --command node --args dist/jobs/hr-sync.js \
+            --max-retries 0 --task-timeout 30m --quiet
+          gcloud run jobs add-iam-policy-binding "$HR_SYNC_JOB" --region "$REGION" \
+            --member "serviceAccount:${{ vars.GCP_API_SA }}" --role roles/run.invoker --quiet >/dev/null
+          PROJECT="${{ vars.GCP_PROJECT_ID }}"
+          if ! gcloud scheduler jobs list --location "$REGION" --limit 1 >/dev/null 2>&1; then
+            echo "::warning title=Розклад читання з 1С не створено::Увімкніть Cloud Scheduler (див. попередній крок). Поки що читання з 1С виконує щоденна задача."
+            exit 0
+          fi
+          URI="https://run.googleapis.com/v2/projects/${PROJECT}/locations/${REGION}/jobs/${HR_SYNC_JOB}:run"
+          if gcloud scheduler jobs describe "$HR_SYNC_JOB" --location "$REGION" >/dev/null 2>&1; then verb=update; else verb=create; fi
+          gcloud scheduler jobs "$verb" http "$HR_SYNC_JOB" --location "$REGION" \
+            --schedule "5 * * * *" --time-zone "Europe/Kyiv" \
+            --uri "$URI" --http-method POST \
+            --oauth-service-account-email "${{ vars.GCP_API_SA }}" --quiet \
+            || echo "::warning title=Розклад читання з 1С не створено::Поки що читання з 1С виконує щоденна задача."
+          echo "Читання з 1С: щогодини о :05 (Київ)"

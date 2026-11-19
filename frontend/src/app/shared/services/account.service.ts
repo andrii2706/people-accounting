@@ -32,47 +32,47 @@ export class AccountService {
   }
 
   registerInfo() {
-    return firstValueFrom(this.http.get<SignupInfo>('/api/auth/register'));
+    return firstValueFrom(this.http.get<SignupInfo>('api/auth/register'));
   }
 
   /** Step 1 of the sign-up: the statement to sign. */
   signupStatement(body: SignupStatementRequest) {
-    return firstValueFrom(this.http.post<SignupStatement>('/api/auth/register/statement', body));
+    return firstValueFrom(this.http.post<SignupStatement>('api/auth/register/statement', body));
   }
 
   /** Step 2: the head's KEP signature of the statement (base64 .p7s). */
   signupSign(id: string, signature: string) {
     return firstValueFrom(
-      this.http.post<MessageResponse>(`/api/auth/register/${id}/sign`, { signature }),
+      this.http.post<MessageResponse>(`api/auth/register/${id}/sign`, { signature }),
     );
   }
 
   /** The main administrator: approved and refused sign-ups. */
   signups() {
-    return this.http.get<SignupRequestView[]>('/api/signups');
+    return this.http.get<SignupRequestView[]>('api/signups');
   }
 
   terms() {
-    return this.http.get<TermsDocument>('/api/terms');
+    return this.http.get<TermsDocument>('api/terms');
   }
 
   offerStatus() {
-    return this.http.get<OfferStatus>('/api/terms/status');
+    return this.http.get<OfferStatus>('api/terms/status');
   }
 
   /** A new acceptance document of the offer (the head signs exactly these bytes). */
   offerDocument() {
-    return firstValueFrom(this.http.post<OfferDocument>('/api/terms/document', {}));
+    return firstValueFrom(this.http.post<OfferDocument>('api/terms/document', {}));
   }
 
   signOffer(id: string, signature: string) {
     return firstValueFrom(
-      this.http.post<OfferStatus>(`/api/terms/document/${id}/sign`, { signature }),
+      this.http.post<OfferStatus>(`api/terms/document/${id}/sign`, { signature }),
     );
   }
 
   subscription() {
-    return this.http.get<SubscriptionView>('/api/subscription');
+    return this.http.get<SubscriptionView>('api/subscription');
   }
 
   /** For the guards: the state at most a minute old. */
@@ -90,7 +90,7 @@ export class AccountService {
 
   async choosePlan(plan: PlanCode, note = '') {
     const view = await firstValueFrom(
-      this.http.post<SubscriptionView>('/api/subscription/plan', { plan, note }),
+      this.http.post<SubscriptionView>('api/subscription/plan', { plan, note }),
     );
     this.remember(view);
     return view;
@@ -98,13 +98,13 @@ export class AccountService {
 
   async renew() {
     const invoice = await firstValueFrom(
-      this.http.post<InvoiceView>('/api/subscription/invoices', {}),
+      this.http.post<InvoiceView>('api/subscription/invoices', {}),
     );
     this.forget();
     return invoice;
   }
 
   invoiceUrl(id: string) {
-    return `/api/subscription/invoices/${id}/docx`;
+    return `api/subscription/invoices/${id}/docx`;
   }
 }

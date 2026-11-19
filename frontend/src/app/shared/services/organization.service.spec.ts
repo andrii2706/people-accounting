@@ -21,18 +21,18 @@ describe('OrganizationService', () => {
   it('перевірка указів і тестовий лист — POST без тіла', async () => {
     const decrees = service.checkDecrees();
     backend
-      .expectOne({ method: 'POST', url: '/api/notifications/check-decrees' })
+      .expectOne({ method: 'POST', url: 'api/notifications/check-decrees' })
       .flush({ ok: true, changed: false });
     await expect(decrees).resolves.toMatchObject({ ok: true });
 
     const mail = service.testMail();
-    backend.expectOne({ method: 'POST', url: '/api/notifications/test' }).flush({ sent: true });
+    backend.expectOne({ method: 'POST', url: 'api/notifications/test' }).flush({ sent: true });
     await expect(mail).resolves.toEqual({ sent: true });
   });
 
   it('налаштування читаються як Observable (для резолвера)', async () => {
     const org = firstValueFrom(service.organization());
-    backend.expectOne('/api/organization').flush({ alertDays: 30, notifyDeadlineDays: 7 });
+    backend.expectOne('api/organization').flush({ alertDays: 30, notifyDeadlineDays: 7 });
     await expect(org).resolves.toMatchObject({ alertDays: 30 });
   });
 });

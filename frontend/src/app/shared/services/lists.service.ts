@@ -17,18 +17,18 @@ export class ListsService {
 
   /** The history of a legal entity, the latest first; `entity` empty — the user's only one. */
   snapshots(entity = '') {
-    return this.http.get<ListSnapshotSummary[]>('/api/reports/lists/snapshots', {
+    return this.http.get<ListSnapshotSummary[]>('api/reports/lists/snapshots', {
       params: entity ? { entity } : {},
     });
   }
 
   snapshot(id: string) {
-    return this.http.get<ListSnapshotReport>(`/api/reports/lists/snapshots/${id}`);
+    return this.http.get<ListSnapshotReport>(`api/reports/lists/snapshots/${id}`);
   }
 
   form(date: string, legalEntityId = '') {
     return firstValueFrom(
-      this.http.post<ListSnapshotSummary>('/api/reports/lists/snapshots', {
+      this.http.post<ListSnapshotSummary>('api/reports/lists/snapshots', {
         date,
         ...(legalEntityId ? { legalEntityId } : {}),
       }),
@@ -36,21 +36,21 @@ export class ListsService {
   }
 
   remove(id: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/reports/lists/snapshots/${id}`));
+    return firstValueFrom(this.http.delete<void>(`api/reports/lists/snapshots/${id}`));
   }
 
   /** All four lists (or one); a .zip when own Word templates are involved. */
   snapshotDocxUrl(id: string, section?: ListSection) {
-    return `/api/reports/lists/snapshots/${id}/docx${section ? `?section=${section}` : ''}`;
+    return `api/reports/lists/snapshots/${id}/docx${section ? `?section=${section}` : ''}`;
   }
 
   settings(entityId: string) {
-    return this.http.get<ListSettingsPage>(`/api/legal-entities/${entityId}/list-settings`);
+    return this.http.get<ListSettingsPage>(`api/legal-entities/${entityId}/list-settings`);
   }
 
   save(entityId: string, section: ListSection, body: ListSectionSettingsBody) {
     return firstValueFrom(
-      this.http.put<ListSettings>(`/api/legal-entities/${entityId}/list-settings/${section}`, body),
+      this.http.put<ListSettings>(`api/legal-entities/${entityId}/list-settings/${section}`, body),
     );
   }
 
@@ -59,7 +59,7 @@ export class ListsService {
     body.append('file', file, file.name);
     return firstValueFrom(
       this.http.post<ListSettings>(
-        `/api/legal-entities/${entityId}/list-settings/${section}/template`,
+        `api/legal-entities/${entityId}/list-settings/${section}/template`,
         body,
       ),
     );
@@ -68,16 +68,16 @@ export class ListsService {
   removeTemplate(entityId: string, section: ListSection) {
     return firstValueFrom(
       this.http.delete<ListSettings>(
-        `/api/legal-entities/${entityId}/list-settings/${section}/template`,
+        `api/legal-entities/${entityId}/list-settings/${section}/template`,
       ),
     );
   }
 
   templateUrl(entityId: string, section: ListSection) {
-    return `/api/legal-entities/${entityId}/list-settings/${section}/template`;
+    return `api/legal-entities/${entityId}/list-settings/${section}/template`;
   }
 
   exampleUrl(entityId: string, section: ListSection) {
-    return `/api/legal-entities/${entityId}/list-settings/${section}/example`;
+    return `api/legal-entities/${entityId}/list-settings/${section}/example`;
   }
 }

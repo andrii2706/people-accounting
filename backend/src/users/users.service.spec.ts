@@ -18,6 +18,7 @@ const HR = {
   legalEntityId: 'le1',
   isActive: true,
   tokenVersion: 3,
+  modules: ['oblik'],
 } as User;
 
 function setup(taken: string[] = []) {
@@ -65,6 +66,26 @@ describe('редагування користувача', () => {
     await service.update('u1', { email: 'HR@example.com', fullName: 'Тестова Ольга' }, 'admin');
     expect(update).not.toHaveBeenCalled();
     expect(mails).toEqual([]);
+  });
+});
+
+describe('модулі облікового запису', () => {
+  it('новий модуль — збережено, сесії оновлюються (застосунки в токені сесії)', async () => {
+    const { service, update } = setup();
+    await service.update('u1', { modules: ['kadry', 'oblik'] }, 'admin');
+    expect(update).toHaveBeenCalledWith('u1', { modules: ['oblik', 'kadry'], tokenVersion: 4 });
+  });
+
+  it('ті самі модулі — нічого не змінюється', async () => {
+    const { service, update } = setup();
+    await service.update('u1', { modules: ['oblik'] }, 'admin');
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it('забрати в себе військовий облік не можна', async () => {
+    const { service, update } = setup();
+    await expect(service.update('u1', { modules: ['kadry'] }, 'u1')).rejects.toThrow(/військового обліку/);
+    expect(update).not.toHaveBeenCalled();
   });
 });
 

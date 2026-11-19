@@ -1,5 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
+import { APP_IDS } from '../platform/contracts/apps.js';
 import { temporaryPasswordProblems } from '../common/utils/password-policy.utils.js';
 import { Rule } from '../common/validators/validators.js';
 import { MESSAGE, PATTERN } from '../military/employee-rules.js';
@@ -38,6 +50,13 @@ export class CreateUserDto {
   @ValidateIf((o: CreateUserDto) => o.legalEntityId !== null)
   @IsUUID('all', { message: 'Оберіть юридичну особу' })
   legalEntityId?: string | null;
+
+  /** The applications of the domain the account may open (platform/contracts/apps); the main administrator — all. */
+  @IsOptional()
+  @IsArray({ message: 'Оберіть модулі' })
+  @ArrayMaxSize(APP_IDS.length)
+  @IsIn(APP_IDS, { each: true, message: 'Невідомий модуль' })
+  modules?: string[];
 }
 
 export class UpdateUserDto {
@@ -72,6 +91,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   notify?: boolean;
+
+  /** The applications of the domain the account may open (platform/contracts/apps); the main administrator — all. */
+  @IsOptional()
+  @IsArray({ message: 'Оберіть модулі' })
+  @ArrayMaxSize(APP_IDS.length)
+  @IsIn(APP_IDS, { each: true, message: 'Невідомий модуль' })
+  modules?: string[];
 }
 
 export class UpdatePreferencesDto {

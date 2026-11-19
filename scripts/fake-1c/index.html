@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Імітація 1С: ЗУП</title>
+    <style>
+      :root {
+        --bg: #f4f1e8;
+        --card: #fffdf7;
+        --line: #ddd5bf;
+        --ink: #2b2a26;
+        --muted: #6d685c;
+        --accent: #b8860b;
+        --accent-ink: #fff;
+        --ok: #2f7a3e;
+        --bad: #b3261e;
+        --chip: #efe7cf;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+      header { background: #f6d55c; border-bottom: 1px solid #d9b53a; padding: 12px max(16px, env(safe-area-inset-left)); }
+      header h1 { margin: 0; font-size: 18px; }
+      header p { margin: 2px 0 0; color: #5a4a12; font-size: 13px; }
+      main { max-width: 1200px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 48px; display: grid; gap: 16px; }
+      .row { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+      section { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+      h2 { margin: 0 0 4px; font-size: 15px; }
+      .hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+      label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+      input, select { font: inherit; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-width: 0; }
+      input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+      .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      button { font: inherit; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--ink); border-radius: 6px; padding: 7px 12px; }
+      button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+      button.link { border: 0; background: none; padding: 2px 4px; color: #7a5a00; text-decoration: underline; }
+      button.danger { color: var(--bad); }
+      button:disabled { opacity: 0.6; cursor: wait; }
+      .msg { margin-top: 10px; padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+      .msg.ok { background: #e6f2e8; color: var(--ok); }
+      .msg.bad { background: #f8e5e3; color: var(--bad); }
+      code { font: 12px ui-monospace, Menlo, Consolas, monospace; background: var(--chip); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+      .kv { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; }
+      .table { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+      th { font-size: 12px; color: var(--muted); font-weight: 600; background: #faf6ea; }
+      tr.gone td { color: var(--muted); }
+      .chip { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--chip); }
+      .chip.bad { background: #f8e5e3; color: var(--bad); }
+      .small { font-size: 12px; color: var(--muted); }
+      ol.journal { margin: 0; padding-left: 18px; max-height: 220px; overflow: auto; font-size: 13px; }
+      ol.journal li { margin: 2px 0; }
+      fieldset { border: 1px dashed var(--line); border-radius: 8px; padding: 10px; margin: 12px 0 0; }
+      legend { font-size: 12px; color: var(--muted); padding: 0 4px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Імітація 1С: Зарплата і управління персоналом</h1>
+      <p>Тестовий стенд для інтеграції з «Військовим обліком». Лише вигадані люди — не вносьте справжніх даних.</p>
+    </header>
+    <main>
+      <div class="row">
+        <section>
+          <h2>Обробка «Військовий облік: надсилання працівників»</h2>
+          <p class="hint">
+            Так у 1С виглядає обробка зі способом «1С надсилає дані сама». Адресу й ключ візьміть на сторінці
+            «Інтеграція з 1С» у застосунку.
+          </p>
+          <form id="settings" class="grid" style="grid-template-columns: 1fr">
+            <label>Адреса, куди надсилати<input name="url" placeholder="http://localhost:4200/api/integrations/1c/employees" autocomplete="off" /></label>
+            <label>Ключ<input name="key" type="password" placeholder="mr1c_…" autocomplete="off" /></label>
+            <label>Код ЄДРПОУ організації (порожньо — усі організації бази)
+              <select name="edrpou"></select>
+            </label>
+          </form>
+          <div class="actions">
+            <button type="button" id="save-settings">Зберегти</button>
+            <button type="button" id="ping">Перевірити підключення</button>
+            <button type="button" id="push" class="primary">Надіслати працівників</button>
+          </div>
+          <div id="push-msg" class="msg" hidden></div>
+        </section>
+        <section>
+          <h2>Публікація бази (OData)</h2>
+          <p class="hint">
+            Для способу «Ми читаємо з 1С (OData)». Вкажіть ці дані в застосунку, натисніть «Перевірити з'єднання», потім
+            «Отримати зараз».
+          </p>
+          <div class="kv" id="odata"></div>
+          <p class="small" style="margin-top: 12px">
+            Неправильний пароль у застосунку → побачите «1С не прийняла логін або пароль». У базі дві організації:
+            «Чужий Андрій» з іншої не має потрапити в облік.
+          </p>
+        </section>
+      </div>
+
+      <section>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+          <h2 style="margin-right: auto">Працівники</h2>
+          <button type="button" id="new">Прийняти працівника</button>
+          <button type="button" id="reset" class="danger">Скинути дані</button>
+        </div>
+        <p class="hint">
+          Змінюйте дані тут — як кадровик у 1С — і надсилайте або читайте їх у застосунку. Зміна прізвища записується з
+          сьогоднішньої дати (історію ПІБ 1С зберігає).
+        </p>
+        <div class="table">
+          <table>
+            <thead>
+              <tr>
+                <th>Таб. №</th><th>ПІБ</th><th>Дата нар.</th><th>Організація</th><th>Посада / підрозділ</th>
+                <th>Прийнятий</th><th>Звільнений</th><th>Військові</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="editor" hidden>
+        <h2 id="editor-title">Прийняти працівника</h2>
+        <p class="hint">Щоб побачити «Помилку в даних» у застосунку, введіть, наприклад, дату народження 1990-02-31.</p>
+        <form id="employee">
+          <input type="hidden" name="id" />
+          <div class="grid">
+            <label>Прізвище<input name="lastName" required /></label>
+            <label>Ім'я<input name="firstName" required /></label>
+            <label>По батькові<input name="middleName" /></label>
+            <label>Стать<select name="gender"><option value="M">чоловіча</option><option value="F">жіноча</option></select></label>
+            <label>Дата народження<input name="birthDate" placeholder="РРРР-ММ-ДД" /></label>
+            <label>РНОКПП<input name="rnokpp" inputmode="numeric" maxlength="10" placeholder="10 цифр (необов'язково)" /></label>
+            <label>Табельний номер<input name="personnelNumber" /></label>
+            <label>Організація<select name="orgEdrpou"></select></label>
+            <label>Посада<input name="position" /></label>
+            <label>Підрозділ<input name="department" /></label>
+            <label>Дата прийому<input name="hireDate" type="date" /></label>
+            <label>Дата звільнення<input name="dismissalDate" type="date" /></label>
+            <label>Наказ про звільнення<input name="dismissalOrderNumber" /></label>
+          </div>
+          <fieldset>
+            <legend>Військовий облік у 1С (необов'язково)</legend>
+            <div class="grid">
+              <label>Звання<input name="rank" placeholder="солдат" /></label>
+              <label>ВОС<input name="vos" placeholder="837" /></label>
+              <label>Обліковий номер<input name="registryNumber" /></label>
+              <label>ТЦК<input name="tck" placeholder="назва ТЦК та СП" /></label>
+            </div>
+          </fieldset>
+          <div class="actions">
+            <button type="submit" class="primary">Зберегти в 1С</button>
+            <button type="button" id="cancel">Скасувати</button>
+          </div>
+          <div id="editor-msg" class="msg bad" hidden></div>
+        </form>
+      </section>
+
+      <section>
+        <h2>Журнал 1С</h2>
+        <ol class="journal" id="journal"></ol>
+      </section>
+    </main>
+
+    <script>
+      const $ = (s) => document.querySelector(s);
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+      const ua = (d) => (d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split('-').reverse().join('.') : esc(d) || '—');
+      let state = null;
+
+      async function api(path, body) {
+        const res = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Помилка');
+        return data;
+      }
+
+      // full = also the settings form (not on the periodic refresh — it would overwrite what is being typed)
+      function render(s, full = true) {
+        state = s;
+        const f = $('#settings');
+        const orgOptions = s.orgs.map((o) => `<option value="${esc(o.edrpou)}">${esc(o.name)} — ${esc(o.edrpou)}</option>`).join('');
+        if (full) {
+          f.url.value = s.settings.url;
+          f.key.value = s.settings.key;
+          f.edrpou.innerHTML = `<option value="">усі організації</option>${orgOptions}`;
+          f.edrpou.value = s.settings.edrpou;
+          $('#employee').orgEdrpou.innerHTML = orgOptions;
+        }
+
+        const copy = (v) => `<button type="button" class="link" data-copy="${esc(v)}">копіювати</button>`;
+        $('#odata').innerHTML = [['Адреса публікації', s.odata.url], ['Користувач', s.odata.user], ['Пароль', s.odata.password]]
+          .map(([k, v]) => `<span class="small">${k}</span><code>${esc(v)}</code>${copy(v)}`)
+          .join('');
+
+        $('#rows').innerHTML = s.employees
+          .map((e) => {
+            const gone = !!e.dismissalDate;
+            const mil = [e.military?.rank, e.military?.vos && `ВОС ${e.military.vos}`].filter(Boolean).join(', ');
+            const prev = e.previous.length ? `<div class="small">раніше: ${e.previous.map((n) => esc(n.lastName)).join(', ')}</div>` : '';
+            return `<tr class="${gone ? 'gone' : ''}">
+              <td>${esc(e.personnelNumber)}</td>
+              <td><strong>${esc(e.fullName)}</strong>${prev}</td>
+              <td>${ua(e.birthDate)}</td>
+              <td>${esc(e.org)}</td>
+              <td>${esc(e.position) || '—'}<div class="small">${esc(e.department)}</div></td>
+              <td>${ua(e.hireDate)}</td>
+              <td>${gone ? `<span class="chip bad">${ua(e.dismissalDate)}</span>` : '—'}</td>
+              <td>${esc(mil) || '—'}</td>
+              <td style="white-space: nowrap">
+                <button type="button" class="link" data-edit="${e.id}">Змінити</button>
+                ${gone ? '' : `<button type="button" class="link" data-dismiss="${e.id}">Звільнити</button>`}
+                <button type="button" class="link danger" data-delete="${e.id}">Видалити</button>
+              </td>
+            </tr>`;
+          })
+          .join('');
+
+        $('#journal').innerHTML = s.journal.length
+          ? s.journal.map((j) => `<li><span class="small">${esc(j.at)}</span> ${esc(j.text)}</li>`).join('')
+          : '<li class="small">Поки що порожньо</li>';
+      }
+
+      function message(el, r) {
+        el.hidden = false;
+        el.className = `msg ${r.ok ? 'ok' : 'bad'}`;
+        el.textContent = r.message;
+      }
+
+      async function busy(button, work) {
+        button.disabled = true;
+        try {
+          await work();
+        } catch (err) {
+          message($('#push-msg'), { ok: false, message: err.message });
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      const settingsBody = () => {
+        const f = $('#settings');
+        return { url: f.url.value, key: f.key.value, edrpou: f.edrpou.value };
+      };
+
+      $('#save-settings').onclick = (ev) => busy(ev.target, async () => {
+        render(await api('/__/settings', settingsBody()), false);
+        message($('#push-msg'), { ok: true, message: 'Налаштування збережено' });
+      });
+      $('#ping').onclick = (ev) => busy(ev.target, async () => {
+        await api('/__/settings', settingsBody());
+        const r = await api('/__/ping', {});
+        render(r.state, false);
+        message($('#push-msg'), r);
+      });
+      $('#push').onclick = (ev) => busy(ev.target, async () => {
+        await api('/__/settings', settingsBody());
+        const r = await api('/__/push', {});
+        render(r.state, false);
+        message($('#push-msg'), r);
+      });
+
+      const editor = $('#editor');
+      const form = $('#employee');
+      function openEditor(e) {
+        form.reset();
+        $('#editor-msg').hidden = true;
+        $('#editor-title').textContent = e ? `Змінити: ${e.fullName}` : 'Прийняти працівника';
+        const values = e
+          ? { ...e, ...e.military }
+          : { hireDate: new Date().toISOString().slice(0, 10), gender: 'M', orgEdrpou: state.orgs[0].edrpou };
+        for (const el of form.elements) if (el.name && values[el.name] !== undefined) el.value = values[el.name];
+        if (!e) form.id.value = '';
+        editor.hidden = false;
+        editor.scrollIntoView({ behavior: 'smooth' });
+        form.lastName.focus();
+      }
+      $('#new').onclick = () => openEditor(null);
+      $('#cancel').onclick = () => (editor.hidden = true);
+      form.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const body = Object.fromEntries(new FormData(form));
+        try {
+          render(await api('/__/employee', body), false);
+          editor.hidden = true;
+        } catch (err) {
+          $('#editor-msg').hidden = false;
+          $('#editor-msg').textContent = err.message;
+        }
+      };
+
+      let resetArmed = false;
+      $('#reset').onclick = async (ev) => {
+        if (!resetArmed) {
+          resetArmed = true;
+          ev.target.textContent = 'Так, скинути';
+          setTimeout(() => { resetArmed = false; ev.target.textContent = 'Скинути дані'; }, 4000);
+          return;
+        }
+        resetArmed = false;
+        ev.target.textContent = 'Скинути дані';
+        render(await api('/__/reset', {}));
+      };
+
+      document.addEventListener('click', async (ev) => {
+        const t = ev.target.closest('button');
+        if (!t) return;
+        if (t.dataset.copy !== undefined) {
+          try { await navigator.clipboard.writeText(t.dataset.copy); t.textContent = 'скопійовано'; } catch { t.textContent = 'виділіть вручну'; }
+          setTimeout(() => (t.textContent = 'копіювати'), 1500);
+        }
+        if (t.dataset.edit) openEditor(state.employees.find((e) => e.id === t.dataset.edit));
+        if (t.dataset.dismiss) render(await api('/__/dismiss', { id: t.dataset.dismiss }), false);
+        if (t.dataset.delete) render(await api('/__/delete', { id: t.dataset.delete }), false);
+      });
+
+      api('/__/state').then(render);
+      setInterval(() => api('/__/state').then((s) => { if (editor.hidden) render(s, false); }), 4000);
+    </script>
+  </body>
+</html>

@@ -27,7 +27,7 @@ describe('InboxService', () => {
     backend = TestBed.inject(HttpTestingController);
     const loaded = service.load();
     backend
-      .expectOne('/api/inbox')
+      .expectOne('api/inbox')
       .flush({ items: [item('a'), item('b'), item('c', true)], unread: 2 });
     await loaded;
   });
@@ -42,7 +42,7 @@ describe('InboxService', () => {
   it('«прочитано» одразу в інтерфейсі, на сервер — лише непрочитані ключі', async () => {
     const done = service.markRead(['a', 'c']);
     expect(service.unreadCount()).toBe(1);
-    const req = backend.expectOne('/api/inbox/read');
+    const req = backend.expectOne('api/inbox/read');
     expect(req.request.body).toEqual({ keys: ['a'] });
     req.flush(null);
     await done;
@@ -51,7 +51,7 @@ describe('InboxService', () => {
   it('прочитати все', async () => {
     const done = service.markAllRead();
     expect(service.unreadCount()).toBe(0);
-    backend.expectOne({ method: 'POST', url: '/api/inbox/read-all' }).flush(null);
+    backend.expectOne({ method: 'POST', url: 'api/inbox/read-all' }).flush(null);
     await done;
   });
 });

@@ -14,6 +14,17 @@ import { join } from 'node:path';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
+/**
+ * Where the application lives on its domain: «/» (the domain to itself, as on Firebase App Hosting) or
+ * «/oblik/» behind the gateway of the domain with several applications (portal, kadry, docs). Must match the
+ * <base href> of the build: `ng build --base-href /oblik/`.
+ */
+const basePath = `/${(process.env['APP_BASE_PATH'] ?? '/').replace(/^\/+|\/+$/g, '')}/`.replace(
+  '//',
+  '/',
+);
+const apiPath = `${basePath}api`;
+
 /** Google metadata server (Cloud Run / App Hosting): project number, region, ID tokens. */
 async function metadata(path: string): Promise<string> {
   const res = await fetch(`http://metadata.google.internal/computeMetadata/v1/${path}`, {
@@ -186,7 +197,7 @@ async function googleIdToken(audience: string): Promise<string> {
   return value;
 }
 
-app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
+app.use(apiPath, async (req: Request, res: Response, next: NextFunction) => {
   // the client cannot smuggle in its own service token
   delete req.headers['x-serverless-authorization'];
   // we set X-Forwarded-* ourselves: the client must not spoof its IP or host
@@ -209,7 +220,7 @@ app.use('/api', async (req: Request, res: Response, next: NextFunction) => {
  * while the browser's Origin is kept — the backend checks it (CSRF).
  */
 app.use(
-  '/api',
+  apiPath,
   createProxyMiddleware({
     target: `${apiTarget}/api`,
     changeOrigin: true,
@@ -219,6 +230,7 @@ app.use(
 );
 
 app.use(
+  basePath,
   express.static(browserDistFolder, {
     index: false,
     redirect: false,
@@ -259,7 +271,7 @@ if (isMainModule(import.meta.url) || process.env['pm_id']) {
   app.listen(port, (error) => {
     if (error) throw error;
     console.log(
-      `SSR: http://localhost:${port}  ·  API → ${apiTarget}${useGoogleIdToken ? ' (IAM)' : ''}`,
+      `SSR: http://localhost:${port}${basePath}  ·  API → ${apiTarget}${useGoogleIdToken ? ' (IAM)' : ''}`,
     );
   });
 }

@@ -20,37 +20,37 @@ export class EmployeesService {
   private readonly http = inject(HttpClient);
 
   list(params: Record<string, string>) {
-    return this.http.get<EmployeeList>('/api/employees', { params });
+    return this.http.get<EmployeeList>('api/employees', { params });
   }
 
   details(id: string) {
-    return this.http.get<EmployeeDetails>(`/api/employees/${id}`);
+    return this.http.get<EmployeeDetails>(`api/employees/${id}`);
   }
 
   pendingChanges() {
-    return this.http.get<PendingChange[]>('/api/employees/changes/pending');
+    return this.http.get<PendingChange[]>('api/employees/changes/pending');
   }
 
   /** When `trigger` returns undefined the request is not made (e.g. before the temporary password is changed). */
   pendingChangesResource(trigger: () => unknown = () => 0) {
     return httpResource<PendingChange[]>(
-      () => (trigger() === undefined ? undefined : '/api/employees/changes/pending'),
+      () => (trigger() === undefined ? undefined : 'api/employees/changes/pending'),
       { defaultValue: [] },
     );
   }
 
   auditResource(id: () => string | undefined) {
-    return httpResource<AuditEntry[]>(() => (id() ? `/api/employees/${id()}/audit` : undefined), {
+    return httpResource<AuditEntry[]>(() => (id() ? `api/employees/${id()}/audit` : undefined), {
       defaultValue: [],
     });
   }
 
   create(payload: EmployeePayload) {
-    return firstValueFrom(this.http.post<EmployeeDetails>('/api/employees', payload));
+    return firstValueFrom(this.http.post<EmployeeDetails>('api/employees', payload));
   }
 
   update(id: string, payload: EmployeePayload) {
-    return firstValueFrom(this.http.patch<EmployeeDetails>(`/api/employees/${id}`, payload));
+    return firstValueFrom(this.http.patch<EmployeeDetails>(`api/employees/${id}`, payload));
   }
 
   dismiss(
@@ -61,14 +61,14 @@ export class EmployeesService {
       dismissalOrderDate?: string | null;
     },
   ) {
-    return firstValueFrom(this.http.post<EmployeeDetails>(`/api/employees/${id}/dismiss`, body));
+    return firstValueFrom(this.http.post<EmployeeDetails>(`api/employees/${id}/dismiss`, body));
   }
 
   remove(id: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/employees/${id}`));
+    return firstValueFrom(this.http.delete<void>(`api/employees/${id}`));
   }
 
   updateChange(id: string, body: EmployeeChangeUpdate) {
-    return firstValueFrom(this.http.patch(`/api/employees/changes/${id}`, body));
+    return firstValueFrom(this.http.patch(`api/employees/changes/${id}`, body));
   }
 }

@@ -6,6 +6,8 @@ export const ALLOW_VENDOR = 'allowVendor';
 export const ALLOW_UNASSIGNED = 'allowUnassigned';
 export const ALLOW_PENDING_TERMS = 'allowPendingTerms';
 export const ALLOW_UNPAID = 'allowUnpaid';
+/** The sign-in service of the whole domain: any account, whatever applications it has. */
+export const IDENTITY_ROUTE = 'identityRoute';
 
 /** Error code that makes the frontend open the change-password page. */
 export const PASSWORD_CHANGE_REQUIRED = 'PASSWORD_CHANGE_REQUIRED';

@@ -33,7 +33,7 @@ export class InboxService {
   async load(): Promise<void> {
     this.loadedAt = Date.now();
     try {
-      const view = await firstValueFrom(this.http.get<InboxView>('/api/inbox'));
+      const view = await firstValueFrom(this.http.get<InboxView>('api/inbox'));
       this._items.set(view.items);
     } catch {
       // notifications are an extra — a failed request must not break the page
@@ -47,14 +47,14 @@ export class InboxService {
     const todo = keys.filter((k) => unread.has(k));
     if (!todo.length) return;
     this.setRead(new Set(todo));
-    await firstValueFrom(this.http.post<void>('/api/inbox/read', { keys: todo })).catch(
+    await firstValueFrom(this.http.post<void>('api/inbox/read', { keys: todo })).catch(
       () => undefined,
     );
   }
 
   async markAllRead(): Promise<void> {
     this.setRead(null);
-    await firstValueFrom(this.http.post<void>('/api/inbox/read-all', {})).catch(() => undefined);
+    await firstValueFrom(this.http.post<void>('api/inbox/read-all', {})).catch(() => undefined);
   }
 
   reset(): void {

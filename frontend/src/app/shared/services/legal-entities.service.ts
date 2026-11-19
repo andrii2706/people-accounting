@@ -24,29 +24,29 @@ export class LegalEntitiesService {
   private readonly http = inject(HttpClient);
 
   list() {
-    return this.http.get<LegalEntitySummary[]>('/api/legal-entities');
+    return this.http.get<LegalEntitySummary[]>('api/legal-entities');
   }
 
   get(id: string) {
-    return this.http.get<LegalEntity>(`/api/legal-entities/${id}`);
+    return this.http.get<LegalEntity>(`api/legal-entities/${id}`);
   }
 
   create(body: LegalEntityBody) {
-    return firstValueFrom(this.http.post<LegalEntity>('/api/legal-entities', body));
+    return firstValueFrom(this.http.post<LegalEntity>('api/legal-entities', body));
   }
 
   update(id: string, body: LegalEntityBody) {
-    return firstValueFrom(this.http.patch<LegalEntity>(`/api/legal-entities/${id}`, body));
+    return firstValueFrom(this.http.patch<LegalEntity>(`api/legal-entities/${id}`, body));
   }
 
   remove(id: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/legal-entities/${id}`));
+    return firstValueFrom(this.http.delete<void>(`api/legal-entities/${id}`));
   }
 
   /** Journal of the entity on demand: who changed the requisites, the head, the responsible person, the access. */
   historyResource(id: () => string | undefined) {
     return httpResource<AuditEntry[]>(
-      () => (id() ? `/api/legal-entities/${id()}/history` : undefined),
+      () => (id() ? `api/legal-entities/${id()}/history` : undefined),
       {
         defaultValue: [],
       },
@@ -54,14 +54,14 @@ export class LegalEntitiesService {
   }
 
   people(id: string) {
-    return this.http.get<EntityPeople>(`/api/legal-entities/${id}/people`);
+    return this.http.get<EntityPeople>(`api/legal-entities/${id}/people`);
   }
 
   /** Gives the head / the responsible person an account (login = e-mail, temporary password once). */
   grantAccess(id: string, person: EntityPerson, body: GrantAccessRequest) {
     return firstValueFrom(
       this.http.post<GrantAccessResult>(
-        `/api/legal-entities/${id}/people/${PERSON_TEXT[person].path}/access`,
+        `api/legal-entities/${id}/people/${PERSON_TEXT[person].path}/access`,
         body,
       ),
     );
@@ -70,7 +70,7 @@ export class LegalEntitiesService {
   revokeAccess(id: string, person: EntityPerson) {
     return firstValueFrom(
       this.http.delete<RevokeAccessResult>(
-        `/api/legal-entities/${id}/people/${PERSON_TEXT[person].path}/access`,
+        `api/legal-entities/${id}/people/${PERSON_TEXT[person].path}/access`,
       ),
     );
   }
@@ -79,7 +79,7 @@ export class LegalEntitiesService {
   changePerson(id: string, person: EntityPerson, body: ChangePersonRequest) {
     return firstValueFrom(
       this.http.put<ChangePersonResult>(
-        `/api/legal-entities/${id}/people/${PERSON_TEXT[person].path}`,
+        `api/legal-entities/${id}/people/${PERSON_TEXT[person].path}`,
         body,
       ),
     );
@@ -87,19 +87,19 @@ export class LegalEntitiesService {
 
   /** Envelope labels of the entity: the settings and a label of this entity for the preview. */
   labelSettings(id: string) {
-    return this.http.get<LabelSettingsPage>(`/api/legal-entities/${id}/label-settings`);
+    return this.http.get<LabelSettingsPage>(`api/legal-entities/${id}/label-settings`);
   }
 
   saveLabelSettings(id: string, body: LabelSettings) {
     return firstValueFrom(
-      this.http.put<LabelSettings>(`/api/legal-entities/${id}/label-settings`, body),
+      this.http.put<LabelSettings>(`api/legal-entities/${id}/label-settings`, body),
     );
   }
 
   /** Company data from the free ЄДР service by the code. */
   lookup(edrpou: string) {
     return firstValueFrom(
-      this.http.get<RegistryCompany>('/api/legal-entities/lookup', { params: { edrpou } }),
+      this.http.get<RegistryCompany>('api/legal-entities/lookup', { params: { edrpou } }),
     );
   }
 }

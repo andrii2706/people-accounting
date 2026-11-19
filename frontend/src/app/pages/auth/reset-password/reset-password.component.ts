@@ -1,4 +1,5 @@
 import { CopyrightComponent } from '../../../shared/components/copyright/copyright.component';
+import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -27,6 +28,7 @@ import { passwordProblems } from '../../../shared/validators/password.validators
   selector: 'app-reset-password',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PasswordInputComponent,
     FormField,
     FormFieldComponent,
     IconComponent,

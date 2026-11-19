@@ -2,7 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, type UrlTree } from '@angular/router';
 import type { AuthUser } from '../interfaces/auth.interface';
 import { AuthService } from '../services/auth.service';
-import { adminGuard, authGuard, guestGuard, passwordChangeGuard } from './auth.guard';
+import { PLATFORM_ID } from '@angular/core';
+import { adminGuard, authGuard, guestGuard, moduleGuard, passwordChangeGuard } from './auth.guard';
 
 const user = (patch: Partial<AuthUser> = {}) =>
   ({
@@ -62,5 +63,28 @@ describe('auth guards', () => {
     const router = setup(user({ mustChangePassword: true }));
     expect(urlOf(await run(passwordChangeGuard, '/employees'), router)).toBe('/profile');
     expect(await run(passwordChangeGuard, '/profile')).toBe(true);
+  });
+});
+
+describe('moduleGuard (an account of the domain without «Військовий облік»)', () => {
+  function onServer(current: AuthUser | null) {
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: PLATFORM_ID, useValue: 'server' },
+        { provide: AuthService, useValue: { ensureLoaded: () => Promise.resolve(current) } },
+      ],
+    });
+    return TestBed.inject(Router);
+  }
+
+  it('з військовим обліком — пропускає', async () => {
+    const router = onServer(user({ modules: ['oblik', 'kadry'] }));
+    expect(urlOf(await run(moduleGuard), router)).toBe(true);
+  });
+
+  it('лише інші модулі — сервер віддає сторінку «не підключено», браузер піде на портал', async () => {
+    const router = onServer(user({ modules: ['kadry'] }));
+    expect(urlOf(await run(moduleGuard), router)).toBe('/no-module');
   });
 });

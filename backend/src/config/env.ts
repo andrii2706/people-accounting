@@ -3,7 +3,7 @@ import type { UserRole } from '../shared/interfaces/auth.interface.js';
  * Configuration validated at startup. If something is missing the app does not start
  * and says clearly what to fix (instead of a stack trace from deep inside DI).
  */
-import { createHash, hkdfSync } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, hkdfSync, type KeyObject } from 'node:crypto';
 import type { AppEnv, KepOcspMode, KepVerifierKind, OfferScope } from '../shared/interfaces/config.interface.js';
 import { KEP_CA_URL_DEFAULT } from '../kep/kep.constants.js';
 import { DECREE_FALLBACK_URL_DEFAULT } from '../notifications/notifications.constants.js';
@@ -74,6 +74,25 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     }
   }
 
+  // the shared session of the applications (portal, oblik, kadry, docs): an EC P-256 private key in PEM
+  let sessionSigningKey: KeyObject | null = null;
+  let sessionKeyId = '';
+  if (env.SESSION_SIGNING_KEY) {
+    try {
+      const key = createPrivateKey(env.SESSION_SIGNING_KEY.replace(/\\n/g, '\n'));
+      if (key.asymmetricKeyType !== 'ec' || key.asymmetricKeyDetails?.namedCurve !== 'prime256v1') {
+        throw new Error('not P-256');
+      }
+      sessionSigningKey = key;
+      const spki = createPublicKey(key).export({ type: 'spki', format: 'der' });
+      sessionKeyId = createHash('sha256').update(spki).digest('base64url').slice(0, 16);
+    } catch {
+      problems.push(
+        'SESSION_SIGNING_KEY — приватний ключ EC P-256 у PEM (openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256)',
+      );
+    }
+  }
+
   const cookieSecure = bool(env.COOKIE_SECURE, isProduction);
   const cookieName = env.COOKIE_NAME ?? (cookieSecure ? '__Host-mr_session' : 'mr_session');
   if (cookieName.startsWith('__Host-') && !cookieSecure)
@@ -119,6 +138,8 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     dbMigrationsRun: bool(env.DB_MIGRATIONS_RUN, !isProduction),
     dbLogging: bool(env.DB_LOGGING, false),
     jwtSecret,
+    sessionSigningKey,
+    sessionKeyId,
     cookieName,
     cookieSecure,
     sessionIdleMinutes: int(env.SESSION_IDLE_MINUTES, 30),

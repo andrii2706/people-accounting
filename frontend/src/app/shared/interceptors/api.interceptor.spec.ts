@@ -47,7 +47,7 @@ describe('apiInterceptor', () => {
   };
 
   it('після завершення сесії (401) виходить і веде на вхід з поверненням', async () => {
-    await fail('/api/employees', 401);
+    await fail('api/employees', 401);
     expect(markSignedOut).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith(['/login'], {
       queryParams: { returnUrl: '/employees', expired: 1 },
@@ -55,30 +55,30 @@ describe('apiInterceptor', () => {
   });
 
   it('401 на самому вході — це невірний пароль, а не завершена сесія', async () => {
-    await fail('/api/auth/login', 401);
+    await fail('api/auth/login', 401);
     expect(navigate).not.toHaveBeenCalled();
   });
 
   it('з тимчасовим паролем веде в профіль', async () => {
-    await fail('/api/employees', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
+    await fail('api/employees', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
     expect(navigate).toHaveBeenCalledWith(['/profile']);
   });
 
   it('не перезапускає перехід, який уже йде в профіль (інакше — нескінченні запити резолверів)', async () => {
     heading = '/profile';
-    await fail('/api/legal-entities', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
+    await fail('api/legal-entities', 403, { code: 'PASSWORD_CHANGE_REQUIRED' });
     expect(navigate).not.toHaveBeenCalled();
   });
 
   it('без обраного тарифу веде до тарифів, після завершення строку — до підписки', async () => {
-    await fail('/api/employees', 403, { code: 'PLAN_REQUIRED' });
+    await fail('api/employees', 403, { code: 'PLAN_REQUIRED' });
     expect(navigate).toHaveBeenCalledWith(['/account/plans']);
-    await fail('/api/employees', 403, { code: 'SUBSCRIPTION_EXPIRED' });
+    await fail('api/employees', 403, { code: 'SUBSCRIPTION_EXPIRED' });
     expect(navigate).toHaveBeenCalledWith(['/account/subscription']);
   });
 
   it('інші помилки лише передає далі', async () => {
-    await fail('/api/employees', 500);
+    await fail('api/employees', 500);
     expect(navigate).not.toHaveBeenCalled();
     expect(markSignedOut).not.toHaveBeenCalled();
   });

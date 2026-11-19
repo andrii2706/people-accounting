@@ -1,3 +1,4 @@
+import { PlatformLocation } from '@angular/common';
 import { REPORT_NAMES } from '../../shared/constants/lists.constants';
 import { CopyrightComponent } from '../../shared/components/copyright/copyright.component';
 import {
@@ -29,6 +30,7 @@ import { NavigationStateService } from '../../shared/services/navigation-state.s
 import { CommandPaletteComponent } from '../command-palette/command-palette.component';
 import { DictionariesService } from '../../shared/services/dictionaries.service';
 import { legalEntitiesCount, legalEntityName } from '../../shared/utils/legal-entity.utils';
+import { readyAppsOf } from '../../../platform/contracts/apps';
 import type { NavGroup } from '../../shared/interfaces/ui.interface';
 
 @Component({
@@ -84,6 +86,16 @@ export class ShellComponent {
     }
     if (entities.length === 1) return legalEntityName(entities[0]);
     return entities.length ? legalEntitiesCount(entities.length) : '';
+  });
+  private readonly baseHref = inject(PlatformLocation).getBaseHrefFromDOM() || '/';
+  /**
+   * Behind the gateway of the domain (base href «/oblik/») — links to the portal and the other applications
+   * of the account; when the application has the domain to itself there are none.
+   */
+  protected readonly otherApps = computed(() => {
+    if (this.baseHref === '/') return [];
+    const apps = readyAppsOf(this.auth.user()?.modules).filter((a) => a.id !== 'oblik');
+    return [{ title: 'Портал', path: '/' }, ...apps];
   });
   protected readonly welcomeOpen = signal(false);
   private readonly billingService = inject(BillingService);

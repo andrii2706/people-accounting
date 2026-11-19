@@ -1,0 +1,6 @@
+{
+  "backend": "backend/src/platform",
+  "backendParts": ["contracts"],
+  "frontend": "frontend/src/platform",
+  "frontendParts": ["contracts"]
+}

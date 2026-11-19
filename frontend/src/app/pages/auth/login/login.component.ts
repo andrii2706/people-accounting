@@ -1,4 +1,5 @@
 import { REPORT_NAMES } from '../../../shared/constants/lists.constants';
+import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -20,7 +21,14 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormField, FormFieldComponent, IconComponent, RouterLink, CopyrightComponent],
+  imports: [
+    PasswordInputComponent,
+    FormField,
+    FormFieldComponent,
+    IconComponent,
+    RouterLink,
+    CopyrightComponent,
+  ],
   templateUrl: './login.component.html',
 })
 export class LoginComponent {

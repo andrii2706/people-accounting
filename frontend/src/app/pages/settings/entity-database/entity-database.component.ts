@@ -7,6 +7,7 @@ import {
   linkedSignal,
   signal,
 } from '@angular/core';
+import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
 import { form, FormField, max, min, pattern, required, submit } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
@@ -42,6 +43,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
   selector: 'app-entity-database',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    PasswordInputComponent,
     PageHeaderComponent,
     FormField,
     FormFieldComponent,

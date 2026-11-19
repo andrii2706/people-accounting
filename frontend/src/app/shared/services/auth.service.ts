@@ -65,7 +65,7 @@ export class AuthService {
   /** One /auth/session request per app (and per SSR render; the result reaches the browser via TransferState). */
   ensureLoaded(): Promise<AuthUser | null> {
     if (this._checked()) return Promise.resolve(this._user());
-    this.pending ??= firstValueFrom(this.http.get<SessionResponse>('/api/auth/session'))
+    this.pending ??= firstValueFrom(this.http.get<SessionResponse>('api/auth/session'))
       .then(({ user }) => {
         this._user.set(user);
         return user;
@@ -83,14 +83,14 @@ export class AuthService {
 
   /** Reads the session again (e.g. the director has just added his legal entity). */
   async refresh(): Promise<AuthUser | null> {
-    const { user } = await firstValueFrom(this.http.get<SessionResponse>('/api/auth/session'));
+    const { user } = await firstValueFrom(this.http.get<SessionResponse>('api/auth/session'));
     this._user.set(user);
     return user;
   }
 
   async login(email: string, password: string): Promise<AuthUser> {
     const user = await firstValueFrom(
-      this.http.post<AuthUser>('/api/auth/login', { email, password }),
+      this.http.post<AuthUser>('api/auth/login', { email, password }),
     );
     this._user.set(user);
     this._checked.set(true);
@@ -101,7 +101,7 @@ export class AuthService {
   /** Change own password. Other sessions of the user are terminated on the server. */
   async changePassword(currentPassword: string, newPassword: string): Promise<AuthUser> {
     const user = await firstValueFrom(
-      this.http.post<AuthUser>('/api/auth/change-password', { currentPassword, newPassword }),
+      this.http.post<AuthUser>('api/auth/change-password', { currentPassword, newPassword }),
     );
     this._user.set(user);
     return user;
@@ -110,14 +110,14 @@ export class AuthService {
   /** Who the link «set a new password» from a letter is for (400 — invalid / used / expired). */
   passwordLink(token: string) {
     return firstValueFrom(
-      this.http.get<PasswordLinkInfo>(`/api/auth/password-reset/${encodeURIComponent(token)}`),
+      this.http.get<PasswordLinkInfo>(`api/auth/password-reset/${encodeURIComponent(token)}`),
     );
   }
 
   /** A new password by the link from a letter; the server ends every session of the user. */
   async resetPassword(token: string, newPassword: string) {
     const result = await firstValueFrom(
-      this.http.post<{ email: string }>('/api/auth/password-reset', { token, newPassword }),
+      this.http.post<{ email: string }>('api/auth/password-reset', { token, newPassword }),
     );
     this._user.set(null);
     return result;
@@ -137,7 +137,7 @@ export class AuthService {
 
   /** `reason: 'idle'` — signed out after inactivity: the login page explains it and returns to `returnUrl`. */
   async logout(opts: LogoutOptions = {}): Promise<void> {
-    await firstValueFrom(this.http.post<void>('/api/auth/logout', {})).catch(() => undefined);
+    await firstValueFrom(this.http.post<void>('api/auth/logout', {})).catch(() => undefined);
     this._user.set(null);
     const returnUrl = opts.returnUrl && opts.returnUrl !== '/' ? opts.returnUrl : undefined;
     await this.router.navigate(['/login'], {

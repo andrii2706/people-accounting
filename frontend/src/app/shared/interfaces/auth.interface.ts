@@ -22,6 +22,8 @@ export interface AuthUser {
   termsAccepted?: boolean;
   /** How the screen addresses the person, in the vocative: «п. Галино»; '' — without a name. */
   address?: string;
+  /** The applications of the domain the account may open (oblik, kadry, docs). */
+  modules?: string[];
 }
 
 export type SignupSource = 'ADMIN' | 'SELF';
@@ -101,6 +103,8 @@ export interface ManagedUser {
   lockedUntil: string | null;
   lastLoginAt: string | null;
   passwordChangedAt: string | null;
+  /** The applications of the domain the account may open (platform/contracts/apps). */
+  modules?: string[];
 }
 
 /** GET /api/auth/session — null when not signed in. */
@@ -123,6 +127,8 @@ export interface CreateUserRequest {
   role: UserRole;
   /** The main administrator chooses it; for the others it is their own. */
   legalEntityId?: string | null;
+  /** The applications of the domain («Військовий облік» when none chosen). */
+  modules?: string[];
 }
 
 /** PATCH /api/users/:id */
@@ -134,6 +140,14 @@ export interface UpdateUserRequest {
   /** The login e-mail (a typo or a new work address); the user's sessions end. */
   email?: string;
   notify?: boolean;
+  /** The applications of the domain; a change ends the user's sessions (they are in the session token). */
+  modules?: string[];
+}
+
+/** The inline editor «Модулі» of one account in the user list. */
+export interface ModulesEditModel {
+  id: string;
+  modules: string[];
 }
 
 /** The inline form «Редагувати» in the user list. */

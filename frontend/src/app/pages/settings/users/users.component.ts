@@ -20,9 +20,12 @@ import { PageHeaderComponent } from '../../../shared/components/page-header/page
 import type {
   IssuedPassword,
   ManagedUser,
+  ModulesEditModel,
   UserEditModel,
   UserRole,
 } from '../../../shared/interfaces/auth.interface';
+import { APPS } from '../../../../platform/contracts/apps';
+import { modulesLabel, toggleModule } from '../../../shared/utils/modules.utils';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { KYIV_DATETIME } from '../../../shared/utils/date.utils';
 import { AuthService } from '../../../shared/services/auth.service';
@@ -102,6 +105,38 @@ export class UsersComponent {
     return ROLE_LABELS[role];
   }
 
+  /** The applications of the domain: «Військовий облік» works now, the others are marked «незабаром». */
+  protected readonly apps = APPS;
+  protected modulesLabel(u: ManagedUser) {
+    return modulesLabel(u.role, u.modules);
+  }
+  /** The modules of a new account (the main administrator opens all of them anyway). */
+  protected readonly newModules = signal<string[]>(['oblik']);
+  protected toggleNewModule(id: string) {
+    this.newModules.update((list) => toggleModule(list, id));
+  }
+
+  /** «Модулі» of one account, right in the table. */
+  protected readonly modulesEdit = signal<ModulesEditModel>({ id: '', modules: [] });
+  protected startModules(u: ManagedUser) {
+    this.modulesEdit.set({ id: u.id, modules: u.modules?.length ? [...u.modules] : ['oblik'] });
+  }
+  protected toggleEditModule(id: string) {
+    this.modulesEdit.update((m) => ({ ...m, modules: toggleModule(m.modules, id) }));
+  }
+  protected async saveModules(u: ManagedUser) {
+    const { modules } = this.modulesEdit();
+    if (!modules.length) {
+      this.toast.error('Оберіть хоча б один модуль');
+      return;
+    }
+    await this.run(
+      () => this.usersService.update(u.id, { modules }),
+      'Модулі змінено. Користувач увійде знову — сесії оновлено',
+    );
+    this.modulesEdit.set({ id: '', modules: [] });
+  }
+
   protected canManage(u: ManagedUser) {
     return canManageUser(this.auth.user(), u);
   }
@@ -115,6 +150,13 @@ export class UsersComponent {
         icon: 'edit',
         hint: 'Ім’я та email для входу',
         run: () => this.startEdit(u),
+      });
+    if (u.role !== 'ADMIN' && this.modulesEdit().id !== u.id)
+      actions.push({
+        label: 'Модулі',
+        icon: 'columns',
+        hint: 'Які застосунки відкриваються: військовий облік, кадри…',
+        run: () => this.startModules(u),
       });
     if (this.lockedIds().has(u.id))
       actions.push({
@@ -238,8 +280,10 @@ export class UsersComponent {
         const created = await this.usersService.create({
           ...rest,
           legalEntityId: rest.role === 'ADMIN' ? null : legalEntityId || null,
+          modules: this.newModules(),
         });
         this.userModel.set({ ...this.blank });
+        this.newModules.set(['oblik']);
         this.userForm().reset();
         const until = created.temporaryPasswordExpiresAt
           ? ` Тимчасовий пароль діє до ${KYIV_DATETIME.format(new Date(created.temporaryPasswordExpiresAt))}.`

@@ -1,8 +1,10 @@
-import { inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { inject, PLATFORM_ID } from '@angular/core';
 import { type CanActivateChildFn, type CanActivateFn, Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { AccountService } from '../services/account.service';
-import { ENTITY_MANAGER_ROLES } from '../constants/auth.constants';
+import { ENTITY_MANAGER_ROLES, MODULE_DENIED_URL } from '../constants/auth.constants';
+import { hasOblik } from '../utils/modules.utils';
 
 /** Authenticated users only; otherwise — to sign-in with a return URL. */
 export const authGuard: CanActivateFn = async (_route, state) => {
@@ -10,6 +12,25 @@ export const authGuard: CanActivateFn = async (_route, state) => {
   const router = inject(Router);
   const user = await auth.ensureLoaded();
   return user ? true : router.createUrlTree(['/login'], { queryParams: { returnUrl: state.url } });
+};
+
+/**
+ * «Військовий облік» is one application of the domain: an account without it (only «Облік працівників») goes
+ * to the portal, which lists what it has.
+ */
+export const moduleGuard: CanActivateFn = async () => {
+  // everything injected before the first await: after it there is no injection context
+  const auth = inject(AuthService);
+  const router = inject(Router);
+  const browser = isPlatformBrowser(inject(PLATFORM_ID));
+  const user = await auth.ensureLoaded();
+  if (!user || hasOblik(user)) return true;
+  if (browser) {
+    window.location.assign(MODULE_DENIED_URL);
+    return false;
+  }
+  // the server cannot leave the application's base path: a page that says so and sends the browser on
+  return router.createUrlTree(['/no-module']);
 };
 
 export const adminGuard: CanActivateFn = async () => {

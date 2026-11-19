@@ -1,0 +1,68 @@
+# nginx of «Військовий облік»: its frontend (Angular SSR) and its API behind one address.
+# The gateway of the domain (portal/edge) sends here /oblik/… and, for now, the sign-in service /api/auth/….
+# ${OBLIK_WEB} / ${OBLIK_API} — host:port of the containers (docker compose: oblik-web:4000, oblik-api:3000).
+
+upstream oblik_web {
+  server ${OBLIK_WEB};
+  keepalive 16;
+}
+
+upstream oblik_api {
+  server ${OBLIK_API};
+  keepalive 16;
+}
+
+# what the gateway of the domain said about the client; when called directly — this request itself
+map $http_x_forwarded_proto $forwarded_proto {
+  default $http_x_forwarded_proto;
+  '' $scheme;
+}
+map $http_x_forwarded_host $forwarded_host {
+  default $http_x_forwarded_host;
+  '' $http_host;
+}
+
+server {
+  listen 8080;
+  server_tokens off;
+  # imports of employees, letter templates, signed documents
+  client_max_body_size 30m;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection '';
+  proxy_set_header Host $http_host;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $forwarded_proto;
+  proxy_set_header X-Forwarded-Host $forwarded_host;
+  # the containers' own service token cannot be smuggled in from outside
+  proxy_set_header X-Serverless-Authorization '';
+
+  location = /healthz {
+    access_log off;
+    return 200 'ok';
+  }
+
+  location = /oblik {
+    return 301 /oblik/;
+  }
+
+  # the API of the application: /oblik/api/x → /api/x (the API knows nothing about the prefix)
+  location /oblik/api/ {
+    proxy_pass http://oblik_api/api/;
+    proxy_read_timeout 120s;
+  }
+
+  # the sign-in service of the whole domain lives in this API until it moves to the portal
+  location /api/auth/ {
+    proxy_pass http://oblik_api/api/auth/;
+  }
+
+  # pages and static files: SSR built with --base-href /oblik/ expects the full path
+  location /oblik/ {
+    proxy_pass http://oblik_web;
+  }
+
+  location / {
+    return 404;
+  }
+}

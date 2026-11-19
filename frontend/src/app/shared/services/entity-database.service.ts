@@ -13,22 +13,22 @@ export class EntityDatabaseService {
   private readonly http = inject(HttpClient);
 
   get(entityId: string) {
-    return this.http.get<EntityDatabaseView>(`/api/legal-entities/${entityId}/database`);
+    return this.http.get<EntityDatabaseView>(`api/legal-entities/${entityId}/database`);
   }
 
   save(entityId: string, body: EntityDatabaseForm) {
     return firstValueFrom(
-      this.http.put<EntityDatabaseView>(`/api/legal-entities/${entityId}/database`, body),
+      this.http.put<EntityDatabaseView>(`api/legal-entities/${entityId}/database`, body),
     );
   }
 
   check(entityId: string) {
     return firstValueFrom(
-      this.http.post<DatabaseCheckResult>(`/api/legal-entities/${entityId}/database/check`, {}),
+      this.http.post<DatabaseCheckResult>(`api/legal-entities/${entityId}/database/check`, {}),
     );
   }
 
   remove(entityId: string) {
-    return firstValueFrom(this.http.delete<void>(`/api/legal-entities/${entityId}/database`));
+    return firstValueFrom(this.http.delete<void>(`api/legal-entities/${entityId}/database`));
   }
 }

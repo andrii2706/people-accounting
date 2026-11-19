@@ -7,6 +7,7 @@ import {
   ALLOW_PENDING_TERMS,
   ALLOW_UNPAID,
   ALLOW_VENDOR,
+  IDENTITY_ROUTE,
   IS_PUBLIC,
   ROLES,
 } from '../constants/auth.constants.js';
@@ -44,3 +45,9 @@ export const AllowUnassigned = () => SetMetadata(ALLOW_UNASSIGNED, true);
 export const EntityScope = createParamDecorator((_: unknown, ctx: ExecutionContext): Scope => {
   return entityScope(ctx.switchToHttp().getRequest<AuthenticatedRequest>().user);
 });
+
+/**
+ * The identity routes (/api/auth/*) serve every application of the domain, so an account without
+ * «Військовий облік» (e.g. only «Кадровий облік») still signs in and changes its password here.
+ */
+export const IdentityRoute = () => SetMetadata(IDENTITY_ROUTE, true);

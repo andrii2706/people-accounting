@@ -62,12 +62,14 @@
           <input class="input" type="email" autocomplete="username" [formField]="loginForm.email" />
         </app-form-field>
         <app-form-field label="Пароль" [field]="loginForm.password" [required]="true">
-          <input
-            class="input"
-            type="password"
-            autocomplete="current-password"
-            [formField]="loginForm.password"
-          />
+          <app-password-input>
+            <input
+              class="input"
+              type="password"
+              autocomplete="current-password"
+              [formField]="loginForm.password"
+            />
+          </app-password-input>
         </app-form-field>
       </div>
 

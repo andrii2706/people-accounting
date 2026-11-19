@@ -22,12 +22,14 @@
 <form class="card max-w-xl space-y-4 p-5 sm:p-6" (submit)="save($event)" novalidate>
   <h2 class="font-semibold">Зміна пароля</h2>
   <app-form-field label="Поточний пароль" [required]="true" [field]="passwordForm.currentPassword">
-    <input
-      class="input"
-      type="password"
-      autocomplete="current-password"
-      [formField]="passwordForm.currentPassword"
-    />
+    <app-password-input>
+      <input
+        class="input"
+        type="password"
+        autocomplete="current-password"
+        [formField]="passwordForm.currentPassword"
+      />
+    </app-password-input>
   </app-form-field>
   <app-form-field
     label="Новий пароль"
@@ -35,12 +37,14 @@
     [field]="passwordForm.newPassword"
     hint="Щонайменше 12 символів, літери й цифри, без частини email. Краще — фраза з кількох слів."
   >
-    <input
-      class="input"
-      type="password"
-      autocomplete="new-password"
-      [formField]="passwordForm.newPassword"
-    />
+    <app-password-input>
+      <input
+        class="input"
+        type="password"
+        autocomplete="new-password"
+        [formField]="passwordForm.newPassword"
+      />
+    </app-password-input>
   </app-form-field>
   <app-form-field
     label="Повторіть новий пароль"
@@ -48,12 +52,14 @@
     [field]="passwordForm.confirmPassword"
     hint="Ще раз той самий новий пароль"
   >
-    <input
-      class="input"
-      type="password"
-      autocomplete="new-password"
-      [formField]="passwordForm.confirmPassword"
-    />
+    <app-password-input>
+      <input
+        class="input"
+        type="password"
+        autocomplete="new-password"
+        [formField]="passwordForm.confirmPassword"
+      />
+    </app-password-input>
   </app-form-field>
   @if (error()) {
     <p

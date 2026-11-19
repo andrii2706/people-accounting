@@ -234,7 +234,7 @@ export class EmployeeFormComponent {
   });
 
   protected readonly mobilization = httpResource<NotificationStatus>(
-    () => '/api/notifications/status',
+    () => 'api/notifications/status',
   );
 
   protected readonly rankOptions = computed<SelectOption[]>(() =>

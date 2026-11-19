@@ -28,6 +28,13 @@ export class User {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  /**
+   * The applications the account may open (oblik, kadry, docs — see platform/contracts/apps). The main
+   * administrator opens all of them whatever is stored here.
+   */
+  @Column({ type: 'simple-array', default: 'oblik' })
+  modules: string[];
+
   /** Receive e-mail reminders (deferral / reservation ending, mobilization extended…). */
   @Column({ type: 'boolean', default: true })
   notify: boolean;

@@ -1,3 +1,4 @@
+import type { KeyObject } from 'node:crypto';
 import type { UserRole } from './auth.interface.js';
 export interface AppEnv {
   nodeEnv: string;
@@ -8,6 +9,13 @@ export interface AppEnv {
   dbLogging: boolean;
 
   jwtSecret: string;
+  /**
+   * The ES256 key that signs the sessions shared by all applications of the domain (SESSION_SIGNING_KEY);
+   * null — HS256 with JWT_SECRET as before (only this application can check the session).
+   */
+  sessionSigningKey: KeyObject | null;
+  /** The id of the key in JWKS (derived from the public key). */
+  sessionKeyId: string;
   cookieName: string;
   cookieSecure: boolean;
   /** The session ends after N minutes of inactivity. */

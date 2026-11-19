@@ -17,33 +17,33 @@ export class SignaturesService {
   /** Settings do not change at runtime — cached for the whole session. */
   config() {
     this.config$ ??= this.http
-      .get<SigningConfig>('/api/signatures/config')
+      .get<SigningConfig>('api/signatures/config')
       .pipe(shareReplay({ bufferSize: 1, refCount: false }));
     return this.config$;
   }
 
   state(letterId: string) {
-    return this.http.get<SigningState>(`/api/letters/${letterId}/signatures`);
+    return this.http.get<SigningState>(`api/letters/${letterId}/signatures`);
   }
 
   freeze(letterId: string) {
-    return firstValueFrom(this.http.post<SigningState>(`/api/letters/${letterId}/freeze`, {}));
+    return firstValueFrom(this.http.post<SigningState>(`api/letters/${letterId}/freeze`, {}));
   }
 
   unfreeze(letterId: string) {
-    return firstValueFrom(this.http.delete<SigningState>(`/api/letters/${letterId}/freeze`));
+    return firstValueFrom(this.http.delete<SigningState>(`api/letters/${letterId}/freeze`));
   }
 
   /** Bytes of the frozen document — exactly what the widget signs. */
   signingFile(letterId: string) {
     return firstValueFrom(
-      this.http.get(`/api/letters/${letterId}/signing-file`, { responseType: 'arraybuffer' }),
+      this.http.get(`api/letters/${letterId}/signing-file`, { responseType: 'arraybuffer' }),
     );
   }
 
   add(letterId: string, signatureBase64: string, method: SignatureMethod) {
     return firstValueFrom(
-      this.http.post<LetterSignature>(`/api/letters/${letterId}/signatures`, {
+      this.http.post<LetterSignature>(`api/letters/${letterId}/signatures`, {
         signature: signatureBase64,
         method,
       }),
@@ -51,14 +51,14 @@ export class SignaturesService {
   }
 
   signingFileUrl(letterId: string) {
-    return `/api/letters/${letterId}/signing-file`;
+    return `api/letters/${letterId}/signing-file`;
   }
 
   signatureFileUrl(letterId: string, signatureId: string) {
-    return `/api/letters/${letterId}/signatures/${signatureId}/file`;
+    return `api/letters/${letterId}/signatures/${signatureId}/file`;
   }
 
   packageUrl(letterId: string) {
-    return `/api/letters/${letterId}/signed-package`;
+    return `api/letters/${letterId}/signed-package`;
   }
 }

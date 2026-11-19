@@ -15,32 +15,32 @@ export class UsersService {
   private readonly http = inject(HttpClient);
 
   list() {
-    return this.http.get<ManagedUser[]>('/api/users');
+    return this.http.get<ManagedUser[]>('api/users');
   }
 
   create(body: CreateUserRequest) {
-    return firstValueFrom(this.http.post<ManagedUser>('/api/users', body));
+    return firstValueFrom(this.http.post<ManagedUser>('api/users', body));
   }
 
   update(id: string, body: UpdateUserRequest) {
-    return firstValueFrom(this.http.patch<ManagedUser>(`/api/users/${id}`, body));
+    return firstValueFrom(this.http.patch<ManagedUser>(`api/users/${id}`, body));
   }
 
   /** The temporary password is returned once. */
   /** Letter «change your password» with a link; until changed the user gets only the password page. */
   requestPasswordChange(id: string) {
     return firstValueFrom(
-      this.http.post<PasswordChangeRequestResult>(`/api/users/${id}/password-change-request`, {}),
+      this.http.post<PasswordChangeRequestResult>(`api/users/${id}/password-change-request`, {}),
     );
   }
 
   resetPassword(id: string) {
     return firstValueFrom(
-      this.http.post<PasswordResetResult>(`/api/users/${id}/reset-password`, {}),
+      this.http.post<PasswordResetResult>(`api/users/${id}/reset-password`, {}),
     );
   }
 
   unlock(id: string) {
-    return firstValueFrom(this.http.post<ManagedUser>(`/api/users/${id}/unlock`, {}));
+    return firstValueFrom(this.http.post<ManagedUser>(`api/users/${id}/unlock`, {}));
   }
 }
