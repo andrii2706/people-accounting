@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { tckOption } from '../../../shared/utils/tck.utils';
 import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
 import { httpResource } from '@angular/common/http';
 import { Router, RouterLink } from '@angular/router';
@@ -358,9 +359,7 @@ export class EmployeeDetailComponent {
     );
     maxLength(p.description, 1000, { message: 'Не більше 1000 символів' });
   });
-  protected readonly tckOptions = computed(() =>
-    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name })),
-  );
+  protected readonly tckOptions = computed(() => this.dict.activeTcks().map(tckOption));
   /** Pending changes this old notice already reported — they leave the queue. */
   protected readonly coveredChanges = signal<ReadonlySet<string>>(new Set());
 

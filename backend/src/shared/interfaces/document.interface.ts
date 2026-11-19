@@ -119,6 +119,46 @@ export interface ChangeNoticeInput {
   responsible: ResponsibleInfo | null;
 }
 
+/**
+ * A part of the reconciliation package: the cover letter with the inventory of its attachments (cover),
+ * the inventory for the post office, form 107 (inventory), or a .zip of four files — with the extract and the
+ * envelope label (all).
+ */
+export type ReconciliationPart = 'cover' | 'inventory' | 'all';
+
+/** A person of the extract: listed in the cover letter; his eВОД goes as an attachment. */
+export interface ReconciliationPerson {
+  lastName: string;
+  firstName: string;
+  middleName: string;
+  birthDate: IsoDate | null;
+  /** The electronic document from «Резерв+», when it is in the card. */
+  evod: { number: string; generatedDate: IsoDate | null; generatedTime: string } | null;
+}
+
+/** One line of an inventory: what and how many copies. */
+export interface InventoryItem {
+  name: string;
+  copies: number;
+}
+
+/** Cover letter and inventory for extracts (or lists) sent to a TCK for reconciliation. */
+export interface ReconciliationInput {
+  letter: { number: string; date: IsoDate };
+  /** «станом на» of the extracts */
+  reportDate: IsoDate;
+  tck: Tck | null;
+  org: Organization;
+  responsible: ResponsibleInfo | null;
+  /** Extracts about the people of the TCK (true) or the whole lists (false). */
+  extract: boolean;
+  /** The lists in the package with the number of people in each (empty ones are left out). */
+  sections: { section: ListSection; people: number }[];
+  /** The people of the extract, in the order of the lists. */
+  people: ReconciliationPerson[];
+  part: Exclude<ReconciliationPart, 'all'>;
+}
+
 export interface ListsInput {
   date: IsoDate;
   extract: boolean;
@@ -171,7 +211,7 @@ export interface EnvelopeLabel {
 export interface InventoryInput {
   org: Organization;
   tck: Tck | null | undefined;
-  items: string[];
+  items: (string | InventoryItem)[];
 }
 
 /** The operational report rows on a date. */

@@ -21,6 +21,7 @@ import { ListSnapshots1793360000000 } from './1793360000000-ListSnapshots.js';
 import { PartTimeQuota1793370000000 } from './1793370000000-PartTimeQuota.js';
 import { UserModules1793380000000 } from './1793380000000-UserModules.js';
 import { HrSync1793390000000 } from './1793390000000-HrSync.js';
+import { TckPlace1793400000000 } from './1793400000000-TckPlace.js';
 import { TckPostalCodes1793310000000 } from './1793310000000-TckPostalCodes.js';
 import { QuotaPercent1793300000000 } from './1793300000000-QuotaPercent.js';
 import { PasswordResetTokens1793290000000 } from './1793290000000-PasswordResetTokens.js';
@@ -55,4 +56,5 @@ export const MIGRATIONS: Function[] = [
   PartTimeQuota1793370000000,
   UserModules1793380000000,
   HrSync1793390000000,
+  TckPlace1793400000000,
 ];

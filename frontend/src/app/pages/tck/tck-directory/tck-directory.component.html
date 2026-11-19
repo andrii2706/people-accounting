@@ -5,31 +5,65 @@
 />
 
 <section class="card">
-  <header class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-    <p class="text-sm text-muted">
-      {{ tcks().length }} з {{ dict.tcks().length }} · Email потрібен для надсилання повідомлень;
-      назва в родовому відмінку — для «Керівнику …».
-    </p>
-    <div class="flex gap-2">
-      <input
-        class="input w-56"
-        type="search"
-        placeholder="Пошук"
-        [value]="tckFilter()"
-        (input)="tckFilter.set($any($event.target).value)"
-      />
+  <header class="space-y-3 border-b border-line px-5 py-4">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <p class="text-sm text-muted">
+        {{ tcks().length }} з {{ dict.tcks().length }} · Email потрібен для надсилання повідомлень;
+        назва в родовому відмінку — для «Керівнику …».
+      </p>
       @if (auth.isAdmin()) {
-        <label class="btn btn-ghost cursor-pointer" title="Файл з npm run tck:export">
-          <app-icon name="upload" /> Імпорт
-          <input
-            type="file"
-            class="sr-only"
-            accept=".json,application/json"
-            (change)="pickTckFile($event)"
-          />
-        </label>
-        <button type="button" class="btn btn-secondary cursor-pointer" (click)="editTck(null)">
-          <app-icon name="plus" /> Додати
+        <div class="flex gap-2">
+          <label class="btn btn-ghost cursor-pointer" title="Файл з npm run tck:export">
+            <app-icon name="upload" /> Імпорт
+            <input
+              type="file"
+              class="sr-only"
+              accept=".json,application/json"
+              (change)="pickTckFile($event)"
+            />
+          </label>
+          <button type="button" class="btn btn-secondary cursor-pointer" (click)="editTck(null)">
+            <app-icon name="plus" /> Додати
+          </button>
+        </div>
+      }
+    </div>
+    <div
+      class="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.2fr)_repeat(3,minmax(0,1fr))_auto]"
+      role="search"
+    >
+      <input
+        class="input min-w-0"
+        type="search"
+        placeholder="Назва, адреса, місто"
+        aria-label="Пошук ТЦК"
+        [value]="filter().query"
+        (input)="setQuery($any($event.target).value)"
+      />
+      <app-select
+        ariaLabel="Область"
+        placeholder="Усі області"
+        [options]="regionOptions()"
+        [value]="filter().region"
+        (valueChange)="setRegion($event)"
+      />
+      <app-select
+        ariaLabel="Місто"
+        placeholder="Усі міста"
+        [options]="cityOptions()"
+        [value]="filter().city"
+        (valueChange)="setCity($event)"
+      />
+      <app-select
+        ariaLabel="Район"
+        placeholder="Усі райони"
+        [options]="districtOptions()"
+        [value]="filter().district"
+        (valueChange)="setDistrict($event)"
+      />
+      @if (filtered()) {
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetFilter()">
+          <app-icon name="x" /> Скинути
         </button>
       }
     </div>
@@ -86,6 +120,21 @@
       >
         <input class="input font-mono" inputmode="numeric" [formField]="tckForm.postalCode" />
       </app-form-field>
+      <div class="grid gap-3 md:col-span-2 md:grid-cols-3">
+        <app-form-field label="Область" hint="Порожньо — з адреси" [field]="tckForm.region">
+          <input class="input" [formField]="tckForm.region" />
+        </app-form-field>
+        <app-form-field label="Місто" hint="Порожньо — з назви чи адреси" [field]="tckForm.city">
+          <input class="input" [formField]="tckForm.city" />
+        </app-form-field>
+        <app-form-field
+          label="Район"
+          hint="Порожньо — з назви; в обласних і міських ТЦК немає"
+          [field]="tckForm.district"
+        >
+          <input class="input" [formField]="tckForm.district" />
+        </app-form-field>
+      </div>
       <div class="grid grid-cols-2 gap-3">
         <app-form-field label="Телефон" [field]="tckForm.phone">
           <input class="input" type="tel" [formField]="tckForm.phone" />
@@ -114,6 +163,7 @@
       <thead>
         <tr>
           <th>Назва</th>
+          <th>Місце</th>
           <th>Індекс</th>
           <th>Адреса</th>
           <th>Телефон</th>
@@ -125,6 +175,12 @@
         @for (t of tcks(); track t.id) {
           <tr [class.opacity-50]="!t.isActive">
             <td class="font-medium">{{ t.name }}</td>
+            <td class="min-w-48 text-sm">
+              {{ t.city || '—' }}
+              @if (placeDetails(t); as details) {
+                <span class="block text-xs text-muted">{{ details }}</span>
+              }
+            </td>
             <td class="font-mono whitespace-nowrap">
               @if (t.postalCode) {
                 {{ t.postalCode }}
@@ -150,6 +206,21 @@
                   aria-label="Редагувати"
                 >
                   <app-icon name="edit" [size]="16" />
+                </button>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="7" class="py-8 text-center text-muted">
+              Нічого не знайдено.
+              @if (filtered()) {
+                <button
+                  type="button"
+                  class="cursor-pointer text-brand-600 underline"
+                  (click)="resetFilter()"
+                >
+                  Скинути фільтри
                 </button>
               }
             </td>

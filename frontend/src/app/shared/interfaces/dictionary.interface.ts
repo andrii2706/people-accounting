@@ -45,7 +45,21 @@ export interface Tck {
   postalCode: string;
   phone: string;
   email: string;
+  /** «Львівська область», «м. Київ» */
+  region: string;
+  /** «Шевченківський район»; '' — a regional or city centre */
+  district: string;
+  /** «м. Броди», «смт Петриківка» */
+  city: string;
   isActive: boolean;
+}
+
+/** The filters of the TCK directory (NO_TCK_DISTRICT — the regional and city centres). */
+export interface TckFilter {
+  query: string;
+  region: string;
+  city: string;
+  district: string;
 }
 
 export interface Rank {

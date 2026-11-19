@@ -48,6 +48,17 @@ export function maskDateInput(raw: string): string {
   return `${digits.slice(0, 2)}.${digits.slice(2, 4)}.${digits.slice(4)}`;
 }
 
+/**
+ * Time typed as digits only: the first two are the hours, the next two the minutes — «1430» → «14:30».
+ * A first digit 3–9 can only be an hour of one digit: «930» → «09:30».
+ */
+export function maskTimeInput(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (/^[3-9]/.test(digits)) digits = `0${digits}`;
+  digits = digits.slice(0, 4);
+  return digits.length <= 2 ? digits : `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
 /** «26.10.2026, 13:15» in Kyiv time — the same on SSR and in the browser. */
 export const KYIV_DATETIME = new Intl.DateTimeFormat('uk-UA', {
   timeZone: 'Europe/Kyiv',

@@ -1,3 +1,4 @@
+import { tckPlace } from '../dictionaries/utils/tck-place.utils.js';
 import { TCK_UKRAINE } from './tck-ukraine.js';
 import type { TckEntry } from '../shared/interfaces/dictionary.interface.js';
 
@@ -5,6 +6,8 @@ import type { TckEntry } from '../shared/interfaces/dictionary.interface.js';
 export function tckGenitive(name: string): string {
   return name.replace(/^((?:І|ІІ|ІІІ|ІV)\s+)відділ\s/u, '$1відділу ').replace(/^(\S+?)ий\s/u, '$1ого ');
 }
+
+const LVIV_REGION = 'Львівська область';
 
 /** Lviv region — from the company's registration file (sheet EDU_TCK). */
 const TCK_LVIV = [
@@ -171,9 +174,15 @@ const TCK_LVIV = [
  * Used by the TckDirectory migration (fills an empty or partial directory) and by `npm run seed`.
  */
 export const ALL_TCK: TckEntry[] = [
-  ...TCK_LVIV.map((t) => ({ ...t, nameGenitive: tckGenitive(t.name), email: '' })),
-  ...TCK_UKRAINE.map(({ region: _region, source: _source, ...t }) => ({
+  ...TCK_LVIV.map((t) => ({
+    ...t,
+    nameGenitive: tckGenitive(t.name),
+    email: '',
+    ...tckPlace(t, LVIV_REGION),
+  })),
+  ...TCK_UKRAINE.map(({ region, source: _source, ...t }) => ({
     ...t,
     nameGenitive: t.nameGenitive || tckGenitive(t.name),
+    ...tckPlace(t, region),
   })),
 ];

@@ -61,7 +61,12 @@ import type {
   LabelParty,
   EnvelopeLabel,
 } from '../shared/interfaces/document.interface.js';
-import type { InventoryInput } from '../shared/interfaces/document.interface.js';
+import type {
+  InventoryInput,
+  ReconciliationInput,
+  ReconciliationPerson,
+} from '../shared/interfaces/document.interface.js';
+import { EVOD_COPIES, EXTRACT_COPIES } from './documents.constants.js';
 
 const blank = (v: string | null | undefined, filler = '________________') => (v && v.trim() ? v : filler);
 
@@ -255,6 +260,7 @@ export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffe
 
 function inventoryPage(input: InventoryInput): (Paragraph | Table)[] {
   const w = CONTENT_WIDTH.portrait;
+  const items = input.items.map((i) => (typeof i === 'string' ? { name: i, copies: 1 } : i));
   return [
     p('ф. 107', { align: 'right' }),
     p('______________________________', { align: 'center' }),
@@ -272,15 +278,15 @@ function inventoryPage(input: InventoryInput): (Paragraph | Table)[] {
     table(
       [['№ п/п', 'Найменування предметів', 'Кількість предметів', 'Оголошена цінність (грн)']],
       [
-        ...input.items.map((item, i) => [
+        ...items.map((item, i) => [
           { text: String(i + 1), align: 'center' as const },
-          item,
-          { text: '1', align: 'center' as const },
+          item.name,
+          { text: String(item.copies), align: 'center' as const },
           '',
         ]),
         [
           { text: 'Загальний підсумок предметів і оголошеної цінності', colSpan: 2, bold: true },
-          { text: String(input.items.length), align: 'center' as const },
+          { text: String(items.reduce((n, i) => n + i.copies, 0)), align: 'center' as const },
           '',
         ],
       ],
@@ -302,6 +308,142 @@ function inventoryPage(input: InventoryInput): (Paragraph | Table)[] {
       [w / 2, w / 2],
     ),
   ];
+}
+
+// Reconciliation: the cover letter and the inventory (form 107) for extracts sent to a TCK
+
+/** «1 особа», «3 особи», «12 осіб». */
+export function peopleCount(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  const word =
+    mod10 === 1 && mod100 !== 11
+      ? 'особа'
+      : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+        ? 'особи'
+        : 'осіб';
+  return `${n} ${word}`;
+}
+
+/** «Виписка зі списку персонального військового обліку призовників» / «Список …» — one item of the package. */
+export function reconciliationItem(section: ListSection, extract: boolean): string {
+  return `${extract ? 'Виписка зі списку' : 'Список'} персонального військового обліку ${LIST_SECTION_TITLES[section]}`;
+}
+
+/** «ІВАНЕНКО Іван Іванович» — as in the letters to the TCK. */
+const upperName = (p: ReconciliationPerson) =>
+  [p.lastName.toUpperCase(), p.firstName, p.middleName].filter(Boolean).join(' ');
+
+/** «Військово-обліковий документ в електронній формі ІВАНЕНКО Іван Іванович, сформований 12.03.2026 о 14:30». */
+export function evodItem(person: ReconciliationPerson): string {
+  const e = person.evod;
+  const when = e?.generatedDate
+    ? `, сформований ${formatUa(e.generatedDate)}${e.generatedTime ? ` о ${e.generatedTime}` : ''}`
+    : '';
+  return `Військово-обліковий документ в електронній формі ${upperName(person)}${when}`;
+}
+
+/** The attachments of the cover letter: the extracts (2 copies) and the eВОД of every person (1 copy). */
+export function reconciliationAttachments(input: Pick<ReconciliationInput, 'sections' | 'people' | 'extract'>) {
+  return [
+    ...input.sections.map((s) => ({
+      name: `${reconciliationItem(s.section, input.extract)} (${peopleCount(s.people)})`,
+      copies: EXTRACT_COPIES,
+      sheets: '',
+    })),
+    ...input.people.map((p) => ({ name: evodItem(p), copies: EVOD_COPIES, sheets: '1' })),
+  ];
+}
+
+/**
+ * The reconciliation package of one TCK:
+ *  - cover — the cover letter («Щодо звірки облікових даних») with the people of the extract and the attachments
+ *    (the extract in 2 copies, the eВОД of each person in 1), followed by the inventory of the attachments;
+ *  - inventory — the inventory for the post office (form 107).
+ * The number of sheets of the extract is left for the pen: Word decides the pagination.
+ */
+export async function buildReconciliation(input: ReconciliationInput): Promise<Buffer> {
+  const { org, letter, tck, extract, people } = input;
+  const w = CONTENT_WIDTH.portrait;
+  const attachments = reconciliationAttachments(input);
+  const ref = `від ${formatUa(letter.date)} р. № ${letter.number}`;
+
+  if (input.part === 'inventory') {
+    const post = inventoryPage({
+      org,
+      tck,
+      items: [
+        { name: `Лист щодо звірки облікових даних ${ref}`, copies: 1 },
+        ...attachments.map((a) => ({ name: a.name, copies: a.copies })),
+      ],
+    });
+    return render([section(post)], `Опис вкладення ${letter.number}`);
+  }
+
+  const what = extract ? 'виписки зі списків' : 'списки';
+  const cover: (Paragraph | Table)[] = [
+    twoColumns(
+      orgHeader(org),
+      [p(`Керівнику ${tckGenitive(tck)}`, { bold: true }), p(tck?.address ?? '')],
+      [w / 2, w / 2],
+    ),
+    ...empty(1),
+    p(`Вих. № ${letter.number}`),
+    p(`від ${formatUa(letter.date)} р.`),
+    ...empty(1),
+    p('Щодо звірки облікових даних', { bold: true, italics: true }),
+    ...empty(1),
+    p(
+      `Відповідно до Порядку організації та ведення військового обліку призовників, військовозобов’язаних та резервістів, ` +
+        `затвердженого постановою Кабінету Міністрів України від 30 грудня 2022 р. № 1487, надсилаємо для проведення звірки облікових даних ` +
+        `${what} персонального військового обліку призовників, військовозобов’язаних та резервістів, які працюють в ` +
+        `${blank(org.nameLocative || org.fullName)}${extract ? ' та перебувають на військовому обліку у Вашому територіальному центрі комплектування та соціальної підтримки' : ''}, ` +
+        `станом на ${formatUa(input.reportDate)} р.${people.length ? ', а саме:' : ''}`,
+      { align: 'justify', indent: 567 },
+    ),
+    ...people.map((person, i) =>
+      p(
+        `${i + 1}. ${upperName(person)}${person.birthDate ? `, дата народження - ${formatUa(person.birthDate)} р.` : ''}`,
+        { align: 'justify', indent: 567 },
+      ),
+    ),
+    p('Про виявлені розбіжності просимо повідомити.', { align: 'justify', indent: 567 }),
+    ...empty(1),
+    p(attachments.length === 1 ? 'Додаток:' : 'Додатки:', { bold: true }),
+    ...attachments.map((a, i) =>
+      p(`${i + 1}. ${a.name} на ${a.sheets || '___'} арк. в ${a.copies} прим.`, { indent: 567 }),
+    ),
+    ...empty(2),
+    signature(org.headPosition, org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
+    ...executor(input.responsible),
+  ];
+
+  // the inventory of the attachments — goes in the envelope together with the cover letter
+  const total = attachments.reduce((n, a) => n + a.copies, 0);
+  const inventory: (Paragraph | Table)[] = [
+    p('ОПИС', { bold: true, align: 'center', size: 14 }),
+    p(`документів, що додаються до листа ${ref}`, { align: 'center' }),
+    p(`«Щодо звірки облікових даних», адресат: ${tck?.name ?? '________________'}`, { align: 'center' }),
+    ...empty(1),
+    table(
+      [['№ з/п', 'Найменування документа', 'Кількість примірників', 'Кількість аркушів']],
+      [
+        ...attachments.map((a, i) => [
+          { text: String(i + 1), align: 'center' as const },
+          a.name,
+          { text: String(a.copies), align: 'center' as const },
+          { text: a.sheets, align: 'center' as const },
+        ]),
+        [{ text: 'Усього', colSpan: 2, bold: true }, { text: String(total), align: 'center' as const, bold: true }, ''],
+      ],
+      [Math.round(w * 0.08), Math.round(w * 0.6), Math.round(w * 0.16), Math.round(w * 0.16)],
+      { size: 11, headerSize: 10 },
+    ),
+    ...empty(2),
+    signature(org.headPosition, org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
+  ];
+
+  return render([section([...cover, pageBreak(), ...inventory])], `Супровідний лист ${letter.number}`);
 }
 
 // Personal military registration lists (Annex 5, ed. 2025)

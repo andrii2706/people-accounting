@@ -115,6 +115,39 @@
               <p class="text-xs text-muted">
                 від {{ l.date | uaDate }} · {{ l.status === 'SENT' ? 'передано' : 'чернетка' }}
               </p>
+              <p class="mt-1 flex flex-wrap gap-x-2 text-xs">
+                <button
+                  type="button"
+                  class="cursor-pointer text-brand-600 hover:underline"
+                  title="Супровідний лист з описом до вих. № {{ l.number }}"
+                  (click)="files.download(lettersService.reconciliationUrl(l.id, 'cover'))"
+                >
+                  супровідний
+                </button>
+                <button
+                  type="button"
+                  class="cursor-pointer text-brand-600 hover:underline"
+                  title="Архів із 4 документів: супровідний лист з описом, виписка, опис для пошти (ф. 107) і наклейка на конверт"
+                  (click)="files.download(lettersService.reconciliationUrl(l.id, 'all'))"
+                >
+                  усе .zip
+                </button>
+                <button
+                  type="button"
+                  class="cursor-pointer text-brand-600 hover:underline"
+                  title="Опис вкладення на пошту, ф. 107"
+                  (click)="files.download(lettersService.reconciliationUrl(l.id, 'inventory'))"
+                >
+                  опис ф. 107
+                </button>
+                <a
+                  class="text-brand-600 hover:underline"
+                  [href]="lettersService.labelsPrintUrl([l.id])"
+                  target="_blank"
+                  title="Друк конверта або наклейки"
+                  >конверт</a
+                >
+              </p>
             } @else if (r.item.tckId) {
               <span class="text-xs text-muted">ще не реєстрували</span>
             }

@@ -8,6 +8,7 @@ import type {
   LetterUpdate,
   ExternalNoticeRequest,
   ReportLetterRequest,
+  ReconciliationPart,
 } from '../interfaces/letter.interface';
 import type { LabelPrintData } from '../interfaces/label-settings.interface';
 
@@ -26,6 +27,11 @@ export class LettersService {
 
   documentUrl(id: string) {
     return `api/letters/${id}/docx`;
+  }
+
+  /** Reconciliation: the cover letter, the inventory (form 107) or both — for a letter with lists / extracts. */
+  reconciliationUrl(id: string, part: ReconciliationPart = 'all') {
+    return `api/letters/${id}/reconciliation?part=${part}`;
   }
 
   /** Notices for several employees — the server creates one letter per TCK. */

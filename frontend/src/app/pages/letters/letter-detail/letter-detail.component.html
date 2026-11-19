@@ -179,13 +179,47 @@
           способом — Укрпоштою, нарочно, через СЕД чи електронний кабінет, — і позначте лист як
           переданий.
         </p>
+        @if (l.type === 'LISTS' && !l.external) {
+          <div class="space-y-2 rounded-lg bg-sunken/60 p-3">
+            <p class="text-xs font-medium tracking-wide text-muted uppercase">Для звірки</p>
+            <div class="grid gap-2">
+              <button
+                type="button"
+                class="btn btn-secondary cursor-pointer justify-start"
+                title="«Щодо звірки облікових даних»: перелік працівників, додатки (виписка — 2 прим., єВОД — по 1) і опис документів"
+                [disabled]="files.busy() === lettersService.reconciliationUrl(l.id, 'cover')"
+                (click)="files.download(lettersService.reconciliationUrl(l.id, 'cover'))"
+              >
+                <app-icon name="file" /> Супровідний лист з описом
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary cursor-pointer justify-start"
+                title="Окремо — для пошти: опис вкладення у цінний лист, форма 107 Укрпошти"
+                [disabled]="files.busy() === lettersService.reconciliationUrl(l.id, 'inventory')"
+                (click)="files.download(lettersService.reconciliationUrl(l.id, 'inventory'))"
+              >
+                <app-icon name="table" /> Опис вкладення на пошту (ф. 107)
+              </button>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm cursor-pointer justify-start"
+                title="Архів із 4 документів: супровідний лист з описом, виписка, опис для пошти (ф. 107) і наклейка на конверт"
+                [disabled]="files.busy() === lettersService.reconciliationUrl(l.id, 'all')"
+                (click)="files.download(lettersService.reconciliationUrl(l.id, 'all'))"
+              >
+                <app-icon name="download" [size]="14" /> Усе для звірки (.zip)
+              </button>
+            </div>
+          </div>
+        }
         <div class="flex gap-2">
           <a
             class="btn btn-secondary flex-1 cursor-pointer"
             [href]="lettersService.labelsPrintUrl([l.id])"
             target="_blank"
-            title="Відкриється сторінка друку з налаштуваннями наклейок юрособи"
-            ><app-icon name="printer" /> Друкувати наклейку</a
+            title="Друк на конверті або наклейці — за налаштуваннями юрособи"
+            ><app-icon name="printer" /> Конверт / наклейка</a
           >
           <a
             class="btn btn-ghost cursor-pointer"

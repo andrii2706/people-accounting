@@ -11,6 +11,9 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import { tckOption, tckPlaceText } from '../../../shared/utils/tck.utils';
+import { SuggestInputComponent } from '../../../shared/components/suggest-input/suggest-input.component';
+import { TimeInputComponent } from '../../../shared/components/time-input/time-input.component';
 import {
   applyEach,
   disabled,
@@ -93,6 +96,8 @@ import type { NotificationStatus } from '../../../shared/interfaces/organization
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    SuggestInputComponent,
+    TimeInputComponent,
     FormField,
     FormFieldComponent,
     RouterLink,
@@ -244,8 +249,12 @@ export class EmployeeFormComponent {
       hint: r.compositionLabel,
     })),
   );
+  /** «Ким виданий» of a military document: the TCK of the directory (by name, town or district) or own text. */
+  protected readonly tckSuggestions = computed<SelectOption[]>(() =>
+    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name, hint: tckPlaceText(t) })),
+  );
   protected readonly tckOptions = computed<SelectOption[]>(() =>
-    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name })),
+    this.dict.activeTcks().map(tckOption),
   );
   protected readonly docTypeOptions = computed<SelectOption[]>(() =>
     (this.dict.dictionaries()?.militaryDocumentTypes ?? []).map((t) => ({ value: t, label: t })),

@@ -7,13 +7,30 @@ import type { PendingChange } from '../../../shared/interfaces/employee.interfac
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { LettersService } from '../../../shared/services/letters.service';
 import { ToastService } from '../../../shared/services/toast.service';
-import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
-import type { PendingChangesGroup } from '../../../shared/interfaces/letter.interface';
+import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
+import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
+import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
+import { externalNoticeType } from '../../../shared/utils/letter.utils';
+import { isoToDisplay, todayIso } from '../../../shared/utils/date.utils';
+import { injectRouteRefresh } from '../../../shared/utils/router.utils';
+import type {
+  NoticeRecordForm,
+  PendingChangesGroup,
+} from '../../../shared/interfaces/letter.interface';
 
 @Component({
   selector: 'app-pending-changes',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, RouterLink, IconComponent, UaDatePipe],
+  imports: [
+    PageHeaderComponent,
+    RouterLink,
+    IconComponent,
+    UaDatePipe,
+    FormField,
+    FormFieldComponent,
+    DateInputComponent,
+  ],
   templateUrl: './pending-changes.component.html',
 })
 export class PendingChangesComponent {
@@ -21,6 +38,7 @@ export class PendingChangesComponent {
   private readonly lettersService = inject(LettersService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
+  private readonly refresh = injectRouteRefresh();
 
   readonly pending = input.required<PendingChange[]>();
   protected readonly busy = signal<string | null>(null);
@@ -100,6 +118,57 @@ export class PendingChangesComponent {
     } finally {
       this.busy.set(null);
     }
+  }
+
+  /**
+   * «№ і дата»: the notice about this change was sent outside the app (on paper, through another system) —
+   * its outgoing number and date are recorded, and the change leaves the queue with them.
+   */
+  protected readonly recording = signal<PendingChange | null>(null);
+  protected readonly recordModel = signal<NoticeRecordForm>({ number: '', date: todayIso() });
+  protected readonly recordForm = form(this.recordModel, (p) => {
+    required(p.number, { message: 'Вкажіть номер повідомлення' });
+    maxLength(p.number, 50, { message: 'Не більше 50 символів' });
+    required(p.date, { message: 'Вкажіть дату повідомлення' });
+    validate(p.date, ({ value }) =>
+      value() && value() > todayIso()
+        ? { kind: 'future', message: 'Дата ще не настала' }
+        : undefined,
+    );
+  });
+
+  protected openRecord(c: PendingChange) {
+    this.recordModel.set({ number: '', date: todayIso() });
+    this.recording.set(this.recording()?.id === c.id ? null : c);
+  }
+
+  protected async saveRecord(event: Event, g: PendingChangesGroup) {
+    event.preventDefault();
+    const c = this.recording();
+    if (!c) return;
+    await submit(this.recordForm, async () => {
+      try {
+        const { number, date } = this.recordModel();
+        await this.lettersService.createExternalNotice({
+          employeeId: g.employeeId,
+          number: number.trim(),
+          date,
+          changeType: externalNoticeType(c.type),
+          effectiveDate: c.effectiveDate,
+          tckId: g.tckId ?? undefined,
+          description: [c.typeLabel, c.newValue].filter(Boolean).join(': ').slice(0, 1000),
+          changeIds: [c.id],
+        });
+        this.toast.success(
+          `Зафіксовано: повідомлення № ${number.trim()} від ${isoToDisplay(date)}`,
+        );
+        this.recording.set(null);
+        await this.refresh();
+        return undefined;
+      } catch (err) {
+        return formSubmitErrors(err, this.recordForm, (m) => this.toast.error(m));
+      }
+    });
   }
 
   protected async createLetter(g: PendingChangesGroup) {

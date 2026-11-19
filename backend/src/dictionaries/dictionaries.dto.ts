@@ -1,3 +1,4 @@
+import { TCK_PLACE_MAX } from './dictionaries.constants.js';
 import { PartialType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
@@ -28,6 +29,16 @@ export class CreateTckDto {
   @MaxLength(200, { message: 'Не більше 200 символів' })
   @Rule((v: string) => PATTERN.email.test(v), MESSAGE.email)
   email?: string;
+  /** Empty — determined from the address / name. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(TCK_PLACE_MAX, { message: `Не більше ${TCK_PLACE_MAX} символів` })
+  region?: string;
+  @IsOptional()
+  @IsString()
+  @MaxLength(TCK_PLACE_MAX, { message: `Не більше ${TCK_PLACE_MAX} символів` })
+  district?: string;
+  @IsOptional() @IsString() @MaxLength(TCK_PLACE_MAX, { message: `Не більше ${TCK_PLACE_MAX} символів` }) city?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
 

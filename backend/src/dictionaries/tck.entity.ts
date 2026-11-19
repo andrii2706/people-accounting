@@ -27,6 +27,18 @@ export class Tck {
   @Column({ type: 'varchar', length: 200, default: '' })
   email: string;
 
+  /** «Львівська область», «м. Київ» — filled from the address when empty. */
+  @Column({ type: 'varchar', length: 100, default: '' })
+  region: string;
+
+  /** «Шевченківський район» — filled from the name when empty; '' for regional and city centres. */
+  @Column({ type: 'varchar', length: 100, default: '' })
+  district: string;
+
+  /** «м. Броди», «смт Петриківка» — filled from the name / address when empty. */
+  @Column({ type: 'varchar', length: 100, default: '' })
+  city: string;
+
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 }

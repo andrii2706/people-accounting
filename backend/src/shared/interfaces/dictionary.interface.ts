@@ -80,13 +80,23 @@ export interface TckSeed {
   source: string;
 }
 
-export interface TckEntry {
+export interface TckEntry extends TckPlace {
   name: string;
   nameGenitive: string;
   address: string;
   postalCode: string;
   phone: string;
   email: string;
+}
+
+/** Where a TCK is: for the filters of the directory. */
+export interface TckPlace {
+  /** «Львівська область», «м. Київ» */
+  region: string;
+  /** «Шевченківський район»; '' — a regional or city centre */
+  district: string;
+  /** «м. Броди», «смт Петриківка» */
+  city: string;
 }
 
 export type TckLevel = 'O' | 'R' | 'M';

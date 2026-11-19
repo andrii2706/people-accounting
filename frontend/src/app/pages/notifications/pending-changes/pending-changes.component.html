@@ -87,12 +87,68 @@
               }
               <p class="text-xs text-muted">Підстава: {{ c.basis || 'не вказано' }}</p>
             </div>
-            <p
-              class="text-xs whitespace-nowrap"
-              [class]="c.overdue ? 'font-semibold text-danger' : 'text-muted'"
-            >
-              {{ c.overdue ? 'прострочено з' : 'до' }} {{ c.deadline | uaDate }}
-            </p>
+            <div class="flex flex-col items-end gap-1">
+              <p
+                class="text-xs whitespace-nowrap"
+                [class]="c.overdue ? 'font-semibold text-danger' : 'text-muted'"
+              >
+                {{ c.overdue ? 'прострочено з' : 'до' }} {{ c.deadline | uaDate }}
+              </p>
+              @if (auth.canEdit()) {
+                <button
+                  type="button"
+                  class="btn btn-ghost btn-sm cursor-pointer"
+                  [attr.aria-expanded]="recording()?.id === c.id"
+                  title="Повідомлення вже надіслано поза застосунком — внести його номер і дату"
+                  (click)="openRecord(c)"
+                >
+                  <app-icon name="edit" [size]="14" /> № і дата повідомлення
+                </button>
+              }
+            </div>
+            @if (recording()?.id === c.id) {
+              <form
+                class="grid w-full gap-3 rounded-lg border border-line bg-sunken/50 p-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-start"
+                (submit)="saveRecord($event, g)"
+                novalidate
+              >
+                <p class="text-xs text-muted sm:col-span-3">
+                  Повідомлення про {{ c.typeLabel.toLowerCase() }} надіслано до ТЦК поза
+                  застосунком. Внесіть його вихідний номер і дату — зміна піде з черги і буде в
+                  реєстрі листів та в картці працівника.
+                </p>
+                <app-form-field
+                  label="№ повідомлення"
+                  [required]="true"
+                  [field]="recordForm.number"
+                >
+                  <input
+                    class="input font-mono"
+                    autocomplete="off"
+                    [formField]="recordForm.number"
+                  />
+                </app-form-field>
+                <app-form-field label="Дата" [required]="true" [field]="recordForm.date">
+                  <app-date-input ariaLabel="Дата повідомлення" [formField]="recordForm.date" />
+                </app-form-field>
+                <div class="flex gap-2 sm:pt-6">
+                  <button
+                    type="submit"
+                    class="btn btn-primary cursor-pointer"
+                    [disabled]="recordForm().submitting()"
+                  >
+                    Зберегти
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-ghost cursor-pointer"
+                    (click)="recording.set(null)"
+                  >
+                    Скасувати
+                  </button>
+                </div>
+              </form>
+            }
           </li>
         }
       </ul>

@@ -832,7 +832,12 @@
                       label="Ким виданий"
                       [field]="doc.issuedBy"
                     >
-                      <input class="input" [formField]="doc.issuedBy" />
+                      <app-suggest-input
+                        ariaLabel="Ким виданий документ"
+                        placeholder="Оберіть ТЦК зі списку або введіть текст"
+                        [options]="tckSuggestions()"
+                        [formField]="doc.issuedBy"
+                      />
                     </app-form-field>
                     @if (isElectronic(model().militaryDocuments[i].type)) {
                       <app-form-field
@@ -848,14 +853,11 @@
                       <app-form-field
                         class="lg:col-span-2"
                         label="Час формування"
-                        hint="24-годинний формат, ГГ:ХХ"
+                        hint="Лише цифри: 1430 → 14:30"
                         [field]="doc.generatedTime"
                       >
-                        <input
-                          class="input font-mono tabular-nums"
-                          inputmode="numeric"
-                          placeholder="14:30"
-                          autocomplete="off"
+                        <app-time-input
+                          ariaLabel="Час формування"
                           [formField]="doc.generatedTime"
                         />
                       </app-form-field>

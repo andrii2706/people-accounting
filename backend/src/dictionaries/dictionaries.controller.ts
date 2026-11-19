@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Not, Repository } from 'typeorm';
 import {
   AllowPendingPasswordChange,
   AllowPendingTerms,
@@ -33,6 +33,7 @@ import {
 } from '../military/dictionaries.js';
 import { COMPOSITION_LABELS, RANKS } from '../military/ranks.js';
 import { Tck } from './tck.entity.js';
+import { tckPlace, withPlace } from './utils/tck-place.utils.js';
 import { CreateTckDto } from './dictionaries.dto.js';
 import { ImportTckDto } from './dictionaries.dto.js';
 import { UpdateTckDto } from './dictionaries.dto.js';
@@ -77,8 +78,8 @@ export class DictionariesController {
 
   @Roles('ADMIN')
   @Post('tck')
-  createTck(@Body() dto: CreateTckDto) {
-    return this.tckRepo.save(this.tckRepo.create(dto));
+  async createTck(@Body() dto: CreateTckDto) {
+    return this.tckRepo.save(this.tckRepo.create(await this.placed(dto)));
   }
 
   @Roles('ADMIN')
@@ -100,10 +101,11 @@ export class DictionariesController {
         const found = byName.get(key);
         if (found) {
           Object.assign(found, { ...item, name: found.name });
+          Object.assign(found, await this.placed(found));
           await m.save(found);
           updated++;
         } else {
-          const saved = await m.save(m.create(Tck, { ...item, name: item.name.trim() }));
+          const saved = await m.save(m.create(Tck, await this.placed({ ...item, name: item.name.trim() })));
           byName.set(key, saved);
           created++;
         }
@@ -121,13 +123,34 @@ export class DictionariesController {
   async updateTck(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateTckDto) {
     const tck = await this.tckRepo.findOneBy({ id });
     if (!tck) throw new NotFoundException('ТЦК не знайдено в довіднику');
+    // a place that was determined automatically follows a new name / address; one typed by hand stays
+    const before = tckPlace(tck);
+    for (const field of ['region', 'district', 'city'] as const) {
+      if (dto[field] === undefined && tck[field] === before[field]) tck[field] = '';
+    }
     Object.assign(tck, dto);
-    return this.tckRepo.save(tck);
+    return this.tckRepo.save(this.tckRepo.merge(tck, await this.placed(tck)));
   }
 
   @Roles('ADMIN')
   @Delete('tck/:id')
   async removeTck(@Param('id', ParseUUIDPipe) id: string) {
     await this.tckRepo.update(id, { isActive: false });
+  }
+
+  /**
+   * Empty region / district / town filled from the name and the address; a town that is not a regional centre
+   * («м. Стрий») takes the region of the other TCK of that town in the directory.
+   */
+  private async placed<T extends { name: string; address?: string; region?: string; district?: string; city?: string }>(
+    t: T,
+  ): Promise<T> {
+    const filled = withPlace(t);
+    if (filled.region || !filled.city) return filled;
+    const neighbour = await this.tckRepo.findOne({
+      where: { city: filled.city, region: Not('') },
+      select: { region: true },
+    });
+    return { ...filled, region: neighbour?.region ?? '' };
   }
 }

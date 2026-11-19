@@ -1,17 +1,26 @@
+import JSZip from 'jszip';
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, In, IsNull, Repository } from 'typeorm';
 import { formatUa, todayIso, yearOf } from '../common/utils/dates.utils.js';
 import { Tck } from '../dictionaries/tck.entity.js';
-import { buildChangeNotice, buildEnvelopeLabels, buildSingleNotice, noticeNumber } from '../documents/builders.js';
+import {
+  buildChangeNotice,
+  buildEnvelopeLabels,
+  buildReconciliation,
+  buildSingleNotice,
+  noticeNumber,
+} from '../documents/builders.js';
 import { noticeSnapshot } from '../documents/notice-snapshot.js';
-import type { Employee } from '../employees/entities/employee.entity.js';
+import { Employee } from '../employees/entities/employee.entity.js';
 import { CHANGE_TYPE_LABELS } from '../military/dictionaries.js';
 import { ChangeNotice } from './entities/change-notice.entity.js';
 import { AuditLog } from '../employees/entities/audit-log.entity.js';
 import { EmployeeChange } from '../employees/entities/employee-change.entity.js';
 import { EmployeesService } from '../employees/employees.service.js';
-import { LIST_GROUPS } from '../military/dictionaries.js';
+import { LIST_GROUPS, LIST_SECTIONS } from '../military/dictionaries.js';
+import { isElectronicDocType } from '../military/employee-rules.js';
+import type { ReconciliationPart } from '../shared/interfaces/document.interface.js';
 import { fullName } from '../military/employee-format.js';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { EXTERNAL_NO_DOCUMENT, LABELS_MAX_LETTERS } from './letters.constants.js';
@@ -536,6 +545,100 @@ export class LettersService {
       return { buffer, filename: `Відомість ${safeNumber} ${reportDate}.docx` };
     }
     throw new BadRequestException('Для цього типу листа документ не формується');
+  }
+
+  /**
+   * The cover letter and / or the inventory (form 107) of a letter with lists or extracts sent for reconciliation.
+   * The counts of people are those of the letter's lists (formed lists — exactly their rows).
+   */
+  async reconciliation(id: string, part: ReconciliationPart): Promise<FileResult> {
+    const letter = await this.repo.findOneBy({ id });
+    if (!letter) throw new NotFoundException('Лист не знайдено');
+    if (letter.type !== 'LISTS') {
+      throw new BadRequestException('Супровідний лист і опис для звірки — лише для листів зі списками чи виписками');
+    }
+    const safeNumber = letter.number.replace(/[\\/:*?"<>|]/g, '-');
+
+    // everything for the envelope: the cover letter with its inventory, the extract, the inventory for the post
+    // and the envelope label (access to the letter is checked by the controller)
+    if (part === 'all') {
+      const [cover, extract, post, label] = await Promise.all([
+        this.reconciliation(id, 'cover'),
+        this.document(id),
+        this.reconciliation(id, 'inventory'),
+        this.labels([id]),
+      ]);
+      const zip = new JSZip();
+      zip.file(`1 ${cover.filename}`, cover.buffer);
+      zip.file(`2 ${extract.filename}`, extract.buffer);
+      zip.file(`3 ${post.filename}`, post.buffer);
+      zip.file(`4 ${label.filename}`, label.buffer);
+      const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+      return { buffer, filename: `Звірка ${safeNumber}.zip` };
+    }
+
+    const params = letter.params as LetterParams;
+    const reportDate = params.reportDate ?? letter.date;
+    const extract = !!params.employeeIds?.length || !!params.byTck;
+    const rows = params.snapshotId
+      ? (await this.listSnapshots.rowsFor(params.snapshotId, letter.legalEntityId)).rows
+      : (
+          await this.reports.lists(reportDate, {
+            groups: params.groups ?? LIST_GROUPS,
+            onlyIds: params.employeeIds ?? undefined,
+            tckId: params.byTck ? letter.tckId : null,
+            legalEntityId: letter.legalEntityId,
+          })
+        ).rows;
+    const sections = LIST_SECTIONS.map((section) => ({
+      section,
+      people: rows.filter((r) => r.section === section).length,
+    })).filter((s) => s.people > 0);
+    if (!sections.length)
+      throw new BadRequestException('У листі нікого немає — додатків до супровідного листа не буде');
+
+    // the people in the order of the lists, each with his eВОД (when it is in the card)
+    const order = [...new Set(rows.map((r) => r.employeeId))];
+    const employees = await this.dataSource.getRepository(Employee).find({
+      where: { id: In(order) },
+      relations: { militaryDocuments: true },
+    });
+    const byId = new Map(employees.map((e) => [e.id, e]));
+    const people = order.flatMap((employeeId) => {
+      const e = byId.get(employeeId);
+      if (!e) return [];
+      const evod = (e.militaryDocuments ?? []).find((d) => isElectronicDocType(d.type));
+      return [
+        {
+          lastName: e.lastName,
+          firstName: e.firstName,
+          middleName: e.middleName,
+          birthDate: e.birthDate,
+          evod: evod
+            ? { number: evod.number, generatedDate: evod.generatedDate, generatedTime: evod.generatedTime }
+            : null,
+        },
+      ];
+    });
+
+    const [org, responsible, tck] = await Promise.all([
+      this.legalEntities.requisites(letter.legalEntityId),
+      this.legalEntities.responsible(letter.legalEntityId),
+      letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
+    ]);
+    const buffer = await buildReconciliation({
+      letter: { number: letter.number, date: letter.date },
+      reportDate,
+      tck,
+      org,
+      responsible,
+      extract,
+      sections,
+      people,
+      part,
+    });
+    const name = part === 'inventory' ? 'Опис вкладення ф107' : 'Супровідний лист з описом';
+    return { buffer, filename: `${name} ${safeNumber}.docx` };
   }
 
   /** Document frozen for e-signing, with an integrity check by SHA-256. */

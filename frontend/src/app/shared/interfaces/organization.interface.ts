@@ -38,12 +38,20 @@ export interface DecreeCheckResult {
 }
 
 /** The TCK edit form. */
-export type TckForm = Pick<Tck, 'name' | 'nameGenitive' | 'address' | 'phone' | 'email'> & {
+export type TckForm = Pick<
+  Tck,
+  'name' | 'nameGenitive' | 'address' | 'phone' | 'email' | 'region' | 'district' | 'city'
+> & {
   postalCode: string;
 };
 
 export type TckImportItem = Pick<Tck, 'name'> &
-  Partial<Pick<Tck, 'nameGenitive' | 'address' | 'postalCode' | 'phone' | 'email'>>;
+  Partial<
+    Pick<
+      Tck,
+      'nameGenitive' | 'address' | 'postalCode' | 'phone' | 'email' | 'region' | 'district' | 'city'
+    >
+  >;
 
 /** The «Строк мобілізації» card (manual override). */
 export interface OrganizationExtraForm {

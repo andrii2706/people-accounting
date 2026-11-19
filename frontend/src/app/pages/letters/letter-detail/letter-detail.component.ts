@@ -1,4 +1,5 @@
 import { AuthService } from '../../../shared/services/auth.service';
+import { tckOption } from '../../../shared/utils/tck.utils';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -18,6 +19,7 @@ import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { LettersService } from '../../../shared/services/letters.service';
+import { FileDownloadService } from '../../../shared/services/file-download.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
@@ -44,6 +46,7 @@ import type { SelectOption } from '../../../shared/interfaces/ui.interface';
 export class LetterDetailComponent {
   protected readonly auth = inject(AuthService);
   protected readonly lettersService = inject(LettersService);
+  protected readonly files = inject(FileDownloadService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   protected readonly dict = inject(DictionariesService);
@@ -73,7 +76,7 @@ export class LetterDetailComponent {
   }
 
   protected readonly tckOptions = computed<SelectOption[]>(() =>
-    this.dict.activeTcks().map((t) => ({ value: t.id, label: t.name })),
+    this.dict.activeTcks().map(tckOption),
   );
 
   protected async changeTck(tckId: string) {

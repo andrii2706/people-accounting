@@ -25,3 +25,18 @@ export function saveBytes(bytes: Uint8Array<ArrayBuffer>, fileName: string, type
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** The file name from «Content-Disposition» (the Unicode filename* first). */
+export function fileNameFromDisposition(header: string | null): string | null {
+  if (!header) return null;
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].trim());
+    } catch {
+      /* a broken encoding — try the plain name */
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain ? plain[1].trim() : null;
+}

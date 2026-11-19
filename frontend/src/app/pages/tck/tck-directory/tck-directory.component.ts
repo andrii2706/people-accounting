@@ -3,21 +3,33 @@ import { form, FormField, maxLength, pattern, required, submit } from '@angular/
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { PageHeaderComponent } from '../../../shared/components/page-header/page-header.component';
-import type { Tck } from '../../../shared/interfaces/dictionary.interface';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import type { Tck, TckFilter } from '../../../shared/interfaces/dictionary.interface';
 import type { PendingTckImport, TckForm } from '../../../shared/interfaces/organization.interface';
 import { AuthService } from '../../../shared/services/auth.service';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
-import { EMPTY_TCK_FORM, MAX_TCK_IMPORT_BYTES } from '../../../shared/constants/tck.constants';
-import { parseTckImport, tckToForm } from '../../../shared/utils/tck.utils';
+import {
+  EMPTY_TCK_FILTER,
+  EMPTY_TCK_FORM,
+  MAX_TCK_IMPORT_BYTES,
+  TCK_PLACE_MAX,
+} from '../../../shared/constants/tck.constants';
+import {
+  parseTckImport,
+  tckMatches,
+  tckPlaceOptions,
+  tckPlaceDetails,
+  tckToForm,
+} from '../../../shared/utils/tck.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
 
-/** Directory of TCKs: addresses and e-mails for letters, notices and extracts. */
+/** Directory of TCKs: addresses and e-mails for letters, notices and extracts; filters by region, town, district. */
 @Component({
   selector: 'app-tck-directory',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, FormField, FormFieldComponent, IconComponent],
+  imports: [PageHeaderComponent, FormField, FormFieldComponent, IconComponent, SelectComponent],
   templateUrl: './tck-directory.component.html',
 })
 export class TckDirectoryComponent {
@@ -61,11 +73,55 @@ export class TckDirectoryComponent {
     }
   }
 
-  protected readonly tckFilter = signal('');
-  protected readonly tcks = computed(() => {
-    const q = this.tckFilter().toLowerCase();
-    return this.dict.tcks().filter((t) => !q || t.name.toLowerCase().includes(q));
+  /** Region → town → district: each list shows only what is left after the filters above it. */
+  protected readonly filter = signal<TckFilter>({ ...EMPTY_TCK_FILTER });
+  protected readonly tcks = computed(() =>
+    this.dict.tcks().filter((t) => tckMatches(t, this.filter())),
+  );
+  protected readonly regionOptions = computed(() => tckPlaceOptions(this.dict.tcks(), 'region'));
+  protected readonly cityOptions = computed(() => {
+    const { region } = this.filter();
+    return tckPlaceOptions(this.inScope({ region }), 'city');
   });
+  protected readonly districtOptions = computed(() => {
+    const { region, city } = this.filter();
+    return tckPlaceOptions(this.inScope({ region, city }), 'district');
+  });
+  protected readonly filtered = computed(() => {
+    const f = this.filter();
+    return !!(f.query || f.region || f.city || f.district);
+  });
+  protected readonly placeDetails = tckPlaceDetails;
+
+  private inScope(f: Partial<TckFilter>) {
+    return this.dict.tcks().filter((t) => tckMatches(t, { ...EMPTY_TCK_FILTER, ...f }));
+  }
+
+  protected setQuery(query: string) {
+    this.filter.update((f) => ({ ...f, query }));
+  }
+
+  /** A new region clears the town and the district that are not in it; a new town — the district. */
+  protected setRegion(region: string) {
+    this.filter.update((f) => ({ ...f, region, city: '', district: '' }));
+  }
+  protected setCity(city: string) {
+    this.filter.update((f) => {
+      const next = { ...f, city };
+      // the town decides the region when none is chosen («м. Броди» → «Львівська область»)
+      if (city && !f.region)
+        next.region = this.dict.tcks().find((t) => t.city === city)?.region ?? '';
+      if (f.district && !this.inScope({ region: next.region, city, district: f.district }).length)
+        next.district = '';
+      return next;
+    });
+  }
+  protected setDistrict(district: string) {
+    this.filter.update((f) => ({ ...f, district }));
+  }
+  protected resetFilter() {
+    this.filter.set({ ...EMPTY_TCK_FILTER });
+  }
   protected readonly editingTck = signal<string | null>(null);
   protected readonly tckModel = signal<TckForm>({ ...EMPTY_TCK_FORM });
   protected readonly tckForm = form(this.tckModel, (p) => {
@@ -77,6 +133,9 @@ export class TckDirectoryComponent {
     maxLength(p.phone, 200, { message: MESSAGE.tooLong(200) });
     maxLength(p.email, 200, { message: MESSAGE.tooLong(200) });
     pattern(p.email, PATTERN.email, { message: MESSAGE.email });
+    maxLength(p.region, TCK_PLACE_MAX, { message: MESSAGE.tooLong(TCK_PLACE_MAX) });
+    maxLength(p.district, TCK_PLACE_MAX, { message: MESSAGE.tooLong(TCK_PLACE_MAX) });
+    maxLength(p.city, TCK_PLACE_MAX, { message: MESSAGE.tooLong(TCK_PLACE_MAX) });
   });
 
   protected editTck(t: Tck | null) {

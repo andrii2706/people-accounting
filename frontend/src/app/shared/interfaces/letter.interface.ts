@@ -130,3 +130,12 @@ export interface ExternalNoticeForm {
   tckId: string;
   description: string;
 }
+
+/** A part of the reconciliation package: the cover letter, the inventory (form 107) or both. */
+export type ReconciliationPart = 'cover' | 'inventory' | 'all';
+
+/** «№ і дата» of a notice about one queued change that was sent outside the app. */
+export interface NoticeRecordForm {
+  number: string;
+  date: string;
+}

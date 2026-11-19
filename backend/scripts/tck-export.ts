@@ -21,7 +21,8 @@ const client = new Client({ connectionString: url });
 await client.connect();
 try {
   const { rows } = await client.query(
-    `SELECT name, "nameGenitive", address, "postalCode", phone, email, "isActive" FROM tck ORDER BY name`,
+    `SELECT name, "nameGenitive", address, "postalCode", phone, email, region, district, city, "isActive"
+     FROM tck ORDER BY name`,
   );
   writeFileSync(out, JSON.stringify({ format: 'military-registry/tck', version: 1, items: rows }, null, 2));
   console.log(`✔ Експортовано ТЦК: ${rows.length} → ${out}`);

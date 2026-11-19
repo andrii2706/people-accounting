@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
+import type { ReconciliationPart } from '../shared/interfaces/document.interface.js';
 import type { LabelPrintData } from '../shared/interfaces/label-settings.interface.js';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
@@ -130,6 +131,24 @@ export class LettersController {
   async docx(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
     await this.letters.assertAccess(id, scope);
     const { buffer, filename } = await this.letters.document(id);
+    await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
+    return documentFile(buffer, filename);
+  }
+
+  /**
+   * Reconciliation: the cover letter with the inventory (?part=cover), the inventory form 107 (?part=inventory)
+   * or a .zip with the cover letter, the extract, the inventory form 107 and the envelope label (all).
+   */
+  @Get(':id/reconciliation')
+  async reconciliation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('part') part: string | undefined,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ) {
+    await this.letters.assertAccess(id, scope);
+    const which: ReconciliationPart = part === 'cover' || part === 'inventory' ? part : 'all';
+    const { buffer, filename } = await this.letters.reconciliation(id, which);
     await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
     return documentFile(buffer, filename);
   }

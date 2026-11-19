@@ -11,6 +11,7 @@ import type { ListSection } from '../../../shared/interfaces/dictionary.interfac
 import type { TckExtractSummary } from '../../../shared/interfaces/report.interface';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { LettersService } from '../../../shared/services/letters.service';
+import { FileDownloadService } from '../../../shared/services/file-download.service';
 import { NavigationStateService } from '../../../shared/services/navigation-state.service';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -41,7 +42,8 @@ import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.u
 export class ExtractsComponent {
   protected readonly auth = inject(AuthService);
   private readonly reportsService = inject(ReportsService);
-  private readonly lettersService = inject(LettersService);
+  protected readonly lettersService = inject(LettersService);
+  protected readonly files = inject(FileDownloadService);
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly dict = inject(DictionariesService);
