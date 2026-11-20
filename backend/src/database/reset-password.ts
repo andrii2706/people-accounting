@@ -6,6 +6,7 @@
  *   npm run password:reset -- user@company.ua --mfa   — also turn off the sign-in code (lost phone)
  *   npm run password:reset -- admin@gmail.com --password "ChangeMe123!"   — exactly this password; an account
  *       that does not exist yet is created as an administrator
+ *   npm run password:reset admin@gmail.com ChangeMe123!                    — the same without flags
  *
  * Prints the new password, unlocks the account and ends its sessions. Never runs in production
  * (NODE_ENV=production): there the password is reset by an administrator or by «Забули пароль?».
@@ -19,6 +20,7 @@ import { User } from '../users/user.entity.js';
 import { BCRYPT_ROUNDS } from '../users/users.constants.js';
 import { passwordProblems } from '../common/utils/password-policy.utils.js';
 import { buildDataSourceOptions } from './data-source.js';
+import { databaseLabel } from './utils/database-label.utils.js';
 
 /** Letters and digits that cannot be misread (no 0/O, 1/l/I), with a dash in the middle: easy to type. */
 function newPassword(email: string): string {
@@ -49,6 +51,8 @@ async function resetPassword() {
   const positional = args.filter(
     (a, i) => !a.startsWith('--') && !(at >= 0 && i === at + 1 && !args[at].includes('=')),
   );
+  // the password may also come second, without a flag: «… admin@gmail.com ChangeMe123!» (PowerShell eats «--»)
+  const chosen = given ?? positional[1];
   const email = (positional[0] ?? process.env.ADMIN_EMAIL ?? 'admin@example.com').trim().toLowerCase();
   const dropMfa = args.includes('--mfa');
 
@@ -62,8 +66,9 @@ async function resetPassword() {
   }
   try {
     const repo = db.getRepository(User);
-    let user = await repo.findOneBy({ email });
-    if (!user && given) {
+    // the same lookup as the sign-in: the email in any case (an «Admin@…» typed by hand is the same account)
+    let user = await repo.createQueryBuilder('u').where('LOWER(TRIM(u.email)) = :email', { email }).getOne();
+    if (!user && chosen) {
       user = await repo.save(
         repo.create({ email, fullName: 'Адміністратор', role: 'ADMIN', passwordHash: '!', modules: ['oblik'] }),
       );
@@ -78,10 +83,11 @@ async function resetPassword() {
       process.exitCode = 1;
       return;
     }
-    const password = given ?? newPassword(email);
+    const password = chosen ?? newPassword(email);
     const weak = passwordProblems(password, email);
     if (weak.length) console.warn(`  Увага: пароль не відповідає правилам (${weak.join(', ')}) — локально прийнято.`);
     await repo.update(user.id, {
+      email, // a hand-edited «Admin@gmail.com » becomes the one the sign-in finds
       passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
       isActive: true,
       mustChangePassword: false,
@@ -93,7 +99,10 @@ async function resetPassword() {
       ...(dropMfa ? { mfaSecret: null, mfaEnabledAt: null, mfaRecoveryHashes: [], mfaLastStep: null } : {}),
       tokenVersion: () => '"tokenVersion" + 1', // the old sessions end
     });
-    console.log(`\n  ${email}\n  ${given ? 'пароль встановлено' : `новий пароль: ${password}`}\n`);
+    // shown in full (a local database only): what the shell passed may differ from what was typed (%, ^, &, $)
+    console.log(`\n  база: ${databaseLabel()}\n  ${email}\n  пароль: ${password}\n`);
+    console.log('  Вхід у застосунку відповідає «Невірний email або пароль»? Його API працює з іншою базою —');
+    console.log('  порівняйте «база:» вище з рядком «база:» у терміналі API (oblik-api).\n');
     if (dropMfa) console.log('  Вхід з кодом вимкнено — система запропонує налаштувати його знову.\n');
     else if (user.mfaEnabledAt) console.log('  Вхід з кодом лишився. Немає телефона — додайте --mfa.\n');
   } finally {

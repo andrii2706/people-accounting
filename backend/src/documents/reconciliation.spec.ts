@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
 import {
+  changeNoticeInventoryItems,
   buildReconciliation,
   evodItem,
   peopleCount,
@@ -82,5 +83,42 @@ describe('reconciliation package', () => {
     expect(text).toContain('на ____ арк.'); // the extract: the sheets by hand
     expect(text).toContain('ТОВ «Вигадана компанія»'); // the sender
     expect(text).toContain('Виправлення не допускаються');
+  });
+
+  it('the cover letter is the letter alone — the inventory for the post is a file of its own', async () => {
+    const input = {
+      part: 'cover',
+      org: {
+        shortName: 'ТОВ «Вигадана компанія»',
+        fullName: '',
+        address: '',
+        edrpou: '12345678',
+        headName: '',
+        headPosition: '',
+      },
+      tck: { name: 'Шевченківський РТЦК та СП (м. Львів)', address: '79007, м. Львів, вул. Батуринська, 2' },
+      letter: { number: '7', date: '2026-11-20' },
+      reportDate: '2026-11-20',
+      extract: true,
+      sections: [{ section: 'SOLDIERS', people: 1 }],
+      people: [{ lastName: 'Прикладний', firstName: 'Сергій', middleName: '', birthDate: '1979-11-03', evod: null }],
+      responsible: null,
+    } as unknown as Parameters<typeof buildReconciliation>[0];
+    const zip = await JSZip.loadAsync(await buildReconciliation(input));
+    const text = (await zip.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, '');
+    expect(text).toContain('Щодо звірки облікових даних');
+    expect(text).not.toContain('ОПИС');
+  });
+
+  it('form 107 of a letter with notices: the letter and every notice on a line of its own', () => {
+    const person = { lastName: 'Прикладний', firstName: 'Сергій', middleName: '', birthDate: '1979-11-03' };
+    const items = changeNoticeInventoryItems({ number: '12', date: '2026-11-20' }, [
+      { ...person, sequence: 1, changeType: 'HIRE' },
+      { ...person, sequence: 2, changeType: 'POSITION' },
+    ] as Parameters<typeof changeNoticeInventoryItems>[1]);
+    expect(items).toHaveLength(3);
+    expect(items[0].name).toMatch(/^Лист щодо повідомлення про зміну облікових даних працівника/);
+    expect(items[1].name).toMatch(/№ 12\/1/);
+    expect(items.every((i) => i.copies === 1 && i.sheets === '1')).toBe(true);
   });
 });

@@ -4,6 +4,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthGuard } from '../common/guards/auth.guard.js';
+import { SsoController } from './sso.controller.js';
 import { loadEnv } from '../config/env.js';
 import { User } from '../users/user.entity.js';
 import { UsersModule } from '../users/users.module.js';
@@ -29,7 +30,8 @@ import { SessionService } from './session.service.js';
       errorMessage: 'Забагато спроб. Зачекайте хвилину й спробуйте знову.',
     }),
   ],
-  controllers: [AuthController],
+  // SsoController — the entrance from the portal (SSO); its own sign-in stays in AuthController
+  controllers: [AuthController, SsoController],
   providers: [
     SessionService,
     MfaService,

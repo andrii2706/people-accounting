@@ -35,6 +35,11 @@ export class LettersService {
     return `api/letters/${id}/inventory`;
   }
 
+  /** The letter, form 107 and the label in one .zip — each a file of its own. */
+  postPackageUrl(id: string) {
+    return `api/letters/${id}/post-package`;
+  }
+
   reconciliationUrl(id: string, part: ReconciliationPart = 'all') {
     return `api/letters/${id}/reconciliation?part=${part}`;
   }

@@ -92,6 +92,33 @@ export interface TwoFactorEnabled<U = SessionUser> {
   recoveryCodes: string[];
 }
 
+/**
+ * The ticket the portal gives a module for one sign-in (SSO): ES256, signed with the session key of the portal,
+ * for one module (`aud`), valid for a minute and once (`jti`). The module checks it with the portal's JWKS,
+ * finds (or adds) its own account by the email and issues its own session.
+ */
+export interface SsoTicketClaims {
+  typ: 'sso';
+  sub: string;
+  email: string;
+  name: string;
+  role: string;
+  /** The company of the account: ЄДРПОУ and name — the module ties its account to its own legal entity. */
+  company: { code: string; name: string } | null;
+  /** Where to go in the module after it (a path on the domain, /oblik/…). */
+  next: string;
+  jti: string;
+  iss?: string;
+  aud?: string | string[];
+  exp?: number;
+}
+
+export const SSO_TICKET_TYPE = 'sso';
+/** How long a ticket lives, seconds — it is used at once by the redirect. */
+export const SSO_TICKET_SECONDS = 60;
+/** Where a module takes the ticket (on its own path of the domain). */
+export const SSO_PATH = 'api/auth/sso';
+
 /** The sign-in page of the portal; `next` — where to return after it. */
 export const LOGIN_PAGE = '/login';
 
@@ -132,3 +159,10 @@ export const MODULE_NOT_CONNECTED = 'MODULE_NOT_CONNECTED';
 
 /** The error code of a module whose use is not paid (a debt for the system): the module is closed, the sign-in is not. */
 export const BILLING_DEBT = 'BILLING_DEBT';
+
+/** `next` of a module: a path inside the module (/oblik/…), otherwise the module's start — never another site. */
+export function safeNextPath(next: string | null | undefined, within: string, fallback: string): string {
+  return typeof next === 'string' && next.startsWith(within) && !next.includes('//') && !next.includes('\\')
+    ? next
+    : fallback;
+}

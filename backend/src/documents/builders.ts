@@ -71,6 +71,7 @@ import type {
 } from '../shared/interfaces/document.interface.js';
 import type {
   InventoryInput,
+  InventoryItem,
   ReconciliationInput,
   ReconciliationPerson,
 } from '../shared/interfaces/document.interface.js';
@@ -100,7 +101,8 @@ export function noticeNumber(letterNumber: string, sequence: number, total: numb
   return total > 1 ? `${letterNumber}/${sequence}` : letterNumber;
 }
 
-const snapshotName = (n: NoticeSnapshot) => [n.lastName, n.firstName, n.middleName].filter(Boolean).join(' ');
+const snapshotName = (n: Pick<NoticeSnapshot, 'lastName' | 'firstName' | 'middleName'>) =>
+  [n.lastName, n.firstName, n.middleName].filter(Boolean).join(' ');
 
 function noticePage(
   n: NoticeItem,
@@ -180,7 +182,10 @@ export async function buildSingleNotice(
   );
 }
 
-/** Cover letter + notices (one page per change) + inventory form 107. Supports several employees in one letter. */
+/**
+ * Cover letter + notices (one page per change). Supports several employees in one letter. The inventory for the
+ * post office (form 107) is a file of its own — changeNoticeInventoryItems.
+ */
 export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffer> {
   const { org, letter, notices, responsible, tck } = input;
   const w = CONTENT_WIDTH.portrait;
@@ -253,19 +258,7 @@ export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffe
 
   const ctx = { letter, org, total, tckGenitiveName: tckGenitive(tck) };
   const pages = notices.flatMap((n) => [pageBreak(), ...noticePage(n, ctx)]);
-  const inventory = inventorySection({
-    org,
-    tck,
-    items: [
-      {
-        name: `Лист щодо повідомлення про зміну облікових даних ${single ? 'працівника' : 'працівників'} від ${formatUa(letter.date)} року № ${letter.number} з додатками`,
-        copies: 1,
-        sheets: String(1 + total),
-      },
-    ],
-  });
-
-  return render([section([...cover, ...pages]), inventory], `Повідомлення ${letter.number}`);
+  return render([section([...cover, ...pages])], `Повідомлення ${letter.number}`);
 }
 
 // Inventory of contents, form 107 (the Ukrposhta blank)
@@ -396,7 +389,32 @@ function inventorySection(input: InventoryInput): ISectionOptions {
   });
 }
 
-/** Form 107 alone — for a letter whose document has no inventory of its own (the operational report). */
+/**
+ * The lines of form 107 for a letter with notices: every document on its own line (Ukrposhta does not accept
+ * «додатки на N арк.») — the cover letter, then each notice.
+ */
+export function changeNoticeInventoryItems(
+  letter: { number: string; date: string },
+  notices: Pick<NoticeItem, 'sequence' | 'changeType' | 'lastName' | 'firstName' | 'middleName' | 'birthDate'>[],
+): InventoryItem[] {
+  const total = notices.length;
+  const people = new Set(notices.map((n) => `${snapshotName(n)}|${n.birthDate}`));
+  const single = people.size === 1;
+  return [
+    {
+      name: `Лист щодо повідомлення про зміну облікових даних ${single ? 'працівника' : 'працівників'} від ${formatUa(letter.date)} р. № ${letter.number}`,
+      copies: 1,
+      sheets: '1',
+    },
+    ...notices.map((n) => ({
+      name: `Повідомлення про зміну облікових даних від ${formatUa(letter.date)} р. № ${noticeNumber(letter.number, n.sequence, total)} (${CHANGE_TYPE_LABELS[n.changeType]}${single ? '' : `, ${snapshotName(n)}`})`,
+      copies: 1,
+      sheets: '1',
+    })),
+  ];
+}
+
+/** Form 107 alone, a file of its own: no cover letter or report carries it inside. */
 export async function buildInventory(input: InventoryInput & { title: string }): Promise<Buffer> {
   return render([inventorySection(input)], input.title);
 }

@@ -119,7 +119,7 @@
                 <button
                   type="button"
                   class="cursor-pointer text-brand-600 hover:underline"
-                  title="Супровідний лист з описом до вих. № {{ l.number }}"
+                  title="Супровідний лист до вих. № {{ l.number }}"
                   (click)="files.download(lettersService.reconciliationUrl(l.id, 'cover'))"
                 >
                   супровідний
@@ -127,7 +127,7 @@
                 <button
                   type="button"
                   class="cursor-pointer text-brand-600 hover:underline"
-                  title="Архів із 4 документів: супровідний лист з описом, витяг, опис для пошти (ф. 107) і наклейка на конверт"
+                  title="Архів із 4 документів: супровідний лист, витяг, опис для пошти (ф. 107) і наклейка на конверт"
                   (click)="files.download(lettersService.reconciliationUrl(l.id, 'all'))"
                 >
                   усе .zip

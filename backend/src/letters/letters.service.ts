@@ -11,6 +11,7 @@ import {
   buildSingleNotice,
   noticeNumber,
   buildInventory,
+  changeNoticeInventoryItems,
 } from '../documents/builders.js';
 import { noticeSnapshot } from '../documents/notice-snapshot.js';
 import { Employee } from '../employees/entities/employee.entity.js';
@@ -43,7 +44,7 @@ import type {
 import type { FileResult, IsoDate } from '../shared/interfaces/common.interface.js';
 import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 import { assertInScope, inScope } from '../common/utils/entity-scope.utils.js';
-import type { LabelParty, NoticeSnapshot } from '../shared/interfaces/document.interface.js';
+import type { InventoryItem, LabelParty, NoticeSnapshot } from '../shared/interfaces/document.interface.js';
 import type { MaxNumberRow } from '../shared/interfaces/letter.interface.js';
 import { documentMime, P7S_MIME } from '../common/constants/mime.constants.js';
 import { sha256 } from '../common/utils/hash.utils.js';
@@ -666,7 +667,7 @@ export class LettersService {
       people,
       part,
     });
-    const name = part === 'inventory' ? 'Опис вкладення ф107' : 'Супровідний лист з описом';
+    const name = part === 'inventory' ? 'Опис вкладення ф107' : 'Супровідний лист';
     return { buffer, filename: `${name} ${safeNumber}.docx` };
   }
 
@@ -681,18 +682,46 @@ export class LettersService {
     const org = await this.legalEntities.requisites(letter.legalEntityId);
     const params = (letter.params ?? {}) as LetterParams;
     const ref = `від ${formatUa(letter.date)} р. № ${letter.number}`;
-    const name =
-      letter.type === 'OPERATIONAL_REPORT'
-        ? `Відомість оперативного обліку призовників, військовозобов’язаних та резервістів станом на ${formatUa(params.reportDate ?? letter.date)} р. (лист ${ref})`
-        : `Лист ${ref}${letter.subject ? ` «${letter.subject}»` : ''}`;
-    const buffer = await buildInventory({
-      org,
-      tck: letter.tck,
-      items: [{ name, copies: 1 }],
-      title: `Опис вкладення ${letter.number}`,
-    });
+    let items: InventoryItem[];
+    if (letter.type === 'CHANGE_NOTICE') {
+      const rows = await this.ensureNotices(letter);
+      if (!rows.length) throw new BadRequestException('У листі немає повідомлень');
+      const notices = rows.map((r) => ({
+        ...(JSON.parse(r.content) as NoticeSnapshot),
+        sequence: r.sequence,
+        changeType: r.changeType,
+      }));
+      items = changeNoticeInventoryItems({ number: letter.number, date: letter.date }, notices);
+    } else if (letter.type === 'OPERATIONAL_REPORT') {
+      items = [
+        {
+          name: `Відомість оперативного обліку призовників, військовозобов’язаних та резервістів станом на ${formatUa(params.reportDate ?? letter.date)} р. (лист ${ref})`,
+          copies: 1,
+        },
+      ];
+    } else {
+      items = [{ name: `Лист ${ref}${letter.subject ? ` «${letter.subject}»` : ''}`, copies: 1 }];
+    }
+    const buffer = await buildInventory({ org, tck: letter.tck, items, title: `Опис вкладення ${letter.number}` });
     const safeNumber = letter.number.replace(/[\\/:*?"<>|]/g, '-');
     return { buffer, filename: `Опис вкладення ф107 ${safeNumber}.docx` };
+  }
+
+  /**
+   * Everything for the envelope of a letter with notices or of the operational report — each a file of its own:
+   * the letter (with the notices / the report), the inventory for the post (form 107) and the envelope label.
+   */
+  async postPackage(id: string): Promise<FileResult> {
+    const letter = await this.repo.findOneBy({ id });
+    if (!letter) throw new NotFoundException('Лист не знайдено');
+    if (letter.type === 'LISTS') return this.reconciliation(id, 'all');
+    const [doc, inventory, label] = await Promise.all([this.document(id), this.inventory(id), this.labels([id])]);
+    const zip = new JSZip();
+    zip.file(`1 ${doc.filename}`, doc.buffer);
+    zip.file(`2 ${inventory.filename}`, inventory.buffer);
+    zip.file(`3 ${label.filename}`, label.buffer);
+    const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+    return { buffer, filename: `Для пошти ${letter.number.replace(/[\\/:*?"<>|]/g, '-')}.zip` };
   }
 
   /** Document frozen for e-signing, with an integrity check by SHA-256. */

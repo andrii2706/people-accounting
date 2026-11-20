@@ -6,6 +6,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import { databaseLabel } from './database/utils/database-label.utils.js';
 import { AppModule } from './app.module.js';
 import { DbExceptionFilter } from './common/filters/db-exception.filter.js';
 import { csrfGuard, noStore } from './common/middleware/security.middleware.js';
@@ -76,5 +77,7 @@ async function bootstrap() {
     `API: http://localhost:${env.port}/api${env.swagger ? `  ·  Swagger: http://localhost:${env.port}/api/docs` : ''}`,
     'Bootstrap',
   );
+  // which database the accounts are in — the password reset (npm run password:reset) prints the same line
+  if (!env.isProduction) Logger.log(`база: ${databaseLabel()}`, 'Bootstrap');
 }
 await bootstrap();
