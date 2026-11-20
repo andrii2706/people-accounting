@@ -186,7 +186,7 @@
               <button
                 type="button"
                 class="btn btn-secondary cursor-pointer justify-start"
-                title="«Щодо звірки облікових даних»: перелік працівників, додатки (виписка — 2 прим., єВОД — по 1) і опис документів"
+                title="«Щодо звірки облікових даних»: перелік працівників, додатки (витяг — 2 прим., єВОД — по 1) і опис документів"
                 [disabled]="files.busy() === lettersService.reconciliationUrl(l.id, 'cover')"
                 (click)="files.download(lettersService.reconciliationUrl(l.id, 'cover'))"
               >
@@ -204,7 +204,7 @@
               <button
                 type="button"
                 class="btn btn-ghost btn-sm cursor-pointer justify-start"
-                title="Архів із 4 документів: супровідний лист з описом, виписка, опис для пошти (ф. 107) і наклейка на конверт"
+                title="Архів із 4 документів: супровідний лист з описом, витяг, опис для пошти (ф. 107) і наклейка на конверт"
                 [disabled]="files.busy() === lettersService.reconciliationUrl(l.id, 'all')"
                 (click)="files.download(lettersService.reconciliationUrl(l.id, 'all'))"
               >
@@ -212,6 +212,21 @@
               </button>
             </div>
           </div>
+        }
+        @if ((l.type === 'OPERATIONAL_REPORT' || l.type === 'OTHER') && !l.external) {
+          <button
+            type="button"
+            class="btn btn-secondary w-full cursor-pointer justify-start"
+            [title]="
+              l.tckId
+                ? 'Опис вкладення у цінний лист, форма 107 Укрпошти — на ім’я ТЦК-адресата'
+                : 'Спершу оберіть ТЦК-адресата'
+            "
+            [disabled]="!l.tckId || files.busy() === lettersService.inventoryUrl(l.id)"
+            (click)="files.download(lettersService.inventoryUrl(l.id))"
+          >
+            <app-icon name="table" /> Опис вкладення на пошту (ф. 107)
+          </button>
         }
         <div class="flex gap-2">
           <a

@@ -181,6 +181,9 @@ export class AuthService {
   }
 
   /** The session ended on the server (idle timeout) — reset the state without a request. */
+  /** Why the module was closed (the text of the API) — the login page shows it after ?reason=billing. */
+  readonly closedMessage = signal('');
+
   markSignedOut() {
     this._user.set(null);
   }

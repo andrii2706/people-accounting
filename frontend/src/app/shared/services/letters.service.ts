@@ -30,6 +30,11 @@ export class LettersService {
   }
 
   /** Reconciliation: the cover letter, the inventory (form 107) or both — for a letter with lists / extracts. */
+  /** The inventory for the post office (form 107) of the operational report and other letters. */
+  inventoryUrl(id: string) {
+    return `api/letters/${id}/inventory`;
+  }
+
   reconciliationUrl(id: string, part: ReconciliationPart = 'all') {
     return `api/letters/${id}/reconciliation?part=${part}`;
   }

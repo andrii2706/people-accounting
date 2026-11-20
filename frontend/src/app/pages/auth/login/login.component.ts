@@ -1,4 +1,5 @@
 import { REPORT_NAMES } from '../../../shared/constants/lists.constants';
+import { BILLING_CLOSED_TEXT } from '../../../shared/constants/auth.constants';
 import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
 import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
@@ -53,6 +54,9 @@ export class LoginComponent {
   readonly signup = input<string>('');
 
   protected readonly error = signal('');
+  /** ?reason=billing — the module was closed for a debt (the text of the API, if it came). */
+  protected readonly closedMessage = this.auth.closedMessage;
+  protected readonly billingClosedText = BILLING_CLOSED_TEXT;
   /** The password → the code from the app (or setting the app up) → the recovery codes. */
   protected readonly step = signal<LoginStep>('password');
   private readonly challenge = signal<LoginChallenge | null>(null);

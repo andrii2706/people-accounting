@@ -12,6 +12,9 @@ import type { Repository } from 'typeorm';
 import { SessionService } from '../../auth/session.service.js';
 import { modulesOf, toAuthUser } from '../../auth/utils/auth.utils.js';
 import { MODULE_NOT_CONNECTED } from '../../platform/contracts/session.js';
+import { BILLING_BLOCKED_MESSAGE, BILLING_DEBT_CODE } from '../../billing/billing.constants.js';
+import { BillingService } from '../../billing/billing.service.js';
+import { blockedMessage } from '../../billing/utils/billing.utils.js';
 import { OfferGateService } from '../../subscriptions/offer-gate.service.js';
 import { SubscriptionGateService } from '../../subscriptions/subscription-gate.service.js';
 import { PLAN_REQUIRED, SUBSCRIPTION_EXPIRED, TERMS_REQUIRED } from '../../subscriptions/subscriptions.constants.js';
@@ -47,6 +50,7 @@ export class AuthGuard implements CanActivate {
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly subscriptions: SubscriptionGateService,
     private readonly offers: OfferGateService,
+    private readonly billing: BillingService,
   ) {}
 
   private readonly env = loadEnv();
@@ -155,6 +159,19 @@ export class AuthGuard implements CanActivate {
           statusCode: 403,
           code: SUBSCRIPTION_EXPIRED,
           message: 'Пробний період або оплачений строк закінчився — доступ відновиться після оплати рахунку',
+        });
+      }
+    }
+
+    // a debt for using the system closes the module (not the sign-in): one session after the debt was set
+    // still works, the later ones are answered BILLING_DEBT — the portal shows why and what to do
+    if (user.role !== 'VENDOR' && !allows(ALLOW_UNPAID) && !allows(IDENTITY_ROUTE)) {
+      const { gate, contact } = await this.billing.sessionGate(user, payload.sst);
+      if (gate === 'blocked') {
+        throw new ForbiddenException({
+          statusCode: 403,
+          code: BILLING_DEBT_CODE,
+          message: blockedMessage(BILLING_BLOCKED_MESSAGE, contact),
         });
       }
     }

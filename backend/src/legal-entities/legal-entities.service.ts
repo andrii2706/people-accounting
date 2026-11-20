@@ -190,20 +190,25 @@ export class LegalEntitiesService {
    * the recipient — the TCK where most of its employees are registered (a sample TCK when none).
    */
   async sampleLabel(id: string): Promise<EnvelopeLabel> {
-    const [org, responsible, top] = await Promise.all([
-      this.requisites(id),
-      this.responsible(id),
-      this.employees
-        .createQueryBuilder('e')
-        .select('e.tckId', 'tckId')
-        .where('e.legalEntityId = :id AND e.tckId IS NOT NULL', { id })
-        .groupBy('e.tckId')
-        .orderBy('COUNT(*)', 'DESC')
-        .limit(1)
-        .getRawOne<TckUsageRow>(),
-    ]);
-    const tck = top ? await this.repo.manager.findOneBy(Tck, { id: top.tckId }) : null;
+    const [org, responsible, tck] = await Promise.all([this.requisites(id), this.responsible(id), this.mainTck(id)]);
     return { sender: senderParty(org, responsible), recipient: tck ? tckParty(tck) : { ...SAMPLE_RECIPIENT } };
+  }
+
+  /**
+   * The TCK of the legal entity: where most of its working employees are registered — the addressee of the
+   * operational report when none is chosen, and of the sample label.
+   */
+  async mainTck(id: string | null): Promise<Tck | null> {
+    if (!id) return null;
+    const top = await this.employees
+      .createQueryBuilder('e')
+      .select('e.tckId', 'tckId')
+      .where('e.legalEntityId = :id AND e.tckId IS NOT NULL AND e.dismissalDate IS NULL', { id })
+      .groupBy('e.tckId')
+      .orderBy('COUNT(*)', 'DESC')
+      .limit(1)
+      .getRawOne<TckUsageRow>();
+    return top ? this.repo.manager.findOneBy(Tck, { id: top.tckId }) : null;
   }
 
   /** The legal entity of the account (the letters about its password name it). */

@@ -42,8 +42,10 @@ export const LABEL_LAYOUTS: LabelLayout[] = ['SIDE_BY_SIDE', 'STACKED'];
 export const LABEL_ALIGNS: LabelAlign[] = ['left', 'center'];
 export const LABEL_TITLE_STYLES: LabelTitleStyle[] = ['UKRPOSHTA', 'CLASSIC'];
 export const POSTAL_STYLES: PostalStyle[] = ['BOXES', 'TEXT'];
-/** As Ukrposhta asks: the name, the address, the index the last line of the address; the phone apart. */
-export const LABEL_LINES: LabelLine[] = ['name', 'address', 'phone', 'postalCode'];
+/** As the Rules of postal services ask (cl. 32): the name, the address, the index, then the phone. */
+export const LABEL_LINES: LabelLine[] = ['name', 'address', 'postalCode', 'phone'];
+/** The order the labels had before — saved settings with it get the order of the Rules. */
+export const LEGACY_LABEL_LINES: LabelLine[] = ['name', 'address', 'phone', 'postalCode'];
 export const LABEL_PARTIES: LabelPartyKey[] = ['sender', 'recipient'];
 
 /** Titles of the blocks. */
@@ -137,6 +139,14 @@ export const LABEL_VALUE_TEXT: Record<string, string> = {
 export const SAMPLE_RECIPIENT = {
   name: 'Львівський обласний ТЦК та СП',
   address: 'вул. Прикладна, 1, м. Львів',
+  addressLines: ['вул. Прикладна, 1', 'м. Львів'],
   postalCode: '79000',
   phone: '',
 };
+
+/** Points in a millimetre. */
+export const PT_PER_MM = 72 / 25.4;
+/** A label shrinks its text to fit the sticker, but not below this share of the chosen sizes. */
+export const LABEL_MIN_SCALE = 0.6;
+/** The share of the sticker height the estimate may fill. */
+export const LABEL_FIT_RESERVE = 0.88;

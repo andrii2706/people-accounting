@@ -14,11 +14,19 @@ import { injectQueryParamsUpdate, orEmpty } from '../../../shared/utils/router.u
 import { LegalEntityFilterComponent } from '../../../shared/components/legal-entity-filter/legal-entity-filter.component';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { SelectComponent } from '../../../shared/components/select/select.component';
+import { tckOption } from '../../../shared/utils/tck.utils';
 
 @Component({
   selector: 'app-operational',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DateInputComponent, PageHeaderComponent, IconComponent, LegalEntityFilterComponent],
+  imports: [
+    DateInputComponent,
+    PageHeaderComponent,
+    IconComponent,
+    LegalEntityFilterComponent,
+    SelectComponent,
+  ],
   templateUrl: './operational.component.html',
 })
 export class OperationalComponent {
@@ -43,6 +51,9 @@ export class OperationalComponent {
   protected readonly needsEntity = computed(
     () => this.dict.severalLegalEntities() && !this.entity(),
   );
+  /** The TCK the report goes to; empty — the server takes the one where most employees are registered. */
+  protected readonly tckId = signal('');
+  protected readonly tckOptions = computed(() => this.dict.activeTcks().map(tckOption));
   protected readonly downloadUrl = computed(() =>
     this.reportsService.operationalDocxUrl(this.date(), this.entity()),
   );
@@ -64,6 +75,7 @@ export class OperationalComponent {
         type: 'OPERATIONAL_REPORT',
         reportDate: this.date(),
         legalEntityId: this.entity() || undefined,
+        tckId: this.tckId() || undefined,
       });
       this.toast.success(`Зареєстровано вих. № ${letter.number}`);
       await this.router.navigate(['/letters', letter.id]);

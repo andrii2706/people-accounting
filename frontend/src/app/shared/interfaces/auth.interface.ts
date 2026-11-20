@@ -116,8 +116,8 @@ export interface SessionResponse {
 
 /** Why and where to sign out. */
 export interface LogoutOptions {
-  /** «idle» — signed out after inactivity (the login page says so). */
-  reason?: 'idle';
+  /** «idle» — signed out after inactivity; «billing» — the module is closed for a debt (the login page says so). */
+  reason?: 'idle' | 'billing';
   returnUrl?: string;
 }
 

@@ -10,6 +10,7 @@ import {
   buildReconciliation,
   buildSingleNotice,
   noticeNumber,
+  buildInventory,
 } from '../documents/builders.js';
 import { noticeSnapshot } from '../documents/notice-snapshot.js';
 import { Employee } from '../employees/entities/employee.entity.js';
@@ -333,6 +334,9 @@ export class LettersService {
     const byTck = dto.type === 'LISTS' && !!dto.byTck;
     if (byTck && !tck) throw fieldErrors([{ field: 'tckId', message: 'Оберіть ТЦК, якому надсилається витяг' }]);
     const legalEntityId = await this.legalEntities.forDocument(dto.legalEntityId);
+    // the operational report goes to the TCK of the legal entity: chosen, otherwise where most employees are
+    const addressee =
+      tck ?? (dto.type === 'OPERATIONAL_REPORT' ? await this.legalEntities.mainTck(legalEntityId) : null);
     // formed lists are registered as they are: their date, their legal entity
     const snapshot =
       dto.type === 'LISTS' && dto.snapshotId ? await this.listSnapshots.rowsFor(dto.snapshotId, legalEntityId) : null;
@@ -357,7 +361,7 @@ export class LettersService {
         date: dto.date ?? todayIso(),
         number: dto.number,
         subject: `${LETTER_TYPE_TITLES[dto.type]}${extract ? ' (витяг)' : ''} станом на ${formatUa(reportDate)}`,
-        tckId: tck?.id ?? null,
+        tckId: addressee?.id ?? null,
         params: {
           reportDate,
           groups: dto.groups ?? null,
@@ -568,7 +572,7 @@ export class LettersService {
     const letter = await this.repo.findOneBy({ id });
     if (!letter) throw new NotFoundException('Лист не знайдено');
     if (letter.type !== 'LISTS') {
-      throw new BadRequestException('Супровідний лист і опис для звірки — лише для листів зі списками чи виписками');
+      throw new BadRequestException('Супровідний лист і опис для звірки — лише для листів зі списками чи витягами');
     }
     const safeNumber = letter.number.replace(/[\\/:*?"<>|]/g, '-');
 
@@ -664,6 +668,31 @@ export class LettersService {
     });
     const name = part === 'inventory' ? 'Опис вкладення ф107' : 'Супровідний лист з описом';
     return { buffer, filename: `${name} ${safeNumber}.docx` };
+  }
+
+  /**
+   * The inventory for the post office (form 107, two copies) of a letter whose document has none: the
+   * operational report and other letters. The notices carry it inside, the lists — in the reconciliation set.
+   */
+  async inventory(id: string): Promise<FileResult> {
+    const letter = await this.repo.findOne({ where: { id }, relations: { tck: true } });
+    if (!letter) throw new NotFoundException('Лист не знайдено');
+    if (!letter.tck) throw new BadRequestException('Оберіть ТЦК-адресата листа — опис складається на його ім’я');
+    const org = await this.legalEntities.requisites(letter.legalEntityId);
+    const params = (letter.params ?? {}) as LetterParams;
+    const ref = `від ${formatUa(letter.date)} р. № ${letter.number}`;
+    const name =
+      letter.type === 'OPERATIONAL_REPORT'
+        ? `Відомість оперативного обліку призовників, військовозобов’язаних та резервістів станом на ${formatUa(params.reportDate ?? letter.date)} р. (лист ${ref})`
+        : `Лист ${ref}${letter.subject ? ` «${letter.subject}»` : ''}`;
+    const buffer = await buildInventory({
+      org,
+      tck: letter.tck,
+      items: [{ name, copies: 1 }],
+      title: `Опис вкладення ${letter.number}`,
+    });
+    const safeNumber = letter.number.replace(/[\\/:*?"<>|]/g, '-');
+    return { buffer, filename: `Опис вкладення ф107 ${safeNumber}.docx` };
   }
 
   /** Document frozen for e-signing, with an integrity check by SHA-256. */

@@ -26,10 +26,12 @@ import {
   Public,
 } from '../common/decorators/auth.decorators.js';
 import { LOGIN_ATTEMPTS_PER_MINUTE, MFA_ATTEMPTS_PER_MINUTE } from '../common/constants/auth.constants.js';
-import { BILLING_BLOCKED_MESSAGE, BILLING_DEBT_CODE } from '../billing/billing.constants.js';
 import { BillingService } from '../billing/billing.service.js';
 import { OfferGateService } from '../subscriptions/offer-gate.service.js';
-import { blockedMessage } from '../billing/utils/billing.utils.js';
+import { SubscriptionGateService } from '../subscriptions/subscription-gate.service.js';
+import { SUBSCRIPTION_MANAGERS } from '../subscriptions/subscriptions.constants.js';
+import type { AccessResponse } from '../platform/contracts/apps.js';
+import { oblikAccess } from './utils/access.utils.js';
 import { passwordProblems } from '../common/utils/password-policy.utils.js';
 import { fieldErrors } from '../common/validators/validators.js';
 import { UpdatePreferencesDto } from '../users/users.dto.js';
@@ -51,7 +53,7 @@ import { SecurityService } from '../security/security.service.js';
 import { actorOf, clientIp } from '../security/utils/security.utils.js';
 import type { User } from '../users/user.entity.js';
 import { MfaService } from './mfa.service.js';
-import { toAuthUser, withAddress } from './utils/auth.utils.js';
+import { modulesOf, toAuthUser, withAddress } from './utils/auth.utils.js';
 
 @ApiTags('auth')
 @IdentityRoute()
@@ -65,6 +67,7 @@ export class AuthController {
     private readonly offers: OfferGateService,
     private readonly mfa: MfaService,
     private readonly security: SecurityService,
+    private readonly subscriptions: SubscriptionGateService,
   ) {}
 
   /**
@@ -106,15 +109,9 @@ export class AuthController {
       throw new UnauthorizedException('Невірний email або пароль');
     }
     const user = result.user;
-    // a debt for using the system: one entry per user, then the sign-in is blocked until it is paid
-    if ((await this.billing.loginGate(user)) === 'blocked') {
-      await this.audit.log('auth', user.id, 'LOGIN_FAILED', { reason: [null, 'billing debt'], ip: [null, ip] });
-      throw new ForbiddenException({
-        statusCode: 403,
-        code: BILLING_DEBT_CODE,
-        message: blockedMessage(BILLING_BLOCKED_MESSAGE, await this.billing.paymentContact()),
-      });
-    }
+    // a debt for using the system does not stop the sign-in: the first entry after it is recorded and works,
+    // the later sessions find the module closed (the guard) and the portal says why
+    await this.billing.loginGate(user);
     const step = this.mfa.nextStep(user);
     if (step) return this.mfa.challenge(user, step);
     return this.signIn(user, req, res);
@@ -214,6 +211,44 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser): Promise<AuthUser> {
     return withAddress(user);
+  }
+
+  /**
+   * What the account may do in this module right now — for the portal: it opens even when the module is closed
+   * and shows why (the password, the offer, the payment) and where to fix it.
+   */
+  @AllowVendor()
+  @AllowPendingPasswordChange()
+  @AllowPendingTerms()
+  @AllowUnpaid()
+  @AllowUnassigned()
+  @SkipThrottle()
+  @Get('access')
+  async access(@CurrentUser() current: AuthUser, @Req() req: Request): Promise<AccessResponse> {
+    if (!modulesOf(current).includes('oblik')) return { modules: [] };
+    const token = (req.cookies as Record<string, string> | undefined)?.[this.sessions.cookieName] ?? '';
+    const payload = await this.sessions.verify(token);
+    const user = await this.users.findForSession(current.id);
+    const { gate, contact } = await this.billing.sessionGate(
+      { role: current.role, debtGraceUsedAt: user?.debtGraceUsedAt ?? null },
+      payload.sst,
+    );
+    const expires = current.passwordExpiresAt ? new Date(current.passwordExpiresAt) : null;
+    return {
+      modules: [
+        oblikAccess({
+          role: current.role,
+          legalEntityId: current.legalEntityId,
+          mustChangePassword: current.mustChangePassword,
+          passwordExpired: !!expires && expires <= new Date(),
+          termsAccepted: current.termsAccepted !== false,
+          manages: SUBSCRIPTION_MANAGERS.includes(current.role),
+          subscription: current.legalEntityId ? await this.subscriptions.gate(current.legalEntityId) : 'OK',
+          billing: gate,
+          paymentContact: contact,
+        }),
+      ],
+    };
   }
 
   /** Change own password. All other sessions of the user are terminated. */

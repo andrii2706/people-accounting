@@ -61,11 +61,11 @@ export const ENVELOPE_PLACEMENTS: Record<EnvelopeFormat, EnvelopePlacement> = {
   },
 };
 
-/** As Ukrposhta asks: the name, the address, the index the last line; the phone apart. */
 /** The phone nobody filled in: a line to write it by hand (as in the printed labels). */
 export const LABEL_PHONE_BLANK = '____________________';
 
-export const LABEL_LINES: LabelLine[] = ['name', 'address', 'phone', 'postalCode'];
+/** As the Rules of postal services ask (cl. 32): the name, the address, the index, then the phone. */
+export const LABEL_LINES: LabelLine[] = ['name', 'address', 'postalCode', 'phone'];
 export const LABEL_PARTIES: LabelPartyKey[] = ['sender', 'recipient'];
 
 export const LABEL_LINE_LABELS: Record<LabelLine, string> = {
@@ -226,3 +226,10 @@ export const LABEL_GEOMETRY_FIELDS: (keyof LabelSettings)[] = [
   'recipientXMm',
   'recipientYMm',
 ];
+
+/** Points in a millimetre. */
+export const PT_PER_MM = 72 / 25.4;
+/** A label shrinks its text to fit the sticker, but not below this share of the chosen sizes. */
+export const LABEL_MIN_SCALE = 0.6;
+/** The share of the sticker height the estimate may fill. */
+export const LABEL_FIT_RESERVE = 0.88;

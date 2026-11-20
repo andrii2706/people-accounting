@@ -22,9 +22,7 @@ describe('reconciliation package', () => {
   });
 
   it('names an extract or a whole list', () => {
-    expect(reconciliationItem('CONSCRIPTS', true)).toBe(
-      'Виписка зі списку персонального військового обліку призовників',
-    );
+    expect(reconciliationItem('CONSCRIPTS', true)).toBe('Витяг зі списку персонального військового обліку призовників');
     expect(reconciliationItem('WOMEN', false)).toMatch(/^Список персонального військового обліку .*жінок$/);
   });
 
@@ -41,7 +39,7 @@ describe('reconciliation package', () => {
     ];
     const list = reconciliationAttachments({ extract: true, sections: [{ section: 'SOLDIERS', people: 2 }], people });
     expect(list.map((a) => a.copies)).toEqual([2, 1, 1]);
-    expect(list[0].name).toMatch(/^Виписка .* \(2 особи\)$/);
+    expect(list[0].name).toMatch(/^Витяг .* \(2 особи\)$/);
     expect(evodItem(people[0])).toBe(
       'Військово-обліковий документ в електронній формі ІВАНЕНКО Іван Іванович, сформований 12.03.2026 о 14:30',
     );
@@ -71,13 +69,18 @@ describe('reconciliation package', () => {
     const zip = await JSZip.loadAsync(await buildReconciliation(input));
     const text = (await zip.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, '');
     const count = (s: string) => text.split(s).length - 1;
-    expect(count('ОПИС')).toBe(2);
-    expect(count('вкладення до цінного листа')).toBe(2);
-    expect(count('Загальний підсумок предметів, аркушів і оголошеної цінності')).toBe(2);
-    expect(text).toContain('Кількість предметів, аркушів');
-    expect(text).toContain('Оголошена цінність, грн');
-    expect(text).toContain('1 / 1'); // the eВОД: 1 copy of 1 sheet
-    expect(text).toContain('2 / ___'); // the extract: 2 copies, the sheets by hand
+    // two identical copies side by side
+    expect(count('ОПИС ВКЛАДЕННЯ')).toBe(2);
+    expect(count('цінному листі')).toBe(2);
+    expect(count('Загальний підсумок кількості предметів та оголошеної цінності')).toBe(2);
+    for (const label of ['Найменування предметів', 'Кількість предметів', 'Оголошена цінність, грн', 'Перевірив']) {
+      expect(text).toContain(label);
+    }
+    // «Куди» — as on the envelope: the street, the settlement, the index
+    expect(text).toContain('вул. Батуринська, 2, м. Львів, 79007');
+    expect(text).toContain('на 1 арк.'); // the eВОД: 1 sheet
+    expect(text).toContain('на ____ арк.'); // the extract: the sheets by hand
+    expect(text).toContain('ТОВ «Вигадана компанія»'); // the sender
     expect(text).toContain('Виправлення не допускаються');
   });
 });

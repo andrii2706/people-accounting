@@ -21,7 +21,7 @@ export interface BillingRecord extends BillingStatus {
   graceUsedBy: number;
 }
 
-/** Result of the debt check at sign-in. */
+/** Result of the debt check: ok — no debt; grace — the one entry of the debt; blocked — the module is closed. */
 export type BillingLoginGate = 'ok' | 'grace' | 'blocked';
 
 /** Optional details of a debt set from the command line. */

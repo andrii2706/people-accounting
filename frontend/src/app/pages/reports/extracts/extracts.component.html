@@ -1,7 +1,7 @@
 <app-page-header
-  eyebrow="Додаток 5 до Порядку · виписки для звірок"
-  title="Виписки з списків персонального обліку для звірок"
-  subtitle="Кожному ТЦК — виписка для звірки лише про осіб, які перебувають у ньому на обліку. Оберіть, які списки включити."
+  eyebrow="Додаток 5 до Порядку · витяги для звірок"
+  title="Витяги зі списків персонального обліку для звірок"
+  subtitle="Кожному ТЦК — витяг для звірки лише про осіб, які перебувають у ньому на обліку. Оберіть, які списки включити."
 >
   <label class="flex items-center gap-2 text-sm">
     <span class="text-muted">Станом на</span>
@@ -24,8 +24,8 @@
 </div>
 
 <div class="mb-4 flex flex-wrap items-center gap-3">
-  <span class="text-sm text-muted">У виписку:</span>
-  <div class="segmented" role="group" aria-label="Списки у виписці">
+  <span class="text-sm text-muted">У витяг:</span>
+  <div class="segmented" role="group" aria-label="Списки у витягу">
     @for (o of sectionOptions; track o.value) {
       <button
         type="button"
@@ -58,7 +58,7 @@
 
 @if (needsEntity()) {
   <p class="mb-4 rounded-xl border border-warning/40 bg-[#fdf9f2] px-4 py-3 text-sm" role="status">
-    Юридичних осіб кілька — оберіть, від імені якої формуються виписки. Нижче — підсумок по всіх.
+    Юридичних осіб кілька — оберіть, від імені якої формуються витяги. Нижче — підсумок по всіх.
   </p>
 }
 
@@ -70,8 +70,8 @@
         @for (o of sectionOptions; track o.value) {
           <th class="text-right" [class.opacity-40]="!sections().has(o.value)">{{ o.label }}</th>
         }
-        <th class="text-right">У виписці</th>
-        <th title="Остання зареєстрована виписка цьому ТЦК">Останнє повідомлення</th>
+        <th class="text-right">У витягу</th>
+        <th title="Останній зареєстрований витяг цьому ТЦК">Останнє повідомлення</th>
         <th class="w-[260px]"><span class="sr-only">Дії</span></th>
       </tr>
     </thead>
@@ -84,7 +84,7 @@
             } @else {
               <span class="font-medium text-warning">ТЦК не вказано</span>
               <p class="text-xs text-muted">
-                Заповніть ТЦК у картках — інакше виписку нікуди надіслати
+                Заповніть ТЦК у картках — інакше витяг нікуди надіслати
               </p>
             }
           </td>
@@ -95,7 +95,7 @@
                   class="text-brand-600 hover:underline"
                   [href]="docxUrl(r.item.tckId, s)"
                   download
-                  title="Виписка лише з цього списку .docx"
+                  title="Витяг лише з цього списку .docx"
                   >{{ r.item.sections[s] }}</a
                 >
               } @else {
@@ -127,7 +127,7 @@
                 <button
                   type="button"
                   class="cursor-pointer text-brand-600 hover:underline"
-                  title="Архів із 4 документів: супровідний лист з описом, виписка, опис для пошти (ф. 107) і наклейка на конверт"
+                  title="Архів із 4 документів: супровідний лист з описом, витяг, опис для пошти (ф. 107) і наклейка на конверт"
                   (click)="files.download(lettersService.reconciliationUrl(l.id, 'all'))"
                 >
                   усе .zip
@@ -161,7 +161,7 @@
                   class="btn btn-ghost btn-sm"
                   [href]="docxUrl(r.item.tckId)"
                   download
-                  title="Виписка .docx без реєстрації"
+                  title="Витяг .docx без реєстрації"
                   ><app-icon name="download" [size]="16" /> .docx</a
                 >
                 @if (auth.canEdit()) {

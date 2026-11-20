@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { blockedMessage, graceUsed, toBillingStatus } from './utils/billing.utils.js';
+import { blockedMessage, graceUsed, sessionGate, toBillingStatus } from './utils/billing.utils.js';
 import { parseBillingArgs } from './utils/billing-cli.utils.js';
 import type { BillingStatusEntity } from './billing-status.entity.js';
 
@@ -67,5 +67,31 @@ describe('заборгованість за користування', () => {
       fullName: 'Постачальник',
       password: 'Secret123456',
     });
+  });
+});
+
+describe('sessionGate — a debt closes the module, not the sign-in', () => {
+  const set = new Date('2026-11-04T09:00:00Z');
+  const debt = { hasDebt: true, debtSetAt: set };
+  const entry = new Date('2026-11-04T10:00:00Z');
+  const sec = (d: Date) => Math.floor(d.getTime() / 1000);
+
+  it('no debt or the vendor → ok', () => {
+    expect(sessionGate({ hasDebt: false, debtSetAt: null }, { role: 'HR', debtGraceUsedAt: null }, 0)).toBe('ok');
+    expect(sessionGate(debt, { role: 'VENDOR', debtGraceUsedAt: null }, 0)).toBe('ok');
+  });
+
+  it('the session of the one entry works, an older or a later one is closed', () => {
+    const user = { role: 'HR', debtGraceUsedAt: entry };
+    expect(sessionGate(debt, user, sec(entry))).toBe('grace');
+    expect(sessionGate(debt, user, sec(entry) + 1)).toBe('grace');
+    expect(sessionGate(debt, user, sec(entry) + 5)).toBe('blocked'); // signed in again a few seconds later
+    expect(sessionGate(debt, user, sec(new Date('2026-11-04T08:00:00Z')))).toBe('blocked');
+    expect(sessionGate(debt, user, sec(new Date('2026-11-04T12:00:00Z')))).toBe('blocked');
+  });
+
+  it('no entry during this debt yet (a session from before it) → closed', () => {
+    expect(sessionGate(debt, { role: 'HR', debtGraceUsedAt: null }, sec(entry))).toBe('blocked');
+    expect(sessionGate(debt, { role: 'HR', debtGraceUsedAt: new Date('2026-10-01') }, sec(entry))).toBe('blocked');
   });
 });

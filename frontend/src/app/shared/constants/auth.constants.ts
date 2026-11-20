@@ -71,3 +71,11 @@ export const HANDED_OVER_PASSWORD_PROBLEM = 'лише латинські літ�
 
 /** Where an account without «Військовий облік» goes: the portal of the domain says which modules it has. */
 export const MODULE_DENIED_URL = '/?denied=oblik';
+
+/**
+ * Where a module closed for a debt sends the user behind the portal: the portal opens and says why and what to
+ * do. Alone on its domain the application signs out and its login page says it (BILLING_CLOSED_TEXT).
+ */
+export const MODULE_BLOCKED_URL = '/?blocked=oblik';
+export const BILLING_CLOSED_TEXT =
+  'Модуль недоступний: є заборгованість за користування системою. Доступ відновиться після оплати.';

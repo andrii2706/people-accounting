@@ -71,3 +71,37 @@ export function appsOf(modules: readonly string[] | undefined): AppInfo[] {
 export function readyAppsOf(modules: readonly string[] | undefined): AppInfo[] {
   return appsOf(modules).filter((a) => a.ready);
 }
+
+/**
+ * What a module is for this account right now:
+ * open — works; payment — not paid (a debt, no plan, the paid period is over); password — the password is
+ * out of date or temporary; terms — the head of the legal entity has not signed the offer yet; setup — the
+ * account is not tied to a legal entity yet; off — not connected for the account; soon — not deployed yet.
+ */
+export type ModuleState = 'open' | 'payment' | 'password' | 'terms' | 'setup' | 'off' | 'soon';
+
+/** A button next to the message of a closed module: where the user fixes it. */
+export interface ModuleAction {
+  label: string;
+  /** A path on the domain (/change-password, /oblik/account/subscription). */
+  path: string;
+}
+
+/** The state of one module for the signed-in account (GET …/auth/access of the module, /api/portal/me). */
+export interface ModuleAccess {
+  id: AppId;
+  state: ModuleState;
+  /** Why it is closed, for the user; '' — open. */
+  message: string;
+  action?: ModuleAction;
+  /** Works, but there is something to know (a debt with one entry left …). */
+  notice?: string;
+}
+
+/** GET …/auth/access of a module. */
+export interface AccessResponse {
+  modules: ModuleAccess[];
+}
+
+/** Closed for work: the tile is greyed out and the module is not opened. */
+export const isBlocked = (state: ModuleState) => state !== 'open';

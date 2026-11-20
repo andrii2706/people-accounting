@@ -13,26 +13,42 @@ export const SESSION_ALGORITHM = 'ES256';
 /** The public keys of the identity service (on the shared domain). */
 export const JWKS_PATH = '/api/auth/.well-known/jwks.json';
 
-/** The identity endpoints on the shared domain: sign-in, the current user, sign-out. */
-export const AUTH_PATHS = {
-  login: '/api/auth/login',
-  session: '/api/auth/session',
-  logout: '/api/auth/logout',
-  changePassword: '/api/auth/change-password',
-  /** GET …/:token — who the link from a letter is for; POST — a new password by it. */
-  passwordReset: '/api/auth/password-reset',
-  /** The second step of the sign-in: the code from the app (or a recovery code) for the ticket. */
-  loginCode: '/api/auth/login/code',
-  /** The first sign-in of a role that needs the code: a new secret (QR) for the ticket… */
-  loginSetup: '/api/auth/login/setup',
-  /** …and the first code from the app turns it on and signs in. */
-  loginEnable: '/api/auth/login/enable',
-  /**
-   * The code of one's own account (any application): GET — on or off; POST …/setup (password) → QR,
-   * …/enable (code) → recovery codes, …/recovery-codes and …/disable (password + code).
-   */
-  mfa: '/api/auth/mfa',
-} as const;
+/** The identity endpoints under a base: the identity service itself (/api/auth) or the portal API (/api/portal/auth). */
+export function authPathsAt(base: string) {
+  return {
+    login: `${base}/login`,
+    session: `${base}/session`,
+    logout: `${base}/logout`,
+    changePassword: `${base}/change-password`,
+    /** GET …/:token — who the link from a letter is for; POST — a new password by it. */
+    passwordReset: `${base}/password-reset`,
+    /** The second step of the sign-in: the code from the app (or a recovery code) for the ticket. */
+    loginCode: `${base}/login/code`,
+    /** The first sign-in of a role that needs the code: a new secret (QR) for the ticket… */
+    loginSetup: `${base}/login/setup`,
+    /** …and the first code from the app turns it on and signs in. */
+    loginEnable: `${base}/login/enable`,
+    /**
+     * The code of one's own account (any application): GET — on or off; POST …/setup (password) → QR,
+     * …/enable (code) → recovery codes, …/recovery-codes and …/disable (password + code).
+     */
+    mfa: `${base}/mfa`,
+    /** GET — what the account may open in every module right now (ModuleAccess[]). */
+    access: `${base}/access`,
+  };
+}
+
+export type AuthPaths = ReturnType<typeof authPathsAt>;
+
+/** The identity service on the shared domain — the applications call it directly. */
+export const AUTH_PATHS = authPathsAt('/api/auth');
+
+/**
+ * The portal calls only its own API: it signs in to the identity service on the server side, passes the session
+ * cookie back and adds what the portal needs (the state of every module).
+ */
+export const PORTAL_AUTH_BASE = '/api/portal/auth';
+export const PORTAL_AUTH_PATHS = authPathsAt(PORTAL_AUTH_BASE);
 
 /**
  * The answer of the sign-in when the password was right but one more step is needed:
@@ -113,3 +129,6 @@ export interface SessionUser {
 
 /** The error code an application answers with when the account has no access to it. */
 export const MODULE_NOT_CONNECTED = 'MODULE_NOT_CONNECTED';
+
+/** The error code of a module whose use is not paid (a debt for the system): the module is closed, the sign-in is not. */
+export const BILLING_DEBT = 'BILLING_DEBT';

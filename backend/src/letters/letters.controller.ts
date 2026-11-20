@@ -153,6 +153,15 @@ export class LettersController {
     return documentFile(buffer, filename);
   }
 
+  /** The inventory for the post office (form 107) — the operational report and other letters. */
+  @Get(':id/inventory')
+  async inventory(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
+    await this.letters.assertAccess(id, scope);
+    const { buffer, filename } = await this.letters.inventory(id);
+    await this.audit.log('letter', id, 'EXPORT', { file: [null, filename] }, user);
+    return documentFile(buffer, filename);
+  }
+
   /** Mark as handed over to the TCK (Ukrposhta, by hand, document management system, e-cabinet). */
   @Post(':id/mark-sent')
   @HttpCode(200)

@@ -1,3 +1,4 @@
+import type { EnvelopeLabel, LabelParty } from '../../shared/interfaces/document.interface.js';
 import type { FieldError } from '../../shared/interfaces/common.interface.js';
 import type { LabelSettings } from '../../shared/interfaces/label-settings.interface.js';
 import {
@@ -7,8 +8,12 @@ import {
   LABEL_LINES,
   LABEL_PARTIES,
   LABEL_SETTING_FIELDS,
+  LEGACY_LABEL_LINES,
   PAGE_TAIL_MM,
   PRINT_EDGE_MM,
+  LABEL_FIT_RESERVE,
+  LABEL_MIN_SCALE,
+  PT_PER_MM,
 } from '../label-settings.constants.js';
 
 /** Every item of `all` exactly once, in any order. */
@@ -25,7 +30,8 @@ export function withLabelDefaults(saved: Partial<LabelSettings> | null | undefin
     const value = saved?.[key];
     if (value !== undefined && value !== null) (out as Record<string, unknown>)[key] = value;
   }
-  if (!isPermutation(out.lineOrder, LABEL_LINES)) out.lineOrder = [...LABEL_LINES];
+  const legacy = out.lineOrder.join() === LEGACY_LABEL_LINES.join();
+  if (legacy || !isPermutation(out.lineOrder, LABEL_LINES)) out.lineOrder = [...LABEL_LINES];
   if (!isPermutation(out.partyOrder, LABEL_PARTIES)) out.partyOrder = [...LABEL_PARTIES];
   return out;
 }
@@ -119,3 +125,69 @@ export const postalLine = (code: string, prefix: boolean) => {
   const value = code || '________';
   return prefix ? `Індекс: ${value}` : value;
 };
+
+/**
+ * How much the text of a label has to shrink to fit its sticker: a long full name of a legal entity and a
+ * long address would otherwise be cut off at the bottom — and the index or the phone with them. An estimate
+ * (an average letter is half of the font size wide), the same in the .docx and in the browser; never below
+ * LABEL_MIN_SCALE. An envelope has room — 1.
+ */
+export function labelScale(label: EnvelopeLabel, s: LabelSettings): number {
+  if (s.mode !== 'SHEET') return 1;
+  const pad = s.paddingMm * PT_PER_MM;
+  // a reserve for what the estimate does not see (the spacing of the paragraphs, the cells of the index)
+  const height = (s.labelHeightMm * PT_PER_MM - 2 * pad) * LABEL_FIT_RESERVE;
+  const side = s.layout === 'SIDE_BY_SIDE';
+  const width = (side ? s.labelWidthMm / 2 : s.labelWidthMm) * PT_PER_MM - 2 * pad;
+  for (let k = 1; k > LABEL_MIN_SCALE; k = Math.round((k - 0.05) * 100) / 100) {
+    const t = scaledLabelSettings(s, k);
+    const a = partyHeight(label.sender, t, width);
+    const b = partyHeight(label.recipient, t, width);
+    if ((side ? Math.max(a, b) : a + b + 6) <= height) return k;
+  }
+  return LABEL_MIN_SCALE;
+}
+
+/** The settings with the font sizes of one label scaled (to half a point). */
+export function scaledLabelSettings(s: LabelSettings, k: number): LabelSettings {
+  if (k >= 1) return s;
+  const r = (size: number) => Math.max(6, Math.round(size * k * 2) / 2);
+  return {
+    ...s,
+    titleSize: r(s.titleSize),
+    nameSize: r(s.nameSize),
+    addressSize: r(s.addressSize),
+    postalSize: r(s.postalSize),
+    phoneSize: r(s.phoneSize),
+  };
+}
+
+/** Lines a text takes in a column `width` pt wide (words wrapped as a whole). */
+function wrappedLines(text: string, size: number, width: number, bold: boolean): number {
+  const perLine = Math.max(1, Math.floor(width / (size * (bold ? 0.55 : 0.5))));
+  let lines = 1;
+  let used = 0;
+  for (const word of (text || '_'.repeat(16)).split(/\s+/)) {
+    const len = word.length + (used ? 1 : 0);
+    if (used && used + len > perLine) {
+      lines += Math.ceil(word.length / perLine);
+      used = word.length % perLine;
+    } else {
+      used += len;
+    }
+  }
+  return lines;
+}
+
+/** The height of one party in points: the title, the name, the address lines, the index, the phone. */
+function partyHeight(party: LabelParty, s: LabelSettings, width: number): number {
+  const line = (size: number) => size * 1.25;
+  const address = party.addressLines?.length ? party.addressLines : [party.address];
+  return (
+    (s.showTitles ? line(s.titleSize) + 3 : 0) +
+    wrappedLines(party.name, s.nameSize, width, s.nameBold) * line(s.nameSize) +
+    address.reduce((h, a) => h + wrappedLines(a, s.addressSize, width, false) * line(s.addressSize), 0) +
+    (s.postalStyle === 'BOXES' ? s.postalSize * 1.45 + 10 : line(s.postalSize)) +
+    (s.showPhone ? line(s.phoneSize) : 0)
+  );
+}

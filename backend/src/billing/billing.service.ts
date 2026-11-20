@@ -4,13 +4,14 @@ import { Not, type Repository } from 'typeorm';
 import { User } from '../users/user.entity.js';
 import type { BillingLoginGate, BillingRecord, BillingStatus } from '../shared/interfaces/billing.interface.js';
 import { BillingStatusEntity } from './billing-status.entity.js';
-import { BILLING_ROW_ID } from './billing.constants.js';
+import { BILLING_CACHE_MS, BILLING_ROW_ID } from './billing.constants.js';
 import type { UpdateBillingDto } from './billing.dto.js';
-import { graceUsed, toBillingStatus } from './utils/billing.utils.js';
+import { graceUsed, sessionGate, toBillingStatus } from './utils/billing.utils.js';
 
 /**
- * Debt for using the system. While there is a debt every user (not the vendor) may sign in once —
- * the next sign-in is blocked until the vendor clears the debt.
+ * Debt for using the system. The sign-in is never blocked (the portal tells why a module is closed);
+ * while there is a debt every user (not the vendor) gets one session with the module open — the following
+ * ones see the module closed until the vendor clears the debt.
  */
 @Injectable()
 export class BillingService {
@@ -18,6 +19,8 @@ export class BillingService {
     @InjectRepository(BillingStatusEntity) private readonly repo: Repository<BillingStatusEntity>,
     @InjectRepository(User) private readonly users: Repository<User>,
   ) {}
+
+  private cached: { row: BillingStatusEntity; at: number } | null = null;
 
   private async row(): Promise<BillingStatusEntity> {
     const found = await this.repo.findOneBy({ id: BILLING_ROW_ID });
@@ -62,12 +65,30 @@ export class BillingService {
     if (!dto.hasDebt) row.debtSetAt = null;
     row.updatedBy = updatedBy;
     await this.repo.save(row);
+    this.cached = null;
     return this.record();
   }
 
+  /** The debt state for the guard, kept for half a minute (asked on every request). */
+  private async debtState(): Promise<BillingStatusEntity> {
+    if (this.cached && Date.now() - this.cached.at < BILLING_CACHE_MS) return this.cached.row;
+    const row = await this.row();
+    this.cached = { row, at: Date.now() };
+    return row;
+  }
+
+  /** May this session use the module (the AuthGuard and the portal ask). */
+  async sessionGate(
+    user: Pick<User, 'role' | 'debtGraceUsedAt'>,
+    sessionStartSec: number,
+  ): Promise<{ gate: BillingLoginGate; contact: string }> {
+    const row = await this.debtState();
+    return { gate: sessionGate(row, user, sessionStartSec), contact: row.paymentContact };
+  }
+
   /**
-   * Called after the password check. The vendor always signs in; with a debt a user signs in once
-   * (the entry is recorded), after that the sign-in is blocked.
+   * Called after the password check: records the one-time entry of a debt. The sign-in goes on whatever it
+   * answers — the guard closes the module for the later sessions.
    */
   async loginGate(user: Pick<User, 'id' | 'role' | 'debtGraceUsedAt'>): Promise<BillingLoginGate> {
     if (user.role === 'VENDOR') return 'ok';

@@ -85,7 +85,7 @@ export const EXTRACT_SECTIONS: SelectOption<ListSection>[] = LIST_TABS.filter(
 export const REPORT_NAMES = {
   lists: 'Списки персонального обліку призовників, військовозобов’язаних та резервістів',
   operational: 'Відомість оперативного обліку',
-  extracts: 'Виписки з списків персонального обліку для звірок',
+  extracts: 'Витяги зі списків персонального обліку для звірок',
 } as const;
 
 /** The two views of the lists: everything for the company, or extracts per TCK. */

@@ -45,6 +45,7 @@
         [style.gap.mm]="s.gapMm"
       >
         @for (label of page.labels; track $index) {
+          @let ls = fitted(label, s);
           <div
             class="flex min-w-0 overflow-hidden"
             [class.flex-col]="s.layout === 'STACKED'"
@@ -62,7 +63,7 @@
                 "
               >
                 <ng-container
-                  *ngTemplateOutlet="party; context: { $implicit: label[who], who, s }"
+                  *ngTemplateOutlet="party; context: { $implicit: label[who], who, s: ls }"
                 />
               </div>
             }
@@ -88,7 +89,14 @@
           </p>
         }
         @case ('address') {
-          <p [style.font-size.pt]="s.addressSize">{{ party.address || '________________' }}</p>
+          @for (
+            line of party.addressLines?.length
+              ? party.addressLines
+              : [party.address || '________________'];
+            track $index
+          ) {
+            <p [style.font-size.pt]="s.addressSize">{{ line }}</p>
+          }
         }
         @case ('postalCode') {
           @if (s.postalStyle === 'BOXES') {

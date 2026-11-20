@@ -120,7 +120,7 @@ export class ExtractsComponent {
         groups: groups.length ? groups : undefined,
         legalEntityId: this.entity() || undefined,
       });
-      this.toast.success(`Виписка для ${item.tckName}: вих. № ${letter.number}`);
+      this.toast.success(`Витяг для ${item.tckName}: вих. № ${letter.number}`);
       await this.router.navigate(['/letters', letter.id]);
     } catch (err) {
       this.toast.error(apiErrorMessage(err));

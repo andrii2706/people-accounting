@@ -7,12 +7,18 @@ import {
   POSTAL_CODE_DIGITS,
 } from '../../constants/label-settings.constants';
 import type {
+  EnvelopeLabel,
   EnvelopeSize,
   LabelPage,
   LabelPartyKey,
   LabelSettings,
 } from '../../interfaces/label-settings.interface';
-import { pageSize, postalLine } from '../../utils/label-settings.utils';
+import {
+  labelScale,
+  pageSize,
+  postalLine,
+  scaledLabelSettings,
+} from '../../utils/label-settings.utils';
 
 /**
  * Pages of envelope labels in millimetres — the same layout as the .docx: A4 with labels of exact size,
@@ -71,6 +77,11 @@ export class LabelSheetComponent {
 
   protected postal(code: string, s: LabelSettings): string {
     return postalLine(code, s.postalPrefix);
+  }
+
+  /** The settings of one sticker: smaller letters when a long name or address would be cut off. */
+  protected fitted(label: EnvelopeLabel, s: LabelSettings): LabelSettings {
+    return scaledLabelSettings(s, labelScale(label, s));
   }
 
   protected columns(s: LabelSettings): string {

@@ -1,5 +1,7 @@
 import type { BillingStatus } from '../../shared/interfaces/billing.interface.js';
+import type { BillingLoginGate } from '../../shared/interfaces/billing.interface.js';
 import type { BillingStatusEntity } from '../billing-status.entity.js';
+import { GRACE_SESSION_WINDOW_MS } from '../billing.constants.js';
 
 /** What users see: the details only while there is a debt. */
 export function toBillingStatus(row: BillingStatusEntity): BillingStatus {
@@ -24,4 +26,19 @@ export function graceUsed(graceUsedAt: Date | null, debtSetAt: Date | null): boo
 /** The sign-in error: the fixed text plus the payment contact when it is set. */
 export function blockedMessage(base: string, contact: string): string {
   return contact.trim() ? `${base} Контакт для оплати: ${contact.trim()}` : base;
+}
+
+/**
+ * May this session work during a debt: only the session of the one-time entry (started right after it was
+ * recorded) — any other one, older or newer, is closed. The vendor is never closed.
+ */
+export function sessionGate(
+  debt: { hasDebt: boolean; debtSetAt: Date | null },
+  user: { role: string; debtGraceUsedAt: Date | null },
+  sessionStartSec: number,
+): BillingLoginGate {
+  if (user.role === 'VENDOR' || !debt.hasDebt) return 'ok';
+  if (!graceUsed(user.debtGraceUsedAt, debt.debtSetAt) || !user.debtGraceUsedAt) return 'blocked';
+  const delta = sessionStartSec * 1000 - user.debtGraceUsedAt.getTime();
+  return delta >= -GRACE_SESSION_WINDOW_MS.before && delta <= GRACE_SESSION_WINDOW_MS.after ? 'grace' : 'blocked';
 }

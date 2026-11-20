@@ -13,6 +13,15 @@
     />
   </label>
   <app-legal-entity-filter [value]="entity()" (changed)="setEntity($event)" />
+  <app-select
+    class="w-72 max-w-full"
+    ariaLabel="ТЦК, якому надсилається відомість"
+    placeholder="ТЦК — де на обліку більшість"
+    title="Кому надсилається відомість: на нього складаються лист, опис вкладення й наклейка"
+    [options]="tckOptions()"
+    [value]="tckId()"
+    (valueChange)="tckId.set($event)"
+  />
   @if (needsEntity()) {
     <button
       type="button"

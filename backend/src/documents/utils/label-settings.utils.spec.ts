@@ -5,7 +5,9 @@ import { DEFAULT_LABEL_SETTINGS, ENVELOPE_PLACEMENTS } from '../label-settings.c
 import type { EnvelopeLabel } from '../../shared/interfaces/document.interface.js';
 import type { LabelSettings } from '../../shared/interfaces/label-settings.interface.js';
 import {
+  labelScale,
   labelSettingsProblems,
+  scaledLabelSettings,
   labelsPerPage,
   rowsPerPage,
   stripPostalCode,
@@ -38,9 +40,17 @@ describe('налаштування наклейок', () => {
     expect(withLabelDefaults({ lineOrder: ['name', 'name', 'phone', 'address'] }).lineOrder).toEqual([
       'name',
       'address',
-      'phone',
       'postalCode',
+      'phone',
     ]);
+    // the order the labels had before — the order of the Rules now; any other chosen order stays
+    expect(withLabelDefaults({ lineOrder: ['name', 'address', 'phone', 'postalCode'] }).lineOrder).toEqual([
+      'name',
+      'address',
+      'postalCode',
+      'phone',
+    ]);
+    expect(withLabelDefaults({ lineOrder: ['phone', 'name', 'address', 'postalCode'] }).lineOrder[0]).toBe('phone');
     expect(withLabelDefaults({ partyOrder: ['recipient', 'sender'] }).partyOrder).toEqual(['recipient', 'sender']);
   });
 
@@ -62,8 +72,10 @@ describe('налаштування наклейок', () => {
       postalCode: '',
       phone: '',
     };
+    // the street first, the settlement after — as the Rules of postal services ask (cl. 32)
     expect(senderParty(org as unknown as Organization)).toMatchObject({
-      address: 'м. Львів, вул. Тестова, 1',
+      address: 'вул. Тестова, 1, м. Львів',
+      addressLines: ['вул. Тестова, 1', 'м. Львів'],
       postalCode: '79000',
     });
   });
@@ -199,5 +211,44 @@ describe('наклейки .docx за налаштуваннями', () => {
       ]),
     );
     expect(xml.match(/<w:sectPr/g)).toHaveLength(2);
+  });
+
+  it('a long name and address shrink the letters instead of cutting off the index and the phone', () => {
+    const base = withLabelDefaults(null);
+    const short = {
+      sender: {
+        name: 'ТОВ «Приклад»',
+        address: 'вул. Тестова, 1, м. Львів',
+        addressLines: ['вул. Тестова, 1', 'м. Львів'],
+        postalCode: '79000',
+        phone: '1',
+      },
+      recipient: {
+        name: 'Львівський ОТЦК та СП',
+        address: 'вул. Прикладна, 1, м. Львів',
+        postalCode: '79000',
+        phone: '',
+      },
+    };
+    expect(labelScale(short, base)).toBe(1);
+    const long = {
+      ...short,
+      sender: {
+        ...short.sender,
+        name: 'Товариство з обмеженою відповідальністю «Дуже довга назва виробничо-комерційної компанії Приклад»',
+        addressLines: [
+          'вул. Героїв Української Повстанської Армії, буд. 125-А, оф. 14',
+          'м. Львів',
+          'Львівський р-н',
+          'Львівська обл.',
+        ],
+      },
+    };
+    const k = labelScale(long, base);
+    expect(k).toBeLessThan(1);
+    expect(k).toBeGreaterThanOrEqual(0.6);
+    expect(scaledLabelSettings(base, k).nameSize).toBeLessThan(base.nameSize);
+    // an envelope has room
+    expect(labelScale(long, { ...base, mode: 'ENVELOPE' })).toBe(1);
   });
 });

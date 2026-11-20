@@ -84,7 +84,7 @@ done
 
 say "Ліміти запитів з однієї адреси"
 rule 2000 --action=rate-based-ban \
-  --expression="request.path.startsWith('/api/auth/login')" \
+  --expression="request.path.startsWith('/api/auth/login') || request.path.startsWith('/api/portal/auth/login')" \
   --rate-limit-threshold-count="$RATE_LOGIN" --rate-limit-threshold-interval-sec=60 \
   --ban-duration-sec=900 --conform-action=allow --exceed-action=deny-429 --enforce-on-key=IP \
   --description="Вхід: ${RATE_LOGIN} за хвилину, далі бан на 15 хв"

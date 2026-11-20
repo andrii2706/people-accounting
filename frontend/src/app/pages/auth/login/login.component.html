@@ -151,6 +151,14 @@
               відкриється сторінка, на якій ви були.
             </p>
           }
+          @if (reason() === 'billing') {
+            <p
+              class="-mt-4 mb-6 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+              role="alert"
+            >
+              {{ closedMessage() || billingClosedText }}
+            </p>
+          }
           @if (signup() === 'rejected') {
             <p
               class="-mt-4 mb-6 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"

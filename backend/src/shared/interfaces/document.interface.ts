@@ -199,7 +199,10 @@ export interface OperationalInput {
 
 export interface LabelParty {
   name: string;
+  /** The address in one line, in the order of the Rules (without the index). */
   address: string;
+  /** The same address a line each: the street with the house, the settlement, the district, the region. */
+  addressLines?: string[];
   postalCode: string;
   phone: string;
 }

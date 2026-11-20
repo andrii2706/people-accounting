@@ -24,7 +24,7 @@ import {
   POSTAL_CODE_DIGITS,
   PRINT_EDGE_MM,
 } from './label-settings.constants.js';
-import { labelsPerPage, postalLine, twips } from './utils/label-settings.utils.js';
+import { labelScale, labelsPerPage, postalLine, scaledLabelSettings, twips } from './utils/label-settings.utils.js';
 import type {
   LabelLine,
   LabelPartyKey,
@@ -54,6 +54,7 @@ import {
   twoColumns,
 } from './docx-kit.js';
 import { inGenitive } from './name-declension.js';
+import { postalAddressLines } from './utils/postal-address.utils.js';
 import type { ListSection } from '../shared/interfaces/dictionary.interface.js';
 import type { ListColumnKey } from '../shared/interfaces/list-settings.interface.js';
 import { formColumnNumbers } from '../reports/lists/utils/list-layout.utils.js';
@@ -252,90 +253,152 @@ export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffe
 
   const ctx = { letter, org, total, tckGenitiveName: tckGenitive(tck) };
   const pages = notices.flatMap((n) => [pageBreak(), ...noticePage(n, ctx)]);
-  const inventory = inventoryPage({
+  const inventory = inventorySection({
     org,
     tck,
     items: [
-      `Лист щодо повідомлення про зміну облікових даних ${single ? 'працівника' : 'працівників'} від ${formatUa(letter.date)} року № ${letter.number} з додатками (аркушів - ${1 + total})`,
+      {
+        name: `Лист щодо повідомлення про зміну облікових даних ${single ? 'працівника' : 'працівників'} від ${formatUa(letter.date)} року № ${letter.number} з додатками`,
+        copies: 1,
+        sheets: String(1 + total),
+      },
     ],
   });
 
-  return render([section([...cover, ...pages, pageBreak(), ...inventory])], `Повідомлення ${letter.number}`);
+  return render([section([...cover, ...pages]), inventory], `Повідомлення ${letter.number}`);
 }
 
 // Inventory of contents, form 107 (the Ukrposhta blank)
 
-/** «2 / 3» items and sheets in one cell of form 107; the sheets nobody counted are left for the pen. */
-const itemsAndSheets = (copies: number, sheets?: string) => `${copies} / ${sheets || '___'}`;
+/** Page margins of form 107: A4 landscape, two copies side by side (as the Ukrposhta blank is printed). */
+const F107_MARGIN = 567;
+/** The gap between the two copies — the cut line runs in its middle. */
+const F107_GAP = 567;
 
-/** One copy of form 107 as the Ukrposhta blank lays it out. */
-function inventoryForm(input: InventoryInput): (Paragraph | Table)[] {
-  const w = CONTENT_WIDTH.portrait;
+/** «…, на 3 арк.»: the sheets of one copy; nobody counted them — a place for the pen. */
+const withSheets = (name: string, sheets?: string) => `${name}, на ${sheets || '____'} арк.`;
+
+/** The address on form 107 — the same as on the envelope: the street first, the index last (Rules, cl. 32). */
+const f107Address = (tck: Tck | null | undefined) => {
+  if (!tck?.address) return '';
+  return postalAddressLines(tck.address, tck.postalCode).join(', ');
+};
+
+/**
+ * One copy of form 107 «Опис вкладення» as Ukrposhta prints it: the kind of the item and its number,
+ * the post office, «На ім’я» and «Куди» exactly as on the envelope, the table «№ з/п · Найменування предметів ·
+ * Кількість предметів · Оголошена цінність, грн» with one line per document and the total, the sender's
+ * signature, «Перевірив» of the post office worker and the place for the calendar stamp. The declared value is
+ * written by hand (in whole hryvnias, every line) — without it the letter is not a valuable one.
+ */
+function inventoryForm(input: InventoryInput, w: number): (Paragraph | Table)[] {
   const items = input.items.map((i) => (typeof i === 'string' ? { name: i, copies: 1 } : i));
   const copies = items.reduce((n, i) => n + i.copies, 0);
-  // all the sheets are known (eВОД — 1 each) only when every item says so
-  const sheets = items.every((i) => i.sheets) ? String(items.reduce((n, i) => n + i.copies * Number(i.sheets), 0)) : '';
+  const sender = input.org.fullName || input.org.shortName;
+  const line = (label: string, value: string, filler = '______________________________________') =>
+    p([run(`${label}  `, { size: 11 }), run(value || filler, { underline: !!value, size: 11 })], { spacingAfter: 60 });
   return [
-    p('Ф. 107', { align: 'right', size: 10 }),
-    p('_______________________________________________', { align: 'center' }),
-    hint('(найменування об’єкта поштового зв’язку)'),
-    ...empty(1),
-    p('ОПИС', { bold: true, align: 'center', size: 14 }),
-    p([run('вкладення до '), run('цінного листа', { underline: true }), run(' № ____________________')], {
-      align: 'center',
-    }),
-    hint('(найменування поштового відправлення)'),
-    ...empty(1),
-    p([run('На ім’я  '), run(input.tck?.name ?? '___________________________________________', { underline: true })]),
-    p([run('Куди  '), run(input.tck?.address || '___________________________________________', { underline: true })]),
-    ...empty(1),
+    p('ф. 107', { align: 'right', size: 9 }),
+    p('ОПИС ВКЛАДЕННЯ', { bold: true, align: 'center', size: 13 }),
+    p(
+      [
+        run('у  ', { size: 11 }),
+        run('цінному листі', { underline: true, size: 11 }),
+        run('  № ____________________', { size: 11 }),
+      ],
+      {
+        align: 'center',
+      },
+    ),
+    hint('(вид поштового відправлення)'),
+    p('', { size: 6 }),
+    line('Найменування об’єкта поштового зв’язку', '', '_____________________________'),
+    line('На ім’я', input.tck?.name ?? ''),
+    line('Куди', f107Address(input.tck)),
+    p('', { size: 6 }),
     table(
-      [['№ з/п', 'Найменування вкладення', 'Кількість предметів, аркушів', 'Оголошена цінність, грн']],
+      [['№ з/п', 'Найменування предметів', 'Кількість предметів', 'Оголошена цінність, грн']],
       [
         ...items.map((item, i) => [
           { text: String(i + 1), align: 'center' as const },
-          item.name,
-          { text: itemsAndSheets(item.copies, item.sheets), align: 'center' as const },
+          withSheets(item.name, item.sheets),
+          { text: String(item.copies), align: 'center' as const },
           '',
         ]),
         [
-          { text: 'Загальний підсумок предметів, аркушів і оголошеної цінності', colSpan: 2, bold: true },
-          { text: itemsAndSheets(copies, sheets), align: 'center' as const, bold: true },
+          { text: 'Загальний підсумок кількості предметів та оголошеної цінності', colSpan: 2, bold: true },
+          { text: String(copies), align: 'center' as const, bold: true },
           '',
         ],
       ],
-      [Math.round(w * 0.08), Math.round(w * 0.56), Math.round(w * 0.18), Math.round(w * 0.18)],
-      { size: 11, headerSize: 10 },
+      [
+        Math.round(w * 0.09),
+        Math.round(w * 0.55),
+        Math.round(w * 0.16),
+        w - Math.round(w * 0.09) - Math.round(w * 0.55) - Math.round(w * 0.16),
+      ],
+      { size: 9, headerSize: 8 },
     ),
-    ...empty(2),
+    p('', { size: 8 }),
+    p([run('Відправник  ', { size: 11 }), run(sender, { underline: true, size: 11 })]),
+    p('', { size: 6 }),
     twoColumns(
       [
-        p(`Відправник  ${input.org.shortName || input.org.fullName}`),
-        ...empty(1),
-        p('______________________'),
+        p('______________________', { size: 11 }),
         hint('(підпис)', 'left'),
-        ...empty(1),
-        p('Перевірив  ______________________'),
-        hint('(прізвище, підпис працівника поштового зв’язку)', 'left'),
+        p('', { size: 6 }),
+        p('Перевірив  ______________________', { size: 11 }),
+        hint('(підпис працівника поштового зв’язку)', 'left'),
       ],
-      [
-        ...empty(4),
-        p('Відбиток календарного', { align: 'center', size: 10 }),
-        p('штемпеля', { align: 'center', size: 10 }),
-      ],
-      [Math.round(w * 0.62), Math.round(w * 0.38)],
+      [p('Відбиток', { align: 'center', size: 9 }), p('календарного штемпеля', { align: 'center', size: 9 })],
+      [Math.round(w * 0.62), w - Math.round(w * 0.62)],
     ),
-    ...empty(1),
-    p('Виправлення не допускаються.', { size: 9, italics: true }),
+    p('', { size: 6 }),
+    p('Виправлення не допускаються. Незаповнені рядки прокреслюються.', { size: 8, italics: true }),
   ];
 }
 
 /**
- * Form 107 in two identical copies, each on its own page: the post office stamps both, one goes into the
- * envelope, the other stays with the sender (with the number of the letter).
+ * Form 107 in two identical copies side by side on an A4 landscape sheet, a dashed cut line between them:
+ * the post office stamps both, one goes into the envelope, the other stays with the sender.
  */
-function inventoryPage(input: InventoryInput): (Paragraph | Table)[] {
-  return [...inventoryForm(input), pageBreak(), ...inventoryForm(input)];
+function inventorySection(input: InventoryInput): ISectionOptions {
+  const total = A4.height - 2 * F107_MARGIN;
+  const half = Math.floor((total - F107_GAP) / 2);
+  const cut = { style: BorderStyle.DASHED, size: 4, color: '999999' };
+  const none = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const copy = (right: boolean) =>
+    new TableCell({
+      children: inventoryForm(input, half),
+      width: { size: half, type: WidthType.DXA },
+      verticalAlign: VerticalAlign.TOP,
+      borders: { top: none, bottom: none, left: none, right: none },
+      margins: right ? { left: 0, right: 0 } : { left: 0, right: 0 },
+    });
+  const gap = (side: 'left' | 'right') =>
+    new TableCell({
+      children: [p('', { size: 1 })],
+      width: { size: F107_GAP / 2, type: WidthType.DXA },
+      borders: { top: none, bottom: none, left: side === 'left' ? none : cut, right: side === 'left' ? cut : none },
+    });
+  const sheet = new Table({
+    rows: [new TableRow({ cantSplit: true, children: [copy(false), gap('left'), gap('right'), copy(true)] })],
+    width: { size: total, type: WidthType.DXA },
+    columnWidths: [half, F107_GAP / 2, F107_GAP / 2, half],
+    layout: TableLayoutType.FIXED,
+    borders: { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none },
+  });
+  return section([sheet, pageTail(false)], true, {
+    top: F107_MARGIN,
+    bottom: F107_MARGIN,
+    left: F107_MARGIN,
+    right: F107_MARGIN,
+  });
+}
+
+/** Form 107 alone — for a letter whose document has no inventory of its own (the operational report). */
+export async function buildInventory(input: InventoryInput & { title: string }): Promise<Buffer> {
+  return render([inventorySection(input)], input.title);
 }
 
 // Reconciliation: the cover letter and the inventory (form 107) for extracts sent to a TCK
@@ -353,9 +416,9 @@ export function peopleCount(n: number): string {
   return `${n} ${word}`;
 }
 
-/** «Виписка зі списку персонального військового обліку призовників» / «Список …» — one item of the package. */
+/** «Витяг зі списку персонального військового обліку призовників» / «Список …» — one item of the package. */
 export function reconciliationItem(section: ListSection, extract: boolean): string {
-  return `${extract ? 'Виписка зі списку' : 'Список'} персонального військового обліку ${LIST_SECTION_TITLES[section]}`;
+  return `${extract ? 'Витяг зі списку' : 'Список'} персонального військового обліку ${LIST_SECTION_TITLES[section]}`;
 }
 
 /** «ІВАНЕНКО Іван Іванович» — as in the letters to the TCK. */
@@ -386,7 +449,7 @@ export function reconciliationAttachments(input: Pick<ReconciliationInput, 'sect
 /**
  * The reconciliation package of one TCK:
  *  - cover — the cover letter («Щодо звірки облікових даних») with the people of the extract and the attachments
- *    (the extract in 2 copies, the eВОД of each person in 1), followed by the inventory of the attachments;
+ *    (the extract in 2 copies, the eВОД of each person in 1) — the inventory for the post goes apart (form 107);
  *  - inventory — the inventory for the post office (form 107).
  * The number of sheets of the extract is left for the pen: Word decides the pagination.
  */
@@ -397,7 +460,7 @@ export async function buildReconciliation(input: ReconciliationInput): Promise<B
   const ref = `від ${formatUa(letter.date)} р. № ${letter.number}`;
 
   if (input.part === 'inventory') {
-    const post = inventoryPage({
+    const post = inventorySection({
       org,
       tck,
       items: [
@@ -405,10 +468,10 @@ export async function buildReconciliation(input: ReconciliationInput): Promise<B
         ...attachments.map((a) => ({ name: a.name, copies: a.copies, sheets: a.sheets })),
       ],
     });
-    return render([section(post)], `Опис вкладення ${letter.number}`);
+    return render([post], `Опис вкладення ${letter.number}`);
   }
 
-  const what = extract ? 'виписки зі списків' : 'списки';
+  const what = extract ? 'витяги зі списків' : 'списки';
   const cover: (Paragraph | Table)[] = [
     twoColumns(
       orgHeader(org),
@@ -446,32 +509,7 @@ export async function buildReconciliation(input: ReconciliationInput): Promise<B
     ...executor(input.responsible),
   ];
 
-  // the inventory of the attachments — goes in the envelope together with the cover letter
-  const total = attachments.reduce((n, a) => n + a.copies, 0);
-  const inventory: (Paragraph | Table)[] = [
-    p('ОПИС', { bold: true, align: 'center', size: 14 }),
-    p(`документів, що додаються до листа ${ref}`, { align: 'center' }),
-    p(`«Щодо звірки облікових даних», адресат: ${tck?.name ?? '________________'}`, { align: 'center' }),
-    ...empty(1),
-    table(
-      [['№ з/п', 'Найменування документа', 'Кількість примірників', 'Кількість аркушів']],
-      [
-        ...attachments.map((a, i) => [
-          { text: String(i + 1), align: 'center' as const },
-          a.name,
-          { text: String(a.copies), align: 'center' as const },
-          { text: a.sheets, align: 'center' as const },
-        ]),
-        [{ text: 'Усього', colSpan: 2, bold: true }, { text: String(total), align: 'center' as const, bold: true }, ''],
-      ],
-      [Math.round(w * 0.08), Math.round(w * 0.6), Math.round(w * 0.16), Math.round(w * 0.16)],
-      { size: 11, headerSize: 10 },
-    ),
-    ...empty(2),
-    signature(org.headPosition, org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
-  ];
-
-  return render([section([...cover, pageBreak(), ...inventory])], `Супровідний лист ${letter.number}`);
+  return render([section(cover)], `Супровідний лист ${letter.number}`);
 }
 
 // Personal military registration lists (Annex 5, ed. 2025)
@@ -723,7 +761,10 @@ function labelBlock(who: LabelPartyKey, party: LabelParty, s: LabelSettings): La
   const o = { font: s.font, align: s.align };
   const lines: Record<LabelLine, LabelChild[]> = {
     name: [p(blank(party.name), { ...o, bold: s.nameBold, size: s.nameSize })],
-    address: [p(blank(party.address), { ...o, size: s.addressSize })],
+    // the street with the house, then the settlement, the district, the region — a line each (Rules, cl. 32)
+    address: (party.addressLines?.length ? party.addressLines : [blank(party.address)]).map((line) =>
+      p(line, { ...o, size: s.addressSize }),
+    ),
     postalCode:
       s.postalStyle === 'BOXES'
         ? [p('', { size: 3 }), postalBoxes(party.postalCode, s), p('', { size: 3 })]
@@ -797,15 +838,18 @@ function sheetPage(labels: EnvelopeLabel[], s: LabelSettings): Table {
       if (!label) {
         labelCols.forEach((width) => cells.push(blankCell(width)));
       } else if (side) {
+        // a long name or address — smaller letters instead of a cut-off index or phone
+        const t = scaledLabelSettings(s, labelScale(label, s));
         const [first, second] = orderedParties(label, s);
-        cells.push(cell(labelBlock(first.who, first.party, s), labelCols[0], { left: edge, right: divider }));
-        cells.push(cell(labelBlock(second.who, second.party, s), labelCols[1], { left: divider, right: edge }));
+        cells.push(cell(labelBlock(first.who, first.party, t), labelCols[0], { left: edge, right: divider }));
+        cells.push(cell(labelBlock(second.who, second.party, t), labelCols[1], { left: divider, right: edge }));
       } else {
+        const t = scaledLabelSettings(s, labelScale(label, s));
         const [first, second] = orderedParties(label, s);
         const both = [
-          ...labelBlock(first.who, first.party, s),
+          ...labelBlock(first.who, first.party, t),
           p('', { size: 6 }),
-          ...labelBlock(second.who, second.party, s),
+          ...labelBlock(second.who, second.party, t),
         ];
         cells.push(cell(both, w, { left: edge, right: edge }));
       }
