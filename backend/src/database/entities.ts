@@ -27,6 +27,9 @@ import { HrSyncSettings } from '../hr-sync/entities/hr-sync-settings.entity.js';
 import { SignupRequest } from '../signup/signup-request.entity.js';
 import { OfferSignature } from '../subscriptions/offer-signature.entity.js';
 import { ListSnapshot } from '../reports/lists/list-snapshot.entity.js';
+import { SecurityEvent } from '../security/entities/security-event.entity.js';
+import { UserDevice } from '../security/entities/user-device.entity.js';
+import { ExportUsage } from '../security/entities/export-usage.entity.js';
 
 /** Explicit list of entities — no glob patterns, so it works correctly in ESM. */
 export const ENTITIES = [
@@ -59,4 +62,7 @@ export const ENTITIES = [
   SignupRequest,
   OfferSignature,
   ListSnapshot,
+  SecurityEvent,
+  UserDevice,
+  ExportUsage,
 ];

@@ -1,13 +1,14 @@
 /**
  * Daily job (Cloud Run Job «military-registry-daily», started by Cloud Scheduler):
  * mobilization term from the decrees + e-mail reminders; 1C: old deliveries are deleted and a read that
- * was missed (no hourly job yet) is made. Locally: npm run job:daily
+ * was missed (no hourly job yet) is made; the security journal older than a year goes. Locally: npm run job:daily
  */
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module.js';
 import { HrSyncService } from '../hr-sync/hr-sync.service.js';
 import { DailyJobService } from '../notifications/daily-job.service.js';
+import { SecurityService } from '../security/security.service.js';
 
 const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn', 'log'] });
 try {
@@ -17,6 +18,7 @@ try {
   const purged = await sync.purge();
   const missed = await sync.runScheduled();
   Logger.log(JSON.stringify({ hrSyncPurged: purged, hrSyncMissed: missed }), 'DailyJob');
+  Logger.log(JSON.stringify({ securityPurged: await app.get(SecurityService).purge() }), 'DailyJob');
 } finally {
   await app.close();
 }

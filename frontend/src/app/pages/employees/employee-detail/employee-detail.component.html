@@ -58,6 +58,76 @@
     </div>
   </header>
 
+  <section class="card mb-6 overflow-x-auto" aria-labelledby="staff-notices-title">
+    <header class="px-5 pt-5 pb-2">
+      <h2 id="staff-notices-title" class="font-semibold">
+        Повідомлення до ТЦК про прийняття, переведення, звільнення
+      </h2>
+      <p class="mt-1 text-sm text-muted">
+        Номер і дата повідомлення потрапляють у графу 18 списків і витягів.
+      </p>
+    </header>
+    @if (staffNotices().length) {
+      <table class="table-base">
+        <thead>
+          <tr>
+            <th>Подія</th>
+            <th>Дата</th>
+            <th>Повідомлення до ТЦК</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of staffNotices(); track r.key) {
+            <tr>
+              <td class="min-w-48">
+                <p class="font-medium">{{ r.title }}</p>
+                @if (r.detail) {
+                  <p class="text-xs text-muted">{{ r.detail }}</p>
+                }
+              </td>
+              <td class="whitespace-nowrap tabular-nums">{{ r.date | uaDate }}</td>
+              <td>
+                @for (n of r.notices; track n.id) {
+                  <p class="whitespace-nowrap">
+                    <a
+                      [routerLink]="['/letters', n.letter.id]"
+                      class="text-brand-600 hover:underline"
+                      >вих. № {{ n.letter.number }} від {{ n.letter.date | uaDate }}</a
+                    >
+                  </p>
+                } @empty {
+                  <span
+                    class="text-sm"
+                    [class]="r.overdue ? 'font-medium text-danger' : 'text-warning'"
+                  >
+                    {{ r.overdue ? 'не внесено, строк минув' : 'не внесено' }}
+                  </span>
+                }
+              </td>
+              <td class="text-right">
+                @if (auth.canEdit()) {
+                  <button
+                    type="button"
+                    class="btn btn-sm cursor-pointer whitespace-nowrap"
+                    [class.btn-primary]="!r.notices.length"
+                    [class.btn-ghost]="r.notices.length"
+                    (click)="openExternal(r)"
+                  >
+                    <app-icon name="edit" [size]="14" />
+                    {{ r.notices.length ? 'Ще одне' : 'Внести № і дату' }}
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    } @else {
+      <p class="px-5 pb-5 text-sm text-muted">Дата прийняття не вказана — заповніть її в картці.</p>
+    }
+  </section>
+
   @if (pendingChanges().length) {
     <section class="mb-6 rounded-xl border border-warning/40 bg-[#fdf9f2] p-5">
       <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
@@ -209,93 +279,6 @@
         </button>
       }
     </header>
-    @if (externalOpen()) {
-      <form
-        class="grid gap-3 border-y border-line bg-sunken/50 p-5 md:grid-cols-3"
-        (submit)="saveExternal($event)"
-        novalidate
-      >
-        <p class="text-xs text-muted md:col-span-3">
-          Повідомлення, яке вже надіслали до ТЦК поза системою. Номер і дата — як на папері;
-          документ не формується, повідомлення одразу має статус «надіслано».
-        </p>
-        <app-form-field label="Вихідний номер" [required]="true" [field]="externalForm.number">
-          <input class="input font-mono" [formField]="externalForm.number" />
-        </app-form-field>
-        <app-form-field label="Дата листа" [required]="true" [field]="externalForm.date">
-          <app-date-input [formField]="externalForm.date" ariaLabel="Дата листа" />
-        </app-form-field>
-        <app-form-field label="Про що повідомляли">
-          <app-select
-            ariaLabel="Тип повідомлення"
-            [clearable]="false"
-            [options]="externalTypes"
-            [value]="externalModel().changeType"
-            (valueChange)="setExternalType($event)"
-          />
-        </app-form-field>
-        <app-form-field
-          label="Дата зміни"
-          hint="Наказ / подія; без неї — дата листа"
-          [field]="externalForm.effectiveDate"
-        >
-          <app-date-input [formField]="externalForm.effectiveDate" ariaLabel="Дата зміни" />
-        </app-form-field>
-        <app-form-field class="md:col-span-2" label="ТЦК та СП" [field]="externalForm.tckId">
-          <app-select
-            ariaLabel="ТЦК"
-            placeholder="ТЦК працівника"
-            [options]="tckOptions()"
-            [formField]="externalForm.tckId"
-          />
-        </app-form-field>
-        <app-form-field
-          class="md:col-span-3"
-          label="Зміст"
-          hint="Коротко, напр. «про прийняття на посаду інженера»"
-          [field]="externalForm.description"
-        >
-          <input class="input" [formField]="externalForm.description" />
-        </app-form-field>
-        @if (pendingChanges().length) {
-          <fieldset class="md:col-span-3">
-            <legend class="mb-1 text-sm font-medium">Що з черги вже повідомлено цим листом</legend>
-            <div class="flex flex-col gap-1">
-              @for (c of pendingChanges(); track c.id) {
-                <label class="flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    class="size-4 cursor-pointer accent-brand-600"
-                    [checked]="coveredChanges().has(c.id)"
-                    (change)="toggleCovered(c.id)"
-                  />
-                  {{ c.typeLabel }} · з {{ c.effectiveDate | uaDate }}
-                  @if (c.newValue) {
-                    <span class="text-muted">— {{ c.newValue }}</span>
-                  }
-                </label>
-              }
-            </div>
-          </fieldset>
-        }
-        <div class="flex gap-2 md:col-span-3">
-          <button
-            type="submit"
-            class="btn btn-primary cursor-pointer"
-            [disabled]="externalForm().submitting()"
-          >
-            Внести повідомлення
-          </button>
-          <button
-            type="button"
-            class="btn btn-ghost cursor-pointer"
-            (click)="externalOpen.set(false)"
-          >
-            Скасувати
-          </button>
-        </div>
-      </form>
-    }
     <table class="table-base">
       <thead>
         <tr>
@@ -409,6 +392,110 @@
       <button type="button" class="btn btn-danger cursor-pointer" (click)="remove()">
         Видалити картку
       </button>
+    </div>
+  }
+  @if (externalOpen()) {
+    <div
+      class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
+      (click)="closeOnBackdrop($event)"
+    >
+      <form
+        class="card grid max-h-[90vh] w-full max-w-2xl gap-3 overflow-y-auto p-5 sm:p-6 md:grid-cols-3"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="external-title"
+        (keydown.escape)="externalOpen.set(false)"
+        (submit)="saveExternal($event)"
+        novalidate
+      >
+        <h2 id="external-title" class="text-lg font-semibold md:col-span-3">
+          {{ externalTitle() }}
+        </h2>
+        <p class="text-xs text-muted md:col-span-3">
+          Повідомлення вже надіслали до ТЦК (поштою, нарочно, через Дію). Внесіть його вихідний
+          номер і дату — як на папері. Повідомлення про прийняття, переведення і звільнення
+          потрапить у графу 18 списків і витягів, а зміна піде з черги.
+        </p>
+        <app-form-field
+          label="Вихідний № повідомлення"
+          [required]="true"
+          [field]="externalForm.number"
+        >
+          <input class="input font-mono" autofocus [formField]="externalForm.number" />
+        </app-form-field>
+        <app-form-field label="Дата повідомлення" [required]="true" [field]="externalForm.date">
+          <app-date-input [formField]="externalForm.date" ariaLabel="Дата повідомлення" />
+        </app-form-field>
+        <app-form-field label="Про що повідомляли">
+          <app-select
+            ariaLabel="Тип повідомлення"
+            [clearable]="false"
+            [options]="externalTypes"
+            [value]="externalModel().changeType"
+            (valueChange)="setExternalType($event)"
+          />
+        </app-form-field>
+        <app-form-field
+          label="Дата зміни"
+          hint="Наказ / подія; без неї — дата листа"
+          [field]="externalForm.effectiveDate"
+        >
+          <app-date-input [formField]="externalForm.effectiveDate" ariaLabel="Дата зміни" />
+        </app-form-field>
+        <app-form-field class="md:col-span-2" label="ТЦК та СП" [field]="externalForm.tckId">
+          <app-select
+            ariaLabel="ТЦК"
+            placeholder="ТЦК працівника"
+            [options]="tckOptions()"
+            [formField]="externalForm.tckId"
+          />
+        </app-form-field>
+        <app-form-field
+          class="md:col-span-3"
+          label="Зміст"
+          hint="Коротко, напр. «про прийняття на посаду інженера»"
+          [field]="externalForm.description"
+        >
+          <input class="input" [formField]="externalForm.description" />
+        </app-form-field>
+        @if (pendingChanges().length) {
+          <fieldset class="md:col-span-3">
+            <legend class="mb-1 text-sm font-medium">Що з черги вже повідомлено цим листом</legend>
+            <div class="flex flex-col gap-1">
+              @for (c of pendingChanges(); track c.id) {
+                <label class="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    class="size-4 cursor-pointer accent-brand-600"
+                    [checked]="coveredChanges().has(c.id)"
+                    (change)="toggleCovered(c.id)"
+                  />
+                  {{ c.typeLabel }} · з {{ c.effectiveDate | uaDate }}
+                  @if (c.newValue) {
+                    <span class="text-muted">— {{ c.newValue }}</span>
+                  }
+                </label>
+              }
+            </div>
+          </fieldset>
+        }
+        <div class="flex gap-2 md:col-span-3">
+          <button
+            type="submit"
+            class="btn btn-primary cursor-pointer"
+            [disabled]="externalForm().submitting()"
+          >
+            Внести повідомлення
+          </button>
+          <button
+            type="button"
+            class="btn btn-ghost cursor-pointer"
+            (click)="externalOpen.set(false)"
+          >
+            Скасувати
+          </button>
+        </div>
+      </form>
     </div>
   }
 }

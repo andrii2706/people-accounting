@@ -2,8 +2,7 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "cli": {
-    "packageManager": "npm",
-    "analytics": false
+    "packageManager": "npm"
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -94,18 +93,28 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "gateway": {
+              "baseHref": "/oblik/"
             }
           },
           "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "port": 4301
+          },
           "configurations": {
             "production": {
               "buildTarget": "frontend:build:production"
             },
             "development": {
               "buildTarget": "frontend:build:development"
+            },
+            "gateway": {
+              "buildTarget": "frontend:build:development,gateway",
+              "servePath": "/oblik/"
             }
           },
           "defaultConfiguration": "development"

@@ -68,6 +68,16 @@ describe('налаштування наклейок', () => {
     });
   });
 
+  it('відправник: телефон юрособи, інакше — відповідального за військовий облік', () => {
+    const org = { shortName: 'ТОВ «Приклад»', fullName: '', address: '', postalCode: '', phone: '' };
+    const responsible = { fullName: 'Тестова Олена', position: 'інспектор', phone: '+380 67 000 00 00' };
+    expect(senderParty(org as unknown as Organization, responsible).phone).toBe('+380 67 000 00 00');
+    expect(senderParty({ ...org, phone: '(032) 000-00-00' } as unknown as Organization, responsible).phone).toBe(
+      '(032) 000-00-00',
+    );
+    expect(senderParty(org as unknown as Organization).phone).toBe('');
+  });
+
   it('мм → twips', () => {
     expect(twips(25.4)).toBe(1440);
     expect(twips(10)).toBe(567);

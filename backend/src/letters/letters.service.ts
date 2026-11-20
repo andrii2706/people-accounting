@@ -263,11 +263,12 @@ export class LettersService {
       const key = letter.legalEntityId ?? '';
       let group = groups.get(key);
       if (!group) {
-        const [org, settings] = await Promise.all([
+        const [org, settings, responsible] = await Promise.all([
           this.legalEntities.requisites(letter.legalEntityId),
           this.legalEntities.labelSettings(letter.legalEntityId),
+          this.legalEntities.responsible(letter.legalEntityId),
         ]);
-        group = { legalEntityId: letter.legalEntityId, settings, labels: [], sender: senderParty(org) };
+        group = { legalEntityId: letter.legalEntityId, settings, labels: [], sender: senderParty(org, responsible) };
         groups.set(key, group);
       }
       group.labels.push({ sender: group.sender, recipient: tckParty(letter.tck) });
@@ -337,6 +338,18 @@ export class LettersService {
       dto.type === 'LISTS' && dto.snapshotId ? await this.listSnapshots.rowsFor(dto.snapshotId, legalEntityId) : null;
     const reportDate = snapshot?.date ?? dto.reportDate;
     const extract = !!dto.employeeIds?.length || byTck;
+    // no extract to a TCK where nobody works any more (only dismissed people are registered there)
+    if (extract) {
+      const filter = { onlyIds: dto.employeeIds ?? undefined, tckId: byTck ? (tck?.id ?? null) : null };
+      const rows = snapshot
+        ? await this.reports.extractRows(snapshot.rows, reportDate, filter)
+        : (await this.reports.lists(reportDate, { ...filter, groups: dto.groups ?? LIST_GROUPS, legalEntityId })).rows;
+      if (!rows.length) {
+        throw new BadRequestException(
+          'Витяг не потрібен: на цю дату в ньому нікого немає (особи звільнені або не перебувають на обліку)',
+        );
+      }
+    }
     const id = await this.dataSource.transaction(async (m) => {
       const letter = await this.newLetter(m, {
         legalEntityId,
@@ -580,13 +593,22 @@ export class LettersService {
     const params = letter.params as LetterParams;
     const reportDate = params.reportDate ?? letter.date;
     const extract = !!params.employeeIds?.length || !!params.byTck;
-    const rows = params.snapshotId
+    const filter = {
+      onlyIds: params.employeeIds ?? undefined,
+      tckId: params.byTck ? letter.tckId : null,
+    };
+    // the same people as in the document: an extract — without those dismissed by the date
+    const formed = params.snapshotId
       ? (await this.listSnapshots.rowsFor(params.snapshotId, letter.legalEntityId)).rows
+      : null;
+    const rows = formed
+      ? extract
+        ? await this.reports.extractRows(formed, reportDate, filter)
+        : formed
       : (
           await this.reports.lists(reportDate, {
+            ...filter,
             groups: params.groups ?? LIST_GROUPS,
-            onlyIds: params.employeeIds ?? undefined,
-            tckId: params.byTck ? letter.tckId : null,
             legalEntityId: letter.legalEntityId,
           })
         ).rows;
@@ -594,8 +616,11 @@ export class LettersService {
       section,
       people: rows.filter((r) => r.section === section).length,
     })).filter((s) => s.people > 0);
-    if (!sections.length)
-      throw new BadRequestException('У листі нікого немає — додатків до супровідного листа не буде');
+    if (!sections.length) {
+      throw new BadRequestException(
+        'У листі нікого немає: особи цього ТЦК звільнені або не перебувають на обліку — звірка не потрібна',
+      );
+    }
 
     // the people in the order of the lists, each with his eВОД (when it is in the card)
     const order = [...new Set(rows.map((r) => r.employeeId))];

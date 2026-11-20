@@ -102,6 +102,8 @@ export interface ManagedUser {
   temporaryPasswordExpiresAt?: string | null;
   lockedUntil: string | null;
   lastLoginAt: string | null;
+  /** When the code from the app was turned on; null — the password only (or not set up yet). */
+  mfaEnabledAt?: string | null;
   passwordChangedAt: string | null;
   /** The applications of the domain the account may open (platform/contracts/apps). */
   modules?: string[];
@@ -209,3 +211,21 @@ export interface SignupInfo {
 export interface MessageResponse {
   message: string;
 }
+
+/** The second step of one's own account (Profile → «Вхід з кодом»). */
+export interface MfaStatus {
+  enabled: boolean;
+  enabledAt: string | null;
+  /** The role cannot sign in without it. */
+  required: boolean;
+  recoveryLeft: number;
+}
+
+/** The code is on / new recovery codes: shown once. */
+export interface MfaCodesResult {
+  recoveryCodes: string[];
+  status: MfaStatus;
+}
+
+/** Where the sign-in page is: the password, the code, setting up the app, the recovery codes. */
+export type LoginStep = 'password' | 'code' | 'setup' | 'codes';

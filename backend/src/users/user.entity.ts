@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { encrypted } from '../common/crypto/field-encryption.js';
 import type { SignupSource, UserRole } from '../shared/interfaces/auth.interface.js';
 
 @Entity('users')
@@ -66,6 +67,26 @@ export class User {
   /** One-time entry while there is a debt for using the system: when it was used. */
   @Column({ type: 'timestamptz', nullable: true })
   debtGraceUsedAt: Date | null;
+
+  /** Two-step sign-in: the secret of the authenticator app (encrypted); set but not enabled — being set up. */
+  @Column({ type: 'text', nullable: true, select: false, transformer: encrypted })
+  mfaSecret: string | null;
+
+  /** When the code from the app was turned on; null — sign-in with the password only. */
+  @Column({ type: 'timestamptz', nullable: true })
+  mfaEnabledAt: Date | null;
+
+  /** Hashes of the unused recovery codes (each works once). */
+  @Column({ type: 'jsonb', default: [], select: false })
+  mfaRecoveryHashes: string[];
+
+  /** The step (30 s) of the last accepted code: the same code is not accepted twice. */
+  @Column({ type: 'int', nullable: true, select: false })
+  mfaLastStep: number | null;
+
+  /** Wrong codes in a row; reset by a right one, not by the password. */
+  @Column({ type: 'int', default: 0, select: false })
+  mfaFailedCount: number;
 
   /** ADMIN — the account was created by an administrator; SELF — the director signed up himself. */
   @Column({ type: 'varchar', length: 10, default: 'ADMIN' })

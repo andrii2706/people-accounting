@@ -1,6 +1,6 @@
 import { hasDeferralAt } from '../military/personal-list.js';
 import { isElectronicDocType, normalizePhone, normalizeVos } from '../military/employee-rules.js';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Brackets, DataSource, type EntityManager, In, IsNull, Repository } from 'typeorm';
 import { AuditService } from '../audit/audit.service.js';
@@ -42,6 +42,7 @@ import { assertInScope, inScope } from '../common/utils/entity-scope.utils.js';
 
 import type { ChangeType } from '../shared/interfaces/dictionary.interface.js';
 import type { EmployeeCountRow } from '../shared/interfaces/letter.interface.js';
+import { SecurityService } from '../security/security.service.js';
 
 @Injectable()
 export class EmployeesService {
@@ -53,6 +54,7 @@ export class EmployeesService {
     private readonly org: OrganizationService,
     private readonly auditService: AuditService,
     private readonly entities: LegalEntitiesService,
+    @Optional() private readonly security?: SecurityService,
   ) {}
 
   async list(query: EmployeeQueryDto) {
@@ -141,7 +143,11 @@ export class EmployeesService {
 
   async get(id: string, viewer?: AuthUser) {
     const [employee, org] = await Promise.all([this.findEntity(id), this.org.get()]);
-    if (viewer) await this.auditService.log('employee', id, 'VIEW', {}, viewer);
+    if (viewer) {
+      await this.auditService.log('employee', id, 'VIEW', {}, viewer);
+      // an unusual number of cards within an hour → a letter to the administrators (in the background)
+      void this.security?.checkViews(viewer);
+    }
     const changes = await this.changeRepo.find({
       where: { employeeId: id },
       relations: { letter: true },

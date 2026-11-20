@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { formatUa, todayIso } from '../common/utils/dates.utils.js';
@@ -15,6 +15,7 @@ import {
   dutyCategory,
   hasMobilizationOrder,
   isEmployedAt,
+  isInExtractAt,
   isOnListsAt,
   isOnPersonalListsAt,
   isReservedAt,
@@ -39,6 +40,7 @@ import type { EntityQuota } from '../shared/interfaces/legal-entity.interface.js
 import type { LetterNumberDate } from '../shared/interfaces/letter.interface.js';
 import { OPERATIONAL_REPORT_SINCE } from './reports.constants.js';
 import { OutgoingLetter } from '../letters/entities/outgoing-letter.entity.js';
+import { ChangeNotice } from '../letters/entities/change-notice.entity.js';
 import { OPERATIONAL_REPORT_TITLES } from './reports.constants.js';
 import type { OperationalReportData } from '../shared/interfaces/document.interface.js';
 
@@ -67,14 +69,35 @@ export class ReportsService {
     const texts = new Map<string, string>();
     const lastDates = new Map<string, IsoDate>();
     if (!ids.length) return { texts, lastDates };
-    const rows = await this.changes.find({
-      where: { employeeId: In(ids), type: In(['HIRE', 'POSITION', 'DISMISSAL']) },
-      relations: { letter: true },
-      order: { effectiveDate: 'ASC' },
-    });
+    const types = ['HIRE', 'POSITION', 'DISMISSAL'] as const;
+    // the changes sent in a letter of the system, and the notices themselves — also those entered by hand
+    // (number and date of a notice sent outside the system, with or without a change in the queue)
+    const [changes, notices] = await Promise.all([
+      this.changes.find({
+        where: { employeeId: In(ids), type: In([...types]) },
+        relations: { letter: true },
+      }),
+      this.changes.manager.getRepository(ChangeNotice).find({
+        where: { employeeId: In(ids), changeType: In([...types]) },
+        relations: { letter: true },
+      }),
+    ]);
+    const items = [
+      ...changes.map((c) => ({ employeeId: c.employeeId, type: c.type, letter: c.letter, date: c.effectiveDate })),
+      ...notices.map((n) => ({
+        employeeId: n.employeeId,
+        type: n.changeType,
+        letter: n.letter,
+        date: n.effectiveDate,
+      })),
+    ].sort((a, b) => a.date.localeCompare(b.date));
+    const seen = new Set<string>();
     const map = new Map<string, string[]>();
-    for (const c of rows) {
-      if (!c.letter) continue;
+    for (const c of items) {
+      if (!c.letter || !c.employeeId) continue;
+      const key = `${c.employeeId}|${c.letter.id}|${c.type}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       const about =
         c.type === 'HIRE' ? 'про призначення' : c.type === 'POSITION' ? 'про переведення' : 'про звільнення';
       const text = `${about}: вих. № ${c.letter.number} від ${formatUa(c.letter.date)} р.`;
@@ -106,11 +129,14 @@ export class ReportsService {
    */
   async lists(date: IsoDate = todayIso(), filter: ListsFilter = {}) {
     const { groups = LIST_GROUPS, onlyIds, legalEntityId = null, tckId = null } = filter;
+    // an extract (for a TCK, or of chosen people) — only those who still work: no dismissed people in it
+    const extract = filter.extract || !!onlyIds?.length || !!tckId;
+    const included = extract ? isInExtractAt : isOnPersonalListsAt;
     const all = (await this.loadAll(legalEntityId)).filter(
       (e) =>
         (!onlyIds?.length || onlyIds.includes(e.id)) &&
         (!tckId || e.tckId === tckId) &&
-        isOnPersonalListsAt(toMilitaryRecord(e), date),
+        included(toMilitaryRecord(e), date),
     );
     const ids = all.map((e) => e.id);
     const [notices, pending, org] = await Promise.all([
@@ -160,22 +186,65 @@ export class ReportsService {
    */
   async listsDocx(date: IsoDate, options: ListsDocxOptions = {}): Promise<RenderedListDocument> {
     const entityId = await this.legalEntities.forDocument(options.legalEntityId);
+    const extract = !!options.onlyIds?.length || !!options.tckId;
     // formed lists (a snapshot) are printed as they were; otherwise — the data on the date
-    const rows = options.rows ?? (await this.lists(date, { ...options, legalEntityId: entityId })).rows;
+    const rows = options.rows
+      ? extract
+        ? await this.extractRows(options.rows, date, options)
+        : options.rows
+      : (await this.lists(date, { ...options, legalEntityId: entityId })).rows;
+    if (extract && !rows.length) {
+      throw new BadRequestException(
+        'У витягу нікого немає: особи цього ТЦК звільнені або не перебувають на обліку — витяг не потрібен',
+      );
+    }
     return this.listDocuments.render({
       legalEntityId: entityId,
       date,
       rows,
-      extract: !!options.onlyIds?.length || !!options.tckId,
+      extract,
       letter: options.letter,
       section: options.section,
     });
   }
 
+  /**
+   * The rows of formed lists (a snapshot) for an extract: of this TCK / these people, without those dismissed
+   * by the date (they stay in the yearly lists, never in an extract).
+   */
+  async extractRows(rows: ListRowView[], date: IsoDate, filter: Pick<ListsFilter, 'tckId' | 'onlyIds'>) {
+    const picked = rows.filter(
+      (r) =>
+        (!filter.tckId || r.tckId === filter.tckId) &&
+        (!filter.onlyIds?.length || filter.onlyIds.includes(r.employeeId)),
+    );
+    if (!picked.length) return [];
+    const dismissed = new Set(
+      (
+        await this.employees.find({
+          where: { id: In([...new Set(picked.map((r) => r.employeeId))]) },
+          select: { id: true, dismissalDate: true },
+        })
+      )
+        .filter((e) => e.dismissalDate && e.dismissalDate <= date)
+        .map((e) => e.id),
+    );
+    const kept = picked.filter((r) => !dismissed.has(r.employeeId)).map((r) => ({ ...r, cells: [...r.cells] }));
+    // numbered anew inside each list
+    const numbers = new Map<ListSection, number>();
+    for (const row of kept) {
+      const n = (numbers.get(row.section) ?? 0) + 1;
+      numbers.set(row.section, n);
+      row.cells[0] = String(n);
+    }
+    return kept;
+  }
+
   /** Extracts overview: every TCK with the number of people in each of the four lists. */
   async extracts(date: IsoDate = todayIso(), legalEntityId: string | null = null): Promise<TckExtractSummary[]> {
     const [data, tcks, letters] = await Promise.all([
-      this.lists(date, { legalEntityId }),
+      // a TCK where only dismissed people are registered gets no extract — it is not in the overview
+      this.lists(date, { legalEntityId, extract: true }),
       this.tcks.find({ select: { id: true, name: true } }),
       this.lastExtractLetters(legalEntityId),
     ]);

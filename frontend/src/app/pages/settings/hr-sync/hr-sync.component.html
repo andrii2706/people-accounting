@@ -55,7 +55,53 @@
           }
         </div>
       </fieldset>
+      @if (m.mode !== 'FILE') {
+        <fieldset class="space-y-2">
+          <legend class="mb-2 text-sm font-medium">Як часто брати дані з 1С</legend>
+          <div class="grid gap-2 sm:grid-cols-2">
+            @for (fr of frequencies; track fr) {
+              <button
+                type="button"
+                class="flex min-w-0 cursor-pointer flex-col items-start gap-1 rounded-xl border p-3 text-left text-sm transition disabled:cursor-not-allowed disabled:opacity-60"
+                [class.border-brand-600]="m.frequency === fr"
+                [class.bg-brand-50]="m.frequency === fr"
+                [class.border-line]="m.frequency !== fr"
+                [attr.aria-pressed]="m.frequency === fr"
+                [disabled]="!canConfigure()"
+                (click)="setFrequency(fr)"
+              >
+                <span class="font-medium">{{ frequencyText[fr].label }}</span>
+                <span class="text-xs text-muted">{{ frequencyText[fr].hint }}</span>
+              </button>
+            }
+          </div>
+          @if (m.frequency === 'ONCE' && m.mode === 'PUSH') {
+            <p class="text-xs text-muted">
+              Після першого надсилання ключ приймає дані ще годину (велика компанія надсилає
+              частинами), потім відкликається сам.
+            </p>
+          }
+        </fieldset>
+      }
     </section>
+
+    @if (m.mode === 'PUSH') {
+      <section class="card space-y-3 p-5 sm:p-6">
+        <h2 class="font-semibold">Звідки приймати дані</h2>
+        <app-form-field
+          label="Дозволені адреси сервера 1С"
+          hint="IP-адреси або мережі через кому: 203.0.113.5, 198.51.100.0/24. Ключ з інших адрес не прийматиметься, навіть якщо його вкрадуть. Порожньо — з будь-якої адреси."
+          [field]="f.pushAllowedIps"
+        >
+          <input
+            class="input font-mono text-sm"
+            spellcheck="false"
+            placeholder="будь-яка адреса"
+            [formField]="f.pushAllowedIps"
+          />
+        </app-form-field>
+      </section>
+    }
 
     @if (m.mode === 'ODATA') {
       <section class="card space-y-4 p-5 sm:p-6">
@@ -117,7 +163,7 @@
             [formField]="f.organizationCode"
           />
         </app-form-field>
-        <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+        <div class="flex flex-wrap items-center gap-x-6 gap-y-3" [hidden]="m.frequency === 'ONCE'">
           <label class="flex cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -295,7 +341,27 @@
             <span class="text-muted">видано {{ s.tokenIssuedAt | uaDate }}</span>
           </p>
         } @else {
-          <p class="text-muted">Ключ ще не видано — 1С не зможе надсилати дані.</p>
+          <p class="text-muted">
+            {{
+              done()
+                ? 'Ключ не потрібен: дані з 1С уже отримано.'
+                : 'Ключ ще не видано — 1С не зможе надсилати дані.'
+            }}
+          </p>
+        }
+        @if (s.tokenPrefix) {
+          <p
+            class="text-xs"
+            [class.text-warning]="tokenEndsSoon()"
+            [class.text-muted]="!tokenEndsSoon()"
+          >
+            {{
+              s.tokenExpiresAt ? 'Діє до ' + (s.tokenExpiresAt | uaDate) : 'Діє, доки не відкличете'
+            }}
+            @if (s.pushAllowedIps) {
+              · лише з {{ s.pushAllowedIps }}
+            }
+          </p>
         }
         <div class="min-w-0">
           <p class="mb-1 text-xs text-muted">Адреса, куди 1С надсилає дані</p>
@@ -314,8 +380,17 @@
             </button>
           </div>
         </div>
-        @if (canConfigure()) {
-          <div class="flex flex-wrap gap-2">
+        @if (canConfigure() && !done()) {
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="w-40">
+              <app-select
+                ariaLabel="Строк дії нового ключа"
+                [clearable]="false"
+                [options]="tokenDaysOptions"
+                [value]="tokenDays()"
+                (valueChange)="tokenDays.set($event || '365')"
+              />
+            </div>
             <button
               type="button"
               class="btn btn-secondary cursor-pointer"
@@ -356,7 +431,11 @@
             програміст 1С за 15 хвилин).
           </li>
           <li>Вставте в неї адресу й ключ, натисніть «Перевірити підключення».</li>
-          <li>Увімкніть регламентне завдання — 1С надсилатиме працівників щодня.</li>
+          @if (s.frequency === 'ONCE') {
+            <li>Натисніть «Надіслати зараз» один раз — розклад у 1С не потрібен.</li>
+          } @else {
+            <li>Увімкніть регламентне завдання — 1С надсилатиме працівників щодня.</li>
+          }
         </ol>
       </section>
     }
@@ -364,7 +443,7 @@
     <section class="card min-w-0 space-y-3 p-5 text-sm sm:p-6" aria-live="polite">
       <div class="flex flex-wrap items-center gap-2">
         <h2 class="mr-auto font-semibold">Отримання</h2>
-        @if (s.configured && s.mode === 'ODATA') {
+        @if (s.configured && s.mode === 'ODATA' && !done()) {
           <button
             type="button"
             class="btn btn-secondary cursor-pointer"
@@ -376,6 +455,30 @@
           </button>
         }
       </div>
+      @if (done()) {
+        <div class="space-y-2 rounded-lg bg-ok/10 px-3 py-2.5">
+          <p class="font-medium text-ok">
+            <app-icon name="check" [size]="14" /> Дані з 1С отримано {{ time(s.completedAt) }}
+          </p>
+          <p class="text-xs text-muted">
+            Разове завантаження завершено: 1С більше нічого не змінює, працівники ведуться в
+            застосунку.
+            @if (s.pushWindowUntil && s.pushWindowUntil > nowIso()) {
+              Решту частин 1С може надіслати до {{ time(s.pushWindowUntil) }}.
+            }
+          </p>
+          @if (canConfigure()) {
+            <button
+              type="button"
+              class="btn btn-ghost btn-sm cursor-pointer"
+              [disabled]="busy() !== ''"
+              (click)="reopen()"
+            >
+              <app-icon name="download" [size]="14" /> Отримати ще раз
+            </button>
+          }
+        </div>
+      }
       @if (!s.configured) {
         <p class="text-muted">Інтеграцію не налаштовано.</p>
       } @else {

@@ -1,0 +1,180 @@
+<section class="card mt-6 max-w-xl p-5 sm:p-6" aria-labelledby="mfa-title">
+  <div class="flex items-start gap-3">
+    <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-sunken text-brand-600"
+      ><app-icon name="shield" [size]="18"
+    /></span>
+    <div class="min-w-0">
+      <h2 id="mfa-title" class="font-semibold">Вхід з кодом із телефону</h2>
+      @if (status(); as s) {
+        @if (s.enabled) {
+          <p class="mt-1 text-sm text-muted">
+            <span class="font-medium text-ok">Увімкнено</span>
+            @if (s.enabledAt) {
+              з {{ s.enabledAt | uaDate }}
+            }
+            · резервних кодів залишилось: <b class="text-ink">{{ s.recoveryLeft }}</b>
+          </p>
+          @if (s.recoveryLeft <= 3) {
+            <p class="mt-2 text-sm text-warning">
+              Резервних кодів мало — створіть нові, поки є доступ до застосунку.
+            </p>
+          }
+        } @else {
+          <p class="mt-1 text-sm text-muted">
+            Після пароля система попросить 6 цифр із застосунку на телефоні. Навіть знаючи пароль,
+            сторонні не ввійдуть.
+          </p>
+        }
+      }
+    </div>
+  </div>
+
+  @if (status(); as s) {
+    @switch (mode()) {
+      @case ('idle') {
+        <div class="mt-5 flex flex-wrap gap-2">
+          @if (!s.enabled) {
+            <button
+              type="button"
+              class="btn btn-primary cursor-pointer"
+              (click)="start('password')"
+            >
+              Увімкнути
+            </button>
+          } @else {
+            <button type="button" class="btn btn-secondary cursor-pointer" (click)="start('renew')">
+              <app-icon name="key" /> Нові резервні коди
+            </button>
+            @if (!s.required) {
+              <button type="button" class="btn btn-ghost cursor-pointer" (click)="start('disable')">
+                Вимкнути
+              </button>
+            }
+          }
+        </div>
+        @if (s.enabled && s.required) {
+          <p class="mt-3 text-xs text-muted">
+            Для вашої ролі вхід з кодом обов’язковий. Новий телефон: увійдіть резервним кодом і
+            попросіть адміністратора скинути вхід з кодом — застосунок налаштуєте наново.
+          </p>
+        }
+      }
+      @case ('password') {
+        <form class="mt-5 space-y-4" (submit)="begin($event)" novalidate>
+          <div>
+            <label class="mb-1 block text-sm font-medium" for="mfa-password"
+              >Ваш пароль — для підтвердження</label
+            >
+            <app-password-input>
+              <input
+                id="mfa-password"
+                class="input"
+                type="password"
+                autocomplete="current-password"
+                [value]="password()"
+                (input)="password.set($any($event.target).value)"
+              />
+            </app-password-input>
+          </div>
+          @if (error()) {
+            <p
+              class="rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+              role="alert"
+            >
+              {{ error() }}
+            </p>
+          }
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              class="btn btn-primary cursor-pointer"
+              [disabled]="busy() || !password()"
+            >
+              Далі
+            </button>
+            <button type="button" class="btn btn-ghost cursor-pointer" (click)="cancel()">
+              Скасувати
+            </button>
+          </div>
+        </form>
+      }
+      @case ('setup') {
+        <div class="mt-5">
+          @if (setup(); as st) {
+            <app-two-factor-setup
+              [setup]="st"
+              [busy]="busy()"
+              [error]="error()"
+              (confirm)="enable($event)"
+            />
+          }
+          <button type="button" class="btn btn-ghost mt-3 cursor-pointer" (click)="cancel()">
+            Скасувати
+          </button>
+        </div>
+      }
+      @case ('codes') {
+        <div class="mt-5">
+          <app-recovery-codes
+            [codes]="codes()"
+            [email]="auth.user()?.email ?? ''"
+            doneLabel="Готово"
+            (done)="codesSaved()"
+          />
+        </div>
+      }
+      @default {
+        <form class="mt-5 space-y-4" (submit)="confirm($event)" novalidate>
+          <p class="text-sm text-muted">
+            @if (mode() === 'disable') {
+              Щоб вимкнути вхід з кодом, підтвердіть паролем і кодом із застосунку.
+            } @else {
+              Старі резервні коди перестануть діяти. Підтвердіть паролем і кодом із застосунку.
+            }
+          </p>
+          <div>
+            <label class="mb-1 block text-sm font-medium" for="mfa-confirm-password">Пароль</label>
+            <app-password-input>
+              <input
+                id="mfa-confirm-password"
+                class="input"
+                type="password"
+                autocomplete="current-password"
+                [value]="password()"
+                (input)="password.set($any($event.target).value)"
+              />
+            </app-password-input>
+          </div>
+          <div>
+            <label class="mb-1 block text-sm font-medium" for="mfa-confirm-code"
+              >Код із застосунку</label
+            >
+            <app-code-input inputId="mfa-confirm-code" [autofocus]="false" [(value)]="code" />
+          </div>
+          @if (error()) {
+            <p
+              class="rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+              role="alert"
+            >
+              {{ error() }}
+            </p>
+          }
+          <div class="flex gap-2">
+            <button
+              type="submit"
+              class="btn cursor-pointer"
+              [class.btn-danger]="mode() === 'disable'"
+              [class.btn-primary]="mode() !== 'disable'"
+              [disabled]="busy() || !confirmReady()"
+            >
+              {{ mode() === 'disable' ? 'Вимкнути вхід з кодом' : 'Створити нові коди' }}
+            </button>
+            <button type="button" class="btn btn-ghost cursor-pointer" (click)="cancel()">
+              Скасувати
+            </button>
+          </div>
+        </form>
+      }
+    }
+  }
+</section>

@@ -8,6 +8,7 @@ import { loadEnv } from '../config/env.js';
 import { User } from '../users/user.entity.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
+import { MfaService } from './mfa.service.js';
 import { SessionService } from './session.service.js';
 
 @Global()
@@ -31,9 +32,10 @@ import { SessionService } from './session.service.js';
   controllers: [AuthController],
   providers: [
     SessionService,
+    MfaService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
   ],
-  exports: [JwtModule, SessionService],
+  exports: [JwtModule, SessionService, MfaService],
 })
 export class AuthModule {}

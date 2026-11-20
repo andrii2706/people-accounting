@@ -1,4 +1,5 @@
 import { InjectionToken } from '@angular/core';
+import { LOCAL_API_URL } from '../constants/dev.constants';
 
 /**
  * Backend address for requests made during SSR (from the Node process).
@@ -6,5 +7,5 @@ import { InjectionToken } from '@angular/core';
  */
 export const API_INTERNAL_URL = new InjectionToken<string>('API_INTERNAL_URL', {
   providedIn: 'root',
-  factory: () => 'http://localhost:3000',
+  factory: () => LOCAL_API_URL,
 });

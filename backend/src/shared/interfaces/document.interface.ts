@@ -140,6 +140,8 @@ export interface ReconciliationPerson {
 export interface InventoryItem {
   name: string;
   copies: number;
+  /** Sheets of one copy, if known (eВОД — 1); empty — left for the pen. */
+  sheets?: string;
 }
 
 /** Cover letter and inventory for extracts (or lists) sent to a TCK for reconciliation. */

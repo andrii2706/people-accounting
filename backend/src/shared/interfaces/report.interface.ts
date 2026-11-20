@@ -50,6 +50,8 @@ export interface ListsFilter {
   onlyIds?: string[];
   legalEntityId?: string | null;
   tckId?: string | null;
+  /** An extract for a TCK: only those who work on the date (implied by onlyIds / tckId). */
+  extract?: boolean;
 }
 
 /** Lists / extract document: the filter plus the outgoing number and date of the letter. */

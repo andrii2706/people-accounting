@@ -15,6 +15,7 @@ import type { SignatureMethod, SignatureVerification } from '../shared/interface
 import { sha256 } from '../common/utils/hash.utils.js';
 import { VERIFICATION_RANK } from './signatures.constants.js';
 import { signerSummary } from './utils/signature-summary.utils.js';
+import { UploadGuardService } from '../security/upload-guard.service.js';
 
 /**
  * Qualified e-signing of letters.
@@ -37,6 +38,7 @@ export class SignaturesService {
     private readonly lettersService: LettersService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    private readonly uploads: UploadGuardService,
   ) {}
 
   config() {
@@ -124,6 +126,7 @@ export class SignaturesService {
     const { letter, buffer: document } = await this.frozenDocument(id);
     const file = Buffer.from(base64, 'base64');
     if (!file.length) throw new BadRequestException('Порожній файл підпису');
+    await this.uploads.assertSafe(file, 'signature.p7s', 'signature', { user });
 
     let parsed;
     try {

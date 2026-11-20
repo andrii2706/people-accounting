@@ -28,3 +28,28 @@ export class ResetPasswordDto {
   @Rule((v: string) => passwordProblems(v).length === 0, (v: string) => `Потрібно: ${passwordProblems(v).join(', ')}`)
   newPassword: string;
 }
+
+/** The second step of the sign-in: the ticket from the first answer and the code. */
+export class LoginCodeDto {
+  @IsString() @IsNotEmpty({ message: 'Почніть вхід ще раз' }) @MaxLength(2000) ticket: string;
+  @IsString() @IsNotEmpty({ message: 'Введіть код із застосунку' }) @MaxLength(20) code: string;
+}
+
+export class LoginTicketDto {
+  @IsString() @IsNotEmpty({ message: 'Почніть вхід ще раз' }) @MaxLength(2000) ticket: string;
+}
+
+/** Own account: the password once more before a new secret is made. */
+export class MfaPasswordDto {
+  @IsString() @IsNotEmpty({ message: 'Вкажіть пароль' }) @MaxLength(200) password: string;
+}
+
+export class MfaCodeDto {
+  @IsString() @IsNotEmpty({ message: 'Введіть код із застосунку' }) @MaxLength(20) code: string;
+}
+
+/** Own account: turning the code off / new recovery codes — the password and a current code. */
+export class MfaConfirmDto {
+  @IsString() @IsNotEmpty({ message: 'Вкажіть пароль' }) @MaxLength(200) password: string;
+  @IsString() @IsNotEmpty({ message: 'Введіть код із застосунку' }) @MaxLength(20) code: string;
+}

@@ -19,6 +19,7 @@ import { SUBSCRIPTION_MANAGERS } from './subscriptions.constants.js';
 import { SubscriptionsService } from './subscriptions.service.js';
 import { TERMS_VERSION } from './terms.constants.js';
 import { buildOfferDocument } from './utils/offer-document.utils.js';
+import { UploadGuardService } from '../security/upload-guard.service.js';
 
 /**
  * The offer is accepted only with the qualified e-signature of the head of the legal entity:
@@ -38,6 +39,7 @@ export class OfferService {
     private readonly gate: OfferGateService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    private readonly uploads: UploadGuardService,
   ) {}
 
   private canSign(user: AuthUser) {
@@ -101,7 +103,9 @@ export class OfferService {
     if (row.termsVersion !== TERMS_VERSION) {
       throw new BadRequestException('Оферта оновилася — сформуйте документ ще раз і підпишіть нову редакцію');
     }
-    const check = await this.kep.verify(Buffer.from(row.document, 'utf8'), Buffer.from(signatureBase64, 'base64'));
+    const signature = Buffer.from(signatureBase64, 'base64');
+    await this.uploads.assertSafe(signature, 'offer.p7s', 'signature', { user });
+    const check = await this.kep.verify(Buffer.from(row.document, 'utf8'), signature);
     await this.assertHead(entity, check.signer);
 
     const base = `offers/${entity.id}/${row.id}`;

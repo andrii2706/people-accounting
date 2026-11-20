@@ -112,6 +112,12 @@ export const SETTINGS_ROUTES: Routes = [
     loadComponent: () => import('./signups/signups.component').then((m) => m.SignupsComponent),
   },
   {
+    path: 'security',
+    canActivate: [managerGuard],
+    title: 'Безпека · Військовий облік',
+    loadComponent: () => import('./security/security.component').then((m) => m.SecurityComponent),
+  },
+  {
     path: 'users',
     canActivate: [managerGuard],
     title: 'Користувачі · Військовий облік',

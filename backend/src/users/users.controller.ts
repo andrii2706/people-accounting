@@ -9,13 +9,17 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Req,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import { ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service.js';
 import { CurrentUser, EntityScope, Roles } from '../common/decorators/auth.decorators.js';
 import { assertInScope } from '../common/utils/entity-scope.utils.js';
 import { CreateUserDto, UpdateUserDto } from './users.dto.js';
 import { UsersService } from './users.service.js';
+import { MfaService } from '../auth/mfa.service.js';
+import { actorOf } from '../security/utils/security.utils.js';
 import { canManage, issuableRoles } from './utils/user-policy.utils.js';
 import type { AuthUser, Scope, UserRole } from '../shared/interfaces/auth.interface.js';
 
@@ -30,6 +34,7 @@ export class UsersController {
   constructor(
     private readonly users: UsersService,
     private readonly audit: AuditService,
+    private readonly mfa: MfaService,
   ) {}
 
   @Get()
@@ -100,6 +105,19 @@ export class UsersController {
     const user = await this.users.unlock(id);
     await this.audit.log('user', id, 'USER_UPDATED', { lockedUntil: ['…', null] }, actor);
     return user;
+  }
+
+  /**
+   * A lost phone without the recovery codes: the code from the app is turned off, the sessions end, and at the
+   * next sign-in the person sets the app up again (where the role requires it).
+   */
+  @Post(':id/mfa/reset')
+  @HttpCode(200)
+  async resetMfa(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() actor: AuthUser, @Req() req: Request) {
+    await this.manageable(id, actor);
+    await this.mfa.reset(id, actor, actorOf(req));
+    await this.audit.log('user', id, 'MFA_CHANGED', { mfa: ['on', null] }, actor);
+    return this.users.findById(id);
   }
 
   /** An account of another legal entity is «not found»; a higher one of his own — «not allowed». */

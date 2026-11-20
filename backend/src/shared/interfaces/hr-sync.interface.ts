@@ -9,6 +9,12 @@ export type HrSystem = 'ZUP' | 'BAS_ACCOUNTING' | 'OTHER';
  */
 export type HrSyncMode = 'PUSH' | 'ODATA' | 'FILE';
 
+/**
+ * How often: ONCE — a single initial load (after the first applied delivery the integration closes, the cards
+ * are kept in the app from then on); ONGOING — daily and by hand.
+ */
+export type HrSyncFrequency = 'ONCE' | 'ONGOING';
+
 /** What to do with the military fields that come from 1C (ЗУП keeps «Військовий облік» too). */
 export type HrMilitaryPolicy = 'FILL_EMPTY' | 'OVERWRITE' | 'IGNORE';
 
@@ -82,6 +88,11 @@ export interface HrSyncSettingsView {
   configured: boolean;
   system: HrSystem;
   mode: HrSyncMode;
+  frequency: HrSyncFrequency;
+  /** ONCE: when the data of 1C were applied — after that nothing more is taken (until «Отримати ще раз»). */
+  completedAt: string | null;
+  /** ONCE + PUSH: until when 1C may still send the rest of its parts after the first one. */
+  pushWindowUntil: string | null;
   odataUrl: string;
   odataUser: string;
   hasOdataPassword: boolean;
@@ -98,6 +109,10 @@ export interface HrSyncSettingsView {
   /** «mr1c_ab12…» — the visible start of the push key, or '' when none is issued. */
   tokenPrefix: string;
   tokenIssuedAt: string | null;
+  /** The key stops working then; null — until revoked. */
+  tokenExpiresAt: string | null;
+  /** The addresses the key is accepted from, «a, b/24»; '' — any. */
+  pushAllowedIps: string;
   lastRunAt: string | null;
   lastStatus: HrBatchStatus | null;
   lastMessage: string;

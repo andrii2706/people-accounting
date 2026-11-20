@@ -52,6 +52,9 @@ export const LABEL_TITLES: Record<LabelTitleStyle, Record<LabelPartyKey, string>
   CLASSIC: { sender: 'Відправник:', recipient: 'Отримувач:' },
 };
 
+/** The phone nobody filled in: a line to write it by hand. */
+export const LABEL_PHONE_BLANK = '____________________';
+
 /** Digits of a Ukrainian postal index — the number of cells. */
 export const POSTAL_CODE_DIGITS = 5;
 

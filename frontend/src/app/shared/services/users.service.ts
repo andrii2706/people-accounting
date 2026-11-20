@@ -40,6 +40,11 @@ export class UsersService {
     );
   }
 
+  /** A lost phone: the code from the app is turned off, the person sets it up again at the next sign-in. */
+  resetMfa(id: string) {
+    return firstValueFrom(this.http.post<ManagedUser>(`api/users/${id}/mfa/reset`, {}));
+  }
+
   unlock(id: string) {
     return firstValueFrom(this.http.post<ManagedUser>(`api/users/${id}/unlock`, {}));
   }

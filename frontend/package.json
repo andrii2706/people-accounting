@@ -4,6 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve --proxy-config proxy.conf.json",
+    "start:gateway": "ng serve --configuration gateway",
     "build": "ng build",
     "typecheck": "ngc -p tsconfig.app.json --noEmit",
     "watch": "ng build --watch --configuration development",

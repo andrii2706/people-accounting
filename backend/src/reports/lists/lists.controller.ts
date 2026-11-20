@@ -10,10 +10,12 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import type { Request } from 'express';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../../audit/audit.service.js';
 import { CurrentUser, EntityScope, Roles } from '../../common/decorators/auth.decorators.js';
@@ -32,6 +34,7 @@ import { ListSettingsService } from './list-settings.service.js';
 import { ListSnapshotsService } from './list-snapshots.service.js';
 import { LIST_FILE_NAMES, LIST_ROLES, MAX_TEMPLATE_BYTES } from './lists.constants.js';
 import { CreateListSnapshotDto, ListSectionSettingsDto } from './lists.dto.js';
+import { UploadGuardService } from '../../security/upload-guard.service.js';
 
 const ENTITY_NOT_FOUND = 'Юридичну особу не знайдено';
 
@@ -60,6 +63,7 @@ export class ListsController {
     private readonly snapshots: ListSnapshotsService,
     private readonly settings: ListSettingsService,
     private readonly audit: AuditService,
+    private readonly uploads: UploadGuardService,
   ) {}
 
   @ApiQuery({ name: 'entity', required: false })
@@ -148,6 +152,7 @@ export class ListsController {
     @UploadedFile() file: UploadedTemplate | undefined,
     @CurrentUser() user: AuthUser,
     @EntityScope() scope: Scope,
+    @Req() req: Request,
   ): Promise<ListSettings> {
     assertInScope(scope, id, ENTITY_NOT_FOUND);
     const list = requiredSection(section);
@@ -155,6 +160,8 @@ export class ListsController {
     // multer gives the name in latin1
     const fileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
     if (!/\.docx$/i.test(fileName)) throw new BadRequestException('Потрібен файл Word у форматі .docx');
+    // the template goes into every list document later — a macro or a remote template must never get in
+    await this.uploads.assertSafe(file.buffer, fileName, 'docx', { user, req });
     const settings = await this.settings.uploadTemplate(id, list, file.buffer, fileName);
     await this.audit.log('legal-entity', id, 'UPDATE', { [`lists.${list}.template`]: [null, fileName] }, user);
     return settings;

@@ -99,8 +99,8 @@ export class CreateExternalNoticeDto {
 
   @IsIsoDate() @NotFuture() date: string;
 
-  @IsIn(['HIRE', 'DISMISSAL', 'DATA'], { message: 'Оберіть тип повідомлення' })
-  changeType: 'HIRE' | 'DISMISSAL' | 'DATA';
+  @IsIn(['HIRE', 'POSITION', 'DISMISSAL', 'DATA'], { message: 'Оберіть тип повідомлення' })
+  changeType: 'HIRE' | 'POSITION' | 'DISMISSAL' | 'DATA';
 
   /** Date the reported change took effect; the letter date when omitted. */
   @IsOptional() @IsIsoDate() effectiveDate?: string;

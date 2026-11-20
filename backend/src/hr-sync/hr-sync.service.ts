@@ -39,15 +39,27 @@ import { HrSyncBatch } from './entities/hr-sync-batch.entity.js';
 import { HrSyncSettings } from './entities/hr-sync-settings.entity.js';
 import {
   HR_ACTOR_NAME,
+  HR_ALLOWED_IPS_MAX,
   HR_BATCH_KEEP_DAYS,
   HR_HISTORY_ROWS,
+  HR_ONCE_PUSH_WINDOW_MS,
   HR_PUSH_PATH,
   HR_SYSTEM_LABELS,
+  HR_TOKEN_DEFAULT_DAYS,
 } from './hr-sync.constants.js';
 import type { HrSyncSettingsDto } from './hr-sync.dto.js';
 import { ODataError, OneCODataClient } from './odata/one-c-odata.client.js';
 import { countItems, planBatch, publicItem } from './utils/hr-records.utils.js';
-import { issueToken, parseToken, PushFormatError, readPushBody, tokenMatches } from './utils/hr-push.utils.js';
+import {
+  ipAllowed,
+  issueToken,
+  parseAllowedIps,
+  parseToken,
+  PushFormatError,
+  readPushBody,
+  tokenMatches,
+} from './utils/hr-push.utils.js';
+import { SecurityService } from '../security/security.service.js';
 
 const SETTINGS_NOT_FOUND = 'Інтеграцію з 1С ще не налаштовано';
 const BATCH_NOT_FOUND = 'Отримання не знайдено';
@@ -74,6 +86,7 @@ export class HrSyncService {
     @InjectRepository(LegalEntity) private readonly entities: Repository<LegalEntity>,
     private readonly employees: EmployeesService,
     private readonly gate: SubscriptionGateService,
+    private readonly security: SecurityService,
   ) {}
 
   // ───────────── settings ─────────────
@@ -104,20 +117,27 @@ export class HrSyncService {
         throw new BadRequestException(err instanceof Error ? err.message : 'Невірна адреса публікації');
       }
     }
+    const frequency = dto.frequency ?? existing?.frequency ?? 'ONGOING';
     const row = this.settings.create({
       ...(existing ?? {}),
       legalEntityId,
       system: dto.system,
       mode: dto.mode,
+      frequency,
       odataUrl: dto.odataUrl?.trim() ?? '',
       odataUser: dto.odataUser?.trim() ?? '',
       odataPassword,
       organizationCode: dto.organizationCode?.trim() ?? '',
-      scheduleEnabled: dto.mode === 'ODATA' && dto.scheduleEnabled,
+      // a single load has no schedule
+      scheduleEnabled: dto.mode === 'ODATA' && frequency === 'ONGOING' && dto.scheduleEnabled,
       scheduleHour: dto.scheduleHour,
       autoApply: dto.autoApply,
       militaryPolicy: dto.militaryPolicy,
       importDismissed: dto.importDismissed,
+      pushAllowedIps:
+        dto.pushAllowedIps === undefined
+          ? (existing?.pushAllowedIps ?? '')
+          : parseAllowedIps(dto.pushAllowedIps, HR_ALLOWED_IPS_MAX).join(', '),
       configuredById: by.id,
       configuredBy: by.fullName,
     });
@@ -130,14 +150,26 @@ export class HrSyncService {
     await this.settings.delete({ legalEntityId });
   }
 
+  /** «Отримати ще раз»: a single load that is done may take the data of 1C once more. */
+  async reopen(legalEntityId: string): Promise<HrSyncSettingsView> {
+    const row = await this.mustSettings(legalEntityId);
+    Object.assign(row, { completedAt: null, firstPushAt: null });
+    return this.toView(await this.settings.save(row));
+  }
+
   /** A new push key (the old one stops working at once). The key is returned once and never again. */
-  async issueToken(legalEntityId: string, by: AuthUser): Promise<{ token: string; settings: HrSyncSettingsView }> {
+  async issueToken(
+    legalEntityId: string,
+    by: AuthUser,
+    validDays: number = HR_TOKEN_DEFAULT_DAYS,
+  ): Promise<{ token: string; settings: HrSyncSettingsView }> {
     const row = await this.mustSettings(legalEntityId);
     const { token, prefix, hash } = issueToken();
     Object.assign(row, {
       tokenPrefix: prefix,
       tokenHash: hash,
       tokenIssuedAt: new Date(),
+      tokenExpiresAt: validDays ? new Date(Date.now() + validDays * 24 * 3600_000) : null,
       configuredById: by.id,
       configuredBy: by.fullName,
     });
@@ -146,7 +178,7 @@ export class HrSyncService {
 
   async revokeToken(legalEntityId: string): Promise<HrSyncSettingsView> {
     const row = await this.mustSettings(legalEntityId);
-    Object.assign(row, { tokenPrefix: '', tokenHash: '', tokenIssuedAt: null });
+    Object.assign(row, { tokenPrefix: '', tokenHash: '', tokenIssuedAt: null, tokenExpiresAt: null });
     return this.toView(await this.settings.save(row));
   }
 
@@ -178,6 +210,7 @@ export class HrSyncService {
   async pull(legalEntityId: string, source: HrBatchSource, by?: AuthUser): Promise<HrBatchView> {
     const row = await this.mustSettings(legalEntityId);
     if (row.mode !== 'ODATA') throw new BadRequestException('Читання з 1С не увімкнено — оберіть спосіб «OData»');
+    if (row.frequency === 'ONCE' && row.completedAt) throw new ConflictException(this.doneMessage(row.completedAt));
     const entity = await this.entity(legalEntityId);
     let records: HrRecord[];
     try {
@@ -206,8 +239,8 @@ export class HrSyncService {
   // ───────────── push ─────────────
 
   /** POST /integrations/1c/employees from the data processor of 1C, with the key of the legal entity. */
-  async receivePush(authorization: string | undefined, body: unknown): Promise<HrPushResult> {
-    const row = await this.byKey(authorization);
+  async receivePush(authorization: string | undefined, ip: string, body: unknown): Promise<HrPushResult> {
+    const row = await this.byKey(authorization, ip, true);
     let records: HrRecord[];
     try {
       records = readPushBody(body);
@@ -220,17 +253,38 @@ export class HrSyncService {
   }
 
   /** The check of the key from 1C: whose it is (the name and the code — so the administrator sees he got the right one). */
-  async ping(authorization: string | undefined): Promise<{ ok: true; legalEntity: string; edrpou: string }> {
-    const row = await this.byKey(authorization);
+  async ping(
+    authorization: string | undefined,
+    ip: string,
+  ): Promise<{ ok: true; legalEntity: string; edrpou: string }> {
+    const row = await this.byKey(authorization, ip);
     const entity = await this.entity(row.legalEntityId);
     return { ok: true, legalEntity: entity.shortName || entity.fullName, edrpou: entity.edrpou };
   }
 
-  private async byKey(authorization: string | undefined): Promise<HrSyncSettings> {
+  private async byKey(authorization: string | undefined, ip: string, push = false): Promise<HrSyncSettings> {
     const parsed = parseToken(authorization);
     const row = parsed ? await this.settings.findOneBy({ tokenPrefix: parsed.prefix }) : null;
     if (!parsed || !row || !tokenMatches(parsed.secret, row.tokenHash)) {
       throw new UnauthorizedException('Невірний або відкликаний ключ інтеграції');
+    }
+    // the right key from a wrong place or after its end — somebody else may hold it
+    if (row.tokenExpiresAt && row.tokenExpiresAt < new Date()) {
+      await this.security.record(
+        'HR_PUSH_DENIED',
+        { legalEntityId: row.legalEntityId, ip },
+        { reason: 'строк ключа минув' },
+      );
+      throw new UnauthorizedException('Строк дії ключа минув — видайте новий ключ у налаштуваннях інтеграції');
+    }
+    const allowed = row.pushAllowedIps ? parseAllowedIps(row.pushAllowedIps, HR_ALLOWED_IPS_MAX) : [];
+    if (!ipAllowed(allowed, ip)) {
+      await this.security.record(
+        'HR_PUSH_DENIED',
+        { legalEntityId: row.legalEntityId, ip },
+        { reason: 'адреса не дозволена' },
+      );
+      throw new ForbiddenException(`Адреса ${ip || 'невідома'} не входить до дозволених для цього ключа`);
     }
     if (row.mode !== 'PUSH') {
       throw new ForbiddenException('Для цієї юрособи прийом даних з 1С вимкнено (обрано інший спосіб)');
@@ -238,7 +292,28 @@ export class HrSyncService {
     if ((await this.gate.gate(row.legalEntityId)) !== 'OK') {
       throw new ForbiddenException('Підписка юрособи неактивна — дані не прийнято');
     }
+    if (row.frequency === 'ONCE') {
+      const windowOpen = !!row.firstPushAt && Date.now() - row.firstPushAt.getTime() < HR_ONCE_PUSH_WINDOW_MS;
+      if (row.completedAt && !windowOpen) {
+        // the single load is done: the key is not needed any more
+        await this.settings.update(
+          { legalEntityId: row.legalEntityId },
+          { tokenHash: '', tokenPrefix: '', tokenIssuedAt: null },
+        );
+        throw new ForbiddenException(this.doneMessage(row.completedAt));
+      }
+      // a real push (not the check of the key) opens the window for the parts
+      if (push && (!row.firstPushAt || (!windowOpen && !row.completedAt))) {
+        row.firstPushAt = new Date();
+        await this.settings.update({ legalEntityId: row.legalEntityId }, { firstPushAt: row.firstPushAt });
+      }
+    }
     return row;
+  }
+
+  private doneMessage(at: Date) {
+    const date = new Intl.DateTimeFormat('uk-UA', { timeZone: 'Europe/Kyiv' }).format(at);
+    return `Дані з 1С уже отримано ${date} (разове завантаження) — далі працівники ведуться в застосунку. Щоб отримати ще раз, натисніть «Отримати ще раз» у налаштуваннях інтеграції`;
   }
 
   // ───────────── batches ─────────────
@@ -292,7 +367,7 @@ export class HrSyncService {
    * without — those not read for more than a day (a safety net in the daily job).
    */
   async runScheduled(hour?: number): Promise<{ read: number; failed: number }> {
-    const rows = await this.settings.find({ where: { mode: 'ODATA', scheduleEnabled: true } });
+    const rows = await this.settings.find({ where: { mode: 'ODATA', scheduleEnabled: true, frequency: 'ONGOING' } });
     const dayAgo = Date.now() - 26 * 3600_000;
     let read = 0;
     let failed = 0;
@@ -351,6 +426,7 @@ export class HrSyncService {
       // an unchanged card that has no link to 1C yet gets it silently
       await this.linkOnly(items);
       await this.batches.save(batch);
+      await this.completeOnce(row);
     }
     await this.remember(row.legalEntityId, batch.status, this.describe(counts, batch.status));
     return this.toBatchView(batch);
@@ -405,7 +481,15 @@ export class HrSyncService {
     batch.message = this.describe(counts, status, failed);
     await this.batches.save(batch);
     await this.remember(row.legalEntityId, status, batch.message);
+    if (ok > 0) await this.completeOnce(row);
     return this.toBatchView(batch);
+  }
+
+  /** A single load is done once something of 1C got into the cards. */
+  private async completeOnce(row: HrSyncSettings) {
+    if (row.frequency !== 'ONCE' || row.completedAt) return;
+    row.completedAt = new Date();
+    await this.settings.update({ legalEntityId: row.legalEntityId }, { completedAt: row.completedAt });
   }
 
   /** «UNCHANGED» cards that only get the link to 1C — written directly, not a change of the card. */
@@ -525,6 +609,12 @@ export class HrSyncService {
       configured: !!row,
       system: row?.system ?? 'ZUP',
       mode: row?.mode ?? 'PUSH',
+      frequency: row?.frequency ?? 'ONCE',
+      completedAt: row?.completedAt?.toISOString() ?? null,
+      pushWindowUntil:
+        row?.frequency === 'ONCE' && row.firstPushAt
+          ? new Date(row.firstPushAt.getTime() + HR_ONCE_PUSH_WINDOW_MS).toISOString()
+          : null,
       odataUrl: row?.odataUrl ?? '',
       odataUser: row?.odataUser ?? '',
       hasOdataPassword: !!row?.odataPassword,
@@ -536,6 +626,8 @@ export class HrSyncService {
       importDismissed: row?.importDismissed ?? false,
       tokenPrefix: row?.tokenPrefix ?? '',
       tokenIssuedAt: row?.tokenIssuedAt?.toISOString() ?? null,
+      tokenExpiresAt: row?.tokenExpiresAt?.toISOString() ?? null,
+      pushAllowedIps: row?.pushAllowedIps ?? '',
       lastRunAt: row?.lastRunAt?.toISOString() ?? null,
       lastStatus: row?.lastStatus ?? null,
       lastMessage: row?.lastMessage ?? '',
@@ -545,7 +637,8 @@ export class HrSyncService {
   }
 
   /** For the audit journal: «1С / BAS: ЗУП, OData». */
-  label(view: Pick<HrSyncSettingsView, 'system' | 'mode'>): string {
-    return `${HR_SYSTEM_LABELS[view.system]}, ${view.mode === 'PUSH' ? 'надсилання з 1С' : view.mode === 'ODATA' ? 'читання OData' : 'файл'}`;
+  label(view: Pick<HrSyncSettingsView, 'system' | 'mode' | 'frequency'>): string {
+    const how = view.mode === 'PUSH' ? 'надсилання з 1С' : view.mode === 'ODATA' ? 'читання OData' : 'файл';
+    return `${HR_SYSTEM_LABELS[view.system]}, ${how}, ${view.frequency === 'ONCE' ? 'один раз' : 'постійно'}`;
   }
 }

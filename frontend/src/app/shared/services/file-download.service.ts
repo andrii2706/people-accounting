@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { apiErrorMessage } from '../utils/api-error.utils';
-import { fileNameFromDisposition } from '../utils/file.utils';
+import { fileNameFromDisposition, saveBlob } from '../utils/file.utils';
 import { ToastService } from './toast.service';
 
 /**
@@ -25,15 +25,7 @@ export class FileDownloadService {
         this.http.get(url, { observe: 'response', responseType: 'blob' }),
       );
       const name = fileNameFromDisposition(res.headers.get('content-disposition')) ?? fallbackName;
-      const href = URL.createObjectURL(res.body ?? new Blob());
-      const a = document.createElement('a');
-      a.href = href;
-      a.download = name;
-      a.hidden = true;
-      document.body.append(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(href), 1000);
+      saveBlob(res.body ?? new Blob(), name);
     } catch (err) {
       this.toast.error(apiErrorMessage(await withJsonBody(err), 'Не вдалося завантажити файл'));
     } finally {

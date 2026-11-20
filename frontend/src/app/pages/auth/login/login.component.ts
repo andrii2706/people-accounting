@@ -4,6 +4,7 @@ import { DOCUMENT, isPlatformBrowser } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
   PLATFORM_ID,
@@ -17,6 +18,12 @@ import { FormFieldComponent } from '../../../shared/components/form-field/form-f
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
+import { CodeInputComponent } from '../../../shared/components/code-input/code-input.component';
+import { RecoveryCodesComponent } from '../../../shared/components/recovery-codes/recovery-codes.component';
+import { TwoFactorSetupComponent } from '../../../shared/components/two-factor-setup/two-factor-setup.component';
+import type { LoginStep } from '../../../shared/interfaces/auth.interface';
+import { isCodeLike, normalizeCode } from '../../../shared/utils/two-factor.utils';
+import type { LoginChallenge, TwoFactorSetup } from '../../../../platform/contracts/session';
 
 @Component({
   selector: 'app-login',
@@ -28,6 +35,9 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
     IconComponent,
     RouterLink,
     CopyrightComponent,
+    CodeInputComponent,
+    RecoveryCodesComponent,
+    TwoFactorSetupComponent,
   ],
   templateUrl: './login.component.html',
 })
@@ -43,6 +53,16 @@ export class LoginComponent {
   readonly signup = input<string>('');
 
   protected readonly error = signal('');
+  /** The password → the code from the app (or setting the app up) → the recovery codes. */
+  protected readonly step = signal<LoginStep>('password');
+  private readonly challenge = signal<LoginChallenge | null>(null);
+  protected readonly setup = signal<TwoFactorSetup | null>(null);
+  protected readonly recoveryCodes = signal<string[]>([]);
+  protected readonly code = signal('');
+  /** The phone is not at hand — a recovery code instead. */
+  protected readonly recovery = signal(false);
+  protected readonly busy = signal(false);
+  protected readonly codeReady = computed(() => isCodeLike(this.code()));
   /** The link «Зареєструвати компанію» — when the self sign-up is on. */
   protected readonly signupEnabled = signal(false);
   /** The three reports — each its own paragraph under the title (the left panel). */
@@ -84,12 +104,85 @@ export class LoginComponent {
     await submit(this.loginForm, async () => {
       try {
         const { email: e, password } = this.model();
-        await this.auth.login(e, password);
-        await this.router.navigateByUrl(this.returnUrl() || '/');
+        const answer = await this.auth.login(e, password);
+        if ('twoFactor' in answer) await this.second(answer);
+        else await this.done();
       } catch (err) {
         this.error.set(apiErrorMessage(err, 'Не вдалося увійти'));
       }
       return undefined;
     });
+  }
+
+  /** The password was right: the code from the app is asked, or the app is set up first. */
+  private async second(challenge: LoginChallenge) {
+    this.challenge.set(challenge);
+    this.code.set('');
+    this.recovery.set(false);
+    if (challenge.twoFactor === 'CODE') {
+      this.step.set('code');
+      return;
+    }
+    this.setup.set(await this.auth.loginSetup(challenge.ticket));
+    this.step.set('setup');
+  }
+
+  protected async sendCode() {
+    const ticket = this.challenge()?.ticket;
+    if (!ticket || !this.codeReady() || this.busy()) return;
+    this.busy.set(true);
+    this.error.set('');
+    try {
+      await this.auth.loginCode(ticket, normalizeCode(this.code()));
+      await this.done();
+    } catch (err) {
+      this.error.set(apiErrorMessage(err, 'Не вдалося увійти'));
+      this.code.set('');
+      if (/Увійдіть ще раз|заблоковано/.test(this.error())) this.back(false);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async enable(code: string) {
+    const ticket = this.challenge()?.ticket;
+    if (!ticket) return;
+    this.busy.set(true);
+    this.error.set('');
+    try {
+      const { recoveryCodes } = await this.auth.loginEnable(ticket, code);
+      this.recoveryCodes.set(recoveryCodes);
+      this.step.set('codes');
+    } catch (err) {
+      this.error.set(apiErrorMessage(err, 'Код не підходить'));
+      if (/Увійдіть ще раз/.test(this.error())) this.back(false);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async codesSaved() {
+    this.auth.finishSetup();
+    await this.done();
+  }
+
+  /** Back to the password (another account, or the ticket has run out). */
+  protected back(clearError = true) {
+    this.step.set('password');
+    this.challenge.set(null);
+    this.setup.set(null);
+    this.code.set('');
+    if (clearError) this.error.set('');
+    this.model.update((m) => ({ ...m, password: '' }));
+  }
+
+  protected toggleRecovery() {
+    this.recovery.update((v) => !v);
+    this.code.set('');
+    this.error.set('');
+  }
+
+  private async done() {
+    await this.router.navigateByUrl(this.returnUrl() || '/');
   }
 }

@@ -190,8 +190,9 @@ export class LegalEntitiesService {
    * the recipient — the TCK where most of its employees are registered (a sample TCK when none).
    */
   async sampleLabel(id: string): Promise<EnvelopeLabel> {
-    const [org, top] = await Promise.all([
+    const [org, responsible, top] = await Promise.all([
       this.requisites(id),
+      this.responsible(id),
       this.employees
         .createQueryBuilder('e')
         .select('e.tckId', 'tckId')
@@ -202,7 +203,7 @@ export class LegalEntitiesService {
         .getRawOne<TckUsageRow>(),
     ]);
     const tck = top ? await this.repo.manager.findOneBy(Tck, { id: top.tckId }) : null;
-    return { sender: senderParty(org), recipient: tck ? tckParty(tck) : { ...SAMPLE_RECIPIENT } };
+    return { sender: senderParty(org, responsible), recipient: tck ? tckParty(tck) : { ...SAMPLE_RECIPIENT } };
   }
 
   /** The legal entity of the account (the letters about its password name it). */

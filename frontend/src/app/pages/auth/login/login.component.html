@@ -32,74 +32,185 @@
     <p class="mb-8 w-full max-w-sm text-xs text-muted lg:hidden">
       Майнові права належать ТОВ «ПАВ ІТ»
     </p>
-    <form class="w-full max-w-sm" (submit)="onSubmit($event)" novalidate>
-      <h2 class="text-2xl font-semibold tracking-tight">Вхід</h2>
-      <p class="mt-1 mb-8 text-sm text-muted">
-        Увійдіть обліковим записом, який видав адміністратор, або тим, що ви зареєстрували.
-      </p>
-
-      @if (reason() === 'idle') {
-        <p
-          class="-mt-4 mb-6 rounded-lg border border-warning/30 bg-[#fdf9f2] px-3 py-2 text-sm text-warning"
-          role="status"
-        >
-          Ви не працювали в системі 10 хвилин, тому сеанс завершено. Увійдіть знову — відкриється
-          сторінка, на якій ви були.
-        </p>
-      }
-      @if (signup() === 'rejected') {
-        <p
-          class="-mt-4 mb-6 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
-          role="alert"
-        >
-          Реєстрацію не підтверджено: підписант не є керівником цієї юридичної особи за даними ЄДР
-          або підпис недійсний. Адміністратора повідомлено. Якщо це помилка — зверніться до
-          постачальника.
-        </p>
-      }
-      <div class="space-y-4">
-        <app-form-field label="Email" [field]="loginForm.email" [required]="true">
-          <input class="input" type="email" autocomplete="username" [formField]="loginForm.email" />
-        </app-form-field>
-        <app-form-field label="Пароль" [field]="loginForm.password" [required]="true">
-          <app-password-input>
-            <input
-              class="input"
-              type="password"
-              autocomplete="current-password"
-              [formField]="loginForm.password"
-            />
-          </app-password-input>
-        </app-form-field>
-      </div>
-
-      @if (error()) {
-        <p
-          class="mt-4 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
-          role="alert"
-        >
-          {{ error() }}
-        </p>
-      }
-
-      <button
-        type="submit"
-        class="btn btn-primary mt-6 w-full py-2.5 cursor-pointer"
-        [disabled]="loginForm().submitting()"
-      >
-        {{ loginForm().submitting() ? 'Входимо…' : 'Увійти' }}
-      </button>
-      @if (signupEnabled()) {
-        <p class="mt-6 text-center text-sm text-muted">
-          Ще немає облікового запису?
-          <a
-            routerLink="/register"
-            class="font-medium text-brand-600 hover:underline cursor-pointer"
-            >Зареєструвати компанію</a
+    @switch (step()) {
+      @case ('code') {
+        <form class="w-full max-w-sm" (submit)="$event.preventDefault(); sendCode()" novalidate>
+          <h2 class="text-2xl font-semibold tracking-tight">Код із телефону</h2>
+          <p class="mt-1 mb-8 text-sm text-muted">
+            @if (recovery()) {
+              Введіть один із резервних кодів, які ви зберегли, коли вмикали вхід з кодом. Кожен діє
+              один раз.
+            } @else {
+              Відкрийте застосунок для кодів (Google Authenticator, Microsoft Authenticator…) і
+              введіть 6 цифр для «Військовий облік».
+            }
+          </p>
+          <label class="mb-2 block text-sm font-medium" for="login-code">{{
+            recovery() ? 'Резервний код' : 'Код'
+          }}</label>
+          <app-code-input
+            inputId="login-code"
+            [recovery]="recovery()"
+            [invalid]="!!error()"
+            [describedBy]="error() ? 'login-error' : ''"
+            [(value)]="code"
+          />
+          @if (error()) {
+            <p
+              id="login-error"
+              class="mt-4 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+              role="alert"
+            >
+              {{ error() }}
+            </p>
+          }
+          <button
+            type="submit"
+            class="btn btn-primary mt-6 w-full cursor-pointer py-2.5"
+            [disabled]="busy() || !codeReady()"
           >
-        </p>
+            {{ busy() ? 'Перевіряємо…' : 'Увійти' }}
+          </button>
+          <div class="mt-6 flex flex-wrap justify-between gap-3 text-sm">
+            <button
+              type="button"
+              class="cursor-pointer font-medium text-brand-600 hover:underline"
+              (click)="toggleRecovery()"
+            >
+              {{ recovery() ? 'Ввести код із застосунку' : 'Телефона немає під рукою?' }}
+            </button>
+            <button
+              type="button"
+              class="cursor-pointer text-muted hover:text-ink hover:underline"
+              (click)="back()"
+            >
+              Інший обліковий запис
+            </button>
+          </div>
+          @if (recovery()) {
+            <p class="mt-4 text-xs text-muted">
+              Немає ні телефона, ні резервних кодів — попросіть адміністратора скинути вхід з кодом
+              (Налаштування → Користувачі). Під час наступного входу ви налаштуєте застосунок знову.
+            </p>
+          }
+        </form>
       }
-    </form>
+      @case ('setup') {
+        <div class="w-full max-w-md">
+          <h2 class="text-2xl font-semibold tracking-tight">Захистіть вхід кодом</h2>
+          <p class="mt-1 mb-6 text-sm text-muted">
+            Тут зберігаються персональні дані працівників, тому окрім пароля потрібен код із вашого
+            телефона. Навіть якщо пароль дізнаються сторонні, без телефона вони не ввійдуть.
+            Налаштування займе хвилину.
+          </p>
+          @if (setup(); as s) {
+            <app-two-factor-setup
+              [setup]="s"
+              [busy]="busy()"
+              [error]="error()"
+              submitLabel="Увімкнути й увійти"
+              (confirm)="enable($event)"
+            />
+          }
+          <button
+            type="button"
+            class="mt-6 cursor-pointer text-sm text-muted hover:text-ink hover:underline"
+            (click)="back()"
+          >
+            Скасувати й повернутися до входу
+          </button>
+        </div>
+      }
+      @case ('codes') {
+        <div class="w-full max-w-md">
+          <h2 class="text-2xl font-semibold tracking-tight">Резервні коди</h2>
+          <p class="mt-1 mb-6 text-sm text-muted">
+            Вхід з кодом увімкнено. Якщо телефон загубиться, увійти можна буде одним із цих кодів.
+          </p>
+          <app-recovery-codes
+            [codes]="recoveryCodes()"
+            [email]="model().email"
+            doneLabel="Перейти до роботи"
+            (done)="codesSaved()"
+          />
+        </div>
+      }
+      @default {
+        <form class="w-full max-w-sm" (submit)="onSubmit($event)" novalidate>
+          <h2 class="text-2xl font-semibold tracking-tight">Вхід</h2>
+          <p class="mt-1 mb-8 text-sm text-muted">
+            Увійдіть обліковим записом, який видав адміністратор, або тим, що ви зареєстрували.
+          </p>
+
+          @if (reason() === 'idle') {
+            <p
+              class="-mt-4 mb-6 rounded-lg border border-warning/30 bg-[#fdf9f2] px-3 py-2 text-sm text-warning"
+              role="status"
+            >
+              Ви не працювали в системі 10 хвилин, тому сеанс завершено. Увійдіть знову —
+              відкриється сторінка, на якій ви були.
+            </p>
+          }
+          @if (signup() === 'rejected') {
+            <p
+              class="-mt-4 mb-6 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+              role="alert"
+            >
+              Реєстрацію не підтверджено: підписант не є керівником цієї юридичної особи за даними
+              ЄДР або підпис недійсний. Адміністратора повідомлено. Якщо це помилка — зверніться до
+              постачальника.
+            </p>
+          }
+          <div class="space-y-4">
+            <app-form-field label="Email" [field]="loginForm.email" [required]="true">
+              <input
+                class="input"
+                type="email"
+                autocomplete="username"
+                [formField]="loginForm.email"
+              />
+            </app-form-field>
+            <app-form-field label="Пароль" [field]="loginForm.password" [required]="true">
+              <app-password-input>
+                <input
+                  class="input"
+                  type="password"
+                  autocomplete="current-password"
+                  [formField]="loginForm.password"
+                />
+              </app-password-input>
+            </app-form-field>
+          </div>
+
+          @if (error()) {
+            <p
+              class="mt-4 rounded-lg border border-danger/20 bg-[#fdf1ef] px-3 py-2 text-sm text-danger"
+              role="alert"
+            >
+              {{ error() }}
+            </p>
+          }
+
+          <button
+            type="submit"
+            class="btn btn-primary mt-6 w-full py-2.5 cursor-pointer"
+            [disabled]="loginForm().submitting()"
+          >
+            {{ loginForm().submitting() ? 'Входимо…' : 'Увійти' }}
+          </button>
+          @if (signupEnabled()) {
+            <p class="mt-6 text-center text-sm text-muted">
+              Ще немає облікового запису?
+              <a
+                routerLink="/register"
+                class="font-medium text-brand-600 hover:underline cursor-pointer"
+                >Зареєструвати компанію</a
+              >
+            </p>
+          }
+        </form>
+      }
+    }
     <app-copyright class="mt-10" />
   </section>
 </div>

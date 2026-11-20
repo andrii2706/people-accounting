@@ -5,6 +5,7 @@ import { appConfig } from './app.config';
 import { serverRoutes } from './app.routes.server';
 import { SsrApiBackend } from './shared/backends/ssr-api.backend';
 import { API_INTERNAL_URL } from './shared/tokens/api.tokens';
+import { LOCAL_API_URL } from './shared/constants/dev.constants';
 
 const serverConfig: ApplicationConfig = {
   providers: [
@@ -23,7 +24,7 @@ const serverConfig: ApplicationConfig = {
        * that adds the IAM service token for the private Cloud Run; locally — straight to NestJS.
        */
       useFactory: () =>
-        process.env['SSR_API_BASE'] ?? process.env['API_INTERNAL_URL'] ?? 'http://localhost:3000',
+        process.env['SSR_API_BASE'] ?? process.env['API_INTERNAL_URL'] ?? LOCAL_API_URL,
     },
   ],
 };

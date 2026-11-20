@@ -1,8 +1,7 @@
 import type { ChangeRule } from '../shared/interfaces/employee.interface.js';
 import type { Employee } from './entities/employee.entity.js';
-import { militaryDocText, passportText, rankText } from '../military/employee-format.js';
-import { dateUa, deferralText, joinParts, reservationText } from './utils/employee-text.utils.js';
-import type { FamilyRelation } from '../shared/interfaces/dictionary.interface.js';
+import { passportText } from '../military/employee-format.js';
+import type { ChangeType, FamilyRelation } from '../shared/interfaces/dictionary.interface.js';
 import type { MaritalStatus } from '../shared/interfaces/dictionary.interface.js';
 
 /** Import: hiring / dismissal notices are queued for dates within this many days back (mode RECENT). */
@@ -29,6 +28,15 @@ export const NULLABLE_DATES = new Set<keyof Employee>([
   'demobilizedAt',
 ]);
 
+/**
+ * What the TCK is notified about (Annex 4 of Procedure No. 1487, the grounds since 27.06.2026, unchanged on
+ * 13.08.2026): the surname, name, patronymic; the details of the Ukrainian passport; the registered or the actual
+ * address; the position (a transfer or a new name of the position) — and the hiring and the dismissal
+ * (added separately). The military data (rank, VOS, the document, the TCK, fitness, deferral, reservation…)
+ * the employer does not report: they come from the TCK and are only written into the lists. The foreign passport,
+ * education and marital status are not reported since Resolution No. 812 of 10.06.2026.
+ * The other types stay in ChangeType for the history of earlier notices.
+ */
 export const CHANGE_RULES: ChangeRule[] = [
   { type: 'LAST_NAME', value: (e) => e.lastName },
   { type: 'FIRST_NAME', value: (e) => e.firstName },
@@ -37,30 +45,10 @@ export const CHANGE_RULES: ChangeRule[] = [
   { type: 'REGISTERED_ADDRESS', value: (e) => e.registeredAddress, requireValue: true },
   { type: 'ACTUAL_ADDRESS', value: (e) => e.actualAddress, requireValue: true },
   { type: 'PASSPORT', value: passportText, requireValue: true },
-  { type: 'REGISTRY_NUMBER', value: (e) => e.registryNumber ?? '', requireValue: true },
-  { type: 'RANK', value: (e) => rankText(e) },
-  { type: 'VOS', value: (e) => e.vos ?? '' },
-  { type: 'MILITARY_DOC', value: (e) => militaryDocText(e) },
-  { type: 'TCK', value: (e) => e.tck?.name ?? '', requireValue: true },
-  { type: 'FITNESS', value: (e) => joinParts([e.fitness, e.fitnessBasis], ' ') },
-  {
-    type: 'MILITARY_SERVICE',
-    value: (e) =>
-      joinParts([
-        e.servedInArmy ? 'проходив(-ла) військову службу' : '',
-        e.mobilizedAt ? `призван${e.gender === 'F' ? 'а' : 'ий'} на військову службу з ${dateUa(e.mobilizedAt)}` : '',
-      ]),
-  },
-  { type: 'DEFERRAL', value: deferralText },
-  { type: 'RESERVATION', value: reservationText },
-  { type: 'RESERVE_SERVICE', value: (e) => (e.reserveTeamNumber ? `команда № ${e.reserveTeamNumber}` : '') },
-  {
-    type: 'MOBILIZATION_ORDER',
-    value: (e) => (e.mobilizationOrderDate ? `від ${dateUa(e.mobilizationOrderDate)}` : ''),
-  },
-  // Foreign passport, education and marital status are no longer reported (Resolution No. 812 of 10.06.2026);
-  // the types stay in ChangeType for the history of earlier notices.
 ];
+
+/** The change types the TCK is notified about — the rules above plus the hiring and the dismissal. */
+export const NOTICE_CHANGE_TYPES: ChangeType[] = [...CHANGE_RULES.map((r) => r.type), 'HIRE', 'DISMISSAL'];
 
 export const FIELD_LABELS: Record<string, string> = {
   fullName: 'ПІБ',

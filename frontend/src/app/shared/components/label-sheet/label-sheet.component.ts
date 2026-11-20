@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import {
   LABEL_FONT_STACKS,
+  LABEL_PHONE_BLANK,
   LABEL_TITLES,
   POSTAL_CODE_DIGITS,
 } from '../../constants/label-settings.constants';
@@ -46,6 +47,8 @@ import { pageSize, postalLine } from '../../utils/label-settings.utils';
 })
 export class LabelSheetComponent {
   readonly pages = input.required<LabelPage[]>();
+  /** An unknown phone — a line for the pen, as in the printed labels. */
+  protected readonly phoneBlank = LABEL_PHONE_BLANK;
   /** Gap and shadow between the pages on screen (none in print). */
   readonly spaced = input(true);
 

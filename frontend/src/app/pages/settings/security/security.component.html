@@ -1,0 +1,138 @@
+<app-page-header
+  eyebrow="Налаштування"
+  title="Безпека"
+  subtitle="Що схоже на злам або витік: невдалі входи, вхід з нового пристрою, неправильні коди після правильного пароля, масові вивантаження, файли з макросами чи скриптами. Про небезпечне керівникам приходить лист."
+/>
+
+<section class="card p-4 sm:p-5" aria-labelledby="trace-title">
+  <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div class="min-w-0">
+      <h2 id="trace-title" class="font-semibold">Хто вивантажив файл?</h2>
+      <p class="mt-1 text-sm text-muted">
+        Знайшли документ із застосунку там, де його не мало бути? Оберіть його — за відбитком файлу
+        (SHA-256) буде видно, хто й коли його вивантажив. Сам файл нікуди не надсилається.
+      </p>
+    </div>
+    <label class="btn btn-secondary shrink-0 cursor-pointer">
+      <app-icon name="search" /> Обрати файл
+      <input type="file" class="sr-only" (change)="trace($event)" />
+    </label>
+  </div>
+  @if (tracing()) {
+    <p class="mt-4 text-sm text-muted">Шукаємо «{{ traceFile() }}»…</p>
+  } @else if (traceError()) {
+    <p class="mt-4 text-sm text-danger" role="alert">{{ traceError() }}</p>
+  } @else if (traces(); as rows) {
+    @if (rows.length) {
+      <ul class="mt-4 space-y-2 text-sm">
+        @for (t of rows; track t.createdAt) {
+          <li class="rounded-lg border border-line bg-sunken px-3 py-2">
+            <b>{{ t.userName }}</b> · {{ t.createdAt | uaDateTime }} · {{ t.fileName }}
+            @if (t.ip) {
+              <span class="text-muted"> · {{ t.ip }}</span>
+            }
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="mt-4 text-sm text-muted">
+        «{{ traceFile() }}» не вивантажувався з вашої юрособи або файл після вивантаження змінили
+        (тоді відбиток інший). У властивостях документа Word / Excel (Файл → Відомості → Властивості
+        → Додаткові) є поле «Вивантаження» — з номером, ім’ям і часом.
+      </p>
+    }
+  }
+</section>
+
+<section class="card mt-6 overflow-hidden" aria-labelledby="journal-title">
+  <div
+    class="flex flex-col gap-3 border-b border-line p-4 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <h2 id="journal-title" class="font-semibold">
+      Журнал
+      @if (data(); as d) {
+        <span class="font-normal text-muted">· {{ d.total }}</span>
+      }
+    </h2>
+    <app-select
+      class="w-full sm:w-80"
+      [options]="kindOptions"
+      [value]="kind()"
+      (valueChange)="filter($event)"
+      placeholder="Усі події"
+      ariaLabel="Вид події"
+    />
+  </div>
+  @if (error()) {
+    <p class="p-4 text-sm text-danger" role="alert">{{ error() }}</p>
+  } @else if (data(); as d) {
+    @if (d.items.length) {
+      <div class="overflow-x-auto">
+        <table class="table-base">
+          <thead>
+            <tr>
+              <th>Коли</th>
+              <th>Подія</th>
+              <th>Обліковий запис</th>
+              <th>Звідки</th>
+              <th>Лист</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (e of d.items; track e.id) {
+              <tr>
+                <td class="whitespace-nowrap text-muted">{{ e.createdAt | uaDateTime }}</td>
+                <td class="min-w-64">
+                  <span
+                    class="mr-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
+                    [class]="levelClass[e.level]"
+                    >{{ levelText[e.level] }}</span
+                  >
+                  <span class="font-medium">{{ kindText[e.kind] }}</span>
+                  @if (details(e); as more) {
+                    <p class="mt-1 text-xs text-muted">{{ more }}</p>
+                  }
+                </td>
+                <td>{{ e.userName || '—' }}</td>
+                <td class="text-muted">
+                  {{ e.ip || '—' }}
+                  @if (e.device) {
+                    <p class="text-xs">{{ e.device }}</p>
+                  }
+                </td>
+                <td class="text-xs text-muted">{{ e.notified ? 'надіслано' : '—' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      @if (pages() > 1) {
+        <div class="flex items-center justify-end gap-2 border-t border-line p-3 text-sm">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm cursor-pointer"
+            [disabled]="page() <= 1 || loading()"
+            (click)="go(page() - 1)"
+          >
+            <app-icon name="arrowLeft" /> Новіші
+          </button>
+          <span class="text-muted">{{ page() }} з {{ pages() }}</span>
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm cursor-pointer"
+            [disabled]="page() >= pages() || loading()"
+            (click)="go(page() + 1)"
+          >
+            Старіші <app-icon name="arrowRight" />
+          </button>
+        </div>
+      }
+    } @else {
+      <p class="p-6 text-center text-sm text-muted">
+        Подій немає — нічого підозрілого не помічено.
+      </p>
+    }
+  } @else {
+    <p class="p-6 text-center text-sm text-muted">Завантажуємо…</p>
+  }
+</section>

@@ -5,6 +5,7 @@ import type {
   HrItemAction,
   HrMilitaryPolicy,
   HrSyncForm,
+  HrSyncFrequency,
   HrSyncMode,
   HrSystem,
 } from '../interfaces/hr-sync.interface';
@@ -31,6 +32,17 @@ export const HR_MODE_TEXT: Record<HrSyncMode, { label: string; hint: string }> =
   FILE: {
     label: 'Файл вручну',
     hint: 'Вивантажуєте з 1С файл Excel і завантажуєте його в «Працівники → Імпорт».',
+  },
+};
+
+export const HR_FREQUENCY_TEXT: Record<HrSyncFrequency, { label: string; hint: string }> = {
+  ONCE: {
+    label: 'Один раз',
+    hint: 'Початкове завантаження: після застосування дані з 1С більше не беруться — працівники ведуться тут.',
+  },
+  ONGOING: {
+    label: 'Постійно',
+    hint: 'Зміни з 1С приходять щодня (і вручну): нові працівники, ПІБ, посади, звільнення.',
   },
 };
 
@@ -97,6 +109,7 @@ export const HR_ACTION_ORDER: HrItemAction[] = [
 export const EMPTY_HR_FORM: HrSyncForm = {
   system: 'ZUP',
   mode: 'PUSH',
+  frequency: 'ONCE',
   odataUrl: '',
   odataUser: '',
   odataPassword: '',
@@ -106,7 +119,17 @@ export const EMPTY_HR_FORM: HrSyncForm = {
   autoApply: true,
   militaryPolicy: 'FILL_EMPTY',
   importDismissed: false,
+  pushAllowedIps: '',
 };
+
+/** How long a new key works; 0 — until it is revoked. */
+export const HR_TOKEN_DAYS_OPTIONS = [
+  { value: '365', label: 'рік' },
+  { value: '180', label: 'пів року' },
+  { value: '90', label: '3 місяці' },
+  { value: '30', label: '30 днів' },
+  { value: '0', label: 'безстроково' },
+] as const;
 
 /** The data processor for 1C (published with the web application): the object module and the form module. */
 export const HR_1C_PROCESSOR_URLS = {

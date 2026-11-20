@@ -1,5 +1,12 @@
+import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
-import { evodItem, peopleCount, reconciliationAttachments, reconciliationItem } from './builders.js';
+import {
+  buildReconciliation,
+  evodItem,
+  peopleCount,
+  reconciliationAttachments,
+  reconciliationItem,
+} from './builders.js';
 
 describe('reconciliation package', () => {
   it('counts people in Ukrainian', () => {
@@ -39,5 +46,38 @@ describe('reconciliation package', () => {
       'Військово-обліковий документ в електронній формі ІВАНЕНКО Іван Іванович, сформований 12.03.2026 о 14:30',
     );
     expect(evodItem(people[1])).toBe('Військово-обліковий документ в електронній формі ПЕТРЕНКО Петро');
+  });
+
+  it('form 107 as the Ukrposhta blank, in two copies', async () => {
+    const input = {
+      part: 'inventory',
+      org: { shortName: 'ТОВ «Вигадана компанія»', fullName: '', address: '', edrpou: '12345678' },
+      tck: { name: 'Шевченківський РТЦК та СП (м. Львів)', address: '79007, м. Львів, вул. Батуринська, 2' },
+      letter: { number: '7', date: '2026-11-20' },
+      reportDate: '2026-11-20',
+      extract: true,
+      sections: [{ section: 'SOLDIERS', people: 1 }],
+      people: [
+        {
+          lastName: 'Прикладний',
+          firstName: 'Сергій',
+          middleName: 'Іванович',
+          birthDate: '1979-11-03',
+          evod: { number: '1', generatedDate: '2026-11-18', generatedTime: '09:45' },
+        },
+      ],
+      responsible: null,
+    } as unknown as Parameters<typeof buildReconciliation>[0];
+    const zip = await JSZip.loadAsync(await buildReconciliation(input));
+    const text = (await zip.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, '');
+    const count = (s: string) => text.split(s).length - 1;
+    expect(count('ОПИС')).toBe(2);
+    expect(count('вкладення до цінного листа')).toBe(2);
+    expect(count('Загальний підсумок предметів, аркушів і оголошеної цінності')).toBe(2);
+    expect(text).toContain('Кількість предметів, аркушів');
+    expect(text).toContain('Оголошена цінність, грн');
+    expect(text).toContain('1 / 1'); // the eВОД: 1 copy of 1 sheet
+    expect(text).toContain('2 / ___'); // the extract: 2 copies, the sheets by hand
+    expect(text).toContain('Виправлення не допускаються');
   });
 });

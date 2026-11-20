@@ -216,7 +216,7 @@ export class UsersService {
       if (failed >= this.env.maxFailedLogins) {
         const lockedUntil = new Date(Date.now() + this.env.lockoutMinutes * 60_000);
         await this.repo.update(user.id, { failedLoginCount: 0, lockedUntil });
-        return { status: 'locked', userId: user.id, lockedUntil };
+        return { status: 'locked', userId: user.id, lockedUntil, fresh: true };
       }
       await this.repo.update(user.id, { failedLoginCount: failed });
       return { status: 'invalid', userId: user.id };

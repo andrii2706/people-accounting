@@ -5,16 +5,18 @@ import {
   Get,
   HttpCode,
   Post,
+  Req,
   Res,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { AuditService } from '../../audit/audit.service.js';
 import { CurrentUser, EntityScope } from '../../common/decorators/auth.decorators.js';
 import { EmployeeImportService } from './employee-import.service.js';
+import { UploadGuardService } from '../../security/upload-guard.service.js';
 import type { AuthUser, Scope } from '../../shared/interfaces/auth.interface.js';
 import { scopedEntity } from '../../common/utils/entity-scope.utils.js';
 import type { UploadedTable } from '../../shared/interfaces/import.interface.js';
@@ -28,6 +30,7 @@ export class EmployeeImportController {
   constructor(
     private readonly importer: EmployeeImportService,
     private readonly audit: AuditService,
+    private readonly uploads: UploadGuardService,
   ) {}
 
   @Get('template')
@@ -45,10 +48,17 @@ export class EmployeeImportController {
   @Post('preview')
   @HttpCode(200)
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_IMPORT_FILE_BYTES, files: 1 } }))
-  preview(@UploadedFile() file: UploadedTable | undefined, @EntityScope() scope: Scope) {
+  async preview(
+    @UploadedFile() file: UploadedTable | undefined,
+    @EntityScope() scope: Scope,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
     if (!file) throw new BadRequestException({ statusCode: 400, error: 'Bad Request', message: ['Оберіть файл'] });
     // multer gives the name in latin1
     const fileName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+    // a file with a macro, a script or a command formula is refused before anything reads it
+    await this.uploads.assertSafe(file.buffer, fileName, 'table', { user, req });
     return this.importer.preview(file.buffer, fileName, scope);
   }
 

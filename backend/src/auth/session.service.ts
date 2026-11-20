@@ -69,6 +69,13 @@ export class SessionService {
   }
 
   async verify(token: string): Promise<SessionPayload> {
+    const payload = await this.verifySignature(token);
+    // the ticket between the password and the code is never a session (it is also signed with another key)
+    if ((payload as { typ?: unknown }).typ !== undefined) throw new Error('not a session');
+    return payload;
+  }
+
+  private async verifySignature(token: string): Promise<SessionPayload> {
     const key = this.env.sessionSigningKey;
     if (!key) return this.jwt.verifyAsync<SessionPayload>(token);
     try {

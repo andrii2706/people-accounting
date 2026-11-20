@@ -33,8 +33,15 @@ export class HrSyncService {
     return firstValueFrom(this.http.delete<void>(this.url(entityId)));
   }
 
-  issueToken(entityId: string) {
-    return firstValueFrom(this.http.post<HrTokenIssued>(this.url(entityId, '/token'), {}));
+  /** A finished single load may take the data of 1C once more. */
+  reopen(entityId: string) {
+    return firstValueFrom(this.http.post<HrSyncSettingsView>(this.url(entityId, '/reopen'), {}));
+  }
+
+  issueToken(entityId: string, validDays: number) {
+    return firstValueFrom(
+      this.http.post<HrTokenIssued>(this.url(entityId, '/token'), { validDays }),
+    );
   }
 
   revokeToken(entityId: string) {

@@ -11,6 +11,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createHash } from 'node:crypto';
 import { BlockList, isIP } from 'node:net';
 import { join } from 'node:path';
+import { LOCAL_API_URL } from './app/shared/constants/dev.constants';
 
 const browserDistFolder = join(import.meta.dirname, '../browser');
 
@@ -41,12 +42,12 @@ async function metadata(path: string): Promise<string> {
  * 2) in Google Cloud (App Hosting / Cloud Run) — the address of the Cloud Run service is computed:
  *    https://<API_SERVICE>-<project number>.<region>.run.app. Nothing needs to be copied into
  *    apphosting.yaml, so an updated copy of the repository cannot break the address;
- * 3) otherwise — http://localhost:3000.
+ * 3) otherwise — the local API (LOCAL_API_URL, :3400).
  */
 async function resolveApiTarget(): Promise<string> {
   const configured = process.env['API_INTERNAL_URL']?.trim();
   if (configured && !configured.includes('REPLACE')) return configured.replace(/\/+$/, '');
-  if (!process.env['K_SERVICE']) return 'http://localhost:3000'; // not in Google Cloud
+  if (!process.env['K_SERVICE']) return LOCAL_API_URL; // not in Google Cloud
   const service = process.env['API_SERVICE'] || 'military-registry-api';
   try {
     const projectNumber = await metadata('project/numeric-project-id');
@@ -56,7 +57,7 @@ async function resolveApiTarget(): Promise<string> {
     return `https://${service}-${projectNumber}.${region}.run.app`;
   } catch (err) {
     console.error('Не вдалося визначити адресу API — задайте API_INTERNAL_URL', err);
-    return 'http://localhost:3000';
+    return LOCAL_API_URL;
   }
 }
 

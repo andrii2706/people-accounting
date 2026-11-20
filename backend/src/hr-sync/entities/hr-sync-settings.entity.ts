@@ -3,6 +3,7 @@ import { encrypted } from '../../common/crypto/field-encryption.js';
 import type {
   HrBatchStatus,
   HrMilitaryPolicy,
+  HrSyncFrequency,
   HrSyncMode,
   HrSystem,
 } from '../../shared/interfaces/hr-sync.interface.js';
@@ -21,6 +22,18 @@ export class HrSyncSettings {
 
   @Column({ type: 'varchar', length: 10, default: 'PUSH' })
   mode: HrSyncMode;
+
+  /** ONCE — a single initial load; ONGOING — daily and by hand. */
+  @Column({ type: 'varchar', length: 10, default: 'ONGOING' })
+  frequency: HrSyncFrequency;
+
+  /** ONCE: when the data were applied — then the integration takes nothing more. */
+  @Column({ type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
+
+  /** ONCE + PUSH: the first push — the parts of a big company are accepted for HR_ONCE_PUSH_WINDOW_MS after it. */
+  @Column({ type: 'timestamptz', nullable: true })
+  firstPushAt: Date | null;
 
   @Column({ type: 'varchar', length: 500, default: '' })
   odataUrl: string;
@@ -59,6 +72,14 @@ export class HrSyncSettings {
 
   @Column({ type: 'timestamptz', nullable: true })
   tokenIssuedAt: Date | null;
+
+  /** The key stops working after this moment; null — until it is revoked. */
+  @Column({ type: 'timestamptz', nullable: true })
+  tokenExpiresAt: Date | null;
+
+  /** Addresses / networks the key is accepted from, comma-separated; '' — any. */
+  @Column({ type: 'varchar', length: 500, default: '' })
+  pushAllowedIps: string;
 
   /** Whose name the automatic runs carry in the journal and the TCK queue. */
   @Column({ type: 'uuid', nullable: true })

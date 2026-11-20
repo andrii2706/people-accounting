@@ -172,6 +172,13 @@ export class UsersComponent {
         hint: 'Посилання на пошту; до зміни — лише сторінка пароля',
         run: () => this.requestPasswordChange(u),
       });
+    if (u.mfaEnabledAt)
+      actions.push({
+        label: 'Скинути вхід з кодом',
+        icon: 'shield',
+        hint: 'Загублено телефон: застосунок налаштовується наново під час входу',
+        run: () => this.resetMfa(u),
+      });
     actions.push({
       label: 'Скинути пароль',
       icon: 'lock',
@@ -323,6 +330,14 @@ export class UsersComponent {
     return this.run(
       () => this.usersService.update(u.id, { notify }),
       notify ? 'Сповіщення увімкнено' : 'Сповіщення вимкнено',
+    );
+  }
+
+  /** A lost phone without the recovery codes: the sessions end, the app is set up again at the next sign-in. */
+  protected resetMfa(u: ManagedUser) {
+    return this.run(
+      () => this.usersService.resetMfa(u.id),
+      `Вхід з кодом для «${u.fullName}» скинуто. Під час наступного входу застосунок налаштовується наново.`,
     );
   }
 

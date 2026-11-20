@@ -40,3 +40,16 @@ export function fileNameFromDisposition(header: string | null): string | null {
   const plain = /filename="?([^";]+)"?/i.exec(header);
   return plain ? plain[1].trim() : null;
 }
+
+/** Saves a blob as a file (the link must be in the page — a detached one loses its name in Chrome). */
+export function saveBlob(blob: Blob, name: string) {
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  a.hidden = true;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
+}

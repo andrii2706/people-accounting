@@ -23,6 +23,7 @@ import { SignupModule } from './signup/signup.module.js';
 import { EntityDatabasesModule } from './entity-databases/entity-databases.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { HrSyncModule } from './hr-sync/hr-sync.module.js';
+import { SecurityModule } from './security/security.module.js';
 
 @Controller('health')
 class HealthController {
@@ -45,6 +46,7 @@ class HealthController {
     }),
     AuditModule,
     NotificationsModule,
+    SecurityModule,
     StorageModule,
     AuthModule,
     UsersModule,

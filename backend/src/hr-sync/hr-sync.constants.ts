@@ -1,7 +1,20 @@
-import type { HrMilitaryPolicy, HrSyncMode, HrSystem, ODataProfile } from '../shared/interfaces/hr-sync.interface.js';
+import type {
+  HrMilitaryPolicy,
+  HrSyncFrequency,
+  HrSyncMode,
+  HrSystem,
+  ODataProfile,
+} from '../shared/interfaces/hr-sync.interface.js';
 
 export const HR_SYSTEMS: readonly HrSystem[] = ['ZUP', 'BAS_ACCOUNTING', 'OTHER'];
 export const HR_MODES: readonly HrSyncMode[] = ['PUSH', 'ODATA', 'FILE'];
+export const HR_FREQUENCIES: readonly HrSyncFrequency[] = ['ONCE', 'ONGOING'];
+
+/**
+ * A single load by push: 1C sends a big company in parts one after another — all of them are accepted for this
+ * long after the first one; later pushes are refused (and the key is revoked).
+ */
+export const HR_ONCE_PUSH_WINDOW_MS = 60 * 60 * 1000;
 export const HR_MILITARY_POLICIES: readonly HrMilitaryPolicy[] = ['FILL_EMPTY', 'OVERWRITE', 'IGNORE'];
 
 /** Where 1C sends the employees (the address of the API is added by the page: …/oblik/api or …/api). */
@@ -262,3 +275,9 @@ export const ODATA_PROFILES: readonly ODataProfile[] = [
 export const ODATA_EMPTY_DATE = '0001-01-01';
 /** 1C writes an empty reference as the nil GUID. */
 export const ODATA_EMPTY_REF = '00000000-0000-0000-0000-000000000000';
+
+/** How long a new push key works, days; 0 — until it is revoked. */
+export const HR_TOKEN_VALID_DAYS = [0, 30, 90, 180, 365] as const;
+export const HR_TOKEN_DEFAULT_DAYS = 365;
+/** Addresses a key may come from: so many entries at most. */
+export const HR_ALLOWED_IPS_MAX = 20;

@@ -118,8 +118,8 @@
           }
         }
         @case ('phone') {
-          @if (s.showPhone && party.phone) {
-            <p [style.font-size.pt]="s.phoneSize">тел. {{ party.phone }}</p>
+          @if (s.showPhone) {
+            <p [style.font-size.pt]="s.phoneSize">тел. {{ party.phone || phoneBlank }}</p>
           }
         }
       }

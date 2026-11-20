@@ -189,6 +189,13 @@
                   >активний</span
                 >
               }
+              <p
+                class="text-xs"
+                [class.text-ok]="u.mfaEnabledAt"
+                [class.text-muted]="!u.mfaEnabledAt"
+              >
+                {{ u.mfaEnabledAt ? 'вхід з кодом' : 'код ще не налаштовано' }}
+              </p>
               @if (u.mustChangePassword) {
                 @if (expired(u)) {
                   <p

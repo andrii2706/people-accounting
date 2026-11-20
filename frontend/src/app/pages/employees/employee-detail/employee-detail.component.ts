@@ -27,6 +27,8 @@ import {
   EXTERNAL_NOTICE_TYPES,
 } from '../../../shared/constants/letter.constants';
 import { todayIso } from '../../../shared/utils/date.utils';
+import { staffNoticeRows } from '../../../shared/utils/letter.utils';
+import type { StaffNoticeRow } from '../../../shared/interfaces/letter.interface';
 import { ReportsService } from '../../../shared/services/reports.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
@@ -79,6 +81,12 @@ export class EmployeeDetailComponent {
     (this.e()?.changes ?? []).filter((c) => !c.letter && !c.skipped),
   );
   protected readonly busy = signal(false);
+
+  /** Hiring, transfers and dismissal with the notices about them — column 18 of the lists and extracts. */
+  protected readonly staffNotices = computed(() => {
+    const e = this.e();
+    return e ? staffNoticeRows(e, this.notices()) : [];
+  });
 
   protected readonly extractUrl = computed(() => {
     const e = this.e();
@@ -363,16 +371,43 @@ export class EmployeeDetailComponent {
   /** Pending changes this old notice already reported — they leave the queue. */
   protected readonly coveredChanges = signal<ReadonlySet<string>>(new Set());
 
-  protected openExternal() {
+  /**
+   * The window «№ і дата повідомлення»: for a row of hiring / transfer / dismissal — with its type, date,
+   * position and the queued change already filled in; without a row — any old notice.
+   */
+  protected openExternal(row?: StaffNoticeRow) {
     const e = this.e();
+    const about =
+      row?.type === 'HIRE'
+        ? `про прийняття на посаду ${row.detail.split(' · ').at(-1) ?? ''}`.trim()
+        : row?.type === 'POSITION'
+          ? `про переведення на посаду ${row.detail.split(' · ').at(-1) ?? ''}`.trim()
+          : row?.type === 'DISMISSAL'
+            ? 'про звільнення з роботи'
+            : '';
     this.externalModel.set({
       ...EMPTY_EXTERNAL_NOTICE,
+      changeType: row?.type ?? 'HIRE',
       tckId: e?.tckId ?? '',
-      effectiveDate: e?.hireDate ?? '',
+      effectiveDate: row ? (row.date ?? '') : (e?.hireDate ?? ''),
+      description: about,
     });
     this.externalForm().reset();
-    this.coveredChanges.set(new Set());
+    this.coveredChanges.set(new Set(row?.pendingId ? [row.pendingId] : []));
+    this.externalTitle.set(
+      row ? `${row.title}: № і дата повідомлення до ТЦК` : 'Повідомлення, надіслане поза системою',
+    );
     this.externalOpen.set(true);
+  }
+
+  protected readonly externalTitle = signal('');
+
+  /**
+   * A click on the dim background closes the window. A method, not an expression: an expression that gives
+   * «false» would make Angular cancel the click — and with it the submit of the form inside.
+   */
+  protected closeOnBackdrop(event: MouseEvent) {
+    if (event.target === event.currentTarget) this.externalOpen.set(false);
   }
 
   protected setExternalType(type: string) {
@@ -386,7 +421,9 @@ export class EmployeeDetailComponent {
           ? (e?.hireDate ?? m.effectiveDate)
           : changeType === 'DISMISSAL'
             ? (e?.dismissalDate ?? m.effectiveDate)
-            : m.effectiveDate,
+            : changeType === 'POSITION'
+              ? (e?.positionSince ?? m.effectiveDate)
+              : m.effectiveDate,
     }));
   }
 

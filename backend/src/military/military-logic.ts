@@ -57,6 +57,16 @@ export function isOnPersonalListsAt(r: MilitaryRecord, date: IsoDate): boolean {
   return r.rankCode !== null || r.gender === 'F';
 }
 
+/**
+ * Whether the employee goes into an extract for a TCK (reconciliation): only those who work on the date.
+ * The yearly lists keep people dismissed this year (with the dismissal in column 18) — an extract never does:
+ * the TCK already has the dismissal notice, and a TCK where only dismissed people are registered gets no extract.
+ */
+export function isInExtractAt(r: MilitaryRecord, date: IsoDate): boolean {
+  if (!isOnPersonalListsAt(r, date)) return false;
+  return !r.dismissalDate || r.dismissalDate > date;
+}
+
 /** Has reached the age limit for staying in the reserve for their rank. */
 export function hasReachedAgeLimit(r: MilitaryRecord, date: IsoDate): boolean {
   const rank = findRank(r.rankCode);

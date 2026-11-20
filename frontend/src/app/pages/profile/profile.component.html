@@ -81,6 +81,10 @@
   </p>
 </form>
 
+@if (auth.onboarded()) {
+  <app-two-factor-card />
+}
+
 @if (preferences.hasValue()) {
   <section class="card mt-6 max-w-xl p-5 sm:p-6">
     <h2 class="mb-1 font-semibold">Сповіщення</h2>

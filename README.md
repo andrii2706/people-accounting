@@ -31,15 +31,30 @@ cd backend
 cp .env.example .env            # за потреби змініть DATABASE_URL, JWT_SECRET
 npm install --legacy-peer-deps
 npm run seed -- --demo          # міграції + довідник ТЦК + вигадані демо-працівники
-npm run start:dev               # http://localhost:3000/api, Swagger: /api/docs
+npm run start:dev               # http://localhost:3400/api, Swagger: /api/docs
 
 # 3. Frontend
 cd ../frontend
 npm install
-npm start                       # http://localhost:4200 (SSR + проксі /api → :3000)
+npm start                       # http://localhost:4301 (SSR + проксі /api → :3400)
 ```
 
-Вхід: `ADMIN_EMAIL` / `ADMIN_PASSWORD` з `.env` (адміністратор створюється під час старту API).
+**Порти.** Локально застосунок займає власний блок — **3400** (API) і **4301** (фронтенд), бо 3000, 4200, 5173,
+1337 зазвичай тримають інші проєкти (Next.js, React, Strapi, інші Angular-застосунки). Якщо `PORT` у `backend/.env`
+не задано, API стане на 3000 (як у Docker і CI) — тоді допишіть `PORT=3400`.
+
+**Разом з порталом** (один вхід на всі модулі, як на сервері): `npm run start:gateway` у `frontend` і
+або все разом однією командою `npm run dev` у порталі, далі відкривайте http://localhost:8400/ — див. README порталу,
+«Локально всі застосунки разом».
+
+Вхід: `ADMIN_EMAIL` / `ADMIN_PASSWORD` з `.env` (адміністратор створюється під час старту API, якщо його ще немає;
+пізніша зміна `ADMIN_PASSWORD` у `.env` пароль не змінює). Портал входить тими самими обліковими записами.
+
+**Забули пароль локально:** `npm run password:reset` у `backend` — покаже новий пароль адміністратора
+(`npm run password:reset -- user@company.ua` — іншого запису; `--mfa` — ще й вимкнути вхід з кодом, якщо немає
+телефона; `--password "ChangeMe123!"` — саме такий пароль, а якщо запису ще немає, він створиться
+адміністратором). У PowerShell пишіть `"--"` у лапках: `npm run password:reset "--" admin@gmail.com --password "ChangeMe123!"`.
+Лише для локальної бази; у production — «Забули пароль?» або адміністратор.
 
 **Тестові облікові записи для кожної ролі** (лише локально — у production скрипт не запускається):
 

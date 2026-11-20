@@ -62,6 +62,9 @@ export const ENVELOPE_PLACEMENTS: Record<EnvelopeFormat, EnvelopePlacement> = {
 };
 
 /** As Ukrposhta asks: the name, the address, the index the last line; the phone apart. */
+/** The phone nobody filled in: a line to write it by hand (as in the printed labels). */
+export const LABEL_PHONE_BLANK = '____________________';
+
 export const LABEL_LINES: LabelLine[] = ['name', 'address', 'phone', 'postalCode'];
 export const LABEL_PARTIES: LabelPartyKey[] = ['sender', 'recipient'];
 

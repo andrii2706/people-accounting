@@ -12,12 +12,20 @@ import { ToastService } from '../../shared/services/toast.service';
 import { apiErrorMessage, bindApiErrors } from '../../shared/utils/api-error.utils';
 import { passwordProblems } from '../../shared/validators/password.validators';
 import type { UserPreferences } from '../../shared/interfaces/auth.interface';
+import { TwoFactorCardComponent } from './two-factor-card/two-factor-card.component';
 
 /** Profile: change own password (mandatory while the password is temporary). */
 @Component({
   selector: 'app-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PasswordInputComponent, PageHeaderComponent, FormField, FormFieldComponent, UaDatePipe],
+  imports: [
+    PasswordInputComponent,
+    PageHeaderComponent,
+    FormField,
+    FormFieldComponent,
+    UaDatePipe,
+    TwoFactorCardComponent,
+  ],
   templateUrl: './profile.component.html',
 })
 export class ProfileComponent {

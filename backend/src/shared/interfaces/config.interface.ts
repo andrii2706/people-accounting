@@ -91,6 +91,19 @@ export interface AppEnv {
   offerRequiredFor: OfferScope;
   /** ЄДР lookup URL with {code}; empty — lookup off. */
   companyRegistryUrl: string;
+  /** The roles that sign in with a code from an authenticator app after the password (MFA_REQUIRED_ROLES). */
+  mfaRequiredRoles: UserRole[];
+  /** The name the app shows next to the codes. */
+  mfaIssuer: string;
+  /** The cookie that tells a known browser from a new one. */
+  deviceCookieName: string;
+  /** Downloaded files per account: per hour and per day (0 — no limit). */
+  exportLimitPerHour: number;
+  exportLimitPerDay: number;
+  /** Employee cards opened by one account within an hour before the administrators get a letter (0 — off). */
+  massViewPerHour: number;
+  /** More addresses for the security letters (besides the administrators). */
+  securityAlertEmails: string[];
 }
 
 export type KepVerifierKind = 'dstu' | 'basic' | '';

@@ -51,7 +51,8 @@ export type UserRole = 'ADMIN' | 'ENTITY_ADMIN' | 'DIRECTOR' | 'HR' | 'VENDOR';
 export type CredentialsResult =
   | { status: 'ok'; user: User }
   | { status: 'invalid'; userId?: string }
-  | { status: 'locked'; userId: string; lockedUntil: Date }
+  /** fresh — locked just now by this attempt (not an attempt while already locked). */
+  | { status: 'locked'; userId: string; lockedUntil: Date; fresh?: boolean }
   | { status: 'expired'; userId: string };
 
 /** Express request after the AuthGuard: the signed-in user is attached. */
@@ -147,4 +148,28 @@ export interface TestAccount {
   entity: 'A' | 'B' | null;
   /** What to try with it. */
   purpose: string;
+}
+
+/** The claims of the ticket between the password and the code (never a session). */
+export interface MfaTicket {
+  sub: string;
+  ver: number;
+  typ: string;
+  step: 'CODE' | 'SETUP';
+}
+
+/** How a code from the app (or a recovery code) went. */
+export type MfaCodeResult =
+  | { status: 'ok' }
+  | { status: 'recovery'; left: number }
+  | { status: 'invalid'; left: number }
+  | { status: 'locked'; lockedUntil: Date };
+
+/** The second step of one's own account (Profile). */
+export interface MfaStatus {
+  enabled: boolean;
+  enabledAt: string | null;
+  /** The role cannot sign in without it (MFA_REQUIRED_ROLES). */
+  required: boolean;
+  recoveryLeft: number;
 }

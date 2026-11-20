@@ -3,7 +3,9 @@ import { fullYears } from '../common/utils/dates.utils.js';
 import {
   dutyCategory,
   hasMobilizationOrder,
+  isInExtractAt,
   isOnListsAt,
+  isOnPersonalListsAt,
   isReservedAt,
   listGroup,
   operationalRow,
@@ -34,6 +36,24 @@ const base: MilitaryRecord = {
   militaryDocNumber: 'AA1',
   trainingProfile: null,
 };
+
+describe('витяг для ТЦК', () => {
+  it('звільнений цього року — у списках лишається, у витягу — ні', () => {
+    const dismissed = { ...base, dismissalDate: '2026-10-01' };
+    expect(isOnPersonalListsAt(dismissed, '2026-11-20')).toBe(true);
+    expect(isInExtractAt(dismissed, '2026-11-20')).toBe(false);
+  });
+
+  it('звільнений у день звірки — уже не в витягу; звільнення пізніше — ще працює', () => {
+    expect(isInExtractAt({ ...base, dismissalDate: '2026-11-20' }, '2026-11-20')).toBe(false);
+    expect(isInExtractAt({ ...base, dismissalDate: '2026-12-01' }, '2026-11-20')).toBe(true);
+  });
+
+  it('працюючий — у витягу, не взятий на облік — ні', () => {
+    expect(isInExtractAt(base, '2026-11-20')).toBe(true);
+    expect(isInExtractAt({ ...base, militaryRegistered: false }, '2026-11-20')).toBe(false);
+  });
+});
 
 describe('military logic', () => {
   it('рахує повні роки як формула AZ6', () => {

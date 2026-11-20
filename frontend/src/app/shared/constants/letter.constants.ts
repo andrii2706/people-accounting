@@ -14,6 +14,7 @@ export const LETTER_TYPE_LABELS: Record<LetterType, string> = {
 /** What an old (paper) notice reported. */
 export const EXTERNAL_NOTICE_TYPES: SelectOption<ExternalNoticeType>[] = [
   { value: 'HIRE', label: 'Прийняття на роботу' },
+  { value: 'POSITION', label: 'Переведення / зміна посади' },
   { value: 'DISMISSAL', label: 'Звільнення з роботи' },
   { value: 'DATA', label: 'Зміна облікових даних' },
 ];

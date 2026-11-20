@@ -1,4 +1,6 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, ParseUUIDPipe, Post, Put, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { clientIp } from '../security/utils/security.utils.js';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuditService } from '../audit/audit.service.js';
@@ -15,7 +17,7 @@ import type {
 } from '../shared/interfaces/hr-sync.interface.js';
 import { ENTITY_MANAGERS, ENTITY_ROLES } from '../users/users.constants.js';
 import { HR_PUSHES_PER_MINUTE } from './hr-sync.constants.js';
-import { HrSyncSettingsDto } from './hr-sync.dto.js';
+import { HrIssueTokenDto, HrSyncSettingsDto } from './hr-sync.dto.js';
 import { HrSyncService } from './hr-sync.service.js';
 
 /**
@@ -60,13 +62,33 @@ export class HrSyncController {
     await this.audit.log('legal-entity', id, 'UPDATE', { HR_SYNC: ['підключено', null] }, user);
   }
 
+  /** «Отримати ще раз»: a finished single load may take the data of 1C once more. */
+  @Post('reopen')
+  @HttpCode(200)
+  @Roles(...ENTITY_MANAGERS)
+  async reopen(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ): Promise<HrSyncSettingsView> {
+    assertInScope(scope, id, ENTITY_NOT_FOUND);
+    const view = await this.sync.reopen(id);
+    await this.audit.log('legal-entity', id, 'UPDATE', { HR_SYNC_ONCE: ['отримано', 'отримати ще раз'] }, user);
+    return view;
+  }
+
   /** A new key for 1C — shown once; the previous one stops working. */
   @Post('token')
   @HttpCode(200)
   @Roles(...ENTITY_MANAGERS)
-  async token(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
+  async token(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: HrIssueTokenDto,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ) {
     assertInScope(scope, id, ENTITY_NOT_FOUND);
-    const result = await this.sync.issueToken(id, user);
+    const result = await this.sync.issueToken(id, user, dto.validDays);
     await this.audit.log('legal-entity', id, 'UPDATE', { HR_SYNC_TOKEN: [null, result.settings.tokenPrefix] }, user);
     return result;
   }
@@ -172,15 +194,19 @@ export class HrPushController {
   @HttpCode(200)
   @Public()
   @Throttle({ default: { limit: HR_PUSHES_PER_MINUTE, ttl: 60_000 } })
-  push(@Headers('authorization') authorization: string | undefined, @Body() body: unknown): Promise<HrPushResult> {
-    return this.sync.receivePush(authorization, body);
+  push(
+    @Headers('authorization') authorization: string | undefined,
+    @Body() body: unknown,
+    @Req() req: Request,
+  ): Promise<HrPushResult> {
+    return this.sync.receivePush(authorization, clientIp(req), body);
   }
 
   /** 1C checks the key before sending («Перевірити підключення» in the data processor). */
   @Get('ping')
   @Public()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async ping(@Headers('authorization') authorization: string | undefined) {
-    return this.sync.ping(authorization);
+  async ping(@Headers('authorization') authorization: string | undefined, @Req() req: Request) {
+    return this.sync.ping(authorization, clientIp(req));
   }
 }

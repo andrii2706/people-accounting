@@ -27,7 +27,9 @@ export type AuditAction =
   | 'USER_UPDATED'
   | 'REGISTER'
   | 'REGISTER_REJECTED'
-  | 'OFFER_SIGNED';
+  | 'OFFER_SIGNED'
+  /** The code from the app turned on / off / reset. */
+  | 'MFA_CHANGED';
 
 /** Postgres error details of a TypeORM QueryFailedError. */
 export interface PgDriverError {

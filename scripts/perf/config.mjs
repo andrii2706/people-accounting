@@ -1,6 +1,6 @@
 /** Where the app runs and who signs in. Never point this at production data. */
 export const APP = process.env.PERF_APP ?? 'http://localhost:4000';
-export const API = process.env.PERF_API ?? 'http://localhost:3000/api';
+export const API = process.env.PERF_API ?? 'http://localhost:3400/api';
 export const EMAIL = process.env.PERF_EMAIL ?? 'admin@example.com';
 export const PASSWORD = process.env.PERF_PASSWORD ?? 'ChangeMe123!';
 
@@ -11,5 +11,9 @@ export async function signIn() {
     body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
   });
   if (!res.ok) throw new Error(`Sign-in failed: ${res.status}`);
+  const body = await res.clone().json().catch(() => ({}));
+  if (body.twoFactor) {
+    throw new Error('The account needs a code from the app: start the local API with MFA_REQUIRED_ROLES=none');
+  }
   return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
 }

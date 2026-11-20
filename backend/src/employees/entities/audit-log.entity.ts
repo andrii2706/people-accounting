@@ -3,6 +3,8 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 
 /** Audit log of actions with personal data: who changed what and when. */
 @Entity('audit_log')
 @Index(['entity', 'entityId'])
+@Index('IDX_audit_log_user_action', ['userId', 'action', 'createdAt'])
+@Index('IDX_audit_log_action_time', ['action', 'createdAt'])
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;

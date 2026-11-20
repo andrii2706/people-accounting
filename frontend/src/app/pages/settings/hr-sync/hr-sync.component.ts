@@ -28,12 +28,14 @@ import {
   HR_1C_PROCESSOR_URLS,
   HR_ACTION_ORDER,
   HR_ACTION_TEXT,
+  HR_FREQUENCY_TEXT,
   HR_HOUR_OPTIONS,
   HR_MODE_TEXT,
   HR_POLICY_OPTIONS,
   HR_SOURCE_LABELS,
   HR_STATUS_TEXT,
   HR_SYSTEM_OPTIONS,
+  HR_TOKEN_DAYS_OPTIONS,
 } from '../../../shared/constants/hr-sync.constants';
 import type {
   HrBatchItem,
@@ -42,6 +44,7 @@ import type {
   HrMilitaryPolicy,
   HrODataCheck,
   HrSyncForm,
+  HrSyncFrequency,
   HrSyncMode,
   HrSyncPageData,
   HrSystem,
@@ -88,6 +91,19 @@ export class HrSyncComponent {
   protected readonly hourOptions = HR_HOUR_OPTIONS;
   protected readonly modeText = HR_MODE_TEXT;
   protected readonly modes: HrSyncMode[] = ['PUSH', 'ODATA', 'FILE'];
+  protected readonly frequencies: HrSyncFrequency[] = ['ONCE', 'ONGOING'];
+  protected readonly frequencyText = HR_FREQUENCY_TEXT;
+  protected readonly nowIso = () => new Date().toISOString();
+  /** A single load that is done: 1C gives nothing more until «Отримати ще раз». */
+  protected readonly done = computed(() => {
+    const s = this.data().settings;
+    return s.frequency === 'ONCE' && !!s.completedAt;
+  });
+  /** The key ends within 30 days — time to issue a new one and put it into 1C. */
+  protected readonly tokenEndsSoon = computed(() => {
+    const until = this.data().settings.tokenExpiresAt;
+    return !!until && Date.parse(until) - Date.now() < 30 * 24 * 3600_000;
+  });
   protected readonly statusText = HR_STATUS_TEXT;
   protected readonly sourceLabels = HR_SOURCE_LABELS;
   protected readonly actionText = HR_ACTION_TEXT;
@@ -104,6 +120,7 @@ export class HrSyncComponent {
     return {
       system: s.system,
       mode: s.mode,
+      frequency: s.frequency,
       odataUrl: s.odataUrl,
       odataUser: s.odataUser,
       odataPassword: '',
@@ -113,6 +130,7 @@ export class HrSyncComponent {
       autoApply: s.autoApply,
       militaryPolicy: s.militaryPolicy,
       importDismissed: s.importDismissed,
+      pushAllowedIps: s.pushAllowedIps,
     };
   });
 
@@ -132,11 +150,21 @@ export class HrSyncComponent {
     });
     // HR sees the connection but does not change it
     const locked = () => !this.canConfigure();
-    for (const field of [p.odataUrl, p.odataUser, p.odataPassword, p.organizationCode])
+    for (const field of [
+      p.odataUrl,
+      p.odataUser,
+      p.odataPassword,
+      p.organizationCode,
+      p.pushAllowedIps,
+    ])
       readonly(field, locked);
     for (const field of [p.scheduleEnabled, p.autoApply, p.importDismissed])
       disabled(field, locked);
   });
+
+  /** How long the next key works (days; 0 — until revoked). */
+  protected readonly tokenDays = signal('365');
+  protected readonly tokenDaysOptions = HR_TOKEN_DAYS_OPTIONS.map((o) => ({ ...o }));
 
   /** The key just issued — shown once on this page and never again. */
   protected readonly issuedToken = signal('');
@@ -144,7 +172,7 @@ export class HrSyncComponent {
   protected readonly pushUrl = signal('');
   protected readonly checkResult = signal<HrODataCheck | null>(null);
   protected readonly busy = signal<
-    '' | 'check' | 'pull' | 'token' | 'revoke' | 'remove' | 'apply' | 'discard'
+    '' | 'check' | 'pull' | 'token' | 'revoke' | 'remove' | 'apply' | 'discard' | 'reopen'
   >('');
   protected readonly confirmRevoke = signal(false);
   protected readonly confirmRemove = signal(false);
@@ -176,6 +204,9 @@ export class HrSyncComponent {
   protected setMode(mode: HrSyncMode) {
     if (this.canConfigure()) this.model.update((m) => ({ ...m, mode }));
   }
+  protected setFrequency(frequency: HrSyncFrequency) {
+    if (this.canConfigure()) this.model.update((m) => ({ ...m, frequency }));
+  }
   protected setSystem(value: string) {
     if (value) this.model.update((m) => ({ ...m, system: value as HrSystem }));
   }
@@ -196,6 +227,7 @@ export class HrSyncComponent {
           odataUrl: m.odataUrl.trim(),
           odataUser: m.odataUser.trim(),
           organizationCode: m.organizationCode.trim(),
+          pushAllowedIps: m.pushAllowedIps.trim(),
         });
         this.toast.success(
           m.mode === 'PUSH' && !this.data().settings.tokenPrefix
@@ -213,10 +245,26 @@ export class HrSyncComponent {
     });
   }
 
+  protected async reopen() {
+    this.busy.set('reopen');
+    try {
+      await this.service.reopen(this.data().entityId);
+      this.toast.success('Можна отримати дані з 1С ще раз');
+      await this.refresh();
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err, 'Не вдалося'));
+    } finally {
+      this.busy.set('');
+    }
+  }
+
   protected async issueToken() {
     this.busy.set('token');
     try {
-      const { token } = await this.service.issueToken(this.data().entityId);
+      const { token } = await this.service.issueToken(
+        this.data().entityId,
+        Number(this.tokenDays()),
+      );
       this.issuedToken.set(token);
       this.toast.success('Ключ видано — скопіюйте його в обробку 1С');
       await this.refresh();

@@ -28,3 +28,22 @@ export const HANDED_OVER_PASSWORD_PROBLEM = 'лише латинські літ�
  * is stopped by the account lockout (MAX_FAILED_LOGINS failures → LOCKOUT_MINUTES).
  */
 export const LOGIN_ATTEMPTS_PER_MINUTE = 20;
+
+/** Two-step sign-in: a code from an authenticator app (TOTP, RFC 6238). */
+export const MFA_DIGITS = 6;
+export const MFA_PERIOD_SECONDS = 30;
+/** ±1 step (±30 s): the clock of the phone may be a little off. */
+export const MFA_WINDOW_STEPS = 1;
+/** 160 bits, as RFC 4226 recommends. */
+export const MFA_SECRET_BYTES = 20;
+/** Recovery codes: 8 characters without the look-alikes 0/O and 1/I — 32 characters, 40 bits each. */
+export const MFA_RECOVERY_ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+export const MFA_RECOVERY_CODES = 10;
+/** The step between the password and the code: how long it waits for the code. */
+export const MFA_TICKET_MINUTES = 5;
+/** Wrong codes in a row → the account is locked like after wrong passwords (the password is already known!). */
+export const MFA_MAX_FAILED_CODES = 5;
+/** Code attempts per minute from one address (an office behind one address; guessing is stopped by the lockout). */
+export const MFA_ATTEMPTS_PER_MINUTE = 20;
+/** What the ticket of the second step says it is: a session never carries it. */
+export const MFA_TICKET_TYPE = 'mfa';

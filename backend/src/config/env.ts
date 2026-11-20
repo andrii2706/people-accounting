@@ -147,7 +147,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     maxFailedLogins: int(env.MAX_FAILED_LOGINS, 5),
     lockoutMinutes: int(env.LOCKOUT_MINUTES, 15),
     appOrigins: list(env.APP_ORIGIN),
-    corsOrigins: list(env.CORS_ORIGIN ?? (isProduction ? '' : 'http://localhost:4200')),
+    corsOrigins: list(env.CORS_ORIGIN ?? (isProduction ? '' : 'http://localhost:4301')),
     trustProxyHops: int(env.TRUST_PROXY_HOPS, 0),
     swagger: bool(env.SWAGGER, !isProduction),
     dataKey: dataKey!,
@@ -174,7 +174,7 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
       : ['HR', 'DIRECTOR']) as UserRole[],
     passwordReminderDays: int(env.PASSWORD_REMINDER_DAYS, 30),
     passwordLinkHours: int(env.PASSWORD_LINK_HOURS, 72),
-    appUrl: env.APP_URL || list(env.APP_ORIGIN)[0] || 'http://localhost:4200',
+    appUrl: env.APP_URL || list(env.APP_ORIGIN)[0] || 'http://localhost:4301',
     decreeSourceUrl: env.DECREE_SOURCE_URL || 'https://zakon.rada.gov.ua/laws/show/65/2022',
     decreeFallbackUrl: env.DECREE_FALLBACK_URL ?? DECREE_FALLBACK_URL_DEFAULT,
     // free ЄДР lookup by code ({code} is replaced); empty — the «Підтягнути з ЄДР» button is off
@@ -190,9 +190,32 @@ export function loadEnv(env: NodeJS.ProcessEnv = process.env): AppEnv {
     kepCaFile: env.KEP_CA_FILE || 'kep/CACertificates.p7b',
     kepOcsp: oneOf<KepOcspMode>('KEP_OCSP', env.KEP_OCSP, ['strict', 'lax'], 'strict'),
     offerRequiredFor: oneOf<OfferScope>('OFFER_REQUIRED_FOR', env.OFFER_REQUIRED_FOR, ['all', 'self'], 'self'),
+    // the code from an authenticator app after the password: for every role by default; «none» — off
+    mfaRequiredRoles: mfaRoles(env.MFA_REQUIRED_ROLES),
+    mfaIssuer: env.MFA_ISSUER || 'Військовий облік',
+    deviceCookieName: cookieSecure ? '__Host-mr_device' : 'mr_device',
+    // files one account may download; 0 — no limit
+    exportLimitPerHour: int(env.EXPORT_LIMIT_PER_HOUR, 60),
+    exportLimitPerDay: int(env.EXPORT_LIMIT_PER_DAY, 300),
+    // so many employee cards opened within an hour — a letter to the administrators; 0 — off
+    massViewPerHour: int(env.MASS_VIEW_ALERT_PER_HOUR, 200),
+    securityAlertEmails: list(env.SECURITY_ALERT_EMAILS),
   };
   if (env === process.env) cached = result;
   return result;
+}
+
+const ALL_ROLES: UserRole[] = ['ADMIN', 'ENTITY_ADMIN', 'DIRECTOR', 'HR', 'VENDOR'];
+
+function mfaRoles(value: string | undefined): UserRole[] {
+  const v = (value ?? '').trim();
+  if (!v) return ALL_ROLES;
+  if (v.toLowerCase() === 'none') return [];
+  const roles = list(v).map((r) => r.toUpperCase());
+  const wrong = roles.filter((r) => !ALL_ROLES.includes(r as UserRole));
+  if (wrong.length)
+    throw new Error(`MFA_REQUIRED_ROLES: невідомі ролі ${wrong.join(', ')} (${ALL_ROLES.join(', ')} або none)`);
+  return roles as UserRole[];
 }
 
 function kepVerifier(value: string | undefined, isProduction: boolean): KepVerifierKind {

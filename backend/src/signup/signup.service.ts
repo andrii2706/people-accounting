@@ -42,6 +42,7 @@ import {
 } from './signup.constants.js';
 import type { SignupStatementDto } from './signup.dto.js';
 import { buildStatement } from './utils/statement.utils.js';
+import { UploadGuardService } from '../security/upload-guard.service.js';
 
 /** A refusal that the administrator must hear about. */
 class SignupRefused extends Error {
@@ -75,6 +76,7 @@ export class SignupService {
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    private readonly uploads: UploadGuardService,
   ) {}
 
   get enabled() {
@@ -139,9 +141,11 @@ export class SignupService {
     }
     const document = Buffer.from(request.document, 'utf8');
 
+    const signature = Buffer.from(signatureBase64, 'base64');
+    await this.uploads.assertSafe(signature, 'statement.p7s', 'signature', {});
     let check: KepCheck;
     try {
-      check = await this.kep.verify(document, Buffer.from(signatureBase64, 'base64'));
+      check = await this.kep.verify(document, signature);
     } catch (err) {
       // not configured / the library is unavailable — not the user's fault, the statement stays valid
       if (err instanceof ServiceUnavailableException) throw err;

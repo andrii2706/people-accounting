@@ -9,6 +9,13 @@ import type {
   PasswordLinkInfo,
   SessionResponse,
 } from '../interfaces/auth.interface';
+import {
+  AUTH_PATHS,
+  isLoginChallenge,
+  type LoginChallenge,
+  type TwoFactorEnabled,
+  type TwoFactorSetup,
+} from '../../../platform/contracts/session';
 
 /** Authentication state on signals. The session lives in an httpOnly cookie — JavaScript cannot see it. */
 @Injectable({ providedIn: 'root' })
@@ -88,10 +95,53 @@ export class AuthService {
     return user;
   }
 
-  async login(email: string, password: string): Promise<AuthUser> {
-    const user = await firstValueFrom(
-      this.http.post<AuthUser>('api/auth/login', { email, password }),
+  /**
+   * The password. With the code from the app on (or required for the role) the answer is a ticket for the
+   * second step instead of the session.
+   */
+  async login(email: string, password: string): Promise<AuthUser | LoginChallenge> {
+    const answer = await firstValueFrom(
+      this.http.post<AuthUser | LoginChallenge>('api/auth/login', { email, password }),
     );
+    if (isLoginChallenge(answer)) return answer;
+    return this.signedIn(answer);
+  }
+
+  /** The second step: the code from the app or a recovery code. */
+  async loginCode(ticket: string, code: string): Promise<AuthUser> {
+    const user = await firstValueFrom(
+      this.http.post<AuthUser>(apiPath(AUTH_PATHS.loginCode), { ticket, code }),
+    );
+    return this.signedIn(user);
+  }
+
+  /** The first sign-in of a role that needs the code: a secret (QR) for the app. */
+  loginSetup(ticket: string) {
+    return firstValueFrom(
+      this.http.post<TwoFactorSetup>(apiPath(AUTH_PATHS.loginSetup), { ticket }),
+    );
+  }
+
+  /** …and the first code: the code is on, the session is issued, the recovery codes come once. */
+  async loginEnable(ticket: string, code: string): Promise<TwoFactorEnabled<AuthUser>> {
+    const result = await firstValueFrom(
+      this.http.post<TwoFactorEnabled<AuthUser>>(apiPath(AUTH_PATHS.loginEnable), { ticket, code }),
+    );
+    // the session cookie is set; the user is shown only after the codes are saved (see the login page)
+    this.pendingUser = result.user;
+    return result;
+  }
+
+  /** The recovery codes are saved — the session that is already set becomes the current user. */
+  finishSetup(): AuthUser | null {
+    const user = this.pendingUser;
+    this.pendingUser = null;
+    return user ? this.signedIn(user) : null;
+  }
+
+  private pendingUser: AuthUser | null = null;
+
+  private signedIn(user: AuthUser): AuthUser {
     this._user.set(user);
     this._checked.set(true);
     this.justSignedIn.set(true);
@@ -145,3 +195,6 @@ export class AuthService {
     });
   }
 }
+
+/** '/api/auth/login/code' → 'api/auth/login/code' (the app's requests are relative to its base href). */
+const apiPath = (path: string) => path.replace(/^\//, '');

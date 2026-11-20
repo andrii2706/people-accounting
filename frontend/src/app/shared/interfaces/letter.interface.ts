@@ -119,7 +119,7 @@ export interface ExternalNoticeRequest {
   changeIds?: string[];
 }
 
-export type ExternalNoticeType = 'HIRE' | 'DISMISSAL' | 'DATA';
+export type ExternalNoticeType = 'HIRE' | 'POSITION' | 'DISMISSAL' | 'DATA';
 
 /** Form of an old notice in the employee card. */
 export interface ExternalNoticeForm {
@@ -138,4 +138,23 @@ export type ReconciliationPart = 'cover' | 'inventory' | 'all';
 export interface NoticeRecordForm {
   number: string;
   date: string;
+}
+
+/**
+ * One line of «Повідомлення до ТЦК про прийняття, переведення, звільнення» in the employee card: the event,
+ * the notices that reported it (they go into column 18 of the lists and extracts) and the queued change.
+ */
+export interface StaffNoticeRow {
+  key: string;
+  type: 'HIRE' | 'POSITION' | 'DISMISSAL';
+  title: string;
+  /** The date of the event (hiring, transfer, dismissal). */
+  date: string | null;
+  /** «наказ № 12 від 01.03.2026 · інженер». */
+  detail: string;
+  notices: EmployeeNotice[];
+  /** The change still waiting in the queue — entering the number takes it out. */
+  pendingId: string | null;
+  /** Its deadline is over. */
+  overdue: boolean;
 }

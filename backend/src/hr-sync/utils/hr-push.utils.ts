@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { BlockList, isIP } from 'node:net';
 import { HR_MAX_RECORDS_PER_PUSH, HR_TOKEN_PATTERN, HR_TOKEN_PREFIX } from '../hr-sync.constants.js';
 import type { HrMilitary, HrMilitaryDocument, HrRecord } from '../../shared/interfaces/hr-sync.interface.js';
 
@@ -113,4 +114,41 @@ export function readPushBody(body: unknown): HrRecord[] {
       throw new PushFormatError(`Працівник №${i + 1}: немає прізвища (lastName або fullName)`);
     return out;
   });
+}
+
+/**
+ * «203.0.113.5, 198.51.100.0/24» → the list as stored (one entry per address / network); throws the problem
+ * in words when an entry is not an address.
+ */
+export function parseAllowedIps(text: string, max: number): string[] {
+  const entries = text
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (entries.length > max) throw new Error(`Не більше ${max} адрес`);
+  for (const entry of entries) {
+    const [addr, prefix, extra] = entry.split('/');
+    const family = isIP(addr);
+    const bits = family === 6 ? 128 : 32;
+    if (!family || extra !== undefined || (prefix !== undefined && !(/^\d+$/.test(prefix) && Number(prefix) <= bits))) {
+      throw new Error(`«${entry}» — не IP-адреса (приклад: 203.0.113.5 або 203.0.113.0/24)`);
+    }
+  }
+  return [...new Set(entries)];
+}
+
+/** The address is in the list (an empty list — any address). */
+export function ipAllowed(list: string[], ip: string): boolean {
+  if (!list.length) return true;
+  const address = ip.replace(/^::ffff:/, '');
+  const family = isIP(address);
+  if (!family) return false;
+  const block = new BlockList();
+  for (const entry of list) {
+    const [addr, prefix] = entry.split('/');
+    const type = isIP(addr) === 6 ? 'ipv6' : 'ipv4';
+    if (prefix !== undefined) block.addSubnet(addr, Number(prefix), type);
+    else block.addAddress(addr, type);
+  }
+  return block.check(address, family === 6 ? 'ipv6' : 'ipv4');
 }

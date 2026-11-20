@@ -15,6 +15,12 @@
     <a routerLink="/settings/users" class="btn btn-secondary cursor-pointer"
       ><app-icon name="users" /> Користувачі</a
     >
+    <a
+      routerLink="/settings/security"
+      class="btn btn-secondary cursor-pointer"
+      title="Невдалі входи, нові пристрої, масові вивантаження, заблоковані файли"
+      ><app-icon name="shield" /> Безпека</a
+    >
   }
   @if (auth.isAdmin()) {
     <a
