@@ -76,6 +76,12 @@ export interface LabelSettings {
   recipientXMm: number;
   recipientYMm: number;
   recipientWidthMm: number;
+
+  /**
+   * The inventory for the post (form 107): the declared value of every line, whole hryvnias; the total is
+   * their sum. 0 — the column is left empty for the pen.
+   */
+  declaredValue: number;
 }
 
 export interface EnvelopeSize {

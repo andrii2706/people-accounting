@@ -1,6 +1,11 @@
 import type { EmployeeDetails } from '../interfaces/employee.interface';
 import type { EmployeeNotice } from '../interfaces/letter.interface';
-import { externalNoticeType, staffNoticeRows } from './letter.utils';
+import {
+  externalNoticeType,
+  staffNoticeError,
+  staffNoticeRequest,
+  staffNoticeRows,
+} from './letter.utils';
 
 describe('externalNoticeType', () => {
   it('hiring, transfer and dismissal keep their type (column 18 of the lists)', () => {
@@ -98,5 +103,46 @@ describe('staffNoticeRows', () => {
       notice('n2', 'POSITION', '2026-01-10', '7'),
     ]);
     expect(rows.find((r) => r.type === 'POSITION')?.notices.map((n) => n.number)).toEqual(['7']);
+  });
+});
+
+describe('the notice typed in the card form', () => {
+  it('the number and the date go together', () => {
+    expect(staffNoticeError({ number: '', date: '' })).toBe('');
+    expect(staffNoticeError({ number: '15/1', date: '' })).toMatch(/дату/);
+    expect(staffNoticeError({ number: ' ', date: '2026-11-21' })).toMatch(/номер/);
+    expect(staffNoticeError({ number: '15/1', date: '2026-11-21' })).toBe('');
+  });
+
+  it('the hiring: the queued change of the hiring leaves the queue', () => {
+    const e = employee({
+      id: 'e1',
+      changes: [
+        { id: 'h1', type: 'HIRE', letter: null, skipped: false },
+        { id: 'p1', type: 'POSITION', letter: null, skipped: false },
+      ],
+    } as never);
+    expect(staffNoticeRequest(e, 'HIRE', { number: ' 15 ', date: '2025-03-03' })).toEqual({
+      employeeId: 'e1',
+      number: '15',
+      date: '2025-03-03',
+      changeType: 'HIRE',
+      effectiveDate: '2025-03-01',
+      description: 'про прийняття на посаду інженер',
+      changeIds: ['h1'],
+    });
+    expect(staffNoticeRequest(e, 'HIRE', { number: '', date: '' })).toBeNull();
+  });
+
+  it('the dismissal — only with its date', () => {
+    expect(
+      staffNoticeRequest(employee(), 'DISMISSAL', { number: '7', date: '2026-11-21' }),
+    ).toBeNull();
+    const e = employee({ dismissalDate: '2026-11-20' });
+    expect(staffNoticeRequest(e, 'DISMISSAL', { number: '7', date: '2026-11-21' })).toMatchObject({
+      changeType: 'DISMISSAL',
+      effectiveDate: '2026-11-20',
+      description: 'про звільнення з роботи',
+    });
   });
 });

@@ -164,7 +164,8 @@ export function positionText(e: EmployeeFields): string {
           : '',
       ])
     : '';
-  return join([appointed, dismissed], '; ');
+  // the appointment and the dismissal apart by «/», as the column title puts them
+  return join([appointed, dismissed], ' / ');
 }
 
 /** Column 7: composition (training profile for an officer). */

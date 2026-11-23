@@ -46,7 +46,8 @@ export const EMPLOYEES_ROUTES: Routes = [
     path: ':id/edit',
     canActivate: [editorGuard],
     title: 'Редагування · Військовий облік',
-    resolve: { employee: employeeDetailsResolver },
+    // the notices — to show «№ і дата повідомлення до ТЦК» of the hiring and the dismissal in the form
+    resolve: { employee: employeeDetailsResolver, notices: employeeNoticesResolver },
     loadComponent: () =>
       import('./employee-form/employee-form.component').then((m) => m.EmployeeFormComponent),
   },

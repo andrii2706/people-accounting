@@ -555,6 +555,45 @@
                 />
               </app-form-field>
             </div>
+            <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              @if (hireNotices().length) {
+                <div class="sm:col-span-2">
+                  <p class="label">Повідомлення до ТЦК про прийняття</p>
+                  @for (n of hireNotices(); track n.id) {
+                    <p class="text-sm">
+                      <a
+                        [routerLink]="['/letters', n.letter.id]"
+                        class="cursor-pointer text-brand-600 hover:underline"
+                        >вих. № {{ n.letter.number }} від {{ n.letter.date | uaDate }}</a
+                      >
+                    </p>
+                  }
+                </div>
+              } @else {
+                <app-form-field label="№ повідомлення до ТЦК" hint="вихідний номер про прийняття">
+                  <input
+                    class="input"
+                    maxlength="50"
+                    aria-label="№ повідомлення до ТЦК про прийняття"
+                    [attr.aria-invalid]="!!hireNoticeError() && !hireNotice().number.trim()"
+                    [value]="hireNotice().number"
+                    (input)="setNotice('HIRE', 'number', $any($event.target).value)"
+                  />
+                </app-form-field>
+                <app-form-field label="Дата повідомлення до ТЦК">
+                  <app-date-input
+                    [value]="hireNotice().date"
+                    (valueChange)="setNotice('HIRE', 'date', $event)"
+                    ariaLabel="Дата повідомлення до ТЦК про прийняття"
+                  />
+                </app-form-field>
+                @if (hireNoticeError()) {
+                  <p class="self-end pb-2 text-xs text-danger sm:col-span-2" role="alert">
+                    {{ hireNoticeError() }}
+                  </p>
+                }
+              }
+            </div>
 
             <div class="mt-7 mb-3 flex flex-wrap items-center justify-between gap-2">
               <div>
@@ -672,6 +711,52 @@
                 </app-form-field>
               }
             </div>
+            @if (model().dismissalDate) {
+              <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                @if (dismissalNotices().length) {
+                  <div class="sm:col-span-2">
+                    <p class="label">Повідомлення до ТЦК про звільнення</p>
+                    @for (n of dismissalNotices(); track n.id) {
+                      <p class="text-sm">
+                        <a
+                          [routerLink]="['/letters', n.letter.id]"
+                          class="cursor-pointer text-brand-600 hover:underline"
+                          >вих. № {{ n.letter.number }} від {{ n.letter.date | uaDate }}</a
+                        >
+                      </p>
+                    }
+                  </div>
+                } @else {
+                  <app-form-field
+                    label="№ повідомлення до ТЦК"
+                    hint="вихідний номер про звільнення"
+                  >
+                    <input
+                      class="input"
+                      maxlength="50"
+                      aria-label="№ повідомлення до ТЦК про звільнення"
+                      [attr.aria-invalid]="
+                        !!dismissalNoticeError() && !dismissalNotice().number.trim()
+                      "
+                      [value]="dismissalNotice().number"
+                      (input)="setNotice('DISMISSAL', 'number', $any($event.target).value)"
+                    />
+                  </app-form-field>
+                  <app-form-field label="Дата повідомлення до ТЦК">
+                    <app-date-input
+                      [value]="dismissalNotice().date"
+                      (valueChange)="setNotice('DISMISSAL', 'date', $event)"
+                      ariaLabel="Дата повідомлення до ТЦК про звільнення"
+                    />
+                  </app-form-field>
+                  @if (dismissalNoticeError()) {
+                    <p class="self-end pb-2 text-xs text-danger sm:col-span-2" role="alert">
+                      {{ dismissalNoticeError() }}
+                    </p>
+                  }
+                }
+              </div>
+            }
           }
 
           @case ('military') {

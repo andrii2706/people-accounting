@@ -62,6 +62,10 @@ import { FormFieldComponent } from '../../../shared/components/form-field/form-f
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import type { FamilyRelation } from '../../../shared/interfaces/dictionary.interface';
 import type { EmployeeDetails } from '../../../shared/interfaces/employee.interface';
+import type { EmployeeNotice, StaffNoticeDraft } from '../../../shared/interfaces/letter.interface';
+import { LettersService } from '../../../shared/services/letters.service';
+import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
+import { staffNoticeError, staffNoticeRequest } from '../../../shared/utils/letter.utils';
 import { DictionariesService } from '../../../shared/services/dictionaries.service';
 import { EmployeesService } from '../../../shared/services/employees.service';
 import { ToastService } from '../../../shared/services/toast.service';
@@ -105,6 +109,7 @@ import type { NotificationStatus } from '../../../shared/interfaces/organization
     DateInputComponent,
     SelectComponent,
     PhoneInputComponent,
+    UaDatePipe,
   ],
   templateUrl: './employee-form.component.html',
 })
@@ -113,6 +118,7 @@ export class EmployeeFormComponent {
   private readonly router = inject(Router);
   private readonly toast = inject(ToastService);
   private readonly injector = inject(Injector);
+  private readonly lettersService = inject(LettersService);
   protected readonly dict = inject(DictionariesService);
 
   /** :id from the route; undefined for /employees/new. */
@@ -128,6 +134,34 @@ export class EmployeeFormComponent {
 
   /** For editing — data from employeeDetailsResolver; absent for a new employee. */
   readonly employee = input<EmployeeDetails>();
+  /** For editing — the notices already sent to the TCK about this employee (employeeNoticesResolver). */
+  readonly notices = input<EmployeeNotice[]>([]);
+
+  /**
+   * «№ і дата повідомлення до ТЦК» of the hiring and of the dismissal. When a notice is already there it is
+   * shown as it is (changed on its own page); otherwise the typed one is saved as a notice sent outside the system.
+   */
+  protected readonly hireNotices = computed(() =>
+    (this.notices() ?? []).filter((n) => n.changeType === 'HIRE'),
+  );
+  protected readonly dismissalNotices = computed(() =>
+    (this.notices() ?? []).filter((n) => n.changeType === 'DISMISSAL'),
+  );
+  protected readonly hireNotice = signal<StaffNoticeDraft>({ number: '', date: '' });
+  protected readonly dismissalNotice = signal<StaffNoticeDraft>({ number: '', date: '' });
+  protected readonly hireNoticeError = computed(() =>
+    this.submitAttempted() ? staffNoticeError(this.hireNotice()) : '',
+  );
+  protected readonly dismissalNoticeError = computed(() =>
+    this.submitAttempted() && this.model().dismissalDate
+      ? staffNoticeError(this.dismissalNotice())
+      : '',
+  );
+
+  protected setNotice(type: 'HIRE' | 'DISMISSAL', key: keyof StaffNoticeDraft, value: string) {
+    const target = type === 'HIRE' ? this.hireNotice : this.dismissalNotice;
+    target.update((n) => ({ ...n, [key]: value }));
+  }
   protected readonly isEdit = computed(() => !!this.id());
 
   /** Original state (to detect changes) and the edited model — both derived from the loaded employee. */
@@ -682,7 +716,13 @@ export class EmployeeFormComponent {
   protected readonly currentSectionLabel = computed(
     () => FORM_TABS.find((t) => t.id === this.tab())?.label ?? '',
   );
-  protected readonly unsaved = computed(() => changedCount(this.original(), this.model()));
+  /** The changed fields of the card and the typed notices about the hiring and the dismissal. */
+  protected readonly unsaved = computed(
+    () =>
+      changedCount(this.original(), this.model()) +
+      (!this.hireNotices().length && this.hireNotice().number.trim() ? 1 : 0) +
+      (!this.dismissalNotices().length && this.dismissalNotice().number.trim() ? 1 : 0),
+  );
   protected readonly visibleErrors = computed(() =>
     this.sections().reduce((sum, s) => sum + s.errors, 0),
   );
@@ -812,6 +852,10 @@ export class EmployeeFormComponent {
     this.saveError.set('');
     this.serverErrors.set([]);
     this.submitAttempted.set(true);
+    if (this.hireNoticeError() || this.dismissalNoticeError()) {
+      this.saveError.set('Не збережено — перевірте номер і дату повідомлення до ТЦК.');
+      return;
+    }
 
     const ok = await submit(this.f, async () => {
       try {
@@ -822,8 +866,15 @@ export class EmployeeFormComponent {
         const saved = this.isEdit()
           ? await this.employeesService.update(this.id()!, payload)
           : await this.employeesService.create(payload);
-        const pending = saved.changes.filter((c) => !c.letter && !c.skipped).length;
-        this.toast.success(pending ? `Збережено. У черзі для ТЦК: ${pending}` : 'Збережено');
+        const recorded = await this.saveStaffNotices(saved);
+        const pending = recorded ? 0 : saved.changes.filter((c) => !c.letter && !c.skipped).length;
+        this.toast.success(
+          recorded
+            ? `Збережено. Повідомлень до ТЦК внесено: ${recorded}`
+            : pending
+              ? `Збережено. У черзі для ТЦК: ${pending}`
+              : 'Збережено',
+        );
         await this.router.navigate(['/employees', saved.id]);
         return undefined;
       } catch (err) {
@@ -835,6 +886,30 @@ export class EmployeeFormComponent {
       if (!this.saveError()) this.saveError.set('Не збережено — виправте позначені поля.');
       this.goToFirstError();
     }
+  }
+
+  /**
+   * The typed numbers and dates of the notices about the hiring and the dismissal — recorded after the card,
+   * each as a notice sent outside the system (the changes it reported leave the queue). The card is saved
+   * already, so a refused notice is only told, the user may add it again from the card.
+   */
+  private async saveStaffNotices(saved: EmployeeDetails): Promise<number> {
+    const requests = [
+      this.hireNotices().length ? null : staffNoticeRequest(saved, 'HIRE', this.hireNotice()),
+      this.dismissalNotices().length
+        ? null
+        : staffNoticeRequest(saved, 'DISMISSAL', this.dismissalNotice()),
+    ].filter((r) => !!r);
+    let recorded = 0;
+    for (const request of requests) {
+      try {
+        await this.lettersService.createExternalNotice(request);
+        recorded++;
+      } catch (err) {
+        this.toast.error(`Повідомлення № ${request.number} не внесено: ${apiErrorMessage(err)}`);
+      }
+    }
+    return recorded;
   }
 
   /** API validation errors → errors of specific form fields (shown under the field). */

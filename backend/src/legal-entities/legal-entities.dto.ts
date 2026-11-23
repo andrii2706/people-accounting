@@ -186,4 +186,9 @@ export class LabelSettingsDto implements LabelSettings {
   @Measure(LABEL_LIMITS.positionMm, 'мм') recipientXMm: number;
   @Measure(LABEL_LIMITS.positionMm, 'мм') recipientYMm: number;
   @Measure(LABEL_LIMITS.blockWidthMm, 'мм') recipientWidthMm: number;
+
+  @IsInt({ message: 'Ціле число гривень' })
+  @Min(LABEL_LIMITS.declaredValue[0], { message: 'Не менше 0' })
+  @Max(LABEL_LIMITS.declaredValue[1], { message: `Не більше ${LABEL_LIMITS.declaredValue[1]} грн` })
+  declaredValue: number;
 }

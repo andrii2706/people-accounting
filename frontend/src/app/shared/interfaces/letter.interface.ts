@@ -121,6 +121,12 @@ export interface ExternalNoticeRequest {
 
 export type ExternalNoticeType = 'HIRE' | 'POSITION' | 'DISMISSAL' | 'DATA';
 
+/** «№ і дата повідомлення до ТЦК» typed in the card form for the hiring or the dismissal. */
+export interface StaffNoticeDraft {
+  number: string;
+  date: string;
+}
+
 /** Form of an old notice in the employee card. */
 export interface ExternalNoticeForm {
   number: string;

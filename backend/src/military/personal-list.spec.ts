@@ -147,3 +147,27 @@ describe('notificationDeadline (Resolution No. 812)', () => {
     expect(notificationDeadline('POSITION', '2026-12-20')).toBe('2027-01-05');
   });
 });
+
+describe('column 17 and the titles without «Реквізити»', () => {
+  it('the appointment and the dismissal apart by «/»', () => {
+    const cells = personalListCells(
+      employee({
+        dismissalDate: '2026-11-19',
+        dismissalOrderDocName: 'наказ',
+        dismissalOrderNumber: '45-к',
+        dismissalOrderDate: '2026-11-19',
+      }),
+      '2026-11-21',
+      'про призначення: вих. № 15 від 03.03.2020 р. / про звільнення: вих. № 77 від 20.11.2026 р.',
+    );
+    expect(cells[16]).toMatch(
+      /наказ № 1-к від 10\.01\.2020 р\. \/ звільнений 19\.11\.2026 р\., наказ № 45-к від 19\.11\.2026 р\.$/,
+    );
+    expect(cells[17]).toMatch(/^про призначення: .* \/ про звільнення: вих\. № 77/);
+  });
+
+  it('no column title starts with «Реквізити»', () => {
+    expect(LIST_TITLES.filter((t) => /реквізит/i.test(t))).toEqual([]);
+    expect(LIST_TITLES[16]).toBe('Посада, акт про призначення на посаду/ звільнення з посади');
+  });
+});

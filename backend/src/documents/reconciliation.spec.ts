@@ -121,4 +121,41 @@ describe('reconciliation package', () => {
     expect(items[1].name).toMatch(/№ 12\/1/);
     expect(items.every((i) => i.copies === 1 && i.sheets === '1')).toBe(true);
   });
+
+  it('the sheets of the extract and the declared value are numbers, the total is their sum', async () => {
+    const base = {
+      org: { shortName: 'ТОВ «Вигадана компанія»', fullName: '', address: '', edrpou: '12345678' },
+      tck: { name: 'Шевченківський РТЦК та СП (м. Львів)', address: '79007, м. Львів, вул. Батуринська, 2' },
+      letter: { number: '7', date: '2026-11-20' },
+      reportDate: '2026-11-20',
+      extract: true,
+      sections: [{ section: 'SOLDIERS', people: 1, sheets: 3 }],
+      people: [
+        {
+          lastName: 'Прикладний',
+          firstName: 'Сергій',
+          middleName: '',
+          birthDate: '1979-11-03',
+          evod: { number: '1', generatedDate: '2026-11-18', generatedTime: '09:45' },
+        },
+      ],
+      responsible: null,
+      declaredValue: 20,
+    };
+    const read = async (part: string) => {
+      const input = { ...base, part } as unknown as Parameters<typeof buildReconciliation>[0];
+      const zip = await JSZip.loadAsync(await buildReconciliation(input));
+      return (await zip.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, '');
+    };
+    const cover = await read('cover');
+    expect(cover).toContain('на 3 арк. в 2 прим.');
+    expect(cover).not.toContain('___ арк.');
+    const post = await read('inventory');
+    // the letter itself (1 sheet), the extract (3), the eВОД (1) — every line 20 грн, 60 грн in all
+    expect(post).toContain('від 20.11.2026 р. № 7, на 1 арк.');
+    expect(post).toContain('на 3 арк.');
+    expect(post).not.toContain('____ арк.');
+    expect(post.split('20').length).toBeGreaterThan(6);
+    expect(post).toContain('60');
+  });
 });

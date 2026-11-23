@@ -126,6 +126,8 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   cutBorder: true,
   envelope: 'DL',
   ...ENVELOPE_PLACEMENTS.DL,
+  // a valuable letter: 20 грн on every line of form 107
+  declaredValue: 20,
 };
 
 export const LABEL_LIMITS = {
@@ -138,6 +140,7 @@ export const LABEL_LIMITS = {
   paddingMm: [0, 10],
   positionMm: [0, 320],
   blockWidthMm: [30, 300],
+  declaredValue: [0, 100000],
 } as const;
 
 export const LABEL_MODE_OPTIONS: { value: LabelMode; label: string; hint: string }[] = [
@@ -214,6 +217,7 @@ export const LABEL_NUMBER_RULES: [NumberField, number, number, string][] = [
   ['recipientXMm', ...LABEL_LIMITS.positionMm, 'мм'],
   ['recipientYMm', ...LABEL_LIMITS.positionMm, 'мм'],
   ['recipientWidthMm', ...LABEL_LIMITS.blockWidthMm, 'мм'],
+  ['declaredValue', ...LABEL_LIMITS.declaredValue, 'грн'],
 ];
 
 /** Fields that get the «does not fit on the paper» messages. */

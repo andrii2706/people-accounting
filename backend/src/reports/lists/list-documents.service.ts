@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import JSZip from 'jszip';
 import type { Repository } from 'typeorm';
 import { formatUa } from '../../common/utils/dates.utils.js';
-import { buildLists, listSubtitle, listTitle } from '../../documents/builders.js';
+import { buildLists, listSheets, listSubtitle, listTitle } from '../../documents/builders.js';
 import { LegalEntity } from '../../legal-entities/legal-entity.entity.js';
 import { LegalEntitiesService } from '../../legal-entities/legal-entities.service.js';
 import { LIST_SECTION_TITLES, LIST_SECTIONS } from '../../military/dictionaries.js';
@@ -73,8 +73,34 @@ export class ListDocumentsService {
     return { buffer: await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }), kind: 'zip' };
   }
 
-  private builtIn(parts: ListPart[], settings: ListSettings, org: Organization, req: ListsRenderRequest) {
-    return buildLists({
+  /**
+   * The sheets every list of the document takes, for the cover letter and the inventory: counted for the
+   * built-in layout; a list printed by an own Word template — null (its pages are known only to Word).
+   */
+  async sheets(req: ListsRenderRequest): Promise<Map<ListSection, number | null>> {
+    const [settings, org] = await Promise.all([
+      this.settings(req.legalEntityId),
+      this.legalEntities.requisites(req.legalEntityId),
+    ]);
+    const parts = LIST_SECTIONS.map((section) => ({
+      section,
+      rows: req.rows.filter((r) => r.section === section),
+    })).filter((p) => p.rows.length);
+    const counted = listSheets(
+      this.listsInput(
+        parts.filter((p) => !settings[p.section].template),
+        settings,
+        org,
+        req,
+      ),
+    );
+    return new Map(
+      parts.map((p) => [p.section, settings[p.section].template ? null : (counted.get(p.section) ?? null)]),
+    );
+  }
+
+  private listsInput(parts: ListPart[], settings: ListSettings, org: Organization, req: ListsRenderRequest) {
+    return {
       date: req.date,
       extract: req.extract,
       org,
@@ -85,7 +111,11 @@ export class ListDocumentsService {
         settings: settings[p.section],
         signers: documentSigners(settings[p.section], org.headPosition, org.headName),
       })),
-    });
+    };
+  }
+
+  private builtIn(parts: ListPart[], settings: ListSettings, org: Organization, req: ListsRenderRequest) {
+    return buildLists(this.listsInput(parts, settings, org, req));
   }
 
   private async fromTemplate(

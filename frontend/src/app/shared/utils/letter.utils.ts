@@ -2,7 +2,9 @@ import type { ChangeType } from '../interfaces/dictionary.interface';
 import type { EmployeeDetails, EmployeePosition } from '../interfaces/employee.interface';
 import type {
   EmployeeNotice,
+  ExternalNoticeRequest,
   ExternalNoticeType,
+  StaffNoticeDraft,
   StaffNoticeRow,
 } from '../interfaces/letter.interface';
 import { isoToDisplay } from './date.utils';
@@ -109,4 +111,41 @@ function firstPosition(e: EmployeeDetails): string {
     (a.since ?? '').localeCompare(b.since ?? ''),
   )[0];
   return first?.position ?? e.position;
+}
+
+/** The number and the date of a notice go together: both or none. '' — nothing to say. */
+export function staffNoticeError(draft: StaffNoticeDraft): string {
+  const number = draft.number.trim();
+  if (number && !draft.date) return 'Вкажіть дату повідомлення';
+  if (!number && draft.date) return 'Вкажіть номер повідомлення';
+  if (number.length > 50) return 'Номер — не більше 50 символів';
+  return '';
+}
+
+/**
+ * The notice about the hiring or the dismissal typed in the card form, as a notice sent outside the system:
+ * it reports the change of the same type still waiting in the queue (that one leaves the queue).
+ * null — nothing typed, or the event has no date.
+ */
+export function staffNoticeRequest(
+  e: EmployeeDetails,
+  type: 'HIRE' | 'DISMISSAL',
+  draft: StaffNoticeDraft,
+): ExternalNoticeRequest | null {
+  const number = draft.number.trim();
+  const effectiveDate = type === 'HIRE' ? e.hireDate : e.dismissalDate;
+  if (!number || !draft.date || !effectiveDate) return null;
+  const pending = (e.changes ?? []).filter((c) => c.type === type && !c.letter && !c.skipped);
+  return {
+    employeeId: e.id,
+    number,
+    date: draft.date,
+    changeType: type,
+    effectiveDate,
+    description:
+      type === 'HIRE'
+        ? `про прийняття на посаду ${firstPosition(e)}`.trim()
+        : 'про звільнення з роботи',
+    changeIds: pending.map((c) => c.id),
+  };
 }

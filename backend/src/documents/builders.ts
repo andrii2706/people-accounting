@@ -5,14 +5,17 @@
 import {
   AlignmentType,
   BorderStyle,
+  Footer,
   HeightRule,
   type IBorderOptions,
   type ISectionOptions,
-  type Paragraph,
+  PageNumber,
+  Paragraph,
   Table,
   TableCell,
   TableLayoutType,
   TableRow,
+  TextRun,
   VerticalAlign,
   WidthType,
 } from 'docx';
@@ -40,6 +43,7 @@ import type { ResponsibleInfo } from '../shared/interfaces/document.interface.js
 import {
   A4,
   CONTENT_WIDTH,
+  FONT,
   empty,
   hint,
   p,
@@ -55,12 +59,14 @@ import {
 } from './docx-kit.js';
 import { inGenitive } from './name-declension.js';
 import { postalAddressLines } from './utils/postal-address.utils.js';
+import { estimatePages, lineHeight, textLines } from './utils/page-estimate.utils.js';
 import type { ListSection } from '../shared/interfaces/dictionary.interface.js';
 import type { ListColumnKey } from '../shared/interfaces/list-settings.interface.js';
 import { formColumnNumbers } from '../reports/lists/utils/list-layout.utils.js';
 import type {
   NoticeSnapshot,
   CellSpec,
+  TextOpts,
   NoticeItem,
   ChangeNoticeInput,
   ListsInput,
@@ -281,12 +287,15 @@ const f107Address = (tck: Tck | null | undefined) => {
  * One copy of form 107 «Опис вкладення» as Ukrposhta prints it: the kind of the item and its number,
  * the post office, «На ім’я» and «Куди» exactly as on the envelope, the table «№ з/п · Найменування предметів ·
  * Кількість предметів · Оголошена цінність, грн» with one line per document and the total, the sender's
- * signature, «Перевірив» of the post office worker and the place for the calendar stamp. The declared value is
- * written by hand (in whole hryvnias, every line) — without it the letter is not a valuable one.
+ * signature, «Перевірив» of the post office worker and the place for the calendar stamp. The declared value
+ * (whole hryvnias, every line — without it the letter is not a valuable one) comes from the label settings of the
+ * legal entity, the total is their sum; 0 — the column is left for the pen.
  */
 function inventoryForm(input: InventoryInput, w: number): (Paragraph | Table)[] {
   const items = input.items.map((i) => (typeof i === 'string' ? { name: i, copies: 1 } : i));
   const copies = items.reduce((n, i) => n + i.copies, 0);
+  const value = Math.max(0, Math.round(input.declaredValue ?? 0));
+  const money = (n: number) => (value ? String(n) : '');
   const sender = input.org.fullName || input.org.shortName;
   const line = (label: string, value: string, filler = '______________________________________') =>
     p([run(`${label}  `, { size: 11 }), run(value || filler, { underline: !!value, size: 11 })], { spacingAfter: 60 });
@@ -316,12 +325,12 @@ function inventoryForm(input: InventoryInput, w: number): (Paragraph | Table)[] 
           { text: String(i + 1), align: 'center' as const },
           withSheets(item.name, item.sheets),
           { text: String(item.copies), align: 'center' as const },
-          '',
+          { text: money(value), align: 'center' as const },
         ]),
         [
           { text: 'Загальний підсумок кількості предметів та оголошеної цінності', colSpan: 2, bold: true },
           { text: String(copies), align: 'center' as const, bold: true },
-          '',
+          { text: money(value * items.length), align: 'center' as const, bold: true },
         ],
       ],
       [
@@ -458,7 +467,7 @@ export function reconciliationAttachments(input: Pick<ReconciliationInput, 'sect
     ...input.sections.map((s) => ({
       name: `${reconciliationItem(s.section, input.extract)} (${peopleCount(s.people)})`,
       copies: EXTRACT_COPIES,
-      sheets: '',
+      sheets: s.sheets ? String(s.sheets) : '',
     })),
     ...input.people.map((p) => ({ name: evodItem(p), copies: EVOD_COPIES, sheets: '1' })),
   ];
@@ -469,27 +478,29 @@ export function reconciliationAttachments(input: Pick<ReconciliationInput, 'sect
  *  - cover — the cover letter («Щодо звірки облікових даних») with the people of the extract and the attachments
  *    (the extract in 2 copies, the eВОД of each person in 1) — the inventory for the post goes apart (form 107);
  *  - inventory — the inventory for the post office (form 107).
- * The number of sheets of the extract is left for the pen: Word decides the pagination.
+ * The sheets of the extract are counted like Word lays it out (listSheets); a list printed by an own Word
+ * template — a blank for the pen.
  */
 export async function buildReconciliation(input: ReconciliationInput): Promise<Buffer> {
-  const { org, letter, tck, extract, people } = input;
+  const { org, letter, tck } = input;
   const w = CONTENT_WIDTH.portrait;
-  const attachments = reconciliationAttachments(input);
   const ref = `від ${formatUa(letter.date)} р. № ${letter.number}`;
+  const text = coverText(input);
 
   if (input.part === 'inventory') {
     const post = inventorySection({
       org,
       tck,
+      declaredValue: input.declaredValue,
       items: [
-        { name: `Лист щодо звірки облікових даних ${ref}`, copies: 1 },
-        ...attachments.map((a) => ({ name: a.name, copies: a.copies, sheets: a.sheets })),
+        { name: `Лист щодо звірки облікових даних ${ref}`, copies: 1, sheets: String(coverSheets(input)) },
+        ...text.attachments.map((a) => ({ name: a.name, copies: a.copies, sheets: a.sheets })),
       ],
     });
     return render([post], `Опис вкладення ${letter.number}`);
   }
 
-  const what = extract ? 'витяги зі списків' : 'списки';
+  const justified = (t: string) => p(t, { align: 'justify', indent: 567 });
   const cover: (Paragraph | Table)[] = [
     twoColumns(
       orgHeader(org),
@@ -502,32 +513,77 @@ export async function buildReconciliation(input: ReconciliationInput): Promise<B
     ...empty(1),
     p('Щодо звірки облікових даних', { bold: true, italics: true }),
     ...empty(1),
-    p(
-      `Відповідно до Порядку організації та ведення військового обліку призовників, військовозобов’язаних та резервістів, ` +
-        `затвердженого постановою Кабінету Міністрів України від 30 грудня 2022 р. № 1487, надсилаємо для проведення звірки облікових даних ` +
-        `${what} персонального військового обліку призовників, військовозобов’язаних та резервістів, які працюють в ` +
-        `${blank(org.nameLocative || org.fullName)}${extract ? ' та перебувають на військовому обліку у Вашому територіальному центрі комплектування та соціальної підтримки' : ''}, ` +
-        `станом на ${formatUa(input.reportDate)} р.${people.length ? ', а саме:' : ''}`,
-      { align: 'justify', indent: 567 },
-    ),
-    ...people.map((person, i) =>
-      p(
-        `${i + 1}. ${upperName(person)}${person.birthDate ? `, дата народження - ${formatUa(person.birthDate)} р.` : ''}`,
-        { align: 'justify', indent: 567 },
-      ),
-    ),
-    p('Про виявлені розбіжності просимо повідомити.', { align: 'justify', indent: 567 }),
+    justified(text.intro),
+    ...text.people.map(justified),
+    justified(COVER_CLOSING),
     ...empty(1),
-    p(attachments.length === 1 ? 'Додаток:' : 'Додатки:', { bold: true }),
-    ...attachments.map((a, i) =>
-      p(`${i + 1}. ${a.name} на ${a.sheets || '___'} арк. в ${a.copies} прим.`, { indent: 567 }),
-    ),
+    p(text.attachments.length === 1 ? 'Додаток:' : 'Додатки:', { bold: true }),
+    ...text.attachmentLines.map((line) => p(line, { indent: 567 })),
     ...empty(2),
     signature(org.headPosition, org.headName, [Math.round(w * 0.45), Math.round(w * 0.22), Math.round(w * 0.33)]),
     ...executor(input.responsible),
   ];
 
   return render([section(cover)], `Супровідний лист ${letter.number}`);
+}
+
+const COVER_CLOSING = 'Про виявлені розбіжності просимо повідомити.';
+
+/** The texts of the cover letter of a reconciliation: the main paragraph, the people, the attachments. */
+function coverText(input: ReconciliationInput) {
+  const { org, extract, people } = input;
+  const what = extract ? 'витяги зі списків' : 'списки';
+  const attachments = reconciliationAttachments(input);
+  return {
+    intro:
+      `Відповідно до Порядку організації та ведення військового обліку призовників, військовозобов’язаних та резервістів, ` +
+      `затвердженого постановою Кабінету Міністрів України від 30 грудня 2022 р. № 1487, надсилаємо для проведення звірки облікових даних ` +
+      `${what} персонального військового обліку призовників, військовозобов’язаних та резервістів, які працюють в ` +
+      `${blank(org.nameLocative || org.fullName)}${extract ? ' та перебувають на військовому обліку у Вашому територіальному центрі комплектування та соціальної підтримки' : ''}, ` +
+      `станом на ${formatUa(input.reportDate)} р.${people.length ? ', а саме:' : ''}`,
+    people: people.map(
+      (person, i) =>
+        `${i + 1}. ${upperName(person)}${person.birthDate ? `, дата народження - ${formatUa(person.birthDate)} р.` : ''}`,
+    ),
+    attachments,
+    attachmentLines: attachments.map((a, i) => `${i + 1}. ${a.name} на ${a.sheets || '___'} арк. в ${a.copies} прим.`),
+  };
+}
+
+/** The sheets of the cover letter itself (portrait, 12 pt) — for its line in the inventory. */
+export function coverSheets(input: ReconciliationInput): number {
+  const text = coverText(input);
+  const w = CONTENT_WIDTH.portrait;
+  const line = (t: string, width = w) => ({ height: textLines(t, 12, width) * lineHeight(12) });
+  const blank1 = line('');
+  // the two columns of the heading: the requisites (4 lines) and «Керівнику …» with the address of the TCK
+  const header = Math.max(4, 1 + textLines(input.tck?.address ?? '', 12, w / 2));
+  return estimatePages({
+    pageHeight: A4.height - 2 * 1134,
+    widths: [],
+    before: [
+      { height: header * lineHeight(12) },
+      blank1,
+      line('Вих. №'),
+      line('від'),
+      blank1,
+      line('Щодо звірки облікових даних'),
+      blank1,
+      line(text.intro, w - 567),
+      ...text.people.map((t) => line(t, w - 567)),
+      line(COVER_CLOSING),
+      blank1,
+      line('Додатки:'),
+      ...text.attachmentLines.map((t) => line(t, w - 567)),
+      blank1,
+      blank1,
+      { height: lineHeight(12) + lineHeight(8) },
+      ...(input.responsible ? [blank1, blank1, { height: lineHeight(9) }] : []),
+    ],
+    header: [],
+    rows: [],
+    after: [],
+  });
 }
 
 // Personal military registration lists (Annex 5, ed. 2025)
@@ -545,62 +601,110 @@ export function listSubtitle(section: ListSection | null, org: Organization) {
 export const listTitle = (custom: string, extract: boolean) =>
   custom.trim() || (extract ? 'ВИТЯГ ІЗ СПИСКІВ' : 'СПИСКИ');
 
+/** The text area of a page of the lists (landscape A4 without the margins), twips. */
+const LIST_CONTENT = {
+  width: A4.height - LIST_MARGINS.left - LIST_MARGINS.right,
+  height: A4.width - LIST_MARGINS.top - LIST_MARGINS.bottom,
+};
+/** The size of the text of the rows of the lists and of their header, points. */
+const LIST_TEXT_SIZE = 8;
+const LIST_HEADER_SIZE = 7;
+/** The page number at the foot of a list: «Аркуш 2» (within the list — each list is an attachment of its own). */
+const LIST_FOOTER_SIZE = 9;
+
+/**
+ * One list as it is printed: the heading lines, the table (the columns by the settings, numbered as in the form)
+ * and the signers — the same model for the document and for counting its sheets.
+ */
+function listModel(part: ListDocumentSection | null, input: Pick<ListsInput, 'extract' | 'letter' | 'date' | 'org'>) {
+  const columns = part?.layout.columns ?? [];
+  const indexes = columns.length ? formColumnNumbers(columns).map((n) => n - 1) : LIST_TITLES.map((_, i) => i);
+  const relative = indexes.map((i) => LIST_WIDTHS[i]);
+  const total = relative.reduce((a, b) => a + b, 0);
+  const widths = relative.map((w) => Math.floor((LIST_CONTENT.width * w) / total));
+  const header: CellSpec[][] = [
+    indexes.map((i) => ({ text: LIST_TITLES[i], size: LIST_HEADER_SIZE, align: 'center' as const })),
+    indexes.map((i) => ({ text: String(i + 1), size: LIST_HEADER_SIZE, align: 'center' as const })),
+  ];
+  const centered = new Set([0, 4]);
+  const size = LIST_TEXT_SIZE;
+  const body: CellSpec[][] = [];
+  for (const group of part?.layout.groups ?? []) {
+    if (group.title) body.push([{ text: group.title, bold: true, colSpan: indexes.length, size, keepNext: true }]);
+    for (const row of group.rows) {
+      body.push(
+        row.map((text, c) => ({ text, size, align: centered.has(indexes[c]) ? ('center' as const) : undefined })),
+      );
+    }
+  }
+  if (!body.length) body.push([{ text: 'Особи відсутні', colSpan: indexes.length, align: 'center', size }]);
+  const settings = part?.settings;
+  const heading: { text: string; opts: TextOpts }[] = [
+    ...(settings?.showOutgoing === false
+      ? []
+      : [
+          { text: `Вихідний номер   ${input.letter?.number ?? '__________'}`, opts: { size: 10 } },
+          { text: `Дата   ${input.letter ? `${formatUa(input.letter.date)} р.` : '__________'}`, opts: { size: 10 } },
+          { text: '', opts: {} },
+        ]),
+    { text: listTitle(settings?.title ?? '', input.extract), opts: { bold: true, align: 'center' } },
+    { text: settings?.subtitle.trim() || listSubtitle(part?.section ?? null, input.org), opts: { align: 'center' } },
+    { text: `станом на ${formatUa(input.date)} року`, opts: { align: 'center', spacingAfter: 160 } },
+  ];
+  const signers = part?.signers ?? [{ position: input.org.headPosition, name: input.org.headName }];
+  return { widths, header, body, heading, signers };
+}
+
+/** «Аркуш 2» at the foot of every page of a list (counted from 1 in every list). */
+function listFooter() {
+  const size = LIST_FOOTER_SIZE * 2;
+  return new Footer({
+    children: [
+      new Paragraph({
+        alignment: AlignmentType.RIGHT,
+        children: [
+          new TextRun({ text: 'Аркуш ', size, font: FONT }),
+          new TextRun({ children: [PageNumber.CURRENT], size, font: FONT }),
+        ],
+      }),
+    ],
+  });
+}
+
 /**
  * Personal military registration lists laid out like sheets GN* of the Excel file: four separate lists
  * (officers; rank-and-file, sergeants and petty officers; women; conscripts — reservists together with
  * their composition), each on its own landscape page(s). The columns, the order of the rows, the sub-headings,
  * the heading and the signers — by the list settings of the legal entity (columns are numbered as in the form).
+ * The pages of every list are numbered from 1 at the foot: each list is an attachment of its own.
  */
 export async function buildLists(input: ListsInput): Promise<Buffer> {
-  const contentWidth = A4.height - LIST_MARGINS.left - LIST_MARGINS.right;
-  const size = 8;
+  const contentWidth = LIST_CONTENT.width;
   const sign = [Math.round(contentWidth * 0.3), Math.round(contentWidth * 0.2), Math.round(contentWidth * 0.3)] as [
     number,
     number,
     number,
   ];
 
-  const groupSection = (part: ListDocumentSection | null) => {
-    const columns = part?.layout.columns ?? [];
-    const indexes = columns.length ? formColumnNumbers(columns).map((n) => n - 1) : LIST_TITLES.map((_, i) => i);
-    const relative = indexes.map((i) => LIST_WIDTHS[i]);
-    const total = relative.reduce((a, b) => a + b, 0);
-    const widths = relative.map((w) => Math.floor((contentWidth * w) / total));
-    const header = [
-      indexes.map((i) => ({ text: LIST_TITLES[i], size: 7, align: 'center' as const })),
-      indexes.map((i) => ({ text: String(i + 1), align: 'center' as const })),
-    ];
-    const centered = new Set([0, 4]);
-    const body: CellSpec[][] = [];
-    for (const group of part?.layout.groups ?? []) {
-      if (group.title) body.push([{ text: group.title, bold: true, colSpan: indexes.length, size, keepNext: true }]);
-      for (const row of group.rows) {
-        body.push(
-          row.map((text, c) => ({ text, size, align: centered.has(indexes[c]) ? ('center' as const) : undefined })),
-        );
-      }
-    }
-    if (!body.length) body.push([{ text: 'Особи відсутні', colSpan: indexes.length, align: 'center', size }]);
-    const settings = part?.settings;
-    const signers = part?.signers ?? [{ position: input.org.headPosition, name: input.org.headName }];
-    return section(
+  const groupSection = (part: ListDocumentSection | null): ISectionOptions => {
+    const m = listModel(part, input);
+    const base = section(
       [
-        ...(settings?.showOutgoing === false
-          ? []
-          : [
-              p(`Вихідний номер   ${input.letter?.number ?? '__________'}`, { size: 10 }),
-              p(`Дата   ${input.letter ? `${formatUa(input.letter.date)} р.` : '__________'}`, { size: 10 }),
-              ...empty(1),
-            ]),
-        p(listTitle(settings?.title ?? '', input.extract), { bold: true, align: 'center' }),
-        p(settings?.subtitle.trim() || listSubtitle(part?.section ?? null, input.org), { align: 'center' }),
-        p(`станом на ${formatUa(input.date)} року`, { align: 'center', spacingAfter: 160 }),
-        table(header, body, widths, { size, headerSize: 7 }),
-        ...signers.flatMap((s) => [...empty(2), signature(s.position, s.name, sign)]),
+        ...m.heading.map((h) => p(h.text, h.opts)),
+        table(m.header, m.body, m.widths, { size: LIST_TEXT_SIZE, headerSize: LIST_HEADER_SIZE }),
+        ...m.signers.flatMap((s) => [...empty(2), signature(s.position, s.name, sign)]),
       ],
       true,
       LIST_MARGINS,
     );
+    return {
+      ...base,
+      properties: {
+        ...base.properties,
+        page: { ...base.properties?.page, pageNumbers: { start: 1 } },
+      },
+      footers: { default: listFooter() },
+    };
   };
 
   const sections = input.sections.filter((g) => g.layout.count);
@@ -608,6 +712,36 @@ export async function buildLists(input: ListsInput): Promise<Buffer> {
     sections.length ? sections.map((g) => groupSection(g)) : [groupSection(null)],
     input.extract ? 'Витяг зі списків' : 'Списки персонального військового обліку',
   );
+}
+
+/**
+ * The sheets every list of the built-in document takes (one-sided printing: a page is a sheet) — counted like
+ * Word lays it out, for the cover letter and the inventory instead of a blank for the pen.
+ */
+export function listSheets(input: ListsInput): Map<ListSection, number> {
+  const out = new Map<ListSection, number>();
+  for (const part of input.sections.filter((g) => g.layout.count)) {
+    const m = listModel(part, input);
+    const cells = (row: CellSpec[]) =>
+      row.map((c) => ({ text: c.text ?? '', size: c.size ?? LIST_TEXT_SIZE, colSpan: c.colSpan }));
+    const line = (text: string, size: number, spacingAfter = 0) => ({
+      height: textLines(text, size, LIST_CONTENT.width) * lineHeight(size) + spacingAfter,
+    });
+    // a signature: two empty lines, the line of the name and «(підпис)» under it
+    const signer = [line('', 12), line('', 12), { height: lineHeight(12) + lineHeight(8) }];
+    out.set(
+      part.section,
+      estimatePages({
+        pageHeight: LIST_CONTENT.height,
+        widths: m.widths,
+        before: m.heading.map((h) => line(h.text, h.opts.size ?? 12, h.opts.spacingAfter ?? 0)),
+        header: m.header.map(cells),
+        rows: m.body.map(cells),
+        after: m.signers.flatMap(() => signer),
+      }),
+    );
+  }
+  return out;
 }
 
 /**

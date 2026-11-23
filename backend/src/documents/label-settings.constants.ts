@@ -90,6 +90,8 @@ export const DEFAULT_LABEL_SETTINGS: LabelSettings = {
   cutBorder: true,
   envelope: 'DL',
   ...ENVELOPE_PLACEMENTS.DL,
+  // a valuable letter: 20 грн on every line of form 107
+  declaredValue: 20,
 };
 
 /** Limits of the numeric settings: [min, max]. */
@@ -103,6 +105,7 @@ export const LABEL_LIMITS = {
   paddingMm: [0, 10],
   positionMm: [0, 320],
   blockWidthMm: [30, 300],
+  declaredValue: [0, 100000],
 } as const;
 
 /** Text sizes, points. */

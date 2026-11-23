@@ -80,6 +80,7 @@ export const LABEL_SETTINGS_LABELS: Record<string, string> = {
   recipientXMm: 'Отримувач: зліва, мм',
   recipientYMm: 'Отримувач: згори, мм',
   recipientWidthMm: 'Отримувач: ширина, мм',
+  declaredValue: 'Опис вкладення: оголошена цінність рядка, грн',
 };
 
 export const PERSON_ACCESS_LABELS: Record<string, string> = {

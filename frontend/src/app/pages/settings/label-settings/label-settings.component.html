@@ -346,6 +346,22 @@
         </label>
       </div>
     </section>
+
+    <section class="card p-5 sm:p-6">
+      <h2 class="mb-1 font-semibold">Опис вкладення (ф. 107)</h2>
+      <p class="mb-4 text-xs text-muted">
+        Оголошена цінність ставиться в кожен рядок опису, а внизу — загальна сума. 0 — графа
+        лишається порожньою, щоб заповнити ручкою.
+      </p>
+      <app-form-field
+        class="max-w-60"
+        label="Оголошена цінність рядка, грн"
+        hint="звичайно 20 грн"
+        [field]="labelForm.declaredValue"
+      >
+        <input class="input" type="number" step="1" [formField]="labelForm.declaredValue" />
+      </app-form-field>
+    </section>
   </div>
 
   <aside class="min-w-0 xl:sticky xl:top-6 xl:self-start">

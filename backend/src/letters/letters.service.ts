@@ -617,9 +617,16 @@ export class LettersService {
             legalEntityId: letter.legalEntityId,
           })
         ).rows;
+    // the sheets of every list — the same document as the letter prints (the built-in layout; own templates — null)
+    const sheets = await this.reports.listSheets(reportDate, rows, {
+      extract,
+      legalEntityId: letter.legalEntityId,
+      letter: { number: letter.number, date: letter.date },
+    });
     const sections = LIST_SECTIONS.map((section) => ({
       section,
       people: rows.filter((r) => r.section === section).length,
+      sheets: sheets.get(section) ?? null,
     })).filter((s) => s.people > 0);
     if (!sections.length) {
       throw new BadRequestException(
@@ -651,13 +658,15 @@ export class LettersService {
       ];
     });
 
-    const [org, responsible, tck] = await Promise.all([
+    const [org, responsible, tck, labels] = await Promise.all([
       this.legalEntities.requisites(letter.legalEntityId),
       this.legalEntities.responsible(letter.legalEntityId),
       letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
+      this.legalEntities.labelSettings(letter.legalEntityId),
     ]);
     const buffer = await buildReconciliation({
       letter: { number: letter.number, date: letter.date },
+      declaredValue: labels.declaredValue,
       reportDate,
       tck,
       org,
@@ -679,7 +688,10 @@ export class LettersService {
     const letter = await this.repo.findOne({ where: { id }, relations: { tck: true } });
     if (!letter) throw new NotFoundException('Лист не знайдено');
     if (!letter.tck) throw new BadRequestException('Оберіть ТЦК-адресата листа — опис складається на його ім’я');
-    const org = await this.legalEntities.requisites(letter.legalEntityId);
+    const [org, labels] = await Promise.all([
+      this.legalEntities.requisites(letter.legalEntityId),
+      this.legalEntities.labelSettings(letter.legalEntityId),
+    ]);
     const params = (letter.params ?? {}) as LetterParams;
     const ref = `від ${formatUa(letter.date)} р. № ${letter.number}`;
     let items: InventoryItem[];
@@ -702,7 +714,13 @@ export class LettersService {
     } else {
       items = [{ name: `Лист ${ref}${letter.subject ? ` «${letter.subject}»` : ''}`, copies: 1 }];
     }
-    const buffer = await buildInventory({ org, tck: letter.tck, items, title: `Опис вкладення ${letter.number}` });
+    const buffer = await buildInventory({
+      org,
+      tck: letter.tck,
+      items,
+      declaredValue: labels.declaredValue,
+      title: `Опис вкладення ${letter.number}`,
+    });
     const safeNumber = letter.number.replace(/[\\/:*?"<>|]/g, '-');
     return { buffer, filename: `Опис вкладення ф107 ${safeNumber}.docx` };
   }

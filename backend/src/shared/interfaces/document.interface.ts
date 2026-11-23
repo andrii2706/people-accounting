@@ -147,6 +147,8 @@ export interface InventoryItem {
 /** Cover letter and inventory for extracts (or lists) sent to a TCK for reconciliation. */
 export interface ReconciliationInput {
   letter: { number: string; date: IsoDate };
+  /** The declared value of every line of form 107, грн (the label settings of the legal entity). */
+  declaredValue?: number;
   /** «станом на» of the extracts */
   reportDate: IsoDate;
   tck: Tck | null;
@@ -154,8 +156,11 @@ export interface ReconciliationInput {
   responsible: ResponsibleInfo | null;
   /** Extracts about the people of the TCK (true) or the whole lists (false). */
   extract: boolean;
-  /** The lists in the package with the number of people in each (empty ones are left out). */
-  sections: { section: ListSection; people: number }[];
+  /**
+   * The lists in the package with the number of people in each (empty ones are left out) and the sheets of one
+   * copy (null — unknown, a blank for the pen).
+   */
+  sections: { section: ListSection; people: number; sheets?: number | null }[];
   /** The people of the extract, in the order of the lists. */
   people: ReconciliationPerson[];
   part: Exclude<ReconciliationPart, 'all'>;
@@ -217,6 +222,8 @@ export interface InventoryInput {
   org: Organization;
   tck: Tck | null | undefined;
   items: (string | InventoryItem)[];
+  /** The declared value of every line, грн (the label settings of the legal entity); 0 — left for the pen. */
+  declaredValue?: number;
 }
 
 /** The operational report rows on a date. */
@@ -230,4 +237,28 @@ export interface ResponsibleInfo {
   fullName: string;
   position: string;
   phone: string;
+}
+
+/** A cell for the estimate of pages: its text and size, points. */
+export interface PageEstimateCell {
+  text: string;
+  size: number;
+  colSpan?: number;
+}
+
+/** A block of text outside the table (a heading line, a signature), with its height in twips. */
+export interface PageEstimateBlock {
+  height: number;
+}
+
+/** A document of a text, a table with repeating header rows and a text after it — for the estimate of pages. */
+export interface PageEstimateInput {
+  /** The height of the text area of a page, twips. */
+  pageHeight: number;
+  /** The widths of the columns of the table, twips. */
+  widths: number[];
+  before: PageEstimateBlock[];
+  header: PageEstimateCell[][];
+  rows: PageEstimateCell[][];
+  after: PageEstimateBlock[];
 }

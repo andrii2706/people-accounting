@@ -105,7 +105,8 @@ export class ReportsService {
       const last = lastDates.get(c.employeeId);
       if (!last || c.letter.date > last) lastDates.set(c.employeeId, c.letter.date);
     }
-    for (const [k, v] of map) texts.set(k, v.join('; '));
+    // the appointment (transfer) and the dismissal apart by «/», as the column title puts them
+    for (const [k, v] of map) texts.set(k, v.join(' / '));
     return { texts, lastDates };
   }
 
@@ -205,6 +206,21 @@ export class ReportsService {
       extract,
       letter: options.letter,
       section: options.section,
+    });
+  }
+
+  /** The sheets of every list of the document of these rows (null — a list printed by an own Word template). */
+  async listSheets(
+    date: IsoDate,
+    rows: ListRowView[],
+    options: { extract: boolean; legalEntityId: string | null; letter?: LetterNumberDate | null },
+  ): Promise<Map<ListSection, number | null>> {
+    return this.listDocuments.sheets({
+      legalEntityId: await this.legalEntities.forDocument(options.legalEntityId),
+      date,
+      rows,
+      extract: options.extract,
+      letter: options.letter,
     });
   }
 

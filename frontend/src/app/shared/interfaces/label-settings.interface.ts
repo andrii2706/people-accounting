@@ -58,6 +58,9 @@ export interface LabelSettings {
   recipientXMm: number;
   recipientYMm: number;
   recipientWidthMm: number;
+
+  /** Form 107: the declared value of every line, whole hryvnias; the total is their sum. 0 — for the pen. */
+  declaredValue: number;
 }
 
 export interface EnvelopeSize {
