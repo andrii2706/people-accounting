@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   ENTITY_ISSUED_ROLES,
   ROLE_LABELS,
@@ -66,6 +67,7 @@ import { legalEntityName } from '../../../shared/utils/legal-entity.utils';
   templateUrl: './users.component.html',
 })
 export class UsersComponent {
+  private readonly dialogs = inject(ConfirmService);
   private readonly usersService = inject(UsersService);
   private readonly toast = inject(ToastService);
   private readonly refresh = injectRouteRefresh();
@@ -259,10 +261,12 @@ export class UsersComponent {
     const emailChanged = this.editModel().email.trim().toLowerCase() !== u.email;
     if (
       emailChanged &&
-      typeof window !== 'undefined' &&
-      !window.confirm(
-        `Змінити email для входу на ${this.editModel().email.trim()}? Сесії «${u.fullName}» буде завершено, лист прийде на стару й нову адреси.`,
-      )
+      !(await this.dialogs.confirm({
+        title: `Змінити email для входу на ${this.editModel().email.trim()}?`,
+        text: `Сесії «${u.fullName}» буде завершено, лист прийде на стару й нову адреси.`,
+        confirmLabel: 'Змінити email',
+        tone: 'warning',
+      }))
     )
       return;
     await submit(this.editForm, async () => {
@@ -362,7 +366,8 @@ export class UsersComponent {
       );
       await this.resetPassword(
         user,
-        `Тимчасовий пароль «${user.fullName}» прострочено, тому зі старим паролем увійти не вийде. Видати новий тимчасовий пароль зараз?`,
+        `Видати «${user.fullName}» новий тимчасовий пароль?`,
+        'Старий тимчасовий пароль прострочено, тому з ним увійти не вийде.',
       );
     } catch (err) {
       this.toast.error(apiErrorMessage(err));
@@ -371,13 +376,13 @@ export class UsersComponent {
 
   /** Letter 2: «change your password» with a link; until changed the user gets only the password page. */
   protected async requestPasswordChange(u: ManagedUser) {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm(
-        `Надіслати «${u.fullName}» лист на зміну пароля? До зміни пароля він зможе відкрити лише сторінку пароля.`,
-      )
-    )
-      return;
+    const ok = await this.dialogs.confirm({
+      title: `Надіслати «${u.fullName}» лист на зміну пароля?`,
+      text: 'До зміни пароля він зможе відкрити лише сторінку пароля.',
+      confirmLabel: 'Надіслати лист',
+      icon: 'send',
+    });
+    if (!ok) return;
     try {
       const { mailSent, email } = await this.usersService.requestPasswordChange(u.id);
       if (mailSent) this.toast.success(`Лист на зміну пароля надіслано на ${email}`);
@@ -393,9 +398,17 @@ export class UsersComponent {
 
   protected async resetPassword(
     u: ManagedUser,
-    question = `Скинути пароль для «${u.fullName}»? Усі його сесії буде завершено.`,
+    question = `Скинути пароль для «${u.fullName}»?`,
+    text = 'Усі його сесії буде завершено, новий тимчасовий пароль ви побачите тут.',
   ) {
-    if (typeof window !== 'undefined' && !window.confirm(question)) return;
+    const ok = await this.dialogs.confirm({
+      title: question,
+      text,
+      confirmLabel: 'Видати тимчасовий пароль',
+      tone: 'warning',
+      icon: 'lock',
+    });
+    if (!ok) return;
     try {
       const { temporaryPassword, mailSent, expiresAt } = await this.usersService.resetPassword(
         u.id,

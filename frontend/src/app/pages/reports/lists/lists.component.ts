@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { AuthService } from '../../../shared/services/auth.service';
 import {
   ChangeDetectionStrategy,
@@ -74,6 +75,7 @@ import {
   templateUrl: './lists.component.html',
 })
 export class ListsComponent {
+  private readonly dialogs = inject(ConfirmService);
   protected readonly auth = inject(AuthService);
   private readonly lettersService = inject(LettersService);
   private readonly listsService = inject(ListsService);
@@ -257,12 +259,13 @@ export class ListsComponent {
   protected async remove() {
     const s = this.snapshot();
     if (!s) return;
-    if (
-      !window.confirm(
-        `Видалити списки станом на ${isoToDisplay(s.date)}, сформовані ${formatKyivDateTime(s.createdAt)}? Зареєстровані листи залишаться.`,
-      )
-    )
-      return;
+    const ok = await this.dialogs.confirm({
+      title: `Видалити списки станом на ${isoToDisplay(s.date)}?`,
+      text: `Сформовані ${formatKyivDateTime(s.createdAt)}. Зареєстровані листи залишаться.`,
+      confirmLabel: 'Видалити списки',
+      tone: 'danger',
+    });
+    if (!ok) return;
     this.busy.set(true);
     try {
       await this.listsService.remove(s.id);

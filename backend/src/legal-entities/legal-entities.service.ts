@@ -33,6 +33,8 @@ import { SAMPLE_RECIPIENT } from '../documents/label-settings.constants.js';
 import { senderParty, tckParty } from '../documents/utils/label-party.utils.js';
 import { labelSettingsProblems, withLabelDefaults } from '../documents/utils/label-settings.utils.js';
 import type { LabelSettings } from '../shared/interfaces/label-settings.interface.js';
+import type { LetterheadRequisites, LetterheadSettings } from '../shared/interfaces/letterhead.interface.js';
+import { withLetterheadDefaults } from '../documents/utils/letterhead.utils.js';
 import { entityQuota, quotaStanding } from './utils/quota.utils.js';
 
 /** Legal entities of the client: requisites, the head and the person responsible for military registration. */
@@ -171,6 +173,39 @@ export class LegalEntitiesService {
   async labelSettings(id: string | null): Promise<LabelSettings> {
     const entity = id ? await this.repo.findOneBy({ id }) : await this.single();
     return withLabelDefaults(entity?.labelSettings);
+  }
+
+  /** The letterhead of the letters of the legal entity (the defaults when none are saved). */
+  async letterheadSettings(id: string | null): Promise<LetterheadSettings> {
+    const entity = id ? await this.repo.findOneBy({ id }) : await this.single();
+    return withLetterheadDefaults(entity?.letterheadSettings);
+  }
+
+  /** Saves the letterhead; the settings before and after — for the journal. */
+  async saveLetterheadSettings(
+    id: string,
+    dto: LetterheadSettings,
+  ): Promise<{ before: LetterheadSettings; after: LetterheadSettings }> {
+    const entity = await this.get(id);
+    const before = withLetterheadDefaults(entity.letterheadSettings);
+    const after = withLetterheadDefaults(dto);
+    entity.letterheadSettings = after;
+    await this.repo.save(entity);
+    return { before, after };
+  }
+
+  /** The requisites the letterhead is made of — the preview of the settings page. */
+  async letterheadRequisites(id: string): Promise<LetterheadRequisites> {
+    const org = await this.requisites(id);
+    return {
+      fullName: org.fullName,
+      shortName: org.shortName,
+      address: org.address,
+      postalCode: org.postalCode,
+      edrpou: org.edrpou,
+      phone: org.phone,
+      email: org.email,
+    };
   }
 
   /** Saves the label settings when they fit on the paper; the settings before and after — for the journal. */

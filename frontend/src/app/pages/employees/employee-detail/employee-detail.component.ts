@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { tckOption } from '../../../shared/utils/tck.utils';
 import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
@@ -56,6 +57,7 @@ import type { NotificationStatus } from '../../../shared/interfaces/organization
   templateUrl: './employee-detail.component.html',
 })
 export class EmployeeDetailComponent {
+  private readonly dialogs = inject(ConfirmService);
   private readonly employeesService = inject(EmployeesService);
   protected readonly lettersService = inject(LettersService);
   private readonly reportsService = inject(ReportsService);
@@ -328,13 +330,14 @@ export class EmployeeDetailComponent {
 
   protected async remove() {
     const e = this.e();
-    if (!e || typeof window === 'undefined') return;
-    if (
-      !window.confirm(
-        `Видалити картку «${e.derived.fullName}» назавжди? Це не те саме, що звільнення.`,
-      )
-    )
-      return;
+    if (!e) return;
+    const ok = await this.dialogs.confirm({
+      title: `Видалити картку «${e.derived.fullName}» назавжди?`,
+      text: 'Це не те саме, що звільнення: картка, історія змін і повідомлення ТЦК зникнуть. Щоб працівник залишився в архіві — оформіть звільнення.',
+      confirmLabel: 'Видалити картку',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await this.employeesService.remove(e.id);
       this.toast.success('Картку видалено');
@@ -464,11 +467,13 @@ export class EmployeeDetailComponent {
 
   /** A notice entered by mistake: removed, its changes go back to the queue. */
   protected async removeExternal(n: EmployeeNotice) {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm(`Видалити внесене вручну повідомлення № ${n.number}?`)
-    )
-      return;
+    const ok = await this.dialogs.confirm({
+      title: `Видалити внесене вручну повідомлення № ${n.number}?`,
+      text: 'Його зміни повернуться в чергу повідомлень ТЦК.',
+      confirmLabel: 'Видалити повідомлення',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await this.lettersService.remove(n.letter.id);
       this.toast.success('Повідомлення видалено');

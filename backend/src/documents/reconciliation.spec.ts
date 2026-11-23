@@ -8,6 +8,7 @@ import {
   reconciliationAttachments,
   reconciliationItem,
 } from './builders.js';
+import { DEFAULT_LETTERHEAD_SETTINGS } from './letterhead.constants.js';
 
 describe('reconciliation package', () => {
   it('counts people in Ukrainian', () => {
@@ -108,6 +109,48 @@ describe('reconciliation package', () => {
     const text = (await zip.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, '');
     expect(text).toContain('Щодо звірки облікових даних');
     expect(text).not.toContain('ОПИС');
+  });
+
+  it('the cover letter on the letterhead of the company: its requisites at the top, the number beside the TCK', async () => {
+    const input = {
+      part: 'cover',
+      org: {
+        fullName: 'Товариство з обмеженою відповідальністю «Вигадана компанія»',
+        shortName: 'ТОВ «Вигадана компанія»',
+        address: 'м. Львів, вул. Зразкова, 10',
+        postalCode: '79000',
+        edrpou: '12345678',
+        phone: '(032) 111-22-33',
+        email: '',
+        headName: '',
+        headPosition: '',
+      },
+      letterhead: DEFAULT_LETTERHEAD_SETTINGS,
+      tck: { name: 'Шевченківський РТЦК та СП (м. Львів)', address: '79007, м. Львів, вул. Батуринська, 2' },
+      letter: { number: '7', date: '2026-11-20' },
+      reportDate: '2026-11-20',
+      extract: true,
+      sections: [{ section: 'SOLDIERS', people: 1 }],
+      people: [{ lastName: 'Прикладний', firstName: 'Сергій', middleName: '', birthDate: '1979-11-03', evod: null }],
+      responsible: null,
+    } as unknown as Parameters<typeof buildReconciliation>[0];
+    const zip = await JSZip.loadAsync(await buildReconciliation(input));
+    const xml = await zip.file('word/document.xml')!.async('string');
+    const text = xml.replace(/<[^>]+>/g, '');
+    const at = (s: string) => text.indexOf(s);
+    expect(at('Товариство з обмеженою відповідальністю «Вигадана компанія»')).toBe(0);
+    expect(text).toContain('79000, м. Львів, вул. Зразкова, 10');
+    expect(text).toContain('Код ЄДР 12345678');
+    expect(text).toContain('Тел. (032) 111-22-33');
+    expect(at('Вих. № 7')).toBeGreaterThan(at('Код ЄДР'));
+    expect(xml).toContain('Arial');
+    // off — the requisites in the corner, as before
+    const plain = await JSZip.loadAsync(
+      await buildReconciliation({ ...input, letterhead: { ...DEFAULT_LETTERHEAD_SETTINGS, enabled: false } }),
+    );
+    const before = (await plain.file('word/document.xml')!.async('string')).replace(/<[^>]+>/g, '');
+    expect(before).toContain('Код ЄДР - 12345678');
+    expect(before.startsWith('ТОВ «Вигадана компанія»')).toBe(true);
   });
 
   it('form 107 of a letter with notices: the letter and every notice on a line of its own', () => {

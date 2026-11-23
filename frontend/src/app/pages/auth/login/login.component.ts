@@ -1,7 +1,8 @@
 import { REPORT_NAMES } from '../../../shared/constants/lists.constants';
 import { BILLING_CLOSED_TEXT } from '../../../shared/constants/auth.constants';
+import { COPYRIGHT_TEXT } from '../../../shared/constants/subscription.constants';
 import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
-import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -13,10 +14,11 @@ import {
 } from '@angular/core';
 import { email, form, FormField, required, submit } from '@angular/forms/signals';
 import { Router, RouterLink } from '@angular/router';
-import { CopyrightComponent } from '../../../shared/components/copyright/copyright.component';
+import { FormAlertComponent } from '../../../shared/components/form-alert/form-alert.component';
+import { LoginPreviewComponent } from './login-preview/login-preview.component';
 import { AccountService } from '../../../shared/services/account.service';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
-import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { AppIconComponent } from '../../../shared/components/app-icon/app-icon.component';
 import { AuthService } from '../../../shared/services/auth.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { CodeInputComponent } from '../../../shared/components/code-input/code-input.component';
@@ -33,13 +35,16 @@ import type { LoginChallenge, TwoFactorSetup } from '../../../../platform/contra
     PasswordInputComponent,
     FormField,
     FormFieldComponent,
-    IconComponent,
+    AppIconComponent,
     RouterLink,
-    CopyrightComponent,
     CodeInputComponent,
     RecoveryCodesComponent,
     TwoFactorSetupComponent,
+    FormAlertComponent,
+    LoginPreviewComponent,
+    NgTemplateOutlet,
   ],
+  host: { class: 'flex min-h-dvh bg-canvas' },
   templateUrl: './login.component.html',
 })
 export class LoginComponent {
@@ -57,6 +62,7 @@ export class LoginComponent {
   /** ?reason=billing — the module was closed for a debt (the text of the API, if it came). */
   protected readonly closedMessage = this.auth.closedMessage;
   protected readonly billingClosedText = BILLING_CLOSED_TEXT;
+  protected readonly copyright = COPYRIGHT_TEXT;
   /** The password → the code from the app (or setting the app up) → the recovery codes. */
   protected readonly step = signal<LoginStep>('password');
   private readonly challenge = signal<LoginChallenge | null>(null);

@@ -13,7 +13,7 @@ import { Router, RouterLink } from '@angular/router';
 import { from } from 'rxjs';
 import { CopyrightComponent } from '../../../shared/components/copyright/copyright.component';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
-import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { AppIconComponent } from '../../../shared/components/app-icon/app-icon.component';
 import { KepSignComponent } from '../../../shared/components/kep-sign/kep-sign.component';
 import {
   EMPTY_SIGNUP_FORM,
@@ -43,7 +43,7 @@ import { fromBase64 } from '../../../shared/utils/file.utils';
   imports: [
     FormField,
     FormFieldComponent,
-    IconComponent,
+    AppIconComponent,
     RouterLink,
     CopyrightComponent,
     KepSignComponent,

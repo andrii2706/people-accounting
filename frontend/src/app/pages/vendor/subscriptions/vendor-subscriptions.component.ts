@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { ActionsMenuComponent } from '../../../shared/components/actions-menu/actions-menu.component';
@@ -31,6 +32,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
   templateUrl: './vendor-subscriptions.component.html',
 })
 export class VendorSubscriptionsComponent {
+  private readonly dialogs = inject(ConfirmService);
   private readonly service = inject(VendorBillingService);
   private readonly toast = inject(ToastService);
   private readonly refresh = injectRouteRefresh();
@@ -130,9 +132,15 @@ export class VendorSubscriptionsComponent {
     );
   }
 
-  protected cancel(inv: InvoiceView) {
-    if (typeof window !== 'undefined' && !window.confirm(`Скасувати рахунок № ${inv.number}?`))
-      return;
+  protected async cancel(inv: InvoiceView) {
+    const ok = await this.dialogs.confirm({
+      title: `Скасувати рахунок № ${inv.number}?`,
+      text: 'Рахунок не можна буде оплатити; за потреби виставте новий.',
+      confirmLabel: 'Скасувати рахунок',
+      cancelLabel: 'Залишити',
+      tone: 'danger',
+    });
+    if (!ok) return;
     void this.run(() => this.service.cancel(inv.id), `Рахунок № ${inv.number} скасовано`);
   }
 

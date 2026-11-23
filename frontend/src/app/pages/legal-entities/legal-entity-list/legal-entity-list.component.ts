@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
@@ -26,6 +27,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
   templateUrl: './legal-entity-list.component.html',
 })
 export class LegalEntityListComponent {
+  private readonly dialogs = inject(ConfirmService);
   protected readonly auth = inject(AuthService);
   private readonly service = inject(LegalEntitiesService);
   private readonly dict = inject(DictionariesService);
@@ -45,6 +47,12 @@ export class LegalEntityListComponent {
     if (this.auth.isEntityManager())
       actions.push(
         { label: 'Редагувати', icon: 'edit', link: ['/settings/legal-entities', e.id] },
+        {
+          label: 'Бланк листа',
+          icon: 'file',
+          hint: 'Шапка супровідних листів з реквізитами',
+          link: ['/settings/legal-entities', e.id, 'letterhead'],
+        },
         {
           label: 'Наклейки на конверти',
           icon: 'mail',
@@ -81,11 +89,14 @@ export class LegalEntityListComponent {
   }
 
   protected async remove(e: LegalEntitySummary) {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm(`Видалити юрособу «${legalEntityName(e)}»? Цю дію не можна скасувати.`)
-    )
-      return;
+    const ok = await this.dialogs.confirm({
+      title: `Видалити юрособу «${legalEntityName(e)}»?`,
+      text: 'Разом з нею зникнуть її працівники, листи до ТЦК і налаштування. Відновити не вийде.',
+      confirmLabel: 'Видалити юрособу',
+      tone: 'danger',
+      typeToConfirm: { label: `Щоб підтвердити, введіть код ЄДРПОУ ${e.edrpou}`, value: e.edrpou },
+    });
+    if (!ok) return;
     try {
       await this.service.remove(e.id);
       this.toast.success(`«${legalEntityName(e)}» видалено`);

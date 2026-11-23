@@ -1,0 +1,309 @@
+<app-page-header
+  [eyebrow]="data().entityName"
+  title="Бланк листа"
+  subtitle="Шапка супровідних листів до ТЦК: назва і реквізити юрособи над номером листа. Значення беруться з реквізитів автоматично — тут лише що показувати і як."
+>
+  <a
+    [routerLink]="['/settings/legal-entities', data().entityId]"
+    class="btn btn-ghost cursor-pointer"
+    ><app-icon name="arrowLeft" /> До юрособи</a
+  >
+</app-page-header>
+
+<form
+  class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_600px]"
+  (submit)="save($event)"
+  novalidate
+>
+  <div class="grid min-w-0 content-start gap-6">
+    <section class="card p-5 sm:p-6">
+      <label class="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          class="mt-1 size-4 cursor-pointer accent-brand-600"
+          [checked]="model().enabled"
+          (change)="set('enabled', checked($event))"
+        />
+        <span>
+          <span class="block font-semibold">Друкувати бланк у листах</span>
+          <span class="block text-sm text-muted">
+            Супровідні листи до повідомлень про зміну облікових даних і до звірки. Вимкнено —
+            реквізити в лівому куті поруч з адресатом, як раніше.
+          </span>
+        </span>
+      </label>
+    </section>
+
+    <fieldset
+      class="card grid gap-5 p-5 sm:p-6"
+      [disabled]="!model().enabled"
+      [class.opacity-60]="!model().enabled"
+    >
+      <legend class="sr-only">Назва</legend>
+      <div>
+        <h2 class="mb-1 font-semibold">Назва</h2>
+        <p class="text-xs text-muted">Перший рядок бланка — великим шрифтом.</p>
+      </div>
+      <div>
+        <span class="label">Яка назва</span>
+        <div class="segmented" role="group" aria-label="Яка назва">
+          @for (o of titles; track o.value) {
+            <button
+              type="button"
+              class="segmented-item cursor-pointer"
+              [attr.aria-pressed]="model().title === o.value"
+              (click)="set('title', o.value)"
+            >
+              {{ o.label }}
+            </button>
+          }
+        </div>
+        <p class="mt-2 text-sm text-muted">
+          @switch (model().title) {
+            @case ('FULL') {
+              {{ org().fullName || 'Повну назву не заповнено — буде скорочена' }}
+            }
+            @case ('SHORT') {
+              {{ org().shortName || 'Скорочену назву не заповнено — буде повна' }}
+            }
+            @default {
+              Наприклад, з великої літери чи з торговою маркою.
+            }
+          }
+        </p>
+      </div>
+      @if (model().title === 'CUSTOM') {
+        <app-form-field label="Своя назва" [required]="true">
+          <input
+            class="input"
+            [class.is-invalid]="touched() && customProblem()"
+            [maxLength]="limits.customTitle"
+            [value]="model().customTitle"
+            (input)="set('customTitle', text($event))"
+            [attr.aria-invalid]="touched() && !!customProblem()"
+          />
+          @if (touched() && customProblem()) {
+            <p class="mt-1 text-xs text-danger">{{ customProblem() }}</p>
+          }
+        </app-form-field>
+      }
+      <div class="flex flex-wrap items-end gap-x-6 gap-y-4">
+        <div>
+          <span class="label">Вирівнювання</span>
+          <div class="segmented" role="group" aria-label="Вирівнювання назви">
+            @for (o of aligns; track o.value) {
+              <button
+                type="button"
+                class="segmented-item cursor-pointer"
+                [attr.aria-pressed]="model().titleAlign === o.value"
+                (click)="set('titleAlign', o.value)"
+              >
+                {{ o.label }}
+              </button>
+            }
+          </div>
+        </div>
+        <app-form-field class="w-40" label="Розмір назви">
+          <app-select
+            ariaLabel="Розмір назви"
+            [clearable]="false"
+            [options]="titleSizes"
+            [value]="'' + model().titleSize"
+            (valueChange)="setSize('titleSize', $event)"
+          />
+        </app-form-field>
+        <label class="flex cursor-pointer items-center gap-2 pb-2.5 text-sm">
+          <input
+            type="checkbox"
+            class="size-4 cursor-pointer accent-brand-600"
+            [checked]="model().titleBold"
+            (change)="set('titleBold', checked($event))"
+          />
+          Жирним
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset
+      class="card grid gap-5 p-5 sm:p-6"
+      [disabled]="!model().enabled"
+      [class.opacity-60]="!model().enabled"
+    >
+      <legend class="sr-only">Реквізити</legend>
+      <div>
+        <h2 class="mb-1 font-semibold">Реквізити</h2>
+        <p class="text-xs text-muted">
+          З картки юрособи — змінені там, вони будуть і на наступному листі.
+          <a
+            [routerLink]="['/settings/legal-entities', data().entityId]"
+            class="cursor-pointer text-brand-600 hover:underline"
+            >Змінити реквізити</a
+          >
+        </p>
+      </div>
+      <div class="grid gap-3">
+        @for (row of requisiteRows(); track row.key) {
+          <label
+            class="flex cursor-pointer items-start gap-3 rounded-xl border border-line p-3 hover:border-brand-600/40"
+          >
+            <input
+              type="checkbox"
+              class="mt-0.5 size-4 cursor-pointer accent-brand-600"
+              [checked]="model()[row.key]"
+              (change)="set(row.key, checked($event))"
+            />
+            <span class="min-w-0">
+              <span class="block text-sm font-medium">{{ row.label }}</span>
+              @if (row.value) {
+                <span class="block truncate text-sm text-muted">{{ row.value }}</span>
+              } @else {
+                <span class="block text-sm text-warning">не заповнено — на бланку не буде</span>
+              }
+            </span>
+          </label>
+        }
+      </div>
+      <app-form-field
+        label="Додатковий рядок"
+        hint="Необов’язково: сайт, банківські реквізити, слоган. Друкується під контактами."
+      >
+        <input
+          class="input"
+          [maxLength]="limits.extraLine"
+          placeholder="www.company.ua"
+          [value]="model().extraLine"
+          (input)="set('extraLine', text($event))"
+        />
+      </app-form-field>
+    </fieldset>
+
+    <fieldset
+      class="card grid gap-5 p-5 sm:p-6"
+      [disabled]="!model().enabled"
+      [class.opacity-60]="!model().enabled"
+    >
+      <legend class="sr-only">Вигляд</legend>
+      <h2 class="font-semibold">Вигляд</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <app-form-field label="Шрифт">
+          <app-select
+            ariaLabel="Шрифт"
+            [clearable]="false"
+            [options]="fonts"
+            [value]="model().font"
+            (valueChange)="setFont($event)"
+          />
+        </app-form-field>
+        <app-form-field label="Розмір реквізитів">
+          <app-select
+            ariaLabel="Розмір реквізитів"
+            [clearable]="false"
+            [options]="textSizes"
+            [value]="'' + model().textSize"
+            (valueChange)="setSize('textSize', $event)"
+          />
+        </app-form-field>
+      </div>
+      <label class="flex cursor-pointer items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="size-4 cursor-pointer accent-brand-600"
+          [checked]="model().rule"
+          (change)="set('rule', checked($event))"
+        />
+        Лінія під бланком
+      </label>
+    </fieldset>
+  </div>
+
+  <aside class="min-w-0 xl:sticky xl:top-6 xl:self-start">
+    <section class="card p-5">
+      <div class="mb-3 flex items-baseline justify-between gap-2">
+        <h2 class="font-semibold">Попередній перегляд</h2>
+        <span class="text-xs text-muted">верх аркуша A4</span>
+      </div>
+      <!-- the top of the sheet at its real size; the SVG scales it to the room on the screen -->
+      <div class="rounded-lg bg-sunken p-3">
+        <svg
+          class="block w-full bg-white shadow-md ring-1 ring-black/10"
+          [attr.viewBox]="'0 0 ' + pageWidthPx + ' ' + previewHeightPx"
+          role="img"
+          aria-label="Верх листа з бланком"
+        >
+          <foreignObject x="0" y="0" [attr.width]="pageWidthPx" [attr.height]="previewHeightPx">
+            <div
+              class="text-black"
+              [style.width.px]="pageWidthPx"
+              [style.padding-left.px]="padding.left"
+              [style.padding-right.px]="padding.right"
+              [style.padding-top.px]="padding.top"
+            >
+              @if (model().enabled) {
+                <div
+                  [style.font-family]="fontFamily()"
+                  [class.border-b]="model().rule"
+                  class="border-black pb-0.5"
+                >
+                  <p
+                    class="leading-tight"
+                    [style.font-size.px]="px(model().titleSize)"
+                    [style.font-weight]="model().titleBold ? 700 : 400"
+                    [style.text-align]="model().titleAlign"
+                  >
+                    {{ content().title }}
+                  </p>
+                  @for (r of rows(); track $index) {
+                    <div
+                      class="flex gap-4 leading-snug"
+                      [style.font-size.px]="px(model().textSize)"
+                    >
+                      <span class="min-w-0 flex-1">{{ r[0] }}</span>
+                      <span class="shrink-0 text-right">{{ r[1] }}</span>
+                    </div>
+                  }
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-4 font-serif text-[16px] leading-snug">
+                  <p>Вих. № 7<br />від 20.11.2026 р.</p>
+                  <p><b>Керівнику … РТЦК та СП</b><br />адреса ТЦК</p>
+                </div>
+              } @else {
+                <div class="grid grid-cols-2 gap-4 font-serif text-[16px] leading-snug">
+                  <p>
+                    <b>{{ org().shortName || org().fullName }}</b
+                    ><br />{{ org().address }}<br />
+                    @if (org().phone) {
+                      тел. {{ org().phone }}<br />
+                    }
+                    Код ЄДР - {{ org().edrpou }}
+                  </p>
+                  <p><b>Керівнику … РТЦК та СП</b><br />адреса ТЦК</p>
+                </div>
+                <p class="mt-4 font-serif text-[16px] leading-snug">
+                  Вих. № 7<br />від 20.11.2026 р.
+                </p>
+              }
+              <div class="mt-6 space-y-2" aria-hidden="true">
+                @for (w of [100, 92, 96, 70]; track $index) {
+                  <div class="h-2 rounded bg-black/10" [style.width.%]="w"></div>
+                }
+              </div>
+            </div>
+          </foreignObject>
+        </svg>
+      </div>
+      @if (model().enabled && missing().length) {
+        <p class="mt-3 rounded-lg bg-warning/10 px-3 py-2 text-sm text-warning" role="status">
+          Не заповнено: {{ missing().join(', ') }} — на бланку цих рядків не буде.
+        </p>
+      }
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="saving()">
+          {{ saving() ? 'Зберігаємо…' : 'Зберегти' }}
+        </button>
+        <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetDefaults()">
+          Стандартний
+        </button>
+      </div>
+    </section>
+  </aside>
+</form>

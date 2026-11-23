@@ -15,6 +15,7 @@ import {
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
+import { AppIconComponent } from '../../shared/components/app-icon/app-icon.component';
 import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AccountService } from '../../shared/services/account.service';
 import { AuthService } from '../../shared/services/auth.service';
@@ -40,6 +41,7 @@ import type { NavGroup } from '../../shared/interfaces/ui.interface';
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
+    AppIconComponent,
     IconComponent,
     InboxListComponent,
     CommandPaletteComponent,
@@ -95,7 +97,7 @@ export class ShellComponent {
   protected readonly otherApps = computed(() => {
     if (this.baseHref === '/') return [];
     const apps = readyAppsOf(this.auth.user()?.modules).filter((a) => a.id !== 'oblik');
-    return [{ title: 'Портал', path: '/' }, ...apps];
+    return [{ id: 'portal', title: 'Портал', path: '/' }, ...apps];
   });
   protected readonly welcomeOpen = signal(false);
   private readonly billingService = inject(BillingService);

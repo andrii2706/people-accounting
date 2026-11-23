@@ -3,6 +3,7 @@ import {
   entityDatabaseResolver,
   hrSyncResolver,
   labelSettingsResolver,
+  letterheadResolver,
   listSettingsResolver,
   signupsResolver,
   organizationSettingsResolver,
@@ -54,6 +55,15 @@ export const SETTINGS_ROUTES: Routes = [
       import('../legal-entities/legal-entity-form/legal-entity-form.component').then(
         (m) => m.LegalEntityFormComponent,
       ),
+  },
+  {
+    path: 'legal-entities/:id/letterhead',
+    canActivate: [managerGuard],
+    title: 'Бланк листа · Військовий облік',
+    resolve: { data: letterheadResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () =>
+      import('./letterhead/letterhead.component').then((m) => m.LetterheadComponent),
   },
   {
     path: 'legal-entities/:id/labels',

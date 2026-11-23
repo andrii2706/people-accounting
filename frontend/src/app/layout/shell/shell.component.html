@@ -16,9 +16,7 @@
     <div
       class="flex items-center gap-3 px-5 py-5 lg:justify-center lg:px-0 xl:justify-start xl:px-5"
     >
-      <span class="grid size-9 shrink-0 place-items-center rounded-[10px] bg-brand-600 text-white"
-        ><app-icon name="shield" [size]="18"
-      /></span>
+      <app-app-icon app="oblik" [size]="36" />
       <div class="min-w-0 leading-tight lg:hidden xl:block">
         <p class="text-sm font-semibold">Військовий облік</p>
         <p class="truncate text-xs text-muted">{{ orgName() || 'персонал підприємства' }}</p>
@@ -33,8 +31,8 @@
         @for (a of otherApps(); track a.path) {
           <a
             [href]="a.path"
-            class="block truncate rounded-lg px-3 py-1.5 text-muted hover:bg-surface hover:text-ink"
-            >{{ a.title }}</a
+            class="flex items-center gap-2.5 truncate rounded-lg px-2 py-1.5 text-muted hover:bg-surface hover:text-ink"
+            ><app-app-icon [app]="a.id" [size]="20" /><span class="truncate">{{ a.title }}</span></a
           >
         }
       </nav>

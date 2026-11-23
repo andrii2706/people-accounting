@@ -1,3 +1,4 @@
+import type { LetterheadSettings } from './letterhead.interface.js';
 import type { IsoDate } from './common.interface.js';
 import type { ChangeType, ListSection } from './dictionary.interface.js';
 import type { ListLayout, ListSectionSettings, ListSigner } from './list-settings.interface.js';
@@ -117,6 +118,8 @@ export interface ChangeNoticeInput {
   notices: NoticeItem[];
   org: Organization;
   responsible: ResponsibleInfo | null;
+  /** The letterhead of the legal entity (none — the requisites in the corner). */
+  letterhead?: LetterheadSettings;
 }
 
 /**
@@ -154,6 +157,8 @@ export interface ReconciliationInput {
   tck: Tck | null;
   org: Organization;
   responsible: ResponsibleInfo | null;
+  /** The letterhead of the legal entity (none — the requisites in the corner). */
+  letterhead?: LetterheadSettings;
   /** Extracts about the people of the TCK (true) or the whole lists (false). */
   extract: boolean;
   /**

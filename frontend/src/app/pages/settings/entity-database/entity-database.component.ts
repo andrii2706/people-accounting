@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -55,6 +56,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
   templateUrl: './entity-database.component.html',
 })
 export class EntityDatabaseComponent {
+  private readonly dialogs = inject(ConfirmService);
   private readonly service = inject(EntityDatabaseService);
   private readonly toast = inject(ToastService);
   private readonly refresh = injectRouteRefresh();
@@ -142,12 +144,13 @@ export class EntityDatabaseComponent {
   }
 
   protected async remove() {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm('Видалити параметри підключення? Пароль буде стерто.')
-    ) {
-      return;
-    }
+    const ok = await this.dialogs.confirm({
+      title: 'Видалити параметри підключення?',
+      text: 'Пароль до бази буде стерто; дані юрособи знову зберігатимуться в спільній базі.',
+      confirmLabel: 'Видалити підключення',
+      tone: 'danger',
+    });
+    if (!ok) return;
     this.removing.set(true);
     try {
       await this.service.remove(this.data().entityId);

@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import { AuthService } from '../../../shared/services/auth.service';
 import { tckOption } from '../../../shared/utils/tck.utils';
 import {
@@ -44,6 +45,7 @@ import type { SelectOption } from '../../../shared/interfaces/ui.interface';
   templateUrl: './letter-detail.component.html',
 })
 export class LetterDetailComponent {
+  private readonly dialogs = inject(ConfirmService);
   protected readonly auth = inject(AuthService);
   protected readonly lettersService = inject(LettersService);
   protected readonly files = inject(FileDownloadService);
@@ -88,12 +90,13 @@ export class LetterDetailComponent {
   }
 
   protected async markSent() {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm('Позначити лист як переданий у ТЦК? Після цього його не можна редагувати.')
-    ) {
-      return;
-    }
+    const ok = await this.dialogs.confirm({
+      title: 'Позначити лист переданим у ТЦК?',
+      text: 'Після цього лист не можна буде редагувати.',
+      confirmLabel: 'Позначити переданим',
+      icon: 'send',
+    });
+    if (!ok) return;
     await this.mutate(
       () => this.lettersService.markSent(this.id()),
       'Позначено як переданий у ТЦК',
@@ -101,7 +104,13 @@ export class LetterDetailComponent {
   }
 
   protected async remove() {
-    if (typeof window !== 'undefined' && !window.confirm('Видалити чернетку листа?')) return;
+    const ok = await this.dialogs.confirm({
+      title: 'Видалити чернетку листа?',
+      text: 'Повідомлення з неї повернуться в чергу ТЦК.',
+      confirmLabel: 'Видалити чернетку',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await this.lettersService.remove(this.id());
       this.toast.success('Чернетку видалено');

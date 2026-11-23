@@ -12,6 +12,7 @@ import { decimalColumn } from '../common/utils/column.utils.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import { User } from '../users/user.entity.js';
 import type { LabelSettings } from '../shared/interfaces/label-settings.interface.js';
+import type { LetterheadSettings } from '../shared/interfaces/letterhead.interface.js';
 import type { ListSettings } from '../shared/interfaces/list-settings.interface.js';
 
 /**
@@ -123,6 +124,10 @@ export class LegalEntity {
   /** How its envelope labels are printed (font, sizes, A4 sheet or envelope). null — the defaults. */
   @Column({ type: 'jsonb', nullable: true })
   labelSettings: Partial<LabelSettings> | null;
+
+  /** The letterhead of its letters (what is shown, the font, the sizes). null — the defaults. */
+  @Column({ type: 'jsonb', nullable: true })
+  letterheadSettings: Partial<LetterheadSettings> | null;
 
   /** How its four lists look (columns, order, heading, signers, Word templates). null — the defaults. */
   @Column({ type: 'jsonb', nullable: true })

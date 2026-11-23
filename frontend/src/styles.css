@@ -150,3 +150,110 @@
 .nav-progress {
   animation: nav-progress 1s ease-in-out infinite;
 }
+
+/* the action on a snackbar (a white card): the colour of the application */
+:root {
+  --snackbar-action: #4f5f37;
+}
+
+/* snackbars (shared/components/snackbar-host): the way in and the ring of «Скасувати» */
+@keyframes snackbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+@keyframes snackbar-ring {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 56.55;
+  }
+}
+
+/* modal windows (shared/components/modal): the native <dialog> in the look of the application */
+dialog.app-modal {
+  width: calc(100% - 2rem);
+  max-width: 480px;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  overflow: visible;
+}
+dialog.app-modal.app-modal-wide {
+  max-width: 560px;
+}
+dialog.app-modal::backdrop {
+  background: rgb(20 24 15 / 0.45);
+}
+dialog.app-modal[open] .app-modal-panel {
+  animation: app-modal-in 160ms ease-out;
+}
+.app-modal-panel {
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+  border-radius: 20px;
+  background: var(--color-surface);
+  box-shadow: 0 24px 64px rgb(20 24 15 / 0.35);
+}
+.app-modal-body:empty {
+  display: none;
+}
+.app-modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid #f0efe9;
+  background: #fbfbf9;
+}
+.app-modal-footer > div {
+  display: contents;
+}
+@media (min-width: 640px) {
+  .app-modal-footer {
+    padding-inline: 1.5rem;
+  }
+}
+/* a phone: the window comes up from the bottom, the buttons across the width, the main one on top */
+@media (max-width: 639px) {
+  dialog.app-modal,
+  dialog.app-modal.app-modal-wide {
+    width: 100%;
+    max-width: 100%;
+    margin: auto 0 0;
+  }
+  .app-modal-panel {
+    max-height: calc(100dvh - 3rem);
+    border-radius: 20px 20px 0 0;
+  }
+  .app-modal-footer {
+    flex-direction: column-reverse;
+    padding-bottom: max(0.875rem, env(safe-area-inset-bottom));
+  }
+  .app-modal-footer .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+@keyframes app-modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+/* the main button of a removal in a modal window: solid red, as the design */
+.app-modal-footer .btn-danger {
+  border-color: transparent;
+  background: var(--color-danger);
+  color: #fff;
+}
+.app-modal-footer .btn-danger:hover:not(:disabled) {
+  background: #912018;
+}

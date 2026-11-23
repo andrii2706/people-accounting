@@ -1,7 +1,7 @@
 <app-page-header
   eyebrow="Юридичні особи"
   [title]="isNew() ? 'Нова юридична особа' : model().shortName || model().fullName"
-  subtitle="Реквізити, керівник і відповідальний підставляються в документи цієї юрособи: списки, відомості, повідомлення ТЦК, наклейки."
+  subtitle="Реквізити, керівник і відповідальний підставляються в документи цієї юрособи: бланк листа, списки, відомості, повідомлення ТЦК, наклейки."
 >
   <a routerLink="/settings" class="btn btn-ghost cursor-pointer"
     ><app-icon name="arrowLeft" /> До списку</a
@@ -11,6 +11,11 @@
       [routerLink]="['/settings/legal-entities', entity.id, 'lists']"
       class="btn btn-secondary cursor-pointer"
       ><app-icon name="table" /> Вигляд списків</a
+    >
+    <a
+      [routerLink]="['/settings/legal-entities', entity.id, 'letterhead']"
+      class="btn btn-secondary cursor-pointer"
+      ><app-icon name="file" /> Бланк листа</a
     >
     <a
       [routerLink]="['/settings/legal-entities', entity.id, 'labels']"

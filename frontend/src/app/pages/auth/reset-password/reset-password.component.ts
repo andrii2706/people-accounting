@@ -12,7 +12,7 @@ import {
 import { form, FormField, maxLength, required, submit, validate } from '@angular/forms/signals';
 import { RouterLink } from '@angular/router';
 import { FormFieldComponent } from '../../../shared/components/form-field/form-field.component';
-import { IconComponent } from '../../../shared/components/icon/icon.component';
+import { AppIconComponent } from '../../../shared/components/app-icon/app-icon.component';
 import type { NewPasswordForm } from '../../../shared/interfaces/auth.interface';
 import { UaDateTimePipe } from '../../../shared/pipes/ua-date-time.pipe';
 import { AuthService } from '../../../shared/services/auth.service';
@@ -31,7 +31,7 @@ import { passwordProblems } from '../../../shared/validators/password.validators
     PasswordInputComponent,
     FormField,
     FormFieldComponent,
-    IconComponent,
+    AppIconComponent,
     RouterLink,
     UaDateTimePipe,
     CopyrightComponent,

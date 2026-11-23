@@ -32,6 +32,12 @@ import {
   POSTAL_STYLES,
 } from '../documents/label-settings.constants.js';
 import { isPermutation } from '../documents/utils/label-settings.utils.js';
+import { LETTERHEAD_ALIGNS, LETTERHEAD_LIMITS, LETTERHEAD_TITLES } from '../documents/letterhead.constants.js';
+import type {
+  LetterheadAlign,
+  LetterheadSettings,
+  LetterheadTitle,
+} from '../shared/interfaces/letterhead.interface.js';
 import type {
   EnvelopeFormat,
   LabelAlign,
@@ -191,4 +197,36 @@ export class LabelSettingsDto implements LabelSettings {
   @Min(LABEL_LIMITS.declaredValue[0], { message: 'Не менше 0' })
   @Max(LABEL_LIMITS.declaredValue[1], { message: `Не більше ${LABEL_LIMITS.declaredValue[1]} грн` })
   declaredValue: number;
+}
+
+/** A whole number of points within [min, max]. */
+const Points = ([min, max]: readonly [number, number]) =>
+  applyDecorators(
+    IsInt({ message: 'Ціле число пунктів' }),
+    Min(min, { message: `Не менше ${min} пт` }),
+    Max(max, { message: `Не більше ${max} пт` }),
+  );
+
+/** The letterhead of the letters of the legal entity: the whole set of settings (see LetterheadSettings). */
+export class LetterheadSettingsDto implements LetterheadSettings {
+  @IsBoolean() enabled: boolean;
+  @IsIn(LABEL_FONTS, { message: `Шрифт: ${LABEL_FONTS.join(', ')}` }) font: LabelFont;
+  @Points(LETTERHEAD_LIMITS.titleSize) titleSize: number;
+  @Points(LETTERHEAD_LIMITS.textSize) textSize: number;
+  @IsBoolean() titleBold: boolean;
+  @IsIn(LETTERHEAD_ALIGNS, { message: 'По центру або ліворуч' }) titleAlign: LetterheadAlign;
+  @IsIn(LETTERHEAD_TITLES, { message: 'Повна, скорочена або своя назва' }) title: LetterheadTitle;
+  @IsString()
+  @MaxLength(LETTERHEAD_LIMITS.customTitle, { message: MESSAGE.tooLong(LETTERHEAD_LIMITS.customTitle) })
+  @ValidateIf((o: LetterheadSettingsDto) => o.title === 'CUSTOM')
+  @IsNotEmpty({ message: 'Вкажіть назву для бланка' })
+  customTitle: string;
+  @IsBoolean() showAddress: boolean;
+  @IsBoolean() showCode: boolean;
+  @IsBoolean() showPhone: boolean;
+  @IsBoolean() showEmail: boolean;
+  @IsString()
+  @MaxLength(LETTERHEAD_LIMITS.extraLine, { message: MESSAGE.tooLong(LETTERHEAD_LIMITS.extraLine) })
+  extraLine: string;
+  @IsBoolean() rule: boolean;
 }

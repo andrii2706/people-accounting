@@ -15,12 +15,6 @@ export type FieldLike = () => {
 
 export type IconName = keyof typeof ICON_PATHS;
 
-export interface Toast {
-  id: number;
-  kind: 'success' | 'error' | 'info';
-  text: string;
-}
-
 export interface NavItem {
   path: string;
   label: string;

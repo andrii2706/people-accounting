@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from './toast.service';
 
-describe('ToastService', () => {
+describe('ToastService (snackbars)', () => {
   let toast: ToastService;
 
   beforeEach(() => {
@@ -11,25 +12,44 @@ describe('ToastService', () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it('показує повідомлення і прибирає його через 4 с', () => {
+  it('shows a message and takes it away in 4 s', () => {
     toast.success('Збережено');
-    expect(toast.toasts()).toEqual([{ id: 1, kind: 'success', text: 'Збережено' }]);
+    expect(toast.toasts()).toMatchObject([{ kind: 'success', text: 'Збережено', duration: 4000 }]);
     vi.advanceTimersByTime(4000);
     expect(toast.toasts()).toEqual([]);
   });
 
-  it('помилку тримає довше (7 с), щоб її встигли прочитати', () => {
-    toast.error('Не вдалося');
-    vi.advanceTimersByTime(4000);
+  it('an error stays until it is closed', () => {
+    const id = toast.error('Не вдалося');
+    vi.advanceTimersByTime(60_000);
     expect(toast.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(3000);
-    expect(toast.toasts()).toHaveLength(0);
+    toast.dismiss(id);
+    expect(toast.toasts()).toEqual([]);
   });
 
-  it('закривається вручну', () => {
-    toast.info('a');
-    toast.info('b');
-    toast.dismiss(toast.toasts()[0].id);
-    expect(toast.toasts().map((t) => t.text)).toEqual(['b']);
+  it('newest first, at most three', () => {
+    for (const t of ['a', 'b', 'c', 'd']) toast.info(t);
+    expect(toast.toasts().map((t) => t.text)).toEqual(['d', 'c', 'b']);
+  });
+
+  it('the time stands while the pointer is over it', () => {
+    const id = toast.success('a');
+    vi.advanceTimersByTime(3000);
+    toast.pause(id);
+    vi.advanceTimersByTime(10_000);
+    expect(toast.toasts()).toHaveLength(1);
+    toast.resume(id);
+    vi.advanceTimersByTime(1200);
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('«Скасувати» runs the step back and closes', () => {
+    const undo = vi.fn();
+    toast.undoable('Доступ вимкнено', undo);
+    const [t] = toast.toasts();
+    expect(t).toMatchObject({ undo: true, duration: 7000, action: { label: 'Скасувати' } });
+    toast.act(t);
+    expect(undo).toHaveBeenCalledOnce();
+    expect(toast.toasts()).toEqual([]);
   });
 });

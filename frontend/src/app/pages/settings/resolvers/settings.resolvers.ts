@@ -6,6 +6,7 @@ import type { OrganizationSettingsData } from '../../../shared/interfaces/organi
 import { OrganizationService } from '../../../shared/services/organization.service';
 import { UsersService } from '../../../shared/services/users.service';
 import type { LabelSettingsPageData } from '../../../shared/interfaces/label-settings.interface';
+import type { LetterheadPageData } from '../../../shared/interfaces/letterhead.interface';
 import { LegalEntitiesService } from '../../../shared/services/legal-entities.service';
 import type { EntityDatabasePageData } from '../../../shared/interfaces/entity-database.interface';
 import { EntityDatabaseService } from '../../../shared/services/entity-database.service';
@@ -42,6 +43,22 @@ export const labelSettingsResolver: ResolveFn<LabelSettingsPageData> = (route) =
   const service = inject(LegalEntitiesService);
   return resolveOr(
     forkJoin({ page: service.labelSettings(id), entity: service.get(id) }).pipe(
+      map(({ page, entity }) => ({
+        ...page,
+        entityId: entity.id,
+        entityName: entity.shortName || entity.fullName,
+      })),
+    ),
+    '/settings',
+  ) as never;
+};
+
+/** The letterhead of a legal entity: the settings, its requisites and its name. */
+export const letterheadResolver: ResolveFn<LetterheadPageData> = (route) => {
+  const id = route.paramMap.get('id')!;
+  const service = inject(LegalEntitiesService);
+  return resolveOr(
+    forkJoin({ page: service.letterhead(id), entity: service.get(id) }).pipe(
       map(({ page, entity }) => ({
         ...page,
         entityId: entity.id,

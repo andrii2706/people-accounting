@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -67,6 +68,7 @@ import { MESSAGE } from '../../../shared/validators/employee-rules';
   templateUrl: './list-settings.component.html',
 })
 export class ListSettingsComponent {
+  private readonly dialogs = inject(ConfirmService);
   private readonly service = inject(ListsService);
   private readonly toast = inject(ToastService);
   protected readonly auth = inject(AuthService);
@@ -109,10 +111,15 @@ export class ListSettingsComponent {
   protected readonly columnItems = computed(() => columnItems(this.model().columns));
   protected readonly busy = signal(false);
 
-  protected selectSection(section: ListSection) {
+  protected async selectSection(section: ListSection) {
     if (section === this.section()) return;
-    if (this.dirty() && !window.confirm('Зміни цього списку не збережено. Перейти без збереження?'))
-      return;
+    if (this.dirty()) {
+      const choice = await this.dialogs.unsaved({
+        text: 'Ви змінили налаштування цього списку. Якщо перейти до іншого без збереження, зміни пропадуть.',
+      });
+      if (choice === 'stay') return;
+      if (choice === 'save' && !(await this.saveSection())) return;
+    }
     this.section.set(section);
   }
 
@@ -166,16 +173,25 @@ export class ListSettingsComponent {
 
   protected async save(event: Event) {
     event.preventDefault();
+    await this.saveSection();
+  }
+
+  /** Saves the list on the screen; false — not saved (the errors are on the fields or in a snackbar). */
+  private async saveSection(): Promise<boolean> {
+    let saved = false;
     await submit(this.settingsForm, async () => {
       try {
-        const saved = await this.service.save(this.data().entityId, this.section(), this.model());
-        this.settings.set(saved);
+        this.settings.set(
+          await this.service.save(this.data().entityId, this.section(), this.model()),
+        );
         this.toast.success('Вигляд списку збережено');
+        saved = true;
         return undefined;
       } catch (err) {
         return formSubmitErrors(err, this.settingsForm, this.notifyError);
       }
     });
+    return saved;
   }
 
   protected exampleUrl() {
@@ -216,12 +232,13 @@ export class ListSettingsComponent {
   }
 
   protected async removeTemplate() {
-    if (
-      !window.confirm(
-        'Прибрати власний шаблон? Документ цього списку знову буде у вбудованому вигляді.',
-      )
-    )
-      return;
+    const ok = await this.dialogs.confirm({
+      title: 'Прибрати власний шаблон?',
+      text: 'Документ цього списку знову буде у вбудованому вигляді.',
+      confirmLabel: 'Прибрати шаблон',
+      tone: 'danger',
+    });
+    if (!ok) return;
     this.busy.set(true);
     try {
       const unsaved = this.dirty() ? this.model() : null;

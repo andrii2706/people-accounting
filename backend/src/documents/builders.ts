@@ -58,6 +58,13 @@ import {
   twoColumns,
 } from './docx-kit.js';
 import { inGenitive } from './name-declension.js';
+import {
+  LETTERHEAD_CODE_WIDTH,
+  letterheadContent,
+  letterheadHeight,
+  letterheadRows,
+} from './utils/letterhead.utils.js';
+import type { LetterheadSettings } from '../shared/interfaces/letterhead.interface.js';
 import { postalAddressLines } from './utils/postal-address.utils.js';
 import { estimatePages, lineHeight, textLines } from './utils/page-estimate.utils.js';
 import type { ListSection } from '../shared/interfaces/dictionary.interface.js';
@@ -94,6 +101,80 @@ function orgHeader(org: Organization): Paragraph[] {
     org.phone ? p(`тел. ${org.phone}`) : p(''),
     p(`Код ЄДР - ${blank(org.edrpou, '________')}`),
   ];
+}
+
+/**
+ * The letterhead across the top of a letter: the name, then the address with the code on the right and the
+ * contacts, a line under it — made of the requisites of the legal entity with its settings.
+ */
+function letterhead(org: Organization, s: LetterheadSettings, width: number): Table {
+  const c = letterheadContent(org, s);
+  const rows = letterheadRows(c);
+  const text = (t: string, align: 'left' | 'right' | 'center' = 'left') =>
+    p(t, { size: s.textSize, font: s.font, align });
+  const none = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+  const line = { style: BorderStyle.SINGLE, size: 6, color: '000000' };
+  const borders = (last: boolean) => ({ top: none, left: none, right: none, bottom: last && s.rule ? line : none });
+  // the margins of a cell of Word: the text of the letterhead starts where «Вих. №» below starts
+  const margins = { top: 0, bottom: 0, left: 108, right: 108 };
+  const left = width - LETTERHEAD_CODE_WIDTH;
+  return new Table({
+    width: { size: width, type: WidthType.DXA },
+    columnWidths: [left, LETTERHEAD_CODE_WIDTH],
+    layout: TableLayoutType.FIXED,
+    borders: { top: none, bottom: none, left: none, right: none, insideHorizontal: none, insideVertical: none },
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            columnSpan: 2,
+            margins,
+            borders: borders(!rows.length),
+            width: { size: width, type: WidthType.DXA },
+            children: [p(c.title, { size: s.titleSize, font: s.font, bold: s.titleBold, align: s.titleAlign })],
+          }),
+        ],
+      }),
+      ...rows.map(
+        ([l, r], i) =>
+          new TableRow({
+            children: [
+              new TableCell({
+                margins,
+                borders: borders(i === rows.length - 1),
+                width: { size: left, type: WidthType.DXA },
+                children: [text(l)],
+              }),
+              new TableCell({
+                margins,
+                borders: borders(i === rows.length - 1),
+                width: { size: LETTERHEAD_CODE_WIDTH, type: WidthType.DXA },
+                children: [text(r, 'right')],
+              }),
+            ],
+          }),
+      ),
+    ],
+  });
+}
+
+/**
+ * The top of a cover letter. With the letterhead: the letterhead, then the number and the date on the left and the
+ * addressee on the right. Without it: the requisites on the left and the addressee on the right, the number below.
+ */
+function letterTop(
+  org: Organization,
+  letter: { number: string; date: string },
+  tck: Tck | null,
+  s: LetterheadSettings | undefined,
+): (Paragraph | Table)[] {
+  const w = CONTENT_WIDTH.portrait;
+  const addressee = [p(`Керівнику ${tckGenitive(tck)}`, { bold: true }), p(tck?.address ?? '')];
+  const ref = [p(`Вих. № ${letter.number}`), p(`від ${formatUa(letter.date)} р.`)];
+  if (s?.enabled) {
+    return [letterhead(org, s, w), ...empty(1), twoColumns(ref, addressee, [w / 2, w / 2])];
+  }
+  return [twoColumns(orgHeader(org), addressee, [w / 2, w / 2]), ...empty(1), ...ref];
 }
 
 function executor(person: ResponsibleInfo | null): Paragraph[] {
@@ -244,14 +325,7 @@ export async function buildChangeNotice(input: ChangeNoticeInput): Promise<Buffe
   }
 
   const cover: (Paragraph | Table)[] = [
-    twoColumns(
-      orgHeader(org),
-      [p(`Керівнику ${tckGenitive(tck)}`, { bold: true }), p(tck?.address ?? '')],
-      [w / 2, w / 2],
-    ),
-    ...empty(1),
-    p(`Вих. № ${letter.number}`),
-    p(`від ${formatUa(letter.date)} р.`),
+    ...letterTop(org, letter, tck, input.letterhead),
     ...empty(1),
     ...body,
     ...empty(1),
@@ -502,14 +576,7 @@ export async function buildReconciliation(input: ReconciliationInput): Promise<B
 
   const justified = (t: string) => p(t, { align: 'justify', indent: 567 });
   const cover: (Paragraph | Table)[] = [
-    twoColumns(
-      orgHeader(org),
-      [p(`Керівнику ${tckGenitive(tck)}`, { bold: true }), p(tck?.address ?? '')],
-      [w / 2, w / 2],
-    ),
-    ...empty(1),
-    p(`Вих. № ${letter.number}`),
-    p(`від ${formatUa(letter.date)} р.`),
+    ...letterTop(org, letter, tck, input.letterhead),
     ...empty(1),
     p('Щодо звірки облікових даних', { bold: true, italics: true }),
     ...empty(1),
@@ -556,16 +623,21 @@ export function coverSheets(input: ReconciliationInput): number {
   const w = CONTENT_WIDTH.portrait;
   const line = (t: string, width = w) => ({ height: textLines(t, 12, width) * lineHeight(12) });
   const blank1 = line('');
-  // the two columns of the heading: the requisites (4 lines) and «Керівнику …» with the address of the TCK
-  const header = Math.max(4, 1 + textLines(input.tck?.address ?? '', 12, w / 2));
+  const addressee = 1 + textLines(input.tck?.address ?? '', 12, w / 2);
+  const head = input.letterhead;
+  // with the letterhead: it, then «Вих. № / від» beside «Керівнику …» with the address of the TCK;
+  // without it: the requisites (4 lines) beside the addressee, then «Вих. № / від»
+  const top = head?.enabled
+    ? [
+        { height: letterheadHeight(letterheadContent(input.org, head), head, w) },
+        { height: Math.max(2, addressee) * lineHeight(12) },
+      ]
+    : [{ height: Math.max(4, addressee) * lineHeight(12) }, blank1, line('Вих. №'), line('від')];
   return estimatePages({
     pageHeight: A4.height - 2 * 1134,
     widths: [],
     before: [
-      { height: header * lineHeight(12) },
-      blank1,
-      line('Вих. №'),
-      line('від'),
+      ...top,
       blank1,
       line('Щодо звірки облікових даних'),
       blank1,

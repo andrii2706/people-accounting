@@ -22,12 +22,14 @@ import {
   CreateLegalEntityDto,
   GrantAccessDto,
   LabelSettingsDto,
+  LetterheadSettingsDto,
   RegistryLookupDto,
   UpdateLegalEntityDto,
 } from './legal-entities.dto.js';
 import { LegalEntityAccessService } from './legal-entity-access.service.js';
 import { parsePerson } from './utils/person.utils.js';
-import { changedFields, entityHistory, labelSettingsDiff } from './utils/entity-history.utils.js';
+import { changedFields, entityHistory, labelSettingsDiff, letterheadDiff } from './utils/entity-history.utils.js';
+import type { LetterheadSettings, LetterheadSettingsPage } from '../shared/interfaces/letterhead.interface.js';
 import type { LabelSettings, LabelSettingsPage } from '../shared/interfaces/label-settings.interface.js';
 import { ENTITY_FORM_FIELDS, ENTITY_NOT_FOUND, PERSON_FIELDS } from './legal-entities.constants.js';
 import type { LegalEntity } from './legal-entity.entity.js';
@@ -172,6 +174,37 @@ export class LegalEntitiesController {
     assertInScope(scope, id, ENTITY_NOT_FOUND);
     const { before, after } = await this.entities.saveLabelSettings(id, dto);
     const diff = labelSettingsDiff(before, after);
+    if (Object.keys(diff).length) await this.audit.log('legal-entity', id, 'UPDATE', diff, user);
+    return after;
+  }
+
+  /** The letterhead of the letters of the entity: the settings and its requisites for the preview. */
+  @Roles(...ENTITY_MANAGERS)
+  @Get(':id/letterhead')
+  async letterhead(
+    @Param('id', ParseUUIDPipe) id: string,
+    @EntityScope() scope: Scope,
+  ): Promise<LetterheadSettingsPage> {
+    assertInScope(scope, id, ENTITY_NOT_FOUND);
+    await this.entities.get(id);
+    const [settings, requisites] = await Promise.all([
+      this.entities.letterheadSettings(id),
+      this.entities.letterheadRequisites(id),
+    ]);
+    return { settings, requisites };
+  }
+
+  @Roles(...ENTITY_MANAGERS)
+  @Put(':id/letterhead')
+  async saveLetterhead(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: LetterheadSettingsDto,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ): Promise<LetterheadSettings> {
+    assertInScope(scope, id, ENTITY_NOT_FOUND);
+    const { before, after } = await this.entities.saveLetterheadSettings(id, dto);
+    const diff = letterheadDiff(before, after);
     if (Object.keys(diff).length) await this.audit.log('legal-entity', id, 'UPDATE', diff, user);
     return after;
   }

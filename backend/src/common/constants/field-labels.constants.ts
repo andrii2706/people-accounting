@@ -46,6 +46,23 @@ export const LEGAL_ENTITY_LABELS: Record<string, string> = {
   notifyEmails: 'Додаткові email для нагадувань',
 };
 
+export const LETTERHEAD_SETTINGS_LABELS: Record<string, string> = {
+  enabled: 'Бланк у листах',
+  font: 'Шрифт',
+  titleSize: 'Розмір назви',
+  textSize: 'Розмір реквізитів',
+  titleBold: 'Назва жирним',
+  titleAlign: 'Вирівнювання назви',
+  title: 'Назва на бланку',
+  customTitle: 'Своя назва',
+  showAddress: 'Адреса',
+  showCode: 'Код ЄДР',
+  showPhone: 'Телефон',
+  showEmail: 'Email',
+  extraLine: 'Додатковий рядок',
+  rule: 'Лінія під бланком',
+};
+
 export const LABEL_SETTINGS_LABELS: Record<string, string> = {
   mode: 'Що друкуємо',
   font: 'Шрифт',
@@ -279,4 +296,5 @@ export const LABELS_BY_REQUEST: Record<string, Record<string, string>> = {
   ImportTckDto: TCK_LABELS,
   UpdateBillingDto: BILLING_LABELS,
   LabelSettingsDto: LABEL_SETTINGS_LABELS,
+  LetterheadSettingsDto: LETTERHEAD_SETTINGS_LABELS,
 };

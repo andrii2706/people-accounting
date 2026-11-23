@@ -1,4 +1,14 @@
-import { LABEL_SETTINGS_LABELS, LEGAL_ENTITY_LABELS } from '../../common/constants/field-labels.constants.js';
+import {
+  LABEL_SETTINGS_LABELS,
+  LEGAL_ENTITY_LABELS,
+  LETTERHEAD_SETTINGS_LABELS,
+} from '../../common/constants/field-labels.constants.js';
+import {
+  LETTERHEAD_JOURNAL_PREFIX,
+  LETTERHEAD_SETTING_FIELDS,
+  LETTERHEAD_VALUE_TEXT,
+} from '../../documents/letterhead.constants.js';
+import type { LetterheadSettings } from '../../shared/interfaces/letterhead.interface.js';
 import {
   LABEL_JOURNAL_PREFIX,
   LABEL_SETTING_FIELDS,
@@ -39,8 +49,25 @@ export function labelSettingsDiff(before: LabelSettings, after: LabelSettings): 
   );
 }
 
-/** A field of the journal: the label settings are «Наклейки: Шрифт». */
+/** Changed letterhead settings for the journal: { 'letterhead:font': ['Arial', 'Calibri'] }. */
+export function letterheadDiff(
+  before: LetterheadSettings,
+  after: LetterheadSettings,
+): Record<string, [unknown, unknown]> {
+  return Object.fromEntries(
+    Object.entries(changedFields(before, after, LETTERHEAD_SETTING_FIELDS)).map(([k, v]) => [
+      `${LETTERHEAD_JOURNAL_PREFIX}${k}`,
+      v,
+    ]),
+  );
+}
+
+/** A field of the journal: the label settings are «Наклейки: Шрифт», the letterhead — «Бланк: Шрифт». */
 function historyLabel(field: string): string {
+  if (field.startsWith(LETTERHEAD_JOURNAL_PREFIX)) {
+    const key = field.slice(LETTERHEAD_JOURNAL_PREFIX.length);
+    return `Бланк: ${LETTERHEAD_SETTINGS_LABELS[key] ?? key}`;
+  }
   if (field.startsWith(LABEL_JOURNAL_PREFIX)) {
     const key = field.slice(LABEL_JOURNAL_PREFIX.length);
     return `Наклейки: ${LABEL_SETTINGS_LABELS[key] ?? key}`;
@@ -54,6 +81,7 @@ export function entityHistory(rows: AuditLog[]): HistoryEntry[] {
     if (v === null || v === undefined || v === '') return '—';
     if (field === 'reservationQuotaPercent') return `${text(v).replace('.', ',')}%`;
     if (field === 'reservationQuotaDocDate' || field === 'reservationQuotaValidUntil') return formatUa(text(v), '—');
+    if (field.startsWith(LETTERHEAD_JOURNAL_PREFIX)) return LETTERHEAD_VALUE_TEXT[text(v)] ?? text(v);
     if (field.startsWith(LABEL_JOURNAL_PREFIX)) {
       if (Array.isArray(v)) return v.map((x) => LABEL_VALUE_TEXT[text(x)] ?? text(x)).join(' → ');
       return LABEL_VALUE_TEXT[text(v)] ?? text(v).replace('.', ',');

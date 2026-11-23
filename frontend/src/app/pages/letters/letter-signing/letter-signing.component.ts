@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -36,6 +37,7 @@ import { toBase64 } from '../../../shared/utils/file.utils';
   templateUrl: './letter-signing.component.html',
 })
 export class LetterSigningComponent implements OnDestroy {
+  private readonly dialogs = inject(ConfirmService);
   protected readonly signatures = inject(SignaturesService);
   private readonly widget = inject(IitSignWidgetService);
   private readonly toast = inject(ToastService);
@@ -78,12 +80,14 @@ export class LetterSigningComponent implements OnDestroy {
   }
 
   protected async unfreeze() {
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm('Скасувати фіксацію? Документ буде згенеровано заново з поточних даних.')
-    ) {
-      return;
-    }
+    const ok = await this.dialogs.confirm({
+      title: 'Скасувати фіксацію документа?',
+      text: 'Документ буде згенеровано заново з поточних даних, наявні підписи під ним стануть недійсними.',
+      confirmLabel: 'Скасувати фіксацію',
+      cancelLabel: 'Залишити',
+      tone: 'warning',
+    });
+    if (!ok) return;
     await this.run(() => this.signatures.unfreeze(this.letterId()), 'Фіксацію скасовано');
   }
 

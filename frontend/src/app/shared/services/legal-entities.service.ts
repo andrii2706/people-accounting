@@ -17,6 +17,10 @@ import type {
 } from '../interfaces/legal-entity.interface';
 import type { AuditEntry } from '../interfaces/employee.interface';
 import type { LabelSettings, LabelSettingsPage } from '../interfaces/label-settings.interface';
+import type {
+  LetterheadSettings,
+  LetterheadSettingsPage,
+} from '../interfaces/letterhead.interface';
 
 /** Legal entities of the client: requisites, head and responsible person for the documents. */
 @Injectable({ providedIn: 'root' })
@@ -93,6 +97,17 @@ export class LegalEntitiesService {
   saveLabelSettings(id: string, body: LabelSettings) {
     return firstValueFrom(
       this.http.put<LabelSettings>(`api/legal-entities/${id}/label-settings`, body),
+    );
+  }
+
+  /** The letterhead of the letters: the settings and the requisites it is made of. */
+  letterhead(id: string) {
+    return this.http.get<LetterheadSettingsPage>(`api/legal-entities/${id}/letterhead`);
+  }
+
+  saveLetterhead(id: string, body: LetterheadSettings) {
+    return firstValueFrom(
+      this.http.put<LetterheadSettings>(`api/legal-entities/${id}/letterhead`, body),
     );
   }
 

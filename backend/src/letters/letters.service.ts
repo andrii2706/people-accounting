@@ -523,17 +523,18 @@ export class LettersService {
     if (letter.type === 'CHANGE_NOTICE') {
       const rows = await this.ensureNotices(letter);
       if (!rows.length) throw new BadRequestException('У листі немає повідомлень');
-      const [org, responsible, tck] = await Promise.all([
+      const [org, responsible, tck, letterhead] = await Promise.all([
         this.legalEntities.requisites(letter.legalEntityId),
         this.legalEntities.responsible(letter.legalEntityId),
         letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
+        this.legalEntities.letterheadSettings(letter.legalEntityId),
       ]);
       const notices = rows.map((r) => ({
         ...(JSON.parse(r.content) as NoticeSnapshot),
         sequence: r.sequence,
         changeType: r.changeType,
       }));
-      const buffer = await buildChangeNotice({ letter: ref, tck, notices, org, responsible });
+      const buffer = await buildChangeNotice({ letter: ref, tck, notices, org, responsible, letterhead });
       const people = new Set(rows.map((r) => r.employeeName));
       const who = people.size === 1 ? notices[0].lastName : employeesCount(people.size);
       return { buffer, filename: `Повідомлення ${safeNumber} ${who}.docx` };
@@ -658,14 +659,16 @@ export class LettersService {
       ];
     });
 
-    const [org, responsible, tck, labels] = await Promise.all([
+    const [org, responsible, tck, labels, letterhead] = await Promise.all([
       this.legalEntities.requisites(letter.legalEntityId),
       this.legalEntities.responsible(letter.legalEntityId),
       letter.tckId ? this.tckRepo.findOneBy({ id: letter.tckId }) : null,
       this.legalEntities.labelSettings(letter.legalEntityId),
+      this.legalEntities.letterheadSettings(letter.legalEntityId),
     ]);
     const buffer = await buildReconciliation({
       letter: { number: letter.number, date: letter.date },
+      letterhead,
       declaredValue: labels.declaredValue,
       reportDate,
       tck,

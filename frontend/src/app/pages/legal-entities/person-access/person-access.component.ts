@@ -1,3 +1,4 @@
+import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -50,6 +51,7 @@ import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
   templateUrl: './person-access.component.html',
 })
 export class PersonAccessComponent {
+  private readonly dialogs = inject(ConfirmService);
   private readonly service = inject(LegalEntitiesService);
   private readonly toast = inject(ToastService);
   private readonly auth = inject(AuthService);
@@ -112,13 +114,15 @@ export class PersonAccessComponent {
   protected async revoke() {
     const access = this.access();
     if (!access) return;
-    if (
-      typeof window !== 'undefined' &&
-      !window.confirm(
-        `Скасувати доступ ${access.email}? Обліковий запис буде вимкнено, активні сеанси завершаться.`,
-      )
-    )
-      return;
+    const ok = await this.dialogs.confirm({
+      title: `Скасувати доступ ${access.email}?`,
+      text: 'Обліковий запис буде вимкнено, активні сеанси завершаться.',
+      confirmLabel: 'Скасувати доступ',
+      cancelLabel: 'Залишити',
+      tone: 'danger',
+      icon: 'lock',
+    });
+    if (!ok) return;
     this.busy.set(true);
     try {
       const result = await this.service.revokeAccess(this.entityId(), this.person());
