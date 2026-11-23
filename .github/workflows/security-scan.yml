@@ -69,6 +69,11 @@ jobs:
           cmd_options: '-a -I -j'
           allow_issue_writing: ${{ github.event_name == 'schedule' }}
           artifact_name: zap-baseline
+      # Both ZAP actions write report_json.json / report_md.md / report_html.html into the workspace from inside their
+      # container (another user): the second one cannot overwrite the files of the first and fails with exit code 3.
+      # The baseline reports are already uploaded as the artifact zap-baseline — they are removed before the API scan.
+      - name: Clear the baseline reports
+        run: sudo rm -f report_json.json report_md.md report_html.html
       - name: ZAP API scan (every route)
         uses: zaproxy/action-api-scan@v0.9.0
         with:

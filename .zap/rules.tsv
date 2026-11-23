@@ -13,3 +13,4 @@
 90019	FAIL	(Server side code injection)
 90020	FAIL	(Remote OS command injection)
 6	FAIL	(Path traversal)
+100001	IGNORE	(Unexpected Content-Type — the API answers JSON 404 to the probes of /WEB-INF/…, .htaccess and other paths it does not have)
