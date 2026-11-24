@@ -1,6 +1,8 @@
 import type { Request } from 'express';
 
 import type { User } from '../../users/user.entity.js';
+export type SessionEntry = 'portal' | 'login';
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -19,6 +21,8 @@ export interface AuthUser {
   address?: string;
   /** The applications the account may open (oblik, kadry, docs). */
   modules?: string[];
+  /** How this session began (GET /api/auth/me only). */
+  via?: SessionEntry;
 }
 
 export type SignupSource = 'ADMIN' | 'SELF';
@@ -30,6 +34,11 @@ export interface SessionPayload {
   /** Session start (seconds) — for the absolute session lifetime limit. */
   sst: number;
   role: UserRole;
+  /**
+   * How the person came in: from the portal (a ticket) — «Вийти» takes them back to the portal; through the sign-in
+   * of this application — to its sign-in page.
+   */
+  via?: SessionEntry;
   /** The shared session (ES256): the legal entity and the applications — for the other applications. */
   ent?: string | null;
   mods?: string[];

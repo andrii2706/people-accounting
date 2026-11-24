@@ -71,6 +71,8 @@ export const HANDED_OVER_PASSWORD_PROBLEM = 'лише латинські літ�
 
 /** Where an account without «Військовий облік» goes: the portal of the domain says which modules it has. */
 export const MODULE_DENIED_URL = '/?denied=oblik';
+/** The portal of the domain — where «Вийти» leads a person who came in from it. */
+export const PORTAL_HOME = '/';
 
 /**
  * Where a module closed for a debt sends the user behind the portal: the portal opens and says why and what to

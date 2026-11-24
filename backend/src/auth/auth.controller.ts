@@ -209,8 +209,10 @@ export class AuthController {
   @AllowUnpaid()
   @AllowUnassigned()
   @Get('me')
-  me(@CurrentUser() user: AuthUser): Promise<AuthUser> {
-    return withAddress(user);
+  async me(@CurrentUser() user: AuthUser, @Req() req: Request): Promise<AuthUser> {
+    const token = (req.cookies as Record<string, string> | undefined)?.[this.sessions.cookieName] ?? '';
+    const payload = await this.sessions.verify(token).catch(() => null);
+    return { ...(await withAddress(user)), via: payload?.via === 'portal' ? 'portal' : 'login' };
   }
 
   /**

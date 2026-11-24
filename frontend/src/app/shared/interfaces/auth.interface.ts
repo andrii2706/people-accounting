@@ -24,6 +24,8 @@ export interface AuthUser {
   address?: string;
   /** The applications of the domain the account may open (oblik, kadry, docs). */
   modules?: string[];
+  /** Came in from the portal (a ticket) or through the sign-in of this application — where «Вийти» leads. */
+  via?: 'portal' | 'login';
 }
 
 export type SignupSource = 'ADMIN' | 'SELF';

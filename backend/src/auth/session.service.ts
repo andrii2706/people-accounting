@@ -4,7 +4,7 @@ import type { CookieOptions, Response } from 'express';
 import { createPublicKey, type JsonWebKey } from 'node:crypto';
 import { loadEnv } from '../config/env.js';
 import { SESSION_ALGORITHM, SESSION_AUDIENCE, SESSION_ISSUER } from '../platform/contracts/session.js';
-import type { SessionPayload, SessionSubject } from '../shared/interfaces/auth.interface.js';
+import type { SessionEntry, SessionPayload, SessionSubject } from '../shared/interfaces/auth.interface.js';
 import { modulesOf } from './utils/auth.utils.js';
 
 /**
@@ -38,12 +38,13 @@ export class SessionService {
     };
   }
 
-  async issue(res: Response, user: SessionSubject, sessionStart?: number) {
+  async issue(res: Response, user: SessionSubject, sessionStart?: number, via: SessionEntry = 'login') {
     const payload: SessionPayload = {
       sub: user.id,
       ver: user.tokenVersion,
       sst: sessionStart ?? Math.floor(Date.now() / 1000),
       role: user.role,
+      via,
     };
     const expiresIn = `${this.env.sessionIdleMinutes}m` as const;
     const key = this.env.sessionSigningKey;

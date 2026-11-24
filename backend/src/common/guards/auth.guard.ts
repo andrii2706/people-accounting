@@ -180,7 +180,7 @@ export class AuthGuard implements CanActivate {
     if (roles?.length && !roles.includes(user.role)) throw new ForbiddenException('Недостатньо прав');
 
     // sliding idle timeout
-    if (this.sessions.shouldRefresh(payload)) await this.sessions.issue(res, user, payload.sst);
+    if (this.sessions.shouldRefresh(payload)) await this.sessions.issue(res, user, payload.sst, payload.via);
     return true;
   }
 }

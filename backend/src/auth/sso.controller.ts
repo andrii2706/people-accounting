@@ -66,7 +66,7 @@ export class SsoController {
 
     const user = await this.accountOf(claims);
     if (!user?.isActive) return res.redirect(302, `${base}login?reason=sso`);
-    await this.sessions.issue(res, user);
+    await this.sessions.issue(res, user, undefined, 'portal');
     await this.audit.log('auth', user.id, 'LOGIN', { via: [null, 'portal'], ip: [null, clientIp(req)] }, user);
     const next = claims.next.startsWith('/') && !claims.next.startsWith('//') ? claims.next : base;
     return res.redirect(302, next);

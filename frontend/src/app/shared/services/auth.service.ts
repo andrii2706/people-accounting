@@ -1,5 +1,6 @@
-import { ENTITY_MANAGER_ROLES, ROLE_LABELS } from '../constants/auth.constants';
+import { ENTITY_MANAGER_ROLES, PORTAL_HOME, ROLE_LABELS } from '../constants/auth.constants';
 import { HttpClient } from '@angular/common/http';
+import { DOCUMENT } from '@angular/common';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -22,6 +23,7 @@ import {
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
+  private readonly document = inject(DOCUMENT);
 
   private readonly _user = signal<AuthUser | null>(null);
   private readonly _checked = signal(false);
@@ -190,8 +192,14 @@ export class AuthService {
 
   /** `reason: 'idle'` — signed out after inactivity: the login page explains it and returns to `returnUrl`. */
   async logout(opts: LogoutOptions = {}): Promise<void> {
+    const fromPortal = this._user()?.via === 'portal';
     await firstValueFrom(this.http.post<void>('api/auth/logout', {})).catch(() => undefined);
     this._user.set(null);
+    // came in from the portal (the module behind /oblik/) — back to the portal, still signed in there
+    if (fromPortal && this.document.baseURI.endsWith('/oblik/')) {
+      this.document.location.assign(PORTAL_HOME);
+      return;
+    }
     const returnUrl = opts.returnUrl && opts.returnUrl !== '/' ? opts.returnUrl : undefined;
     await this.router.navigate(['/login'], {
       queryParams: opts.reason ? { reason: opts.reason, returnUrl } : {},
