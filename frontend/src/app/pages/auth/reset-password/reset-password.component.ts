@@ -19,6 +19,7 @@ import { AuthService } from '../../../shared/services/auth.service';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { orEmpty } from '../../../shared/utils/router.utils';
 import { passwordProblems } from '../../../shared/validators/password.validators';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * «Set a new password» by the link from a letter (the password expires soon, or the administrator asked
@@ -28,6 +29,7 @@ import { passwordProblems } from '../../../shared/validators/password.validators
   selector: 'app-reset-password',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PasswordInputComponent,
     FormField,
     FormFieldComponent,

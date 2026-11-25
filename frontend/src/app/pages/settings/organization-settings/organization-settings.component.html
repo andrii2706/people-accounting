@@ -32,6 +32,7 @@
     </fieldset>
     @if (auth.isAdmin()) {
       <button
+        [uiBusy]="termsForm().submitting()"
         type="submit"
         class="btn btn-primary mt-5 cursor-pointer"
         [disabled]="termsForm().submitting()"

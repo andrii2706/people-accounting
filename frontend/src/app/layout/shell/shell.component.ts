@@ -1,3 +1,4 @@
+import { UiIdleHostComponent, UiIdleService } from '@mr/ui';
 import { PlatformLocation } from '@angular/common';
 import { REPORT_NAMES } from '../../shared/constants/lists.constants';
 import { CopyrightComponent } from '../../shared/components/copyright/copyright.component';
@@ -20,7 +21,6 @@ import { IconComponent } from '../../shared/components/icon/icon.component';
 import { AccountService } from '../../shared/services/account.service';
 import { AuthService } from '../../shared/services/auth.service';
 import { EmployeesService } from '../../shared/services/employees.service';
-import { IdleTimeoutService } from '../../shared/services/idle-timeout.service';
 import { InboxService } from '../../shared/services/inbox.service';
 import { InboxListComponent } from '../../shared/components/inbox-list/inbox-list.component';
 import { BillingNoticeComponent } from '../../shared/components/billing-notice/billing-notice.component';
@@ -33,11 +33,14 @@ import { DictionariesService } from '../../shared/services/dictionaries.service'
 import { legalEntitiesCount, legalEntityName } from '../../shared/utils/legal-entity.utils';
 import { readyAppsOf } from '../../../platform/contracts/apps';
 import type { NavGroup } from '../../shared/interfaces/ui.interface';
+import { A11Y_SETTINGS_URL, A11ySettingsService, UiIconComponent } from '@mr/ui';
 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiIdleHostComponent,
+    UiIconComponent,
     RouterOutlet,
     RouterLink,
     RouterLinkActive,
@@ -56,13 +59,16 @@ import type { NavGroup } from '../../shared/interfaces/ui.interface';
 })
 export class ShellComponent {
   protected readonly auth = inject(AuthService);
+  protected readonly a11y = inject(A11ySettingsService);
+  /** «Доступність» lives in the portal (one domain — the choice works here at once) */
+  protected readonly a11yUrl = A11Y_SETTINGS_URL;
   protected readonly account = inject(AccountService);
   private readonly dict = inject(DictionariesService);
   protected readonly menuOpen = signal(false);
   /** Indicator shown while resolvers load data of the next page. */
   protected readonly isNavigating = inject(NavigationStateService).isNavigating;
   /** Sign-out after 10 minutes without mouse / keyboard activity (only in the browser). */
-  protected readonly idle = inject(IdleTimeoutService);
+  private readonly idle = inject(UiIdleService);
 
   /** In-app notifications: the bell (panel) and the window with the new ones after a sign-in. */
   protected readonly inbox = inject(InboxService);
@@ -90,6 +96,8 @@ export class ShellComponent {
     return entities.length ? legalEntitiesCount(entities.length) : '';
   });
   private readonly baseHref = inject(PlatformLocation).getBaseHrefFromDOM() || '/';
+  /** The application behind the gateway of the domain (/oblik/): the portal is there. */
+  protected readonly behindPortal = () => this.baseHref !== '/';
   /**
    * Behind the gateway of the domain (base href «/oblik/») — links to the portal and the other applications
    * of the account; when the application has the domain to itself there are none.
@@ -117,7 +125,7 @@ export class ShellComponent {
   });
 
   constructor() {
-    afterNextRender(() => this.idle.start());
+    afterNextRender(() => this.idle.start({ expire: () => this.auth.idleLogout() }));
     inject(DestroyRef).onDestroy(() => {
       this.idle.stop();
       this.inbox.reset();
@@ -186,7 +194,11 @@ export class ShellComponent {
     this.closeInbox();
     void this.inbox.markRead([item.key]);
     await this.router.navigate(
-      item.link === 'NOTICES' ? ['/notifications'] : ['/employees', item.employeeId],
+      item.link === 'NOTICES'
+        ? ['/notifications']
+        : item.link === 'QUOTA'
+          ? ['/settings/legal-entities', item.legalEntityId, 'quota']
+          : ['/employees', item.employeeId],
     );
   }
 

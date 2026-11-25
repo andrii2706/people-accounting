@@ -17,6 +17,7 @@
       адресата — після першого підпису змінити їх не можна.
     </p>
     <button
+      [uiBusy]="busy()"
       type="button"
       class="btn btn-primary mt-4 cursor-pointer"
       [disabled]="busy()"
@@ -174,6 +175,7 @@
             }
             @default {
               <button
+                [uiBusy]="busy()"
                 type="button"
                 class="btn btn-primary cursor-pointer"
                 [disabled]="busy()"

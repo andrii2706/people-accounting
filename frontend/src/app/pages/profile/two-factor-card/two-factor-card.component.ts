@@ -12,6 +12,7 @@ import { TwoFactorService } from '../../../shared/services/two-factor.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { isCodeLike, normalizeCode } from '../../../shared/utils/two-factor.utils';
 import type { TwoFactorSetup } from '../../../../platform/contracts/session';
+import { UiBusyDirective } from '@mr/ui';
 
 type Mode = 'idle' | 'password' | 'setup' | 'codes' | 'renew' | 'disable';
 
@@ -20,6 +21,7 @@ type Mode = 'idle' | 'password' | 'setup' | 'codes' | 'renew' | 'disable';
   selector: 'app-two-factor-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     CodeInputComponent,
     IconComponent,
     PasswordInputComponent,

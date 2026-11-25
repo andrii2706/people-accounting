@@ -107,7 +107,12 @@
       (backend/src/subscriptions/terms.constants.ts): перед запуском погодьте його з юристом. Нова
       редакція — нова версія, і всі користувачі погоджуються з нею знову.
     </p>
-    <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+    <button
+      [uiBusy]="f().submitting()"
+      type="submit"
+      class="btn btn-primary cursor-pointer"
+      [disabled]="f().submitting()"
+    >
       Зберегти
     </button>
   </section>

@@ -1,0 +1,131 @@
+<app-modal [open]="open()" heading="Новий паспорт" [wide]="true" (closed)="closed.emit()">
+  <p modal-lead class="mt-1 text-sm text-muted">
+    {{ employee().derived.fullName }} · старий паспорт лишиться в історії картки
+  </p>
+  <form
+    id="passport-form"
+    class="grid gap-4 py-2 sm:grid-cols-2"
+    novalidate
+    (submit)="save($event)"
+  >
+    <p
+      class="flex flex-wrap justify-between gap-2 rounded-xl bg-sunken px-3 py-2.5 text-sm sm:col-span-2"
+    >
+      <span class="text-muted">Зараз</span><span>{{ current() }}</span>
+    </p>
+    <div class="sm:col-span-2" role="radiogroup" aria-label="Тип паспорта">
+      <div
+        class="inline-flex overflow-hidden rounded-[10px] border border-[var(--ui-field-border,#8a8e82)]"
+      >
+        @for (
+          t of [
+            { v: 'ID_CARD', l: 'ID-картка' },
+            { v: 'BOOK', l: 'Книжечка' },
+          ];
+          track t.v
+        ) {
+          <button
+            type="button"
+            role="radio"
+            class="cursor-pointer px-4 py-2 text-sm"
+            [class]="
+              model().passportType === t.v
+                ? 'bg-brand-100 font-semibold text-brand-700'
+                : 'bg-surface'
+            "
+            [attr.aria-checked]="model().passportType === t.v"
+            (click)="setType($any(t.v))"
+          >
+            {{ t.l }}
+          </button>
+        }
+      </div>
+    </div>
+    @if (!isIdCard()) {
+      <app-form-field
+        label="Серія"
+        hint="дві літери кирилицею"
+        [required]="true"
+        [field]="form.passportSeries"
+      >
+        <input class="input font-mono uppercase" [formField]="form.passportSeries" />
+      </app-form-field>
+    }
+    <app-form-field
+      label="Номер"
+      [hint]="isIdCard() ? '9 цифр' : '6 цифр'"
+      [required]="true"
+      [field]="form.passportNumber"
+    >
+      <input class="input font-mono" inputmode="numeric" [formField]="form.passportNumber" />
+    </app-form-field>
+    <app-form-field label="Дата видачі" [required]="true" [field]="form.passportIssuedAt">
+      <app-date-input [formField]="form.passportIssuedAt" ariaLabel="Дата видачі паспорта" />
+    </app-form-field>
+    <app-form-field
+      [class.sm:col-span-2]="isIdCard()"
+      label="Ким виданий"
+      [hint]="isIdCard() ? 'код органу, 4 цифри, напр. 4610' : 'назва органу, що видав'"
+      [required]="true"
+      [field]="form.passportIssuedBy"
+    >
+      <input class="input" [class.font-mono]="isIdCard()" [formField]="form.passportIssuedBy" />
+    </app-form-field>
+    <app-form-field
+      label="Дата зміни"
+      hint="Підставляємо дату видачі"
+      [required]="true"
+      [field]="form.effectiveDate"
+    >
+      <app-date-input [formField]="form.effectiveDate" ariaLabel="Дата зміни" />
+    </app-form-field>
+    <app-form-field label="Підстава" hint="Порожньо — «паспорт № …»" [field]="form.basis">
+      <input class="input" [formField]="form.basis" />
+    </app-form-field>
+    <div class="rounded-xl border border-line p-3 sm:col-span-2">
+      <p class="mb-2 text-[13px] font-semibold">Повідомлення до ТЦК</p>
+      <label class="flex cursor-pointer items-start gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="mt-0.5 size-4 cursor-pointer accent-brand-600"
+          [formField]="form.notify"
+        />
+        <span>
+          @if (pending.isLoading()) {
+            Сформувати повідомлення до ТЦК
+            <span class="block text-xs text-muted">Перевіряємо чернетку листа…</span>
+          } @else if (draft(); as d) {
+            Сформувати й додати в об’єднаний лист до <b class="font-semibold">{{ d.tckName }}</b>
+            <span class="block text-xs text-muted">
+              @if (d.notices) {
+                У листі вже {{ d.notices }} змін ({{ d.employees }} працівн.).
+              } @else {
+                Лист поки порожній — це буде перша зміна.
+              }
+            </span>
+          } @else {
+            Сформувати повідомлення про зміну облікових даних
+            <span class="block text-xs text-warning">
+              ТЦК у картці не вказано — повідомлення чекатиме, доки його не оберете.
+            </span>
+          }
+        </span>
+      </label>
+    </div>
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-secondary cursor-pointer" (click)="closed.emit()">
+      Скасувати
+    </button>
+    <button
+      type="submit"
+      form="passport-form"
+      class="btn btn-primary cursor-pointer"
+      [uiBusy]="saving()"
+      [disabled]="saving()"
+    >
+      <app-icon name="send" [size]="16" />
+      {{ model().notify ? 'Зберегти й додати повідомлення' : 'Зберегти' }}
+    </button>
+  </div>
+</app-modal>

@@ -27,11 +27,13 @@ import { TwoFactorSetupComponent } from '../../../shared/components/two-factor-s
 import type { LoginStep } from '../../../shared/interfaces/auth.interface';
 import { isCodeLike, normalizeCode } from '../../../shared/utils/two-factor.utils';
 import type { LoginChallenge, TwoFactorSetup } from '../../../../platform/contracts/session';
+import { UiBusyDirective } from '@mr/ui';
 
 @Component({
   selector: 'app-login',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PasswordInputComponent,
     FormField,
     FormFieldComponent,

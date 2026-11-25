@@ -50,6 +50,7 @@
         </p>
       </div>
       <button
+        [uiBusy]="busy()"
         type="button"
         class="btn btn-danger btn-sm cursor-pointer"
         [disabled]="busy()"
@@ -163,6 +164,7 @@
         </div>
         <div class="flex gap-2">
           <button
+            [uiBusy]="changeForm().submitting()"
             type="button"
             (click)="change($event)"
             class="btn btn-primary cursor-pointer"

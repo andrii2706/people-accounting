@@ -9,7 +9,11 @@ import { MODULE_DENIED_URL } from '../../shared/constants/auth.constants';
   selector: 'app-no-module',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <main class="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+    <main
+      id="main"
+      tabindex="-1"
+      class="outline-none flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center"
+    >
       <h1 class="text-2xl font-semibold">Військовий облік не підключено</h1>
       <p class="max-w-md text-muted">
         Для вашого облікового запису цей модуль не підключено. На порталі — модулі, які вам

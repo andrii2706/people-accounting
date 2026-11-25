@@ -10,7 +10,13 @@ import { addDays, formatUa, todayIso } from '../common/utils/dates.utils.js';
 import type { IsoDate } from '../shared/interfaces/common.interface.js';
 import type { CreateEmployeeOptions, CreateManyOptions } from '../shared/interfaces/import.interface.js';
 import { CHANGE_TYPE_LABELS } from '../military/dictionaries.js';
-import { familyText, militaryDocText } from '../military/employee-format.js';
+import { familyText, militaryDocText, passportText } from '../military/employee-format.js';
+import { matchTck } from '../military/tck-match.js';
+import { QuotaWatchService } from '../notifications/quota-watch.service.js';
+import { EmployeeFieldHistory } from './entities/employee-field-history.entity.js';
+import { HISTORY_CONTACT_FIELDS } from './employees.constants.js';
+import { quotaReason, shortName } from './utils/employee-text.utils.js';
+import type { DismissalNoticeView, FieldHistoryView, TckMatchView } from '../shared/interfaces/employee.interface.js';
 import { notificationDeadline } from '../military/military-logic.js';
 import { OrganizationService } from '../organization/organization.service.js';
 import { Tck } from '../dictionaries/tck.entity.js';
@@ -44,6 +50,8 @@ import type { ChangeType } from '../shared/interfaces/dictionary.interface.js';
 import type { EmployeeCountRow } from '../shared/interfaces/letter.interface.js';
 import { SecurityService } from '../security/security.service.js';
 
+const NO_NOTICE: DismissalNoticeView = { status: 'NONE', letterNumber: null, deadline: null };
+
 @Injectable()
 export class EmployeesService {
   constructor(
@@ -55,6 +63,7 @@ export class EmployeesService {
     private readonly auditService: AuditService,
     private readonly entities: LegalEntitiesService,
     @Optional() private readonly security?: SecurityService,
+    @Optional() private readonly quota?: QuotaWatchService,
   ) {}
 
   async list(query: EmployeeQueryDto) {
@@ -97,6 +106,11 @@ export class EmployeesService {
       this.pendingCountsByEmployee(),
       this.org.get(),
     ]);
+    const dismissalNotices = await this.dismissalNotices(
+      employees.filter((e) => e.dismissalDate).map((e) => e.id),
+      org.notifyDeadlineDays,
+      employees,
+    );
 
     let items = employees.map((e) => ({
       id: e.id,
@@ -110,6 +124,10 @@ export class EmployeesService {
       department: e.department,
       hireDate: e.hireDate,
       dismissalDate: e.dismissalDate,
+      dismissalOrderDocName: e.dismissalOrderDocName,
+      dismissalOrderNumber: e.dismissalOrderNumber,
+      dismissalOrderDate: e.dismissalOrderDate,
+      dismissalNotice: e.dismissalDate ? (dismissalNotices.get(e.id) ?? NO_NOTICE) : null,
       rankCode: e.rankCode,
       vos: e.vos,
       tckName: e.tck?.name ?? '',
@@ -153,10 +171,24 @@ export class EmployeesService {
       relations: { letter: true },
       order: { effectiveDate: 'DESC', createdAt: 'DESC' },
     });
+    const history = await this.dataSource.getRepository(EmployeeFieldHistory).find({
+      where: { employeeId: id },
+      order: { effectiveDate: 'DESC', createdAt: 'DESC' },
+    });
     return {
       ...employee,
       derived: deriveEmployee(employee, todayIso(), org.alertDays),
       changes: changes.map((c) => this.changeView(c, org.notifyDeadlineDays, employee)),
+      fieldHistory: history.map((h): FieldHistoryView => ({
+        id: h.id,
+        field: h.field,
+        oldValue: h.oldValue,
+        newValue: h.newValue,
+        effectiveDate: h.effectiveDate,
+        oldEffectiveDate: h.oldEffectiveDate,
+        basis: h.basis,
+        createdAt: h.createdAt,
+      })),
     };
   }
 
@@ -177,7 +209,9 @@ export class EmployeesService {
 
   async create(dto: CreateEmployeeDto, user: AuthUser) {
     const { id } = await this.dataSource.transaction((m) => this.createIn(m, dto, user));
-    return this.get(id);
+    const created = await this.get(id);
+    await this.quota?.recalc([created.legalEntityId], `Прийнято: ${shortName(created)}`);
+    return created;
   }
 
   /**
@@ -186,7 +220,7 @@ export class EmployeesService {
    * the last RECENT_NOTICE_DAYS days (people hired long ago were reported before), ALL, NONE.
    */
   async createMany(dtos: CreateEmployeeDto[], user: AuthUser, opts: CreateManyOptions) {
-    return this.dataSource.transaction(async (m) => {
+    const result = await this.dataSource.transaction(async (m) => {
       const ids: string[] = [];
       let notices = 0;
       const since = opts.hireNotices === 'RECENT' ? addDays(todayIso(), -RECENT_NOTICE_DAYS) : null;
@@ -199,6 +233,18 @@ export class EmployeesService {
       }
       return { ids, notices };
     });
+    if (this.quota && result.ids.length) {
+      const rows = await this.repo.find({
+        where: { id: In(result.ids) },
+        select: { id: true, legalEntityId: true },
+        loadEagerRelations: false,
+      });
+      await this.quota.recalc(
+        rows.map((r) => r.legalEntityId),
+        `Додано працівників: ${result.ids.length}`,
+      );
+    }
+    return result;
   }
 
   private async createIn(m: EntityManager, dto: CreateEmployeeDto, user: AuthUser, opts: CreateEmployeeOptions = {}) {
@@ -280,6 +326,8 @@ export class EmployeesService {
 
   async update(id: string, dto: UpdateEmployeeDto, user: AuthUser) {
     const { changeMeta, familyMembers, militaryDocuments, positions, educations, ...data } = dto;
+    let quotaWhy = '';
+    let quotaEntities: (string | null)[] = [];
     await this.dataSource.transaction(async (m) => {
       const employee = await this.findEntity(id, m);
       const before = structuredClone(employee);
@@ -340,6 +388,7 @@ export class EmployeesService {
 
       // changes the TCK must be notified about
       const effectiveDate = changeMeta?.effectiveDate ?? todayIso();
+      const touched: ChangeType[] = [];
       for (const rule of CHANGE_RULES) {
         const oldValue = rule.value(before);
         const newValue = rule.value(after);
@@ -348,7 +397,17 @@ export class EmployeesService {
         const basis = changeMeta?.basis || (rule.type === 'POSITION' ? after.positionOrder : '');
         const changeDate = rule.type === 'POSITION' && after.positionSince ? after.positionSince : effectiveDate;
         await this.addChange(m, after, rule.type, oldValue, newValue, changeDate, basis, user);
+        touched.push(rule.type);
       }
+      // «не повідомляти»: the change stays in the history of the card, but no notice is queued
+      if (changeMeta?.notify === false && touched.length) {
+        await m
+          .getRepository(EmployeeChange)
+          .update({ employeeId: id, letterId: IsNull(), skipped: false, type: In(touched) }, { skipped: true });
+      }
+      await this.recordHistory(m, before, after, effectiveDate, changeMeta?.basis ?? '', user);
+      quotaWhy = quotaReason(before, after);
+      quotaEntities = [before.legalEntityId, after.legalEntityId];
       if (!before.hireDate && after.hireDate) {
         await this.addChange(m, after, 'HIRE', '', after.position, after.hireDate, this.hireBasis(after), user);
       }
@@ -367,6 +426,7 @@ export class EmployeesService {
 
       if (Object.keys(diff).length) await this.log(m, id, 'UPDATE', diff, user);
     });
+    if (quotaWhy) await this.quota?.recalc(quotaEntities, quotaWhy);
     return this.get(id);
   }
 
@@ -394,7 +454,9 @@ export class EmployeesService {
       );
       await this.log(m, id, 'DISMISS', { dismissalDate: [null, dto.dismissalDate] }, user);
     });
-    return this.get(id);
+    const dismissed = await this.get(id);
+    await this.quota?.recalc([dismissed.legalEntityId], `Звільнено: ${shortName(dismissed)}`);
+    return dismissed;
   }
 
   async remove(id: string, user: AuthUser) {
@@ -403,6 +465,7 @@ export class EmployeesService {
       await m.getRepository(Employee).delete(id);
       await this.log(m, id, 'DELETE', { fullName: [`${employee.lastName} ${employee.firstName}`, null] }, user);
     });
+    await this.quota?.recalc([employee.legalEntityId], 'Видалено картку працівника');
   }
 
   /** The employee belongs to the legal entity of the scope — otherwise «not found» (no hint it exists). */
@@ -428,7 +491,7 @@ export class EmployeesService {
         skipped: false,
         ...(scope ? { employee: { legalEntityId: scope } } : {}),
       },
-      relations: { employee: { tck: true } },
+      relations: { employee: { tck: true, legalEntity: true } },
       order: { effectiveDate: 'ASC' },
     });
     return changes.map((c) => ({
@@ -438,7 +501,12 @@ export class EmployeesService {
         fullName: `${c.employee.lastName} ${c.employee.firstName} ${c.employee.middleName}`.trim(),
         tckId: c.employee.tckId,
         tckName: c.employee.tck?.name ?? '',
+        tckNameGenitive: c.employee.tck?.nameGenitive || c.employee.tck?.name || '',
         tckEmail: c.employee.tck?.email ?? '',
+        legalEntityId: c.employee.legalEntityId,
+        legalEntityName: c.employee.legalEntity
+          ? c.employee.legalEntity.shortName || c.employee.legalEntity.fullName
+          : '',
       },
     }));
   }
@@ -578,6 +646,106 @@ export class EmployeesService {
     if (typeof out.middleName === 'string') out.middleName = capitalizeName(out.middleName);
     if (typeof out.vos === 'string') out.vos = normalizeVos(out.vos);
     if (typeof out.phone === 'string') out.phone = normalizePhone(out.phone);
+    return out;
+  }
+
+  /**
+   * Employees (of the scope) without a TCK whose military document was issued by this TCK — when a TCK is added
+   * to the directory, they are offered to get it in their cards.
+   */
+  async tckMatches(tckId: string, scope: Scope = null): Promise<TckMatchView[]> {
+    const tck = await this.dataSource.getRepository(Tck).findOneBy({ id: tckId });
+    if (!tck) throw new NotFoundException('ТЦК не знайдено');
+    const candidates = await this.repo.find({
+      where: { tckId: IsNull(), ...(scope ? { legalEntityId: scope } : {}) },
+      order: { lastName: 'ASC', firstName: 'ASC' },
+    });
+    const today = todayIso();
+    return candidates
+      .filter((e) => !e.dismissalDate || e.dismissalDate > today)
+      .map((e) => ({
+        e,
+        doc: (e.militaryDocuments ?? []).find((d) => d.issuedBy && matchTck(d.issuedBy, [tck]) === tck.id),
+      }))
+      .filter((x) => !!x.doc)
+      .map(({ e, doc }) => ({
+        id: e.id,
+        fullName: `${e.lastName} ${e.firstName} ${e.middleName}`.trim(),
+        issuedBy: doc!.issuedBy,
+      }));
+  }
+
+  /** Fills in the TCK of the chosen employees (each through update(): history, journal, quota). */
+  async assignTck(tckId: string, employeeIds: string[], user: AuthUser, scope: Scope = null) {
+    const allowed = new Set((await this.tckMatches(tckId, scope)).map((x) => x.id));
+    let assigned = 0;
+    for (const id of employeeIds) {
+      if (!allowed.has(id)) continue;
+      await this.update(id, { tckId } as UpdateEmployeeDto, user);
+      assigned++;
+    }
+    return { assigned };
+  }
+
+  /**
+   * Contacts, addresses, the passport and the TCK — the old and the new value with the day the change happened.
+   * The TCK keeps «на обліку з» of the previous one too.
+   */
+  private async recordHistory(
+    m: EntityManager,
+    before: Employee,
+    after: Employee,
+    effectiveDate: IsoDate,
+    basis: string,
+    user: AuthUser,
+  ) {
+    const rows: Partial<EmployeeFieldHistory>[] = [];
+    for (const field of HISTORY_CONTACT_FIELDS) {
+      if ((before[field] ?? '') !== (after[field] ?? '')) {
+        rows.push({ field, oldValue: before[field] ?? '', newValue: after[field] ?? '', effectiveDate });
+      }
+    }
+    const oldPassport = passportText(before);
+    const newPassport = passportText(after);
+    if (oldPassport !== newPassport)
+      rows.push({ field: 'passport', oldValue: oldPassport, newValue: newPassport, effectiveDate });
+    if ((before.tckId ?? null) !== (after.tckId ?? null)) {
+      rows.push({
+        field: 'tck',
+        oldValue: before.tck?.name ?? '',
+        newValue: after.tck?.name ?? '',
+        effectiveDate: after.tckRegisteredAt ?? effectiveDate,
+        oldEffectiveDate: before.tckRegisteredAt ?? null,
+      });
+    }
+    if (!rows.length) return;
+    const repo = m.getRepository(EmployeeFieldHistory);
+    await repo.save(rows.map((r) => repo.create({ ...r, employeeId: after.id, basis, createdById: user.id })));
+  }
+
+  /** The notice about the dismissal of each dismissed employee: the letter it went in, or the deadline. */
+  private async dismissalNotices(ids: string[], deadlineDays: number, employees: Employee[]) {
+    const out = new Map<string, DismissalNoticeView>();
+    if (!ids.length) return out;
+    const byId = new Map(employees.map((e) => [e.id, e]));
+    const rows = await this.changeRepo.find({
+      where: { employeeId: In(ids), type: 'DISMISSAL' },
+      relations: { letter: true },
+      order: { createdAt: 'DESC' },
+    });
+    for (const c of rows) {
+      if (out.has(c.employeeId) || c.skipped) continue;
+      out.set(
+        c.employeeId,
+        c.letter
+          ? { status: c.letter.status === 'SENT' ? 'SENT' : 'IN_LETTER', letterNumber: c.letter.number, deadline: null }
+          : {
+              status: 'PENDING',
+              letterNumber: null,
+              deadline: notificationDeadline(c.type, c.effectiveDate, byId.get(c.employeeId), deadlineDays),
+            },
+      );
+    }
     return out;
   }
 

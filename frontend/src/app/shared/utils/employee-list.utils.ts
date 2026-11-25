@@ -1,5 +1,10 @@
 import { todayIso } from './date.utils';
-import type { EmployeeListItem, EmployeeView, StatusBadge } from '../interfaces/employee.interface';
+import type {
+  DismissalNotice,
+  EmployeeListItem,
+  EmployeeView,
+  StatusBadge,
+} from '../interfaces/employee.interface';
 
 /** Warnings and errors (not info) of the card plus changes not reported to the TCK. */
 export function warningCount(e: EmployeeListItem): number {
@@ -15,7 +20,8 @@ export function isDismissed(
 }
 
 /**
- * Tabs of the employee list: «Усі» — everyone, dismissed included; «Звільнені» — only the dismissed;
+ * Tabs of the employee list: «Працюють» — everyone working today (a dismissal later than today is still here);
+ * «Звільнені» — only the dismissed, in their own table;
  * «Відстрочка» / «Заброньовані» — only working employees with a deferral / reservation in force.
  * «Потребують уваги» — working employees with problems, and the dismissed whose TCK notice is not sent yet.
  */
@@ -31,7 +37,7 @@ export function matchesView(e: EmployeeListItem, view: EmployeeView, today = tod
     case 'dismissed':
       return dismissed;
     default:
-      return true;
+      return !dismissed;
   }
 }
 
@@ -70,4 +76,16 @@ export function initials(e: Pick<EmployeeListItem, 'lastName' | 'firstName'>): s
 
 export function hasDanger(e: EmployeeListItem): boolean {
   return e.warnings.some((w) => w.level === 'danger');
+}
+
+/** The column «Повідомлення ТЦК» of the dismissed: what it says and its tone. */
+export function dismissalNoticeText(n: DismissalNotice | null): StatusBadge {
+  if (!n || n.status === 'NONE') return { label: 'не потрібне', tone: 'muted' };
+  if (n.status === 'SENT') return { label: `Надіслано № ${n.letterNumber}`, tone: 'ok' };
+  if (n.status === 'IN_LETTER')
+    return { label: `У листі № ${n.letterNumber} · не надіслано`, tone: 'info' };
+  return {
+    label: n.deadline ? `Очікує · до ${ua(n.deadline)}` : 'Очікує',
+    tone: 'warning',
+  };
 }

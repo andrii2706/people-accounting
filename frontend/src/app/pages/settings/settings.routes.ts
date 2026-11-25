@@ -4,6 +4,7 @@ import {
   hrSyncResolver,
   labelSettingsResolver,
   letterheadResolver,
+  quotaResolver,
   listSettingsResolver,
   signupsResolver,
   organizationSettingsResolver,
@@ -55,6 +56,13 @@ export const SETTINGS_ROUTES: Routes = [
       import('../legal-entities/legal-entity-form/legal-entity-form.component').then(
         (m) => m.LegalEntityFormComponent,
       ),
+  },
+  {
+    path: 'legal-entities/:id/quota',
+    title: 'Квота бронювання · Військовий облік',
+    resolve: { data: quotaResolver },
+    runGuardsAndResolvers: 'always',
+    loadComponent: () => import('./quota/quota.component').then((m) => m.QuotaComponent),
   },
   {
     path: 'legal-entities/:id/letterhead',

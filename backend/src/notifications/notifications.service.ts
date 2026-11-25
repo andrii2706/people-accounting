@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { loadEnv } from '../config/env.js';
 import { addressOf } from '../documents/name-declension.js';
-import type { PasswordLinkMail, TemporaryPasswordMail } from '../shared/interfaces/mail.interface.js';
+import type { MailLetter, PasswordLinkMail, TemporaryPasswordMail } from '../shared/interfaces/mail.interface.js';
 import { passwordChangeLetter, passwordExpiringLetter } from './templates/password-letters.template.js';
 import type { UserRole } from '../shared/interfaces/auth.interface.js';
 import { ROLE_ACCESS_TEXT } from '../users/users.constants.js';
@@ -59,6 +59,17 @@ export class NotificationsService {
       return (await this.mail.send(to, subject, text)) ? to.length : 0;
     } catch (err) {
       this.logger.error(`Не вдалося надіслати «${subject}»`, err as Error);
+      return 0;
+    }
+  }
+
+  /** The same as notifyUsers(), as an HTML letter. Never throws. */
+  async notifyUsersLetter(letter: MailLetter, legalEntityId: string | null = null): Promise<number> {
+    try {
+      const to = await this.recipients(legalEntityId);
+      return (await this.mail.sendLetter(to, letter)) ? to.length : 0;
+    } catch (err) {
+      this.logger.error(`Не вдалося надіслати «${letter.subject}»`, err as Error);
       return 0;
     }
   }

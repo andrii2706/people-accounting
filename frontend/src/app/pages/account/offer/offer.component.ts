@@ -5,12 +5,19 @@ import { CopyrightComponent } from '../../../shared/components/copyright/copyrig
 import { IconComponent } from '../../../shared/components/icon/icon.component';
 import { TermsDocumentComponent } from '../../../shared/components/terms-document/terms-document.component';
 import { AccountService } from '../../../shared/services/account.service';
+import { UiPageLoaderComponent } from '@mr/ui';
 
 /** The public offer — open without signing in (the link from the sign-up form). */
 @Component({
   selector: 'app-offer',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, TermsDocumentComponent, CopyrightComponent],
+  imports: [
+    UiPageLoaderComponent,
+    RouterLink,
+    IconComponent,
+    TermsDocumentComponent,
+    CopyrightComponent,
+  ],
   templateUrl: './offer.component.html',
 })
 export class OfferComponent {

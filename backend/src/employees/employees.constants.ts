@@ -47,6 +47,9 @@ export const CHANGE_RULES: ChangeRule[] = [
   { type: 'PASSPORT', value: passportText, requireValue: true },
 ];
 
+/** Contacts and addresses whose changes are kept with the date they happened (employee_field_history). */
+export const HISTORY_CONTACT_FIELDS = ['phone', 'email', 'registeredAddress', 'actualAddress'] as const;
+
 /** The change types the TCK is notified about — the rules above plus the hiring and the dismissal. */
 export const NOTICE_CHANGE_TYPES: ChangeType[] = [...CHANGE_RULES.map((r) => r.type), 'HIRE', 'DISMISSAL'];
 

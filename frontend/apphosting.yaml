@@ -1,6 +1,7 @@
 # Firebase App Hosting — Angular SSR (frontend).
 # Nothing has to be filled in: the API address is found automatically (see docs/DEPLOYMENT.md).
-# No secrets here: the frontend has no access to the DB or keys — only to the private API.
+# No secrets in this file: the frontend has no access to the DB or keys — only to the private API;
+# the only secret it uses is the read-only token of GitHub Packages, at build time.
 
 runConfig:
   cpu: 1
@@ -10,6 +11,12 @@ runConfig:
   maxInstances: 4
 
 env:
+  # @mr/ui — the private package from GitHub Packages: npm ci reads it with this token, only while building
+  # (a classic token with read:packages only). Once:  firebase apphosting:secrets:set GITHUB_PACKAGES_TOKEN
+  - variable: NODE_AUTH_TOKEN
+    secret: GITHUB_PACKAGES_TOKEN
+    availability: [BUILD]
+
   # API address is determined automatically: https://military-registry-api-<project number>.<region>.run.app
   # (the same region as App Hosting). Set it only if the API is in another region or under another name:
   # - variable: API_INTERNAL_URL

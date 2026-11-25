@@ -2,7 +2,8 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "cli": {
-    "packageManager": "npm"
+    "packageManager": "npm",
+    "analytics": "0dfc0061-d5c6-4c14-bca4-5a8ac30e317c"
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -51,15 +52,11 @@
                 "input": "public"
               }
             ],
-            "styles": [
-              "src/styles.css"
-            ],
+            "styles": ["src/styles.css"],
             "server": "src/main.server.ts",
             "outputMode": "server",
             "security": {
-              "allowedHosts": [
-                "localhost"
-              ]
+              "allowedHosts": ["localhost"]
             },
             "ssr": {
               "entry": "src/server.ts"
@@ -70,7 +67,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "540kB",
+                  "maximumWarning": "600kB",
                   "maximumError": "1MB"
                 },
                 {
@@ -120,7 +117,24 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "setupFiles": ["src/test-setup.ts"],
+            "coverageInclude": ["src/app/**/*.ts"],
+            "coverageExclude": [
+              "src/app/**/*.spec.ts",
+              "src/app/testing/**",
+              "src/app/shared/interfaces/**",
+              "src/app/**/*.routes.ts"
+            ],
+            "coverageReporters": ["text-summary", "html", "json-summary"],
+            "coverageThresholds": {
+              "statements": 82,
+              "branches": 70,
+              "functions": 80,
+              "lines": 83
+            }
+          }
         }
       }
     }

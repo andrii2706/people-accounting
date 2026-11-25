@@ -100,8 +100,14 @@
           </td>
           <td class="text-right whitespace-nowrap tabular-nums">
             @if (e.quota.quota !== null) {
-              <span [class.text-danger]="e.quota.exceeded"
-                >{{ e.quota.reservedCompany }} з {{ e.quota.quota }}</span
+              <a
+                class="hover:underline"
+                [class.text-danger]="e.quota.exceeded"
+                [routerLink]="['/settings/legal-entities', e.id, 'quota']"
+                [attr.aria-label]="
+                  'Квота: заброньовано ' + e.quota.reservedCompany + ' з ' + e.quota.quota
+                "
+                >{{ e.quota.reservedCompany }} з {{ e.quota.quota }}</a
               >
               <p class="text-xs" [class]="e.quota.exceeded ? 'text-danger' : 'text-muted'">
                 @if (e.quota.exceeded) {

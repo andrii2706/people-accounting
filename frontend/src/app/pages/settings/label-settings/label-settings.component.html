@@ -399,6 +399,7 @@
       }
       <div class="mt-4 flex flex-wrap gap-2">
         <button
+          [uiBusy]="labelForm().submitting()"
           type="submit"
           class="btn btn-primary cursor-pointer"
           [disabled]="labelForm().submitting()"

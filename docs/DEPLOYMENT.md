@@ -484,6 +484,6 @@ docker compose up --build        # http://localhost:4000
   - API відповідає 403 `MODULE_NOT_CONNECTED`;
   - сторінки ведуть на портал `/?denied=oblik`.
 
-**Спільний код** лежить у `backend/src/platform` і `frontend/src/platform`. Це копії `portal/platform`, руками їх не редагують. Оновлення: `npm run platform:sync`, коли репозиторій portal лежить поруч.
+**Спільний код** лежить у `backend/src/platform` і `frontend/src/platform`. Це копії `portal/platform`, руками їх не редагують. Оновлення: `npm run platform:sync`, коли репозиторій portal лежить поруч. Бібліотека інтерфейсу @mr/ui — приватний пакет `@andrii2706/mr-ui` з GitHub Packages (`"@mr/ui": "npm:@andrii2706/mr-ui@^0.2.0"` у `frontend/package.json`); нова версія — `npm run ui:update`. Збірка в Firebase App Hosting читає пакет із секретом `GITHUB_PACKAGES_TOKEN` (лише на етапі збірки, див. `frontend/apphosting.yaml`): `firebase apphosting:secrets:set GITHUB_PACKAGES_TOKEN` — класичний токен лише з `read:packages`.
 
 Повне розгортання домену описано в `portal/docs/DEPLOYMENT.md`. Локально все разом піднімає `docker compose` з репозиторію portal.

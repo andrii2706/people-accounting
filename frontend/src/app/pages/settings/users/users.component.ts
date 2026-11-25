@@ -1,6 +1,7 @@
 import { ConfirmService } from '../../../shared/services/confirm.service';
 import {
   ENTITY_ISSUED_ROLES,
+  NEW_ACCOUNT_MODULES,
   ROLE_LABELS,
   ROLE_OPTIONS,
 } from '../../../shared/constants/auth.constants';
@@ -46,6 +47,7 @@ import {
   temporaryPasswordExpired,
 } from '../../../shared/utils/user-policy.utils';
 import { legalEntityName } from '../../../shared/utils/legal-entity.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Accounts: the main administrator — all of them (role, legal entity); the administrator / director of a
@@ -55,6 +57,7 @@ import { legalEntityName } from '../../../shared/utils/legal-entity.utils';
   selector: 'app-users',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     ActionsMenuComponent,
     SelectComponent,
     PageHeaderComponent,
@@ -111,11 +114,6 @@ export class UsersComponent {
   protected readonly apps = APPS;
   protected modulesLabel(u: ManagedUser) {
     return modulesLabel(u.role, u.modules);
-  }
-  /** The modules of a new account (the main administrator opens all of them anyway). */
-  protected readonly newModules = signal<string[]>(['oblik']);
-  protected toggleNewModule(id: string) {
-    this.newModules.update((list) => toggleModule(list, id));
   }
 
   /** «Модулі» of one account, right in the table. */
@@ -291,10 +289,10 @@ export class UsersComponent {
         const created = await this.usersService.create({
           ...rest,
           legalEntityId: rest.role === 'ADMIN' ? null : legalEntityId || null,
-          modules: this.newModules(),
+          // an account made here opens «Військовий облік»; other modules are given in the portal
+          modules: NEW_ACCOUNT_MODULES,
         });
         this.userModel.set({ ...this.blank });
-        this.newModules.set(['oblik']);
         this.userForm().reset();
         const until = created.temporaryPasswordExpiresAt
           ? ` Тимчасовий пароль діє до ${KYIV_DATETIME.format(new Date(created.temporaryPasswordExpiresAt))}.`

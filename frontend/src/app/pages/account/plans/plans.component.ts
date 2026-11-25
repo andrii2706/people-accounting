@@ -18,12 +18,13 @@ import { AccountService } from '../../../shared/services/account.service';
 import { ToastService } from '../../../shared/services/toast.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { money } from '../../../shared/utils/money.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /** Three plans: monthly, yearly, Enterprise (a request). The choice issues the first invoice. */
 @Component({
   selector: 'app-plans',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, RouterLink, UaDatePipe],
+  imports: [UiBusyDirective, IconComponent, RouterLink, UaDatePipe],
   templateUrl: './plans.component.html',
 })
 export class PlansComponent {

@@ -31,6 +31,7 @@ import {
   formSubmitErrors,
 } from '../../../shared/utils/api-error.utils';
 import { fromBase64 } from '../../../shared/utils/file.utils';
+import { UiBusyDirective, UiPageLoaderComponent } from '@mr/ui';
 
 /**
  * Sign-up of a company by its head: the code of the legal entity + the work e-mail → the statement signed with
@@ -41,6 +42,8 @@ import { fromBase64 } from '../../../shared/utils/file.utils';
   selector: 'app-register',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
+    UiPageLoaderComponent,
     FormField,
     FormFieldComponent,
     AppIconComponent,

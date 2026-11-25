@@ -47,6 +47,7 @@ import {
   withNumberFirst,
 } from '../../../shared/utils/list-settings.utils';
 import { MESSAGE } from '../../../shared/validators/employee-rules';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * How the four lists of a legal entity look in the documents: the columns and their order, the order of the
@@ -56,6 +57,7 @@ import { MESSAGE } from '../../../shared/validators/employee-rules';
   selector: 'app-list-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PageHeaderComponent,
     IconComponent,
     RouterLink,

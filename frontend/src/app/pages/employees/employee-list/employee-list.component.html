@@ -177,136 +177,241 @@
     </div>
   }
 
-  <div class="card overflow-x-auto">
-    <table class="table-base" [class]="previewItem() ? 'min-w-[640px]' : 'min-w-[860px]'">
-      <thead>
-        <tr>
-          <th class="w-10">
-            <input
-              type="checkbox"
-              class="size-4 cursor-pointer accent-brand-600"
-              aria-label="Вибрати всіх"
-              [checked]="allSelected()"
-              (change)="toggleAll()"
-            />
-          </th>
-          <th>Працівник</th>
-          <th [class.hidden]="previewItem()">Посада</th>
-          <th>Звання · ВОС</th>
-          <th>Статус</th>
-          <th class="text-right">Увага</th>
-          <th class="w-[120px]"><span class="sr-only">Дії</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (e of shown(); track e.id) {
-          @let active = previewId() === e.id;
-          <tr
-            class="cursor-pointer"
-            [class.!bg-brand-50]="active"
-            [style.box-shadow]="active ? 'inset 3px 0 0 var(--color-brand-600)' : null"
-            (click)="preview(e)"
-          >
-            <td (click)="$event.stopPropagation()">
+  @if (dismissedView()) {
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <p class="text-sm text-muted">
+        Окрема таблиця звільнених: дата й наказ про звільнення, чи повідомлено ТЦК.
+      </p>
+      <a class="btn btn-secondary btn-sm cursor-pointer" [href]="dismissedXlsxUrl()" download
+        ><app-icon name="download" [size]="15" /> Експорт звільнених .xlsx</a
+      >
+    </div>
+    <div class="card overflow-x-auto">
+      <table class="table-base min-w-[860px]">
+        <thead>
+          <tr>
+            <th>Працівник</th>
+            <th>Таб. №</th>
+            <th>Остання посада</th>
+            <th>Звільнений</th>
+            <th>Наказ</th>
+            <th>Повідомлення ТЦК</th>
+            @if (dict.severalLegalEntities()) {
+              <th>Юрособа</th>
+            }
+            <th class="w-[60px]"><span class="sr-only">Дії</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of shown(); track e.id) {
+            @let notice = dismissalNoticeText(e.dismissalNotice);
+            <tr class="cursor-pointer" (click)="preview(e)">
+              <td>
+                <div class="flex items-center gap-2.5">
+                  <span
+                    class="grid size-8 shrink-0 place-items-center rounded-full bg-sunken text-xs font-semibold text-[#3a3f34]"
+                    >{{ initials(e) }}</span
+                  >
+                  <a
+                    class="font-semibold hover:text-brand-600"
+                    [routerLink]="['/employees', e.id]"
+                    (click)="$event.stopPropagation()"
+                    >{{ e.fullName }}</a
+                  >
+                </div>
+              </td>
+              <td class="font-mono text-[13px]" [class.text-muted]="!e.personnelNumber">
+                {{ e.personnelNumber || '—' }}
+              </td>
+              <td>
+                <span class="first-letter:uppercase">{{ e.position || '—' }}</span>
+              </td>
+              <td class="whitespace-nowrap tabular-nums">{{ e.dismissalDate | uaDate }}</td>
+              <td class="text-sm">
+                @if (e.dismissalOrderNumber || e.dismissalOrderDate) {
+                  {{ e.dismissalOrderDocName || 'наказ' }}
+                  @if (e.dismissalOrderNumber) {
+                    № {{ e.dismissalOrderNumber }}
+                  }
+                  @if (e.dismissalOrderDate) {
+                    від {{ e.dismissalOrderDate | uaDate }}
+                  }
+                } @else {
+                  <span class="text-muted">—</span>
+                }
+              </td>
+              <td>
+                <span
+                  class="badge whitespace-nowrap"
+                  [class]="
+                    notice.tone === 'ok'
+                      ? 'bg-ok/10 text-ok'
+                      : notice.tone === 'warning'
+                        ? 'bg-warning/10 text-warning'
+                        : notice.tone === 'info'
+                          ? 'bg-info/10 text-info'
+                          : 'bg-sunken text-muted'
+                  "
+                  >{{ notice.label }}</span
+                >
+              </td>
+              @if (dict.severalLegalEntities()) {
+                <td class="max-w-56 truncate text-sm">{{ e.legalEntityName || '—' }}</td>
+              }
+              <td class="text-right whitespace-nowrap" (click)="$event.stopPropagation()">
+                <app-actions-menu
+                  [actions]="employeeActions(e, previewId() === e.id)"
+                  [label]="'Дії: ' + e.fullName"
+                />
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="py-12 text-center text-sm text-muted">
+                @if (searchText()) {
+                  Нікого не знайдено — змініть пошук чи фільтри
+                } @else {
+                  Звільнених немає.
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="card overflow-x-auto">
+      <table class="table-base" [class]="previewItem() ? 'min-w-[640px]' : 'min-w-[860px]'">
+        <thead>
+          <tr>
+            <th class="w-10">
               <input
                 type="checkbox"
                 class="size-4 cursor-pointer accent-brand-600"
-                [attr.aria-label]="'Вибрати ' + e.fullName"
-                [checked]="selected().has(e.id)"
-                (change)="toggle(e.id)"
+                aria-label="Вибрати всіх"
+                [checked]="allSelected()"
+                (change)="toggleAll()"
               />
-            </td>
-            <td>
-              <div class="flex items-center gap-2.5">
-                <span
-                  class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold"
-                  [class]="active ? 'bg-brand-600 text-white' : 'bg-sunken text-[#3a3f34]'"
-                  >{{ initials(e) }}</span
-                >
-                <div class="min-w-0">
-                  <p class="font-semibold">{{ e.fullName }}</p>
-                  <p class="text-xs text-muted">
-                    @if (e.personnelNumber) {
-                      таб. {{ e.personnelNumber }} ·
-                    }
-                    {{ e.age !== null ? e.age + ' р.' : '' }}
-                  </p>
-                </div>
-              </div>
-            </td>
-            <td [class.hidden]="previewItem()">
-              <span class="first-letter:uppercase">{{ e.position || '—' }}</span>
-              @if (e.hireDate) {
-                <p class="text-xs text-muted">з {{ e.hireDate | uaDate }}</p>
-              }
-              @if (dict.severalLegalEntities() && e.legalEntityName) {
-                <p class="max-w-56 truncate text-xs text-muted">{{ e.legalEntityName }}</p>
-              }
-            </td>
-            <td>
-              {{ e.rankTitle || '—' }}
-              @if (e.vos) {
-                <p class="font-mono text-xs text-muted">{{ e.vos }}</p>
-              }
-            </td>
-            <td>
-              <div class="flex max-w-60 flex-wrap gap-1">
-                @for (b of statusBadges(e); track b.label) {
+            </th>
+            <th>Працівник</th>
+            <th>Таб. №</th>
+            <th [class.hidden]="previewItem()">Посада</th>
+            <th>Звання · ВОС</th>
+            <th>Статус</th>
+            <th class="text-right">Увага</th>
+            <th class="w-[120px]"><span class="sr-only">Дії</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (e of shown(); track e.id) {
+            @let active = previewId() === e.id;
+            <tr
+              class="cursor-pointer"
+              [class.!bg-brand-50]="active"
+              [style.box-shadow]="active ? 'inset 3px 0 0 var(--color-brand-600)' : null"
+              (click)="preview(e)"
+            >
+              <td (click)="$event.stopPropagation()">
+                <input
+                  type="checkbox"
+                  class="size-4 cursor-pointer accent-brand-600"
+                  [attr.aria-label]="'Вибрати ' + e.fullName"
+                  [checked]="selected().has(e.id)"
+                  (change)="toggle(e.id)"
+                />
+              </td>
+              <td>
+                <div class="flex items-center gap-2.5">
                   <span
-                    class="badge"
-                    [class]="
-                      b.tone === 'ok'
-                        ? 'bg-ok/10 text-ok'
-                        : b.tone === 'warning'
-                          ? 'bg-warning/10 text-warning'
-                          : b.tone === 'info'
-                            ? 'bg-info/10 text-info'
-                            : 'bg-sunken text-muted'
-                    "
-                    >{{ b.label }}</span
+                    class="grid size-8 shrink-0 place-items-center rounded-full text-xs font-semibold"
+                    [class]="active ? 'bg-brand-600 text-white' : 'bg-sunken text-[#3a3f34]'"
+                    >{{ initials(e) }}</span
                   >
-                } @empty {
+                  <div class="min-w-0">
+                    <p class="font-semibold">{{ e.fullName }}</p>
+                    <p class="text-xs text-muted">
+                      {{ e.age !== null ? e.age + ' р.' : '' }}
+                    </p>
+                  </div>
+                </div>
+              </td>
+              <td class="font-mono text-[13px]" [class.text-muted]="!e.personnelNumber">
+                {{ e.personnelNumber || '—' }}
+              </td>
+              <td [class.hidden]="previewItem()">
+                <span class="first-letter:uppercase">{{ e.position || '—' }}</span>
+                @if (e.hireDate) {
+                  <p class="text-xs text-muted">з {{ e.hireDate | uaDate }}</p>
+                }
+                @if (dict.severalLegalEntities() && e.legalEntityName) {
+                  <p class="max-w-56 truncate text-xs text-muted">{{ e.legalEntityName }}</p>
+                }
+              </td>
+              <td>
+                {{ e.rankTitle || '—' }}
+                @if (e.vos) {
+                  <p class="font-mono text-xs text-muted">{{ e.vos }}</p>
+                }
+              </td>
+              <td>
+                <div class="flex max-w-60 flex-wrap gap-1">
+                  @for (b of statusBadges(e); track b.label) {
+                    <span
+                      class="badge"
+                      [class]="
+                        b.tone === 'ok'
+                          ? 'bg-ok/10 text-ok'
+                          : b.tone === 'warning'
+                            ? 'bg-warning/10 text-warning'
+                            : b.tone === 'info'
+                              ? 'bg-info/10 text-info'
+                              : 'bg-sunken text-muted'
+                      "
+                      >{{ b.label }}</span
+                    >
+                  } @empty {
+                    <span class="text-muted">—</span>
+                  }
+                </div>
+              </td>
+              <td class="text-right">
+                @if (warningCount(e); as n) {
+                  <span
+                    class="text-xs font-semibold"
+                    [class]="hasDanger(e) ? 'text-danger' : 'text-warning'"
+                    >● {{ n }}</span
+                  >
+                } @else {
                   <span class="text-muted">—</span>
                 }
-              </div>
-            </td>
-            <td class="text-right">
-              @if (warningCount(e); as n) {
-                <span
-                  class="text-xs font-semibold"
-                  [class]="hasDanger(e) ? 'text-danger' : 'text-warning'"
-                  >● {{ n }}</span
-                >
-              } @else {
-                <span class="text-muted">—</span>
-              }
-            </td>
-            <td class="text-right whitespace-nowrap" (click)="$event.stopPropagation()">
-              <app-actions-menu
-                [actions]="employeeActions(e, active)"
-                [label]="'Дії: ' + e.fullName"
-              />
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="7" class="py-12 text-center text-sm text-muted">
-              @if (searchText() || group() || category() || currentView() !== 'all') {
-                Нікого не знайдено — змініть пошук чи фільтри
-              } @else {
-                Ще немає працівників.
-                <a routerLink="/employees/new" class="text-brand-600 hover:underline">Додайте</a>
-                або
-                <a routerLink="/employees/import" class="text-brand-600 hover:underline"
-                  >імпортуйте з файлу</a
-                >.
-              }
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
-  </div>
+              </td>
+              <td class="text-right whitespace-nowrap" (click)="$event.stopPropagation()">
+                <app-actions-menu
+                  [actions]="employeeActions(e, active)"
+                  [label]="'Дії: ' + e.fullName"
+                />
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8" class="py-12 text-center text-sm text-muted">
+                @if (searchText() || group() || category() || currentView() !== 'all') {
+                  Нікого не знайдено — змініть пошук чи фільтри
+                } @else {
+                  Ще немає працівників.
+                  <a routerLink="/employees/new" class="text-brand-600 hover:underline">Додайте</a>
+                  або
+                  <a routerLink="/employees/import" class="text-brand-600 hover:underline"
+                    >імпортуйте з файлу</a
+                  >.
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
   <!-- the sentinel is re-created for every portion, so it reports again if it is still in view -->
   @for (portion of [shownCount()]; track portion) {
     @if (hasMore()) {

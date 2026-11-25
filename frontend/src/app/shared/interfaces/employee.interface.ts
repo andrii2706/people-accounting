@@ -52,6 +52,18 @@ export interface EmployeeListItem extends Omit<EmployeeDerived, 'warnings'> {
   deferral: boolean;
   deferralUntil: string | null;
   pendingChanges: number;
+  dismissalOrderDocName: string;
+  dismissalOrderNumber: string;
+  dismissalOrderDate: string | null;
+  /** Only for the dismissed: the notice about the dismissal. */
+  dismissalNotice: DismissalNotice | null;
+}
+
+/** The notice to the TCK about a dismissal: sent / in a letter not sent yet / waiting (until) / not needed. */
+export interface DismissalNotice {
+  status: 'SENT' | 'IN_LETTER' | 'PENDING' | 'NONE';
+  letterNumber: string | null;
+  deadline: string | null;
 }
 
 export interface EmployeeList {
@@ -206,13 +218,41 @@ export interface PendingChange extends EmployeeChange {
     fullName: string;
     tckId: string | null;
     tckName: string;
+    /** «Шевченківського РТЦК та СП» — for «Керівнику …». */
+    tckNameGenitive: string;
     tckEmail: string;
+    legalEntityId: string | null;
+    legalEntityName: string;
   };
+}
+
+/** The fields whose changes are kept with the date they happened. */
+export type HistoryField =
+  'phone' | 'email' | 'registeredAddress' | 'actualAddress' | 'passport' | 'tck';
+
+/** One change of a contact, an address, the passport or the TCK. */
+export interface FieldHistoryEntry {
+  id: string;
+  field: HistoryField;
+  oldValue: string;
+  newValue: string;
+  effectiveDate: string;
+  oldEffectiveDate: string | null;
+  basis: string;
+  createdAt: string;
+}
+
+/** An employee without a TCK whose military document was issued by the chosen TCK. */
+export interface TckMatch {
+  id: string;
+  fullName: string;
+  issuedBy: string;
 }
 
 export interface EmployeeDetails extends Employee {
   derived: EmployeeDerived;
   changes: EmployeeChange[];
+  fieldHistory: FieldHistoryEntry[];
 }
 
 /** History of the card in human-readable form (prepared by the server). */
@@ -226,7 +266,8 @@ export interface AuditEntry {
 }
 
 export type EmployeePayload = Partial<Omit<Employee, 'id' | 'tck' | 'createdAt' | 'updatedAt'>> & {
-  changeMeta?: { effectiveDate?: string; basis?: string };
+  /** notify: false — keep the change in the history, but queue no notice to the TCK. */
+  changeMeta?: { effectiveDate?: string; basis?: string; notify?: boolean };
 };
 
 export type MaxLengthField = keyof typeof MAX_LENGTH;

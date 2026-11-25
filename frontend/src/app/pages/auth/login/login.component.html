@@ -58,7 +58,7 @@
   </div>
 </aside>
 
-<main class="flex min-w-0 flex-1 flex-col">
+<main id="main" tabindex="-1" class="outline-none flex min-w-0 flex-1 flex-col">
   <header class="flex items-center gap-3 px-5 pt-5 sm:px-8 lg:hidden">
     <app-app-icon app="oblik" [size]="36" />
     <span class="text-[15px] font-semibold">Військовий облік</span>
@@ -98,6 +98,7 @@
             <app-form-alert id="login-error" class="mt-5">{{ error() }}</app-form-alert>
           }
           <button
+            [uiBusy]="busy()"
             type="submit"
             class="btn btn-primary mt-5 h-11 w-full cursor-pointer text-[15px]"
             [disabled]="busy() || !codeReady()"
@@ -203,6 +204,7 @@
           }
 
           <button
+            [uiBusy]="loginForm().submitting()"
             type="submit"
             class="btn btn-primary mt-6 h-11 w-full cursor-pointer text-[15px]"
             [disabled]="loginForm().submitting()"

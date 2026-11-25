@@ -1,3 +1,4 @@
+<ui-skip-link />
 <router-outlet />
 <!-- the snackbars and the questions load on the first use: the first page stays light -->
 @defer (when toasts.toasts().length) {
@@ -6,3 +7,4 @@
 @defer (when confirm.request()) {
   <app-confirm-host />
 }
+<ui-long-action-host />

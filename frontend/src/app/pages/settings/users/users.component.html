@@ -79,6 +79,7 @@
                   </app-form-field>
                   <div class="flex gap-2">
                     <button
+                      [uiBusy]="editForm().submitting()"
                       type="submit"
                       class="btn btn-primary btn-sm cursor-pointer"
                       [disabled]="editForm().submitting()"
@@ -305,26 +306,8 @@
         />
       </app-form-field>
     }
-    @if (userModel().role !== 'ADMIN') {
-      <fieldset class="space-y-1.5">
-        <legend class="label">Модулі</legend>
-        @for (a of apps; track a.id) {
-          <label class="flex cursor-pointer items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              class="size-4 cursor-pointer accent-brand-600"
-              [checked]="newModules().includes(a.id)"
-              (change)="toggleNewModule(a.id)"
-            />
-            <span>{{ a.title }}</span>
-            @if (!a.ready) {
-              <span class="text-xs text-muted">незабаром</span>
-            }
-          </label>
-        }
-      </fieldset>
-    }
     <button
+      [uiBusy]="userForm().submitting()"
       type="submit"
       class="btn btn-primary w-full cursor-pointer"
       [disabled]="userForm().submitting()"

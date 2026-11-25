@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: read
+  # @mr/ui — the private package from GitHub Packages (read with GITHUB_TOKEN)
+  packages: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -66,6 +68,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm run format:check
       - run: npm run test:ci
       - run: npm run build

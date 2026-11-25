@@ -86,6 +86,7 @@
           }
           <div class="flex gap-2">
             <button
+              [uiBusy]="busy()"
               type="submit"
               class="btn btn-primary cursor-pointer"
               [disabled]="busy() || !password()"
@@ -161,6 +162,7 @@
           }
           <div class="flex gap-2">
             <button
+              [uiBusy]="busy()"
               type="submit"
               class="btn cursor-pointer"
               [class.btn-danger]="mode() === 'disable'"

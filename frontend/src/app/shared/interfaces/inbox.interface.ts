@@ -1,7 +1,7 @@
 import type { Warning } from './common.interface';
 
 /** Deadlines (deferral, reservation, ВЛК), TCK notices, card data (age, TCK, documents…). */
-export type InboxKind = 'DEADLINE' | 'TCK' | 'CARD';
+export type InboxKind = 'QUOTA' | 'DEADLINE' | 'TCK' | 'CARD';
 
 /** One in-app notification about an employee. Computed from the data; only the «read» mark is stored. */
 export interface InboxItem {
@@ -13,7 +13,9 @@ export interface InboxItem {
   employeeName: string;
   message: string;
   /** Where to open it: the employee card or the page of TCK notices. */
-  link: 'EMPLOYEE' | 'NOTICES';
+  link: 'EMPLOYEE' | 'NOTICES' | 'QUOTA';
+  /** The legal entity of a quota notification. */
+  legalEntityId?: string;
   read: boolean;
 }
 

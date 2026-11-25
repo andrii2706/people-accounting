@@ -85,6 +85,33 @@ export interface PendingChangesGroup {
   changes: PendingChange[];
 }
 
+/** One notice inside a combined letter (an appendix): hiring, a change of the data of a person, dismissal. */
+export interface CombinedNotice {
+  kind: 'HIRE' | 'DATA' | 'DISMISSAL';
+  title: string;
+  /** «Другий Т. Т.» */
+  who: string;
+}
+
+/**
+ * The combined letter to one TCK from one legal entity: everything pending for its employees,
+ * one cover letter with the notices as appendices.
+ */
+export interface CombinedLetterGroup {
+  key: string;
+  tckId: string | null;
+  tckName: string;
+  tckNameGenitive: string;
+  legalEntityId: string | null;
+  legalEntityName: string;
+  employees: PendingChangesGroup[];
+  /** The changes that go into the letter (not taken off). */
+  included: PendingChange[];
+  notices: CombinedNotice[];
+  earliestDeadline: string | null;
+  overdue: boolean;
+}
+
 /** PATCH /api/letters/:id — editable requisites of a draft. */
 export interface LetterUpdate {
   number?: string;

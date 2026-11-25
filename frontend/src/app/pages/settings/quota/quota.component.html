@@ -1,0 +1,197 @@
+<a
+  routerLink="/settings"
+  class="mb-4 inline-flex items-center gap-1 text-sm text-muted hover:text-ink"
+  ><app-icon name="arrowLeft" [size]="16" /> Юридичні особи</a
+>
+<app-page-header
+  eyebrow="Налаштування · Юридичні особи"
+  [title]="data().entityName + ' · квота бронювання'"
+  subtitle="Квота перераховується сама після прийняття, звільнення, бронювання, зміни відсотка — і щодня. Кожен перерахунок, що змінив цифри, — у таблиці нижче."
+>
+  @if (auth.isEntityManager()) {
+    <a class="btn btn-secondary" [routerLink]="['/settings/legal-entities', data().entityId]"
+      ><app-icon name="edit" /> Відсоток і рішення</a
+    >
+  }
+</app-page-header>
+
+@if (q().exceeded) {
+  <p
+    class="mb-4 flex gap-2.5 rounded-xl border border-[#f3c5bf] bg-[#fdf1ef] p-3.5 text-sm"
+    role="alert"
+  >
+    <app-icon name="alert" [size]="18" class="mt-0.5 shrink-0 text-danger" />
+    <span
+      ><b class="font-semibold">Квоту перевищено на {{ over() }}.</b>
+      @if (last(); as r) {
+        {{ r.reason }} ({{ r.createdAt | uaDateTime }}):
+      }
+      база {{ q().base }}, місць {{ q().quota }}, заброньовано підприємством
+      {{ q().reservedCompany }}.
+      @if (notify().exceeded && data().mailConfigured) {
+        Лист про перевищення надіслано ({{ data().recipients }} отримувач.).
+      }
+    </span>
+  </p>
+} @else if (q().expired) {
+  <p class="mb-4 rounded-xl border border-[#f3c5bf] bg-[#fdf1ef] p-3.5 text-sm" role="status">
+    Рішення про квоту діяло до {{ q().validUntil | uaDate }} — нових бронювань за квотою немає.
+  </p>
+}
+
+<div class="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+  <div class="card p-4">
+    <p class="text-[13px] text-muted">Відсоток квоти</p>
+    <p class="mt-1 text-2xl font-semibold">
+      {{ q().percent !== null ? percent(q().percent!) + ' %' : '—' }}
+    </p>
+    <p class="mt-0.5 text-xs text-muted">
+      @if (data().docNumber || data().docDate) {
+        <span class="block"
+          >рішення № {{ data().docNumber || '—' }} від {{ data().docDate | uaDate }}</span
+        >
+      }
+      @if (q().validUntil) {
+        <span class="block" [class.text-danger]="q().expired"
+          >діє до {{ q().validUntil | uaDate }}</span
+        >
+      }
+    </p>
+  </div>
+  <div class="card p-4">
+    <p class="text-[13px] text-muted">База</p>
+    <p class="mt-1 text-2xl font-semibold tabular-nums">{{ q().base }}</p>
+    <p class="mt-0.5 text-xs text-muted">
+      військовозобов’язані чоловіки, що працюють
+      @if (q().partTimeExcluded) {
+        · без {{ q().partTimeExcluded }} сумісн.
+      }
+    </p>
+  </div>
+  <div class="card p-4">
+    <p class="text-[13px] text-muted">Місць за квотою</p>
+    <p class="mt-1 text-2xl font-semibold tabular-nums">{{ q().quota ?? '—' }}</p>
+    <p class="mt-0.5 text-xs text-muted">відсоток × база, вниз</p>
+  </div>
+  <div class="card p-4">
+    <p class="text-[13px] text-muted">Заброньовано підприємством</p>
+    <p class="mt-1 text-2xl font-semibold tabular-nums" [class.text-danger]="q().exceeded">
+      {{ q().reservedCompany }}
+    </p>
+  </div>
+  <div class="card p-4">
+    <p class="text-[13px] text-muted">Вільних</p>
+    <p class="mt-1 text-2xl font-semibold tabular-nums" [class.text-danger]="q().exceeded">
+      {{ q().available ?? '—' }}
+    </p>
+    @if (q().exceeded) {
+      <p class="mt-0.5 text-xs text-danger">перевищено на {{ over() }}</p>
+    }
+  </div>
+</div>
+
+<div class="grid items-start gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+  <section class="card overflow-x-auto" aria-labelledby="recalc-title">
+    <header class="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-4 pb-2">
+      <h2 id="recalc-title" class="font-semibold">Перерахунки квоти</h2>
+      <span class="text-[13px] text-muted"
+        >автоматично після кожної зміни, що впливає на квоту</span
+      >
+    </header>
+    <table class="table-base min-w-[640px]">
+      <thead>
+        <tr>
+          <th>Коли</th>
+          <th>Що сталось</th>
+          <th>База</th>
+          <th>Місць</th>
+          <th>Заброньовано</th>
+          <th>Стан</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of data().recalculations; track r.id) {
+          @let s = state(r);
+          <tr>
+            <td class="text-[13px] whitespace-nowrap tabular-nums">
+              {{ r.createdAt | uaDateTime }}
+            </td>
+            <td>{{ r.reason || '—' }}</td>
+            <td class="whitespace-nowrap tabular-nums">{{ step(r.prevBase, r.base) }}</td>
+            <td class="whitespace-nowrap tabular-nums">{{ step(r.prevQuota, r.quota) }}</td>
+            <td class="whitespace-nowrap tabular-nums">
+              {{ step(r.prevReserved, r.reservedCompany) }}
+            </td>
+            <td>
+              <span
+                class="badge whitespace-nowrap"
+                [class]="
+                  s.tone === 'bad'
+                    ? 'bg-[#fbe9e7] text-danger'
+                    : s.tone === 'warn'
+                      ? 'bg-warning/10 text-warning'
+                      : s.tone === 'ok'
+                        ? 'bg-ok/10 text-ok'
+                        : 'bg-sunken text-muted'
+                "
+                >{{ s.label }}</span
+              >
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="py-10 text-center text-sm text-muted">
+              Перерахунків ще не було — перший з’явиться після зміни, що впливає на квоту.
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card p-5" aria-labelledby="mail-title">
+    <h2 id="mail-title" class="mb-3 font-semibold">Розсилка на пошту</h2>
+    <ul class="space-y-3">
+      @for (o of options; track o.key) {
+        <li>
+          <label class="flex cursor-pointer items-start gap-2.5 text-sm">
+            <input
+              type="checkbox"
+              class="mt-0.5 size-4 cursor-pointer accent-brand-600"
+              [checked]="notify()[o.key]"
+              [disabled]="!auth.isEntityManager() || saving() !== null"
+              (change)="toggle(o.key, $any($event.target).checked)"
+            />
+            <span
+              >{{ o.label }}<span class="block text-xs text-muted">{{ o.hint }}</span></span
+            >
+          </label>
+        </li>
+      }
+    </ul>
+    <div class="mt-4 border-t border-line pt-3 text-sm">
+      <p class="mb-1 font-medium">Кому</p>
+      <p class="text-muted">
+        {{ data().recipients }} отримувач.: користувачі цієї юрособи з увімкненими сповіщеннями
+        @if (data().extraEmails.length) {
+          і додаткові адреси ({{ data().extraEmails.join(', ') }})
+        }
+      </p>
+      <p class="mt-1 text-xs text-muted">
+        Імен працівників у листах немає — лише цифри квоти. Додаткові адреси — у
+        @if (auth.isEntityManager()) {
+          <a
+            class="text-brand-700 underline"
+            [routerLink]="['/settings/legal-entities', data().entityId]"
+            >юрособі</a
+          >.
+        } @else {
+          юрособі.
+        }
+      </p>
+      @if (!data().mailConfigured) {
+        <p class="mt-2 text-xs text-warning">Пошту в системі не налаштовано — листи не йдуть.</p>
+      }
+    </div>
+  </section>
+</div>

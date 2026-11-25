@@ -35,11 +35,13 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { MESSAGE } from '../../../shared/validators/employee-rules';
 import { wholeDays } from '../../../shared/validators/organization.validators';
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
+import { UiBusyDirective } from '@mr/ui';
 
 @Component({
   selector: 'app-organization-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     DateInputComponent,
     PageHeaderComponent,
     FormField,

@@ -24,6 +24,7 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { SIGNATURE_VERIFICATION_BADGES } from '../../../shared/constants/badges.constants';
 import { MAX_SIGNATURE_BYTES } from '../../../shared/constants/signature.constants';
 import { toBase64 } from '../../../shared/utils/file.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Qualified e-signature panel of a letter.
@@ -32,7 +33,7 @@ import { toBase64 } from '../../../shared/utils/file.utils';
 @Component({
   selector: 'app-letter-signing',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, UaDateTimePipe],
+  imports: [UiBusyDirective, IconComponent, UaDateTimePipe],
   host: { class: 'block' },
   templateUrl: './letter-signing.component.html',
 })

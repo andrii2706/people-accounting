@@ -1,0 +1,97 @@
+<app-modal
+  [open]="open()"
+  heading="Змінити контакти й адреси"
+  [wide]="true"
+  (closed)="closed.emit()"
+>
+  <p modal-lead class="mt-1 text-sm text-muted">
+    {{ employee().derived.fullName }} · попередні значення лишаться в історії картки з датами
+  </p>
+  <form
+    id="contacts-form"
+    class="grid gap-4 py-2 sm:grid-cols-2"
+    novalidate
+    (submit)="save($event)"
+  >
+    <app-form-field label="Телефон" [hint]="was(employee().phone)" [field]="form.phone">
+      <app-phone-input [formField]="form.phone" />
+    </app-form-field>
+    <app-form-field label="Email" [hint]="was(employee().email)" [field]="form.email">
+      <input class="input" type="email" autocomplete="off" [formField]="form.email" />
+    </app-form-field>
+    <app-form-field
+      class="sm:col-span-2"
+      label="Зареєстроване місце проживання (як у паспорті / витягу)"
+      [hint]="was(employee().registeredAddress)"
+      [field]="form.registeredAddress"
+    >
+      <input class="input" [formField]="form.registeredAddress" />
+    </app-form-field>
+    <fieldset class="sm:col-span-2">
+      <legend class="mb-1.5 text-[13px] font-medium">Фактичне місце проживання</legend>
+      <label class="mb-2 flex cursor-pointer items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="size-4 cursor-pointer accent-brand-600"
+          [formField]="form.sameAsRegistered"
+        />
+        Збігається із зареєстрованим
+      </label>
+      @if (!model().sameAsRegistered) {
+        <app-form-field
+          label="Адреса фактичного місця проживання"
+          [hint]="was(employee().actualAddress)"
+          [field]="form.actualAddress"
+        >
+          <input class="input" [formField]="form.actualAddress" />
+        </app-form-field>
+      } @else {
+        <p class="text-xs text-muted">
+          У повідомленнях і списках буде зареєстроване місце проживання.
+        </p>
+      }
+    </fieldset>
+    <app-form-field
+      label="Дата зміни"
+      hint="Коли людина переїхала / змінила номер"
+      [required]="true"
+      [field]="form.effectiveDate"
+    >
+      <app-date-input [formField]="form.effectiveDate" ariaLabel="Дата зміни" />
+    </app-form-field>
+    <app-form-field
+      label="Підстава"
+      hint="Необов’язково, напр. заява працівника"
+      [field]="form.basis"
+    >
+      <input class="input" [formField]="form.basis" />
+    </app-form-field>
+    @if (addressChanged()) {
+      <p
+        class="flex gap-2 rounded-xl border border-brand-200 bg-brand-50 p-3 text-sm sm:col-span-2"
+        role="status"
+      >
+        <app-icon name="send" [size]="16" class="mt-0.5 shrink-0 text-brand-700" />
+        <span
+          ><b class="font-semibold">Адреса змінилась</b> — повідомлення до ТЦК «зміна облікових
+          даних» додамо до об’єднаного листа. Телефон і email ТЦК не повідомляємо — лише історія в
+          картці.</span
+        >
+      </p>
+    }
+  </form>
+  <div modal-footer>
+    <button type="button" class="btn btn-secondary cursor-pointer" (click)="closed.emit()">
+      Скасувати
+    </button>
+    <button
+      type="submit"
+      form="contacts-form"
+      class="btn btn-primary cursor-pointer"
+      [uiBusy]="saving()"
+      [disabled]="saving()"
+    >
+      Зберегти зміни
+    </button>
+  </div>
+</app-modal>

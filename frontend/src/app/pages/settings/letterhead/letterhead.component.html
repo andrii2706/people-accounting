@@ -297,7 +297,12 @@
         </p>
       }
       <div class="mt-4 flex flex-wrap gap-2">
-        <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="saving()">
+        <button
+          [uiBusy]="saving()"
+          type="submit"
+          class="btn btn-primary cursor-pointer"
+          [disabled]="saving()"
+        >
           {{ saving() ? 'Зберігаємо…' : 'Зберегти' }}
         </button>
         <button type="button" class="btn btn-ghost cursor-pointer" (click)="resetDefaults()">

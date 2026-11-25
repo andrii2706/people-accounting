@@ -37,6 +37,7 @@ import {
   hasDanger,
   isDismissed,
   initials,
+  dismissalNoticeText,
   matchesView,
   statusBadges,
   warningCount,
@@ -133,6 +134,17 @@ export class EmployeeListComponent {
     const today = todayIso();
     return this.loaded().filter((e) => e.onLists && !isDismissed(e, today)).length;
   });
+
+  /** «Звільнені» as an .xlsx (the same search and legal entity). */
+  protected readonly dismissedXlsxUrl = computed(() => {
+    const params = new URLSearchParams();
+    if (this.entity()) params.set('legalEntityId', this.entity());
+    if (this.search()) params.set('search', this.search());
+    const q = params.toString();
+    return `api/employees/dismissed.xlsx${q ? `?${q}` : ''}`;
+  });
+  protected readonly dismissedView = computed(() => this.currentView() === 'dismissed');
+  protected readonly dismissalNoticeText = dismissalNoticeText;
 
   /** The full lists need one legal entity: the filter, or the only one there is. */
   protected readonly exportUrl = computed(() =>

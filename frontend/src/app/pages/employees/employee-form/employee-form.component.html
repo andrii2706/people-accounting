@@ -1348,7 +1348,12 @@
     </span>
     <span class="flex-1"></span>
     <button type="button" class="btn btn-secondary" (click)="cancel()">Скасувати</button>
-    <button type="submit" class="btn btn-primary px-5" [disabled]="f().submitting()">
+    <button
+      [uiBusy]="f().submitting()"
+      type="submit"
+      class="btn btn-primary px-5"
+      [disabled]="f().submitting()"
+    >
       <app-icon name="check" />
       {{ f().submitting() ? 'Збереження…' : isEdit() ? 'Зберегти зміни' : 'Створити картку' }}
     </button>

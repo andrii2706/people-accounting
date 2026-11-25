@@ -1,0 +1,327 @@
+/*
+ * @mr/ui — the theme of the platform «Облік персоналу»: daisyUI 5 with the accent of every module, the warm grey ground,
+ * and what WCAG 2.2 AA asks for (contrast, a visible focus, targets, motion, forced colours) — plus the accessibility
+ * settings a person chooses («Доступність»: text size, contrast, motion, links, spacing, focus).
+ *
+ * styles.css of an application:  @import 'tailwindcss';  @import './mr-ui/theme.css';
+ * index.html:                     <html lang="uk" data-theme="projects">   (portal | oblik | kadry | projects)
+ *
+ * Only the daisyUI components the library uses are on (Tailwind would otherwise emit the CSS of every component
+ * whose name happens to be a word in the code — «menu», «table», «list» — and the applications still have their own
+ * .btn, .card, .badge, .input, .label). Each step of the library turns more on.
+ */
+@plugin "daisyui" {
+  themes: false;
+  logs: false;
+  include: properties, rootcolor, loading, skeleton, toggle, join, kbd, tooltip;
+}
+
+/* one theme per module: the accent only differs; every pair of colours below is checked for 4.5 : 1 (text) or 3 : 1 (UI) */
+@plugin "daisyui/theme" {
+  name: 'projects';
+  default: true;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f7f7f4;
+  --color-base-300: #f0efe9;
+  --color-base-content: #1b1f17;
+  --color-primary: #8a4b1c;
+  --color-primary-content: #ffffff;
+  --color-secondary: #f1e4d8;
+  --color-secondary-content: #4a280e;
+  --color-accent: #6b3a15;
+  --color-accent-content: #ffffff;
+  --color-neutral: #1b1f17;
+  --color-neutral-content: #ffffff;
+  --color-info: #2a5d8f;
+  --color-info-content: #ffffff;
+  --color-success: #2f7a3b;
+  --color-success-content: #ffffff;
+  --color-warning: #b54708;
+  --color-warning-content: #ffffff;
+  --color-error: #b42318;
+  --color-error-content: #ffffff;
+  --radius-selector: 999px;
+  --radius-field: 10px;
+  --radius-box: 16px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+@plugin "daisyui/theme" {
+  name: 'kadry';
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f7f7f4;
+  --color-base-300: #f0efe9;
+  --color-base-content: #1b1f17;
+  --color-primary: #2f5a84;
+  --color-primary-content: #ffffff;
+  --color-secondary: #dce8f4;
+  --color-secondary-content: #1b3349;
+  --color-accent: #26496b;
+  --color-accent-content: #ffffff;
+  --color-neutral: #1b1f17;
+  --color-neutral-content: #ffffff;
+  --color-info: #2a5d8f;
+  --color-info-content: #ffffff;
+  --color-success: #2f7a3b;
+  --color-success-content: #ffffff;
+  --color-warning: #b54708;
+  --color-warning-content: #ffffff;
+  --color-error: #b42318;
+  --color-error-content: #ffffff;
+  --radius-selector: 999px;
+  --radius-field: 10px;
+  --radius-box: 16px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+@plugin "daisyui/theme" {
+  name: 'oblik';
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f7f7f4;
+  --color-base-300: #f0efe9;
+  --color-base-content: #1b1f17;
+  --color-primary: #4f5f37;
+  --color-primary-content: #ffffff;
+  --color-secondary: #e5eadb;
+  --color-secondary-content: #2b331f;
+  --color-accent: #3f4c2c;
+  --color-accent-content: #ffffff;
+  --color-neutral: #1b1f17;
+  --color-neutral-content: #ffffff;
+  --color-info: #2a5d8f;
+  --color-info-content: #ffffff;
+  --color-success: #2f7a3b;
+  --color-success-content: #ffffff;
+  --color-warning: #b54708;
+  --color-warning-content: #ffffff;
+  --color-error: #b42318;
+  --color-error-content: #ffffff;
+  --radius-selector: 999px;
+  --radius-field: 10px;
+  --radius-box: 16px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+@plugin "daisyui/theme" {
+  name: 'portal';
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f7f7f4;
+  --color-base-300: #f0efe9;
+  --color-base-content: #1b1f17;
+  --color-primary: #1b1f17;
+  --color-primary-content: #ffffff;
+  --color-secondary: #e7e8e3;
+  --color-secondary-content: #1b1f17;
+  --color-accent: #4f5346;
+  --color-accent-content: #ffffff;
+  --color-neutral: #1b1f17;
+  --color-neutral-content: #ffffff;
+  --color-info: #2a5d8f;
+  --color-info-content: #ffffff;
+  --color-success: #2f7a3b;
+  --color-success-content: #ffffff;
+  --color-warning: #b54708;
+  --color-warning-content: #ffffff;
+  --color-error: #b42318;
+  --color-error-content: #ffffff;
+  --radius-selector: 999px;
+  --radius-field: 10px;
+  --radius-box: 16px;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+/* ── WCAG 2.2 AA ────────────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* 1.4.11: the edge of a field against white — 3.35 : 1 (the old #d8d7cf was 1.44 : 1) */
+  --ui-field-border: #8a8e82;
+  /* 1.4.3: placeholder text — 5.09 : 1 (the old #80867a was 3.74 : 1) */
+  --ui-placeholder: #6b7064;
+  /* 2.4.7 / 2.4.13: the focus ring — 2 px, the accent of the module, 2 px apart: ≥ 3 : 1 against both sides */
+  --ui-focus: var(--color-primary);
+  --ui-focus-width: 2px;
+  /* 2.5.8: the smallest target */
+  --ui-target: 24px;
+}
+.input,
+.select,
+.textarea,
+.file-input {
+  border-color: var(--ui-field-border);
+}
+.input::placeholder,
+.textarea::placeholder,
+.input input::placeholder {
+  color: var(--ui-placeholder);
+  opacity: 1;
+}
+:where(
+  a,
+  button,
+  summary,
+  [tabindex],
+  [role='button'],
+  [role='tab'],
+  [role='option'],
+  [role='menuitem'],
+  .toggle,
+  .checkbox,
+  .radio
+):focus-visible {
+  outline: var(--ui-focus-width) solid var(--ui-focus);
+  outline-offset: 2px;
+}
+:where(
+  button,
+  [role='button'],
+  a.btn,
+  .btn,
+  [role='tab'],
+  [role='menuitem'],
+  .checkbox,
+  .radio,
+  .toggle
+) {
+  min-height: var(--ui-target);
+  min-width: var(--ui-target);
+}
+:where(button, [role='button'], .btn, summary, label:has(input)) {
+  cursor: pointer;
+}
+:where(button, .btn):disabled,
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+/* a busy button keeps its colour (it is not «unavailable», it works): the spinner and the word say what happens */
+/* a busy button keeps its colour — it is at work, not «unavailable»: the spinner and the word say what happens */
+.btn[aria-busy='true']:disabled {
+  opacity: 0.85;
+  cursor: progress;
+}
+/* what is only for screen readers */
+.ui-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+/* «Перейти до змісту» — the first stop of the keyboard on every page */
+.ui-skip-link {
+  position: fixed;
+  left: 12px;
+  top: -60px;
+  z-index: 100;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--color-neutral);
+  color: var(--color-neutral-content);
+  font-weight: 600;
+  transition: top 0.15s;
+}
+.ui-skip-link:focus {
+  top: 12px;
+}
+
+/* 2.3.3 / the system setting: no movement but the essential */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .loading {
+    animation: none;
+  }
+}
+/* Windows high contrast: the system colours, the borders stay visible */
+@media (forced-colors: active) {
+  .btn,
+  .badge,
+  .input,
+  .select,
+  .textarea,
+  .card,
+  .alert,
+  .tab {
+    border: 1px solid CanvasText;
+  }
+  :focus-visible {
+    outline: 2px solid Highlight !important;
+  }
+}
+
+/* ── «Доступність»: what a person chooses (the attributes on <html>, the same for every module of the domain) ── */
+html[data-a11y-text='lg'] {
+  font-size: 17px;
+}
+html[data-a11y-text='xl'] {
+  font-size: 19px;
+}
+html[data-a11y-contrast='high'] {
+  /* stronger, not louder: white ground, darker words, grey edges that pass 3 : 1 — no black outlines everywhere */
+  --color-canvas: #ffffff;
+  --color-base-200: #ffffff;
+  --color-base-300: #f7f7f4;
+  --color-muted: #3d4136;
+  --color-line: #8a8e82;
+  --ui-field-border: #6b7064;
+  --ui-placeholder: #454a40;
+}
+html[data-a11y-contrast='high'] :where(.card) {
+  border-color: #8a8e82;
+}
+html[data-a11y-motion='reduce'] *,
+html[data-a11y-motion='reduce'] *::before,
+html[data-a11y-motion='reduce'] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+html[data-a11y-links='underline'] a:not(.btn) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+/* 1.4.12: the spacing of text — line 1.5, paragraphs 2×, letters 0.12em, words 0.16em */
+html[data-a11y-spacing='wide'] body {
+  line-height: 1.5;
+  letter-spacing: 0.12em;
+  word-spacing: 0.16em;
+}
+html[data-a11y-spacing='wide'] p {
+  margin-bottom: 2em;
+}
+html[data-a11y-focus='strong'] {
+  --ui-focus-width: 3px;
+}
+html[data-a11y-focus='strong'] :focus-visible {
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px color-mix(in srgb, var(--ui-focus) 25%, transparent);
+}
+
+/* ── loaders ─────────────────────────────────────────────────────────────────────────────────────── */
+/* daisyUI .loading-ball (pages) and .loading-spinner (buttons); they appear after 200 ms and stay ≥ 400 ms — the
+   timing is delayedBusy() (utils/loading.utils.ts), used by UiBusyDirective and the pages. A busy region carries aria-busy; the words are read once. */

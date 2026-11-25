@@ -38,7 +38,9 @@ services:
       - files:/app/storage/files # frozen documents and e-signatures
 
   web:
-    build: ./frontend
+    build:
+      context: ./frontend
+      secrets: [npm_token]
     depends_on: [api]
     environment:
       API_INTERNAL_URL: http://api:3000
@@ -46,6 +48,12 @@ services:
       TRUST_PROXY_HOPS: '0'
     ports:
       - '4000:4000'
+
+# @mr/ui is read from GitHub Packages while building the web images: the token comes from the NODE_AUTH_TOKEN
+# variable of your shell (a classic token with read:packages) and is not stored in any image.
+secrets:
+  npm_token:
+    environment: NODE_AUTH_TOKEN
 
 volumes:
   pgdata:

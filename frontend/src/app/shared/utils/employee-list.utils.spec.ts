@@ -44,8 +44,9 @@ describe('список працівників', () => {
     const warned = emp({ warnings: [{ code: 'NO_TCK', level: 'warning' }] });
     expect(isDismissed(gone, today)).toBe(true);
     expect(isDismissed(leaving, today)).toBe(false);
-    // «Усі» — everyone, the dismissed too
-    expect([gone, leaving, warned].every((e) => matchesView(e, 'all', today))).toBe(true);
+    // «Працюють» — the working (a dismissal later than today still works); the dismissed — only in their tab
+    expect([leaving, warned].every((e) => matchesView(e, 'all', today))).toBe(true);
+    expect(matchesView(gone, 'all', today)).toBe(false);
     // «Звільнені» — only the dismissed (a future dismissal date is still working)
     expect(matchesView(gone, 'dismissed', today)).toBe(true);
     expect(matchesView(leaving, 'dismissed', today)).toBe(false);

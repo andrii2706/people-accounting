@@ -23,6 +23,7 @@ import {
   GrantAccessDto,
   LabelSettingsDto,
   LetterheadSettingsDto,
+  QuotaNotifyDto,
   RegistryLookupDto,
   UpdateLegalEntityDto,
 } from './legal-entities.dto.js';
@@ -36,6 +37,8 @@ import type { LegalEntity } from './legal-entity.entity.js';
 import type { AccessRole } from '../shared/interfaces/legal-entity.interface.js';
 import { ENTITY_MANAGERS } from '../users/users.constants.js';
 import { LegalEntitiesService } from './legal-entities.service.js';
+import { QuotaWatchService } from '../notifications/quota-watch.service.js';
+import type { QuotaNotifySettings, QuotaPage } from '../shared/interfaces/legal-entity.interface.js';
 
 @ApiTags('legal-entities')
 @Controller('legal-entities')
@@ -44,7 +47,31 @@ export class LegalEntitiesController {
     private readonly entities: LegalEntitiesService,
     private readonly access: LegalEntityAccessService,
     private readonly audit: AuditService,
+    private readonly quota: QuotaWatchService,
   ) {}
+
+  /** The reservation quota: the numbers now, every recalculation, the e-mails. */
+  @Get(':id/quota')
+  async quotaPage(@Param('id', ParseUUIDPipe) id: string, @EntityScope() scope: Scope): Promise<QuotaPage> {
+    assertInScope(scope, id, ENTITY_NOT_FOUND);
+    await this.entities.get(id);
+    return this.quota.page(id);
+  }
+
+  @Roles(...ENTITY_MANAGERS)
+  @Put(':id/quota-notify')
+  async saveQuotaNotify(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: QuotaNotifyDto,
+    @CurrentUser() user: AuthUser,
+    @EntityScope() scope: Scope,
+  ): Promise<QuotaNotifySettings> {
+    assertInScope(scope, id, ENTITY_NOT_FOUND);
+    await this.entities.get(id);
+    const saved = await this.quota.saveSettings(id, dto);
+    await this.audit.log('legal-entity', id, 'UPDATE', { quotaNotify: [null, saved] }, user);
+    return saved;
+  }
 
   /** The user's legal entity (the main administrator — all of them; an account without one — none). */
   @AllowUnassigned()
@@ -241,6 +268,16 @@ export class LegalEntitiesController {
     const entity = await this.entities.update(id, dto);
     const diff = changedFields(before, entity, ENTITY_FORM_FIELDS);
     if (Object.keys(diff).length) await this.audit.log('legal-entity', id, 'UPDATE', diff, user);
+    if (before.reservationQuotaPercent !== entity.reservationQuotaPercent) {
+      await this.quota.recalc(
+        [id],
+        entity.reservationQuotaPercent === null
+          ? 'Квоту прибрано'
+          : `Змінено відсоток квоти: ${entity.reservationQuotaPercent} %`,
+      );
+    } else if (before.reservationQuotaValidUntil !== entity.reservationQuotaValidUntil) {
+      await this.quota.recalc([id], 'Змінено строк дії рішення про квоту');
+    }
     return entity;
   }
 

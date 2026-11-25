@@ -17,7 +17,7 @@
       } @else if (doc.error()) {
         <p class="text-sm text-danger" role="alert">Не вдалося завантажити договір.</p>
       } @else {
-        <p class="text-sm text-muted">Завантаження…</p>
+        <ui-page-loader label="Відкриваємо договір…" [full]="false" />
       }
     </div>
     <app-copyright class="py-6" />

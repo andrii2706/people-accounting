@@ -16,10 +16,14 @@ import type { InboxItem, InboxView } from '../shared/interfaces/inbox.interface.
 import { InboxRead } from './inbox-read.entity.js';
 import { INBOX_DEADLINE_CODES } from './inbox.constants.js';
 import { INBOX_KIND_ORDER } from './inbox.constants.js';
-import { INBOX_LEVEL_ORDER } from './inbox.constants.js';
+import { INBOX_LEVEL_ORDER, INBOX_QUOTA_ENDS_DAYS } from './inbox.constants.js';
+import { LegalEntity } from '../legal-entities/legal-entity.entity.js';
+import { entityQuota, quotaStanding } from '../legal-entities/utils/quota.utils.js';
+import { addDays } from '../common/utils/dates.utils.js';
 
 /**
- * In-app notifications about employees: deadlines, unreported changes for the TCK, problems in the card.
+ * In-app notifications about employees: deadlines, unreported changes for the TCK, problems in the card —
+ * and about the reservation quota of the legal entity (exceeded, the decision ends).
  * They are computed from the current data (the same checks as the warnings in the card), so they disappear
  * by themselves once the data is fixed; only the «read» mark of each user is stored.
  */
@@ -29,6 +33,7 @@ export class InboxService {
     @InjectRepository(Employee) private readonly employees: Repository<Employee>,
     @InjectRepository(EmployeeChange) private readonly changes: Repository<EmployeeChange>,
     @InjectRepository(InboxRead) private readonly reads: Repository<InboxRead>,
+    @InjectRepository(LegalEntity) private readonly entities: Repository<LegalEntity>,
     private readonly org: OrganizationService,
   ) {}
 
@@ -75,7 +80,7 @@ export class InboxService {
   }
 
   private async compute(date: IsoDate, scope: Scope): Promise<InboxItem[]> {
-    const [org, employees, pending] = await Promise.all([
+    const [org, employees, pending, entities] = await Promise.all([
       this.org.get(),
       this.employees.find({ where: scope ? { legalEntityId: scope } : {}, relations: { militaryDocuments: true } }),
       this.changes.find({
@@ -83,8 +88,9 @@ export class InboxService {
         relations: { employee: true },
         order: { effectiveDate: 'ASC' },
       }),
+      this.entities.find({ where: scope ? { id: scope } : {} }),
     ]);
-    const items: InboxItem[] = [];
+    const items: InboxItem[] = this.quotaItems(entities, employees, date);
 
     for (const e of employees) {
       const d = deriveEmployee(e, date, org.alertDays);
@@ -122,6 +128,44 @@ export class InboxService {
         link: 'NOTICES',
         read: false,
       });
+    }
+    return items;
+  }
+
+  /**
+   * The reservation quota of every legal entity of the scope: exceeded (a new notification when the exceeding
+   * grows) and the decision ending in 14 days. Numbers only — the names are on the quota page.
+   */
+  private quotaItems(entities: LegalEntity[], employees: Employee[], date: IsoDate): InboxItem[] {
+    const standing = employees.map((e) => quotaStanding(e, date));
+    const items: InboxItem[] = [];
+    for (const entity of entities) {
+      const q = entityQuota(entity, standing, date);
+      const base = {
+        kind: 'QUOTA' as const,
+        employeeId: '',
+        employeeName: entity.shortName || entity.fullName,
+        link: 'QUOTA' as const,
+        legalEntityId: entity.id,
+        read: false,
+      };
+      if (q.exceeded && q.quota !== null) {
+        const over = q.reservedCompany - q.quota;
+        items.push({
+          ...base,
+          key: `QUOTA:${entity.id}:over:${over}`,
+          level: 'danger',
+          message: `Квоту бронювання перевищено на ${over}: місць ${q.quota}, заброньовано підприємством ${q.reservedCompany}. Перевірте бронювання або подайте документи на збільшення квоти.`,
+        });
+      }
+      if (q.quota !== null && q.validUntil && !q.expired && q.validUntil <= addDays(date, INBOX_QUOTA_ENDS_DAYS)) {
+        items.push({
+          ...base,
+          key: `QUOTA:${entity.id}:ends:${q.validUntil}`,
+          level: 'warning',
+          message: `Рішення про квоту бронювання діє до ${formatUa(q.validUntil)}. Подайте документи на продовження заздалегідь.`,
+        });
+      }
     }
     return items;
   }

@@ -15,6 +15,7 @@ import { IitSignWidgetService } from '../../services/iit-sign-widget.service';
 import { ToastService } from '../../services/toast.service';
 import { fromBase64, saveBytes, toBase64 } from '../../utils/file.utils';
 import { IconComponent } from '../icon/icon.component';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Signing a document the server offered with a qualified e-signature: right here with the IIT widget
@@ -24,7 +25,7 @@ import { IconComponent } from '../icon/icon.component';
 @Component({
   selector: 'app-kep-sign',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [UiBusyDirective, IconComponent],
   host: { class: 'block' },
   templateUrl: './kep-sign.component.html',
 })

@@ -33,6 +33,7 @@ import {
   IMPORT_RECENT_NOTICE_DAYS,
 } from '../../../shared/constants/employee-import.constants';
 import { importRowStatus } from '../../../shared/utils/employee-import.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Import of many employees from a file (.xlsx / .csv, e.g. a 1C report).
@@ -44,6 +45,7 @@ import { importRowStatus } from '../../../shared/utils/employee-import.utils';
   selector: 'app-employee-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PageHeaderComponent,
     IconComponent,
     RouterLink,

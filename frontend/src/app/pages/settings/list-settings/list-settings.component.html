@@ -181,6 +181,7 @@
 
     <div class="flex flex-wrap items-center gap-2">
       <button
+        [uiBusy]="settingsForm().submitting()"
         type="submit"
         class="btn btn-primary cursor-pointer"
         [disabled]="settingsForm().submitting() || !dirty()"

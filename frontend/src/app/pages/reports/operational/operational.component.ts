@@ -16,11 +16,13 @@ import { DictionariesService } from '../../../shared/services/dictionaries.servi
 import { DateInputComponent } from '../../../shared/components/date-input/date-input.component';
 import { SelectComponent } from '../../../shared/components/select/select.component';
 import { tckOption } from '../../../shared/utils/tck.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 @Component({
   selector: 'app-operational',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     DateInputComponent,
     PageHeaderComponent,
     IconComponent,

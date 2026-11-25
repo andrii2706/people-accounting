@@ -36,7 +36,7 @@ const employee = {
   militaryDocuments: [{ type: 'військовий квиток', number: '000001', series: 'АА' }],
 };
 
-function setup(readKeys: string[] = []) {
+function setup(readKeys: string[] = [], entities: unknown[] = [], staff: unknown[] = [employee]) {
   const repo = (rows: unknown[]) => ({ find: () => Promise.resolve(rows) });
   const pending = [
     { id: 'c1', type: 'ADDRESS', effectiveDate: '2026-09-10', employee, letterId: null, skipped: false },
@@ -45,7 +45,13 @@ function setup(readKeys: string[] = []) {
     find: () => Promise.resolve(readKeys.map((key) => ({ key }))),
   };
   const org = { get: () => Promise.resolve({ alertDays: 30, notifyDeadlineDays: 7 }) };
-  return new InboxService(repo([employee]) as never, repo(pending) as never, reads as never, org as never);
+  return new InboxService(
+    repo(staff) as never,
+    repo(pending) as never,
+    reads as never,
+    repo(entities) as never,
+    org as never,
+  );
 }
 
 /** The main administrator: notifications about every legal entity (fictional account). */
@@ -82,5 +88,43 @@ describe('InboxService — сповіщення по працівниках', ()
   it('обліковий запис без юрособи не отримує сповіщень', async () => {
     const view = await setup().list({ ...ADMIN, role: 'DIRECTOR' }, TODAY);
     expect(view).toMatchObject({ items: [], unread: 0 });
+  });
+});
+
+describe('InboxService — the reservation quota', () => {
+  const entity = {
+    id: 'le1',
+    fullName: 'ТОВ «Вигадана компанія»',
+    shortName: 'Вигадана компанія',
+    reservationQuotaPercent: 50,
+    reservationQuotaValidUntil: '2026-11-10',
+  };
+  const reserved = {
+    ...employee,
+    id: 'e2',
+    legalEntityId: 'le1',
+    reserved: true,
+    reservationUntil: '2026-12-31',
+    deferralUntil: null,
+  };
+
+  it('exceeded and the decision ending — on top, linking to the quota page', async () => {
+    const view = await setup([], [entity], [reserved]).list(ADMIN, TODAY);
+    const quota = view.items.filter((i) => i.kind === 'QUOTA');
+    expect(quota.map((i) => [i.key, i.level, i.link, i.legalEntityId])).toEqual([
+      ['QUOTA:le1:over:1', 'danger', 'QUOTA', 'le1'],
+      ['QUOTA:le1:ends:2026-11-10', 'warning', 'QUOTA', 'le1'],
+    ]);
+    expect(quota[0].message).toContain('перевищено на 1');
+    expect(quota[0].message).not.toContain('Приклад');
+  });
+
+  it('nothing while the quota holds', async () => {
+    const view = await setup(
+      [],
+      [{ ...entity, reservationQuotaValidUntil: null }],
+      [{ ...reserved, reserved: false }],
+    ).list(ADMIN, TODAY);
+    expect(view.items.some((i) => i.kind === 'QUOTA')).toBe(false);
   });
 });

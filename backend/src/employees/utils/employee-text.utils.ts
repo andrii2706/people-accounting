@@ -80,3 +80,37 @@ export function capitalizeName(value: string) {
 
 /** «Прізвище Ім’я По батькові». */
 export const employeeFullName = (e: Employee) => `${e.lastName} ${e.firstName} ${e.middleName}`.trim();
+
+/** «Зразкова М. І.» — for the journal of the quota recalculations. */
+export function shortName(e: Pick<Employee, 'lastName' | 'firstName' | 'middleName'>): string {
+  const initial = (s: string) => (s ? `${s.charAt(0).toUpperCase()}.` : '');
+  return joinParts([e.lastName, joinParts([initial(e.firstName), initial(e.middleName)], ' ')], ' ');
+}
+
+/**
+ * Why the quota is recalculated after the card changed — '' when nothing the quota depends on changed
+ * (employment, gender, registration, reservation, mobilization, part-time, legal entity).
+ */
+export function quotaReason(before: Employee, after: Employee): string {
+  const who = shortName(after);
+  if (before.legalEntityId !== after.legalEntityId) return `Переведено до іншої юрособи: ${who}`;
+  if (!before.dismissalDate && after.dismissalDate) return `Звільнено: ${who}`;
+  if (before.dismissalDate && !after.dismissalDate) return `Скасовано звільнення: ${who}`;
+  if (!before.reserved && after.reserved) return `Заброньовано: ${who}`;
+  if (before.reserved && !after.reserved) return `Знято бронювання: ${who}`;
+  const keys: (keyof Employee)[] = [
+    'hireDate',
+    'dismissalDate',
+    'gender',
+    'militaryRegistered',
+    'rankCode',
+    'reserveTeamNumber',
+    'reservedBy',
+    'reservationUntil',
+    'mobilizedAt',
+    'demobilizedAt',
+    'partTimeNotInQuota',
+    'birthDate',
+  ];
+  return keys.some((k) => before[k] !== after[k]) ? `Змінено облікові дані: ${who}` : '';
+}

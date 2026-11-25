@@ -5,9 +5,9 @@ describe('modulesLabel', () => {
     expect(modulesLabel('ADMIN', [])).toBe('усі модулі');
   });
 
-  it('names the applications, the coming ones marked', () => {
-    expect(modulesLabel('HR', ['kadry', 'oblik'])).toBe(
-      'Військовий облік · Облік працівників (незабаром)',
+  it('names the applications in the order of the domain', () => {
+    expect(modulesLabel('HR', ['projects', 'kadry', 'oblik'])).toBe(
+      'Військовий облік · Облік працівників · Керування проєктами',
     );
   });
 

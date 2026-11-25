@@ -38,6 +38,7 @@
   }
   @if (auth.canEdit()) {
     <button
+      [uiBusy]="busy()"
       type="button"
       class="btn btn-primary cursor-pointer"
       [disabled]="busy() || needsEntity()"

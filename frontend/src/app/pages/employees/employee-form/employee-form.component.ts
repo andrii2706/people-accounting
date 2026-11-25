@@ -95,11 +95,13 @@ import type {
   FormErrorItem,
 } from '../../../shared/interfaces/employee-form.interface';
 import type { NotificationStatus } from '../../../shared/interfaces/organization.interface';
+import { UiBusyDirective } from '@mr/ui';
 
 @Component({
   selector: 'app-employee-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     SuggestInputComponent,
     TimeInputComponent,
     FormField,

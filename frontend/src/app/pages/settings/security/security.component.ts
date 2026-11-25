@@ -20,6 +20,7 @@ import { AuthService } from '../../../shared/services/auth.service';
 import { SecurityService } from '../../../shared/services/security.service';
 import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { securityDetails, sha256Hex } from '../../../shared/utils/security.utils';
+import { UiSkeletonListComponent } from '@mr/ui';
 
 /**
  * Settings → «Безпека»: what looked like a break-in or a leak (with the letters that went out about it),
@@ -28,7 +29,13 @@ import { securityDetails, sha256Hex } from '../../../shared/utils/security.utils
 @Component({
   selector: 'app-security',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, IconComponent, SelectComponent, UaDateTimePipe],
+  imports: [
+    UiSkeletonListComponent,
+    PageHeaderComponent,
+    IconComponent,
+    SelectComponent,
+    UaDateTimePipe,
+  ],
   templateUrl: './security.component.html',
 })
 export class SecurityComponent {

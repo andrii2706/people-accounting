@@ -52,3 +52,22 @@ export const PERSON_TEXT: Record<EntityPerson, { who: string; whom: string; path
 
 /** A new legal entity has no accounts yet. */
 export const NO_PEOPLE: EntityPeople = { HEAD: null, RESPONSIBLE: null };
+
+/** The e-mails about the reservation quota a legal entity may turn on or off. */
+export const QUOTA_NOTIFY_OPTIONS: {
+  key: 'exceeded' | 'decreased' | 'expiring';
+  label: string;
+  hint: string;
+}[] = [
+  {
+    key: 'exceeded',
+    label: 'Квоту перевищено',
+    hint: 'одразу, один раз — і знову, коли перевищення зросте',
+  },
+  {
+    key: 'decreased',
+    label: 'Вільних місць поменшало після перерахунку',
+    hint: 'напр. після звільнення',
+  },
+  { key: 'expiring', label: 'Рішення про квоту закінчується', hint: 'за 14 днів до кінця дії' },
+];

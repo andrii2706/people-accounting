@@ -70,6 +70,7 @@
     </p>
   }
   <button
+    [uiBusy]="passwordForm().submitting()"
     type="submit"
     class="btn btn-primary cursor-pointer"
     [disabled]="passwordForm().submitting()"

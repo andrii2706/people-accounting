@@ -55,11 +55,13 @@ import {
   matchesQuickFilter,
   splitTck,
 } from '../../../shared/utils/lists-view.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 @Component({
   selector: 'app-lists',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     InViewDirective,
     DateInputComponent,
     PageHeaderComponent,

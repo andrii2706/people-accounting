@@ -3,6 +3,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { CurrentUser, EntityScope, Roles } from '../common/decorators/auth.decorators.js';
 import { scopedEntity } from '../common/utils/entity-scope.utils.js';
 import {
+  AssignTckDto,
   CreateEmployeeDto,
   DismissEmployeeDto,
   EmployeeQueryDto,
@@ -10,6 +11,10 @@ import {
   UpdateEmployeeDto,
 } from './employees.dto.js';
 import { EmployeesService } from './employees.service.js';
+import { dismissedXlsx } from './utils/dismissed-export.utils.js';
+import { attachmentFile } from '../common/utils/file-response.utils.js';
+import { XLSX_MIME } from '../common/constants/mime.constants.js';
+import { formatUa } from '../common/utils/dates.utils.js';
 import type { AuthUser, Scope } from '../shared/interfaces/auth.interface.js';
 
 @ApiTags('employees')
@@ -24,6 +29,30 @@ export class EmployeesController {
     return this.employees.list(query);
   }
 
+  /** «Звільнені» as an .xlsx (the dismissal, the order, the notice to the TCK) — of the scope. */
+  @Get('dismissed.xlsx')
+  async dismissedXlsx(@Query() query: EmployeeQueryDto, @EntityScope() scope: Scope) {
+    const legalEntityId = scopedEntity(scope, query.legalEntityId) ?? undefined;
+    const list = await this.employees.list({ ...query, legalEntityId, status: 'dismissed' });
+    const buffer = await dismissedXlsx(
+      list.items.map((e) => ({
+        fullName: `${e.lastName} ${e.firstName} ${e.middleName}`.trim(),
+        personnelNumber: e.personnelNumber,
+        position: e.position,
+        dismissalDate: e.dismissalDate,
+        order: [
+          e.dismissalOrderNumber && `№ ${e.dismissalOrderNumber}`,
+          e.dismissalOrderDate && `від ${formatUa(e.dismissalOrderDate)}`,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        notice: e.dismissalNotice,
+        legalEntityName: e.legalEntityName,
+      })),
+    );
+    return attachmentFile(buffer, `Звільнені ${formatUa(list.date)}.xlsx`, XLSX_MIME);
+  }
+
   @Get('changes/pending')
   pending(@EntityScope() scope: Scope) {
     return this.employees.pendingChanges(scope);
@@ -36,6 +65,18 @@ export class EmployeesController {
     @EntityScope() scope: Scope,
   ) {
     return this.employees.updateChange(changeId, dto, scope);
+  }
+
+  /** Employees without a TCK whose military document was issued by this TCK. */
+  @Get('tck-matches/:tckId')
+  tckMatches(@Param('tckId', ParseUUIDPipe) tckId: string, @EntityScope() scope: Scope) {
+    return this.employees.tckMatches(tckId, scope);
+  }
+
+  @Post('tck-assign')
+  @HttpCode(200)
+  assignTck(@Body() dto: AssignTckDto, @CurrentUser() user: AuthUser, @EntityScope() scope: Scope) {
+    return this.employees.assignTck(dto.tckId, dto.employeeIds, user, scope);
   }
 
   @Get(':id')

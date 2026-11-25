@@ -4,13 +4,15 @@
   "description": "Git hooks and checks for the whole repository (backend and frontend have their own package.json)",
   "scripts": {
     "prepare": "husky",
+    "cleanup": "node scripts/cleanup.mjs",
     "check:backend": "npm --prefix backend run typecheck && npm --prefix backend run lint && npm --prefix backend test",
     "check:frontend": "npm --prefix frontend run format:check && npm --prefix frontend run test:ci && npm --prefix frontend run build",
     "check:frontend:quick": "npm --prefix frontend run format:check && npm --prefix frontend run test:ci && npm --prefix frontend run typecheck",
     "check": "npm run check:backend && npm run check:frontend",
     "fake:1c": "node scripts/fake-1c/server.mjs",
     "platform:sync": "node ../portal/platform/scripts/sync.mjs .",
-    "platform:check": "node ../portal/platform/scripts/sync.mjs . --check"
+    "platform:check": "node ../portal/platform/scripts/sync.mjs . --check",
+    "ui:update": "npm --prefix frontend install @mr/ui@npm:@andrii2706/mr-ui@latest"
   },
   "devDependencies": {
     "husky": "^9.1.7",

@@ -26,7 +26,20 @@ export interface NavItem {
 export interface InfoRow {
   label: string;
   value: string;
+  /** «з 12.11.2026» — since when the value is in force. */
+  since?: string;
+  /** A button next to the label that opens the window changing this value. */
+  action?: { label: string; dialog: EmployeeDialog };
+  /** A muted line under the value. */
+  note?: string;
+  /** Earlier values (the TCKs before). */
+  earlier?: string[];
+  /** The value is a stand-in (e.g. «як зареєстроване»), shown muted. */
+  muted?: boolean;
 }
+
+/** The windows of the employee card that change one part of it with the date of the change. */
+export type EmployeeDialog = 'contacts' | 'passport' | 'tck';
 
 /** One line of the global search (Ctrl K): an employee or a quick action. */
 export interface PaletteEntry {

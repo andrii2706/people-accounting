@@ -13,4 +13,7 @@ export const INBOX_DEADLINE_CODES = new Set([
 
 export const INBOX_LEVEL_ORDER: Record<WarningLevel, number> = { danger: 0, warning: 1, info: 2 };
 
-export const INBOX_KIND_ORDER: Record<InboxKind, number> = { DEADLINE: 0, TCK: 1, CARD: 2 };
+export const INBOX_KIND_ORDER: Record<InboxKind, number> = { QUOTA: 0, DEADLINE: 1, TCK: 2, CARD: 3 };
+
+/** The end of the quota decision is announced this many days before it. */
+export const INBOX_QUOTA_ENDS_DAYS = 14;

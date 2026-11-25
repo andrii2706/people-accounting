@@ -45,6 +45,7 @@ import {
   youControlUrl,
 } from '../../../shared/utils/legal-entity.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * A legal entity: requisites (can be pulled from the free ЄДР service), the head and the person
@@ -54,6 +55,7 @@ import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
   selector: 'app-legal-entity-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PageHeaderComponent,
     FormField,
     FormFieldComponent,

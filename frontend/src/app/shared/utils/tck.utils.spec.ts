@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_TCK_FILTER, NO_TCK_DISTRICT } from '../constants/tck.constants';
 import type { Tck } from '../interfaces/dictionary.interface';
-import { tckMatches, tckOption, tckPlaceDetails, tckPlaceOptions } from './tck.utils';
+import {
+  parseTckImport,
+  tckMatches,
+  tckOption,
+  tckPlaceDetails,
+  tckPlaceOptions,
+  tckPlaceText,
+  tckToForm,
+} from './tck.utils';
 
 const tck = (name: string, region: string, city: string, district = ''): Tck => ({
   id: name,
@@ -71,5 +79,42 @@ describe('TCK filters', () => {
   it('a picker option is found by its place', () => {
     expect(tckOption(LIST[2]).hint).toBe('м. Броди · Золочівський район · Львівська область');
     expect(tckPlaceDetails(LIST[3])).toBe('Шевченківський район');
+  });
+});
+
+describe('форма і імпорт ТЦК', () => {
+  it('tckToForm: порожня форма для нового; поля наявного', () => {
+    expect(tckToForm(null).name).toBe('');
+    const t = tck('Тестовий ТЦК', 'Львівська область', 'м. Броди', 'Золочівський район');
+    expect(tckToForm({ ...t, postalCode: null as never, region: null as never })).toMatchObject({
+      name: 'Тестовий ТЦК',
+      postalCode: '',
+      region: '',
+    });
+    expect(tckPlaceText({ region: 'м. Київ', city: 'м. Київ', district: '' })).toBe('м. Київ');
+  });
+
+  it('parseTckImport: масив або {items}; порожні імена відкинуто; помилки читабельні', () => {
+    expect(
+      parseTckImport(
+        JSON.stringify([{ name: ' Тестовий ТЦК ', phone: ' 044 ', email: '' }, { name: '' }]),
+      ),
+    ).toEqual([{ name: 'Тестовий ТЦК', phone: '044' }]);
+    expect(parseTckImport(JSON.stringify({ items: [{ name: 'A', city: 'м. Б' }] }))).toEqual([
+      { name: 'A', city: 'м. Б' },
+    ]);
+    expect(() => parseTckImport('{}')).toThrow('items');
+    expect(() => parseTckImport('[]')).toThrow('жодного');
+    expect(() =>
+      parseTckImport(JSON.stringify(Array.from({ length: 2001 }, (_, i) => ({ name: `Т${i}` })))),
+    ).toThrow('Не більше');
+  });
+
+  it('tckMatches: район «без району» і текстовий пошук', () => {
+    const t = tck('Тестовий ТЦК', 'Львівська область', 'м. Броди');
+    expect(tckMatches(t, { ...EMPTY_TCK_FILTER, district: NO_TCK_DISTRICT })).toBe(true);
+    expect(tckMatches(t, { ...EMPTY_TCK_FILTER, city: 'м. Інше' })).toBe(false);
+    expect(tckMatches(t, { ...EMPTY_TCK_FILTER, query: 'броди' })).toBe(true);
+    expect(tckMatches(t, { ...EMPTY_TCK_FILTER, query: 'харків' })).toBe(false);
   });
 });

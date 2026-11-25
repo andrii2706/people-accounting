@@ -1,0 +1,150 @@
+<app-modal
+  [open]="open()"
+  heading="Змінити ТЦК (місце обліку)"
+  [wide]="true"
+  (closed)="closed.emit()"
+>
+  <p modal-lead class="mt-1 text-sm text-muted">
+    {{ employee().derived.fullName }} · зараз: {{ current() }}
+  </p>
+  <form id="tck-form" class="grid gap-4 py-2 sm:grid-cols-2" novalidate (submit)="save($event)">
+    <app-form-field
+      class="sm:col-span-2"
+      label="Новий ТЦК та СП"
+      hint="Почніть вводити назву або місто"
+      [required]="true"
+      [field]="form.tckId"
+    >
+      <app-select
+        [formField]="form.tckId"
+        [options]="tckOptions()"
+        placeholder="— оберіть —"
+        ariaLabel="Новий ТЦК та СП"
+      />
+    </app-form-field>
+    @if (auth.canEdit() && !adding()) {
+      <p class="-mt-2 text-sm sm:col-span-2">
+        <button
+          type="button"
+          class="inline-flex cursor-pointer items-center gap-1 font-semibold text-brand-700 hover:underline"
+          (click)="openAdding()"
+        >
+          <app-icon name="plus" [size]="14" /> Немає в довіднику — додати ТЦК
+        </button>
+      </p>
+    }
+    @if (chosen(); as t) {
+      <dl
+        class="grid gap-x-4 gap-y-2 rounded-xl border border-line p-3 text-sm sm:col-span-2 sm:grid-cols-2"
+      >
+        <p class="text-xs font-semibold tracking-wide text-muted uppercase sm:col-span-2">
+          З довідника ТЦК — підставиться в листи
+        </p>
+        <div>
+          <dt class="text-xs text-muted">Адреса</dt>
+          <dd>{{ chosenAddress() || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-muted">Кому (родовий)</dt>
+          <dd>{{ t.nameGenitive || t.name }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-muted">Телефон</dt>
+          <dd>{{ t.phone || '—' }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs text-muted">Email</dt>
+          <dd class="break-all">{{ t.email || '—' }}</dd>
+        </div>
+      </dl>
+    }
+    <app-form-field
+      label="На обліку з"
+      hint="Дата постановки на облік у новому ТЦК"
+      [required]="true"
+      [field]="form.tckRegisteredAt"
+    >
+      <app-date-input [formField]="form.tckRegisteredAt" ariaLabel="На обліку з" />
+    </app-form-field>
+    <app-form-field label="Підстава" hint="Напр. військово-обліковий документ" [field]="form.basis">
+      <input class="input" [formField]="form.basis" />
+    </app-form-field>
+    @if (employee().tck) {
+      <p
+        class="flex gap-2 rounded-xl border border-[#cfdeec] bg-[#eef3f8] p-3 text-sm sm:col-span-2"
+      >
+        <app-icon name="clock" [size]="16" class="mt-0.5 shrink-0 text-info" />
+        <span
+          >Попередній ТЦК ({{ current() }}) лишиться в історії картки. Нові листи підуть уже до
+          нового.</span
+        >
+      </p>
+    }
+  </form>
+
+  @if (adding()) {
+    <form
+      class="mb-3 grid gap-3 rounded-xl border border-line bg-sunken/50 p-3 sm:grid-cols-2"
+      novalidate
+      (submit)="addTck($event)"
+    >
+      <p class="text-sm font-semibold sm:col-span-2">Новий ТЦК у довідник</p>
+      <app-form-field class="sm:col-span-2" label="Назва" [required]="true" [field]="tckForm.name">
+        <input class="input" [formField]="tckForm.name" />
+      </app-form-field>
+      <app-form-field
+        class="sm:col-span-2"
+        label="Назва в родовому відмінку"
+        hint="Для «Керівнику …», напр. Сихівського РТЦК та СП"
+        [field]="tckForm.nameGenitive"
+      >
+        <input class="input" [formField]="tckForm.nameGenitive" />
+      </app-form-field>
+      <app-form-field label="Індекс" [field]="tckForm.postalCode">
+        <input class="input font-mono" inputmode="numeric" [formField]="tckForm.postalCode" />
+      </app-form-field>
+      <app-form-field label="Адреса" [field]="tckForm.address">
+        <input class="input" [formField]="tckForm.address" />
+      </app-form-field>
+      <app-form-field label="Телефон" [field]="tckForm.phone">
+        <input class="input" [formField]="tckForm.phone" />
+      </app-form-field>
+      <app-form-field label="Email" [field]="tckForm.email">
+        <input class="input" type="email" [formField]="tckForm.email" />
+      </app-form-field>
+      <div class="flex gap-2 sm:col-span-2">
+        <button
+          type="submit"
+          class="btn btn-primary btn-sm cursor-pointer"
+          [uiBusy]="savingTck()"
+          [disabled]="savingTck()"
+        >
+          Додати до довідника
+        </button>
+        <button
+          type="button"
+          class="btn btn-ghost btn-sm cursor-pointer"
+          (click)="adding.set(false)"
+        >
+          Скасувати
+        </button>
+      </div>
+    </form>
+  }
+  <div class="mb-3"><app-tck-matches [tckId]="added()" /></div>
+
+  <div modal-footer>
+    <button type="button" class="btn btn-secondary cursor-pointer" (click)="closed.emit()">
+      Скасувати
+    </button>
+    <button
+      type="submit"
+      form="tck-form"
+      class="btn btn-primary cursor-pointer"
+      [uiBusy]="saving()"
+      [disabled]="saving()"
+    >
+      Зберегти
+    </button>
+  </div>
+</app-modal>

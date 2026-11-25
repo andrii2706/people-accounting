@@ -20,6 +20,7 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { money } from '../../../shared/utils/money.utils';
 import { parsePrice } from '../../../shared/utils/pricing.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * The vendor: who signed up, their plan and term; a longer free period, an invoice by hand (Enterprise),
@@ -28,7 +29,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 @Component({
   selector: 'app-vendor-subscriptions',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [UaDatePipe, DateInputComponent, ActionsMenuComponent],
+  imports: [UiBusyDirective, UaDatePipe, DateInputComponent, ActionsMenuComponent],
   templateUrl: './vendor-subscriptions.component.html',
 })
 export class VendorSubscriptionsComponent {

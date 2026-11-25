@@ -112,3 +112,32 @@ export interface DueDeferral {
 export type WithWarningSummary<T extends { warnings: RecordWarning[] }> = Omit<T, 'warnings'> & {
   warnings: WarningSummary[];
 };
+
+/** The fields whose changes are kept with the date they happened. */
+export type HistoryField = 'phone' | 'email' | 'registeredAddress' | 'actualAddress' | 'passport' | 'tck';
+
+/** One change of a contact, an address, the passport or the TCK — as the card shows it. */
+export interface FieldHistoryView {
+  id: string;
+  field: HistoryField;
+  oldValue: string;
+  newValue: string;
+  effectiveDate: string;
+  oldEffectiveDate: string | null;
+  basis: string;
+  createdAt: Date;
+}
+
+/** The notice about the dismissal of a dismissed employee: sent (letter №), waiting (until), not needed. */
+export interface DismissalNoticeView {
+  status: 'SENT' | 'IN_LETTER' | 'PENDING' | 'NONE';
+  letterNumber: string | null;
+  deadline: string | null;
+}
+
+/** Employees without a TCK whose military document was issued by this TCK — offered to fill in. */
+export interface TckMatchView {
+  id: string;
+  fullName: string;
+  issuedBy: string;
+}

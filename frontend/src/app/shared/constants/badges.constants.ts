@@ -19,6 +19,7 @@ export const LETTER_STATUS_BADGES: Record<LetterStatus, BadgeStyle> = {
 
 /** Section titles of the notification list. */
 export const INBOX_KIND_LABELS: Record<InboxKind, string> = {
+  QUOTA: 'Квота бронювання',
   DEADLINE: 'Строки',
   TCK: 'Повідомлення ТЦК',
   CARD: 'Дані картки',

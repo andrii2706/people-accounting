@@ -56,6 +56,7 @@ import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import { hrBatchTime, hrCountsText } from '../../../shared/utils/hr-sync.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * «Налаштування → Юрособа → Інтеграція з 1С»: where the employees come from (1C sends them with a key, or we
@@ -65,6 +66,7 @@ import { hrBatchTime, hrCountsText } from '../../../shared/utils/hr-sync.utils';
   selector: 'app-hr-sync',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PasswordInputComponent,
     PageHeaderComponent,
     FormField,

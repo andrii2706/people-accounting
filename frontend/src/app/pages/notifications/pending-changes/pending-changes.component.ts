@@ -1,4 +1,5 @@
 import { AuthService } from '../../../shared/services/auth.service';
+import { DOCUMENT } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { IconComponent } from '../../../shared/components/icon/icon.component';
@@ -15,14 +16,19 @@ import { externalNoticeType } from '../../../shared/utils/letter.utils';
 import { isoToDisplay, todayIso } from '../../../shared/utils/date.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import type {
+  CombinedLetterGroup,
   NoticeRecordForm,
   PendingChangesGroup,
 } from '../../../shared/interfaces/letter.interface';
+import { combinedLetters } from '../../../shared/utils/notice-letter.utils';
+import { NOTICES_GROUPED_KEY } from '../../../shared/constants/letter.constants';
+import { UiBusyDirective } from '@mr/ui';
 
 @Component({
   selector: 'app-pending-changes',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PageHeaderComponent,
     RouterLink,
     IconComponent,
@@ -42,6 +48,71 @@ export class PendingChangesComponent {
 
   readonly pending = input.required<PendingChange[]>();
   protected readonly busy = signal<string | null>(null);
+  private readonly storage = inject(DOCUMENT).defaultView?.localStorage;
+
+  /** Combined letters by TCK (the default) or one card per employee — remembered in this browser. */
+  protected readonly grouped = signal(this.readGrouped());
+  /** Changes taken off the letter by hand: they wait for the next one. */
+  protected readonly excluded = signal<ReadonlySet<string>>(new Set());
+  protected readonly letters = computed<CombinedLetterGroup[]>(() =>
+    combinedLetters(this.pending(), this.excluded()),
+  );
+  protected readonly withTck = computed(() => this.letters().filter((g) => g.tckId));
+  protected readonly withoutTck = computed(() => this.letters().filter((g) => !g.tckId));
+  /** The letter whose content is shown on the right (the first one until another is chosen). */
+  protected readonly activeKey = signal<string | null>(null);
+  protected readonly active = computed(
+    () => this.withTck().find((g) => g.key === this.activeKey()) ?? this.withTck()[0] ?? null,
+  );
+  protected readonly today = todayIso();
+
+  protected setGrouped(on: boolean) {
+    this.grouped.set(on);
+    try {
+      this.storage?.setItem(NOTICES_GROUPED_KEY, on ? '1' : '0');
+    } catch {
+      // storage may be blocked — the choice lasts for this page
+    }
+  }
+
+  private readGrouped(): boolean {
+    try {
+      return this.storage?.getItem(NOTICES_GROUPED_KEY) !== '0';
+    } catch {
+      return true;
+    }
+  }
+
+  protected toggleChange(id: string, include: boolean) {
+    this.excluded.update((set) => {
+      const next = new Set(set);
+      if (include) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  /** One combined letter: the employees of the group and only the changes left in it. */
+  protected async createCombined(g: CombinedLetterGroup) {
+    if (!g.included.length) return;
+    this.busy.set(g.key);
+    try {
+      const employeeIds = [...new Set(g.included.map((c) => c.employee.id))];
+      const letters = await this.lettersService.createChangeNotices(
+        employeeIds,
+        g.included.map((c) => c.id),
+      );
+      const letter = letters[0];
+      this.toast.success(
+        `Об’єднаний лист вих. № ${letter.number} сформовано (${g.notices.length} повідомл.)`,
+      );
+      await this.router.navigate(['/letters', letter.id]);
+    } catch (err) {
+      this.toast.error(apiErrorMessage(err));
+    } finally {
+      this.busy.set(null);
+    }
+  }
   /** Employees selected for a combined notice. */
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
   protected readonly selectedCount = computed(

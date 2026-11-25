@@ -42,7 +42,12 @@
     </fieldset>
 
     <div class="mt-5 flex flex-wrap items-center gap-3">
-      <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+      <button
+        [uiBusy]="f().submitting()"
+        type="submit"
+        class="btn btn-primary cursor-pointer"
+        [disabled]="f().submitting()"
+      >
         Зберегти
       </button>
       @if (current().updatedAt) {

@@ -38,6 +38,7 @@ import {
   missingRequisites,
 } from '../../../shared/utils/letterhead.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /** The checkboxes of the requisites. */
 type RequisiteToggle = 'showAddress' | 'showCode' | 'showPhone' | 'showEmail';
@@ -55,7 +56,14 @@ const PX_PER_PT = 96 / 72;
 @Component({
   selector: 'app-letterhead',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormFieldComponent, IconComponent, PageHeaderComponent, RouterLink, SelectComponent],
+  imports: [
+    UiBusyDirective,
+    FormFieldComponent,
+    IconComponent,
+    PageHeaderComponent,
+    RouterLink,
+    SelectComponent,
+  ],
   templateUrl: './letterhead.component.html',
 })
 export class LetterheadComponent {

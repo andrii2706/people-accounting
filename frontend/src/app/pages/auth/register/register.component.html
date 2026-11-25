@@ -19,7 +19,7 @@
       </p>
       <a routerLink="/login" class="btn btn-primary mt-6 w-full cursor-pointer">До входу</a>
     } @else if (info.isLoading()) {
-      <p class="text-sm text-muted">Завантаження…</p>
+      <ui-page-loader label="Відкриваємо реєстрацію…" [full]="false" />
     } @else if (!info.value()?.enabled) {
       <h1 class="text-2xl font-semibold tracking-tight">Реєстрація компанії</h1>
       <p class="mt-2 text-sm text-muted">
@@ -129,6 +129,7 @@
           </p>
         }
         <button
+          [uiBusy]="registerForm().submitting()"
           type="submit"
           class="btn btn-primary w-full cursor-pointer py-2.5"
           [disabled]="registerForm().submitting()"

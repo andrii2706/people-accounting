@@ -43,7 +43,14 @@ export class LegalEntityListComponent {
 
   /** The «⋯» menu of a row: the settings pages of the legal entity and (the main administrator) deleting it. */
   protected entityActions(e: LegalEntitySummary): MenuAction[] {
-    const actions: MenuAction[] = [];
+    const actions: MenuAction[] = [
+      {
+        label: 'Квота бронювання',
+        icon: 'shield',
+        hint: 'Перерахунки й листи про перевищення',
+        link: ['/settings/legal-entities', e.id, 'quota'],
+      },
+    ];
     if (this.auth.isEntityManager())
       actions.push(
         { label: 'Редагувати', icon: 'edit', link: ['/settings/legal-entities', e.id] },

@@ -329,6 +329,7 @@
 
     <div class="flex gap-2">
       <button
+        [uiBusy]="entityForm().submitting()"
         type="submit"
         class="btn btn-primary cursor-pointer"
         [disabled]="entityForm().submitting()"

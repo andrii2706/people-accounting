@@ -230,3 +230,10 @@ export class LetterheadSettingsDto implements LetterheadSettings {
   extraLine: string;
   @IsBoolean() rule: boolean;
 }
+
+/** Which quota e-mails the legal entity gets. */
+export class QuotaNotifyDto {
+  @IsOptional() @IsBoolean() exceeded?: boolean;
+  @IsOptional() @IsBoolean() decreased?: boolean;
+  @IsOptional() @IsBoolean() expiring?: boolean;
+}

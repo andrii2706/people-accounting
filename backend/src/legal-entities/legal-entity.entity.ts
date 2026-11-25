@@ -106,6 +106,22 @@ export class LegalEntity {
   @Column({ type: 'date', nullable: true })
   reservationQuotaValidUntil: IsoDate | null;
 
+  /** E-mail when the reservation quota is exceeded (again, or by more). */
+  @Column({ type: 'boolean', default: true })
+  quotaNotifyExceeded: boolean;
+
+  /** E-mail when a recalculation leaves fewer free places than before. */
+  @Column({ type: 'boolean', default: true })
+  quotaNotifyDecreased: boolean;
+
+  /** E-mail 14 days before the quota decision ends. */
+  @Column({ type: 'boolean', default: true })
+  quotaNotifyExpiring: boolean;
+
+  /** By how many places the exceeding was last e-mailed (null — the quota is not exceeded now). */
+  @Column({ type: 'int', nullable: true })
+  quotaExceededNotified: number | null;
+
   /** Extra e-mail addresses for the reminders about the employees of this legal entity, comma-separated. */
   @Column({ type: 'varchar', length: 500, default: '' })
   notifyEmails: string;

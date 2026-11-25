@@ -57,7 +57,7 @@ describe('спільна сесія застосунків (ES256 + JWKS)', () =
   it('головний адміністратор відкриває всі застосунки', async () => {
     const { res, token } = capture();
     await new SessionService(jwt).issue(res, { id: 'a1', role: 'ADMIN', tokenVersion: 0 });
-    expect(decode(token()).mods).toEqual(['oblik', 'kadry', 'docs', 'time', 'logistics']);
+    expect(decode(token()).mods).toEqual(['oblik', 'kadry', 'projects']);
   });
 
   it('інші застосунки перевіряють підпис відкритим ключем з JWKS', async () => {

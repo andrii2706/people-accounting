@@ -127,7 +127,10 @@
         <span class="text-xs text-muted">за терміновістю</span>
       </header>
       @if (!inboxLoaded()) {
-        <p class="px-5 py-8 text-center text-sm text-muted">Завантаження…</p>
+        <div class="px-5 py-5" aria-busy="true">
+          <span class="ui-sr-only">Завантажуємо, що зробити сьогодні</span>
+          <ui-skeleton-list [rows]="3" />
+        </div>
       } @else {
         <ul>
           @for (task of visibleTasks(); track task.key) {

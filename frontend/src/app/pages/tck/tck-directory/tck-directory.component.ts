@@ -24,12 +24,22 @@ import {
   tckToForm,
 } from '../../../shared/utils/tck.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
+import { UiBusyDirective } from '@mr/ui';
+import { TckMatchesComponent } from '../../../shared/components/tck-matches/tck-matches.component';
 
 /** Directory of TCKs: addresses and e-mails for letters, notices and extracts; filters by region, town, district. */
 @Component({
   selector: 'app-tck-directory',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageHeaderComponent, FormField, FormFieldComponent, IconComponent, SelectComponent],
+  imports: [
+    UiBusyDirective,
+    PageHeaderComponent,
+    FormField,
+    FormFieldComponent,
+    IconComponent,
+    SelectComponent,
+    TckMatchesComponent,
+  ],
   templateUrl: './tck-directory.component.html',
 })
 export class TckDirectoryComponent {
@@ -123,6 +133,8 @@ export class TckDirectoryComponent {
     this.filter.set({ ...EMPTY_TCK_FILTER });
   }
   protected readonly editingTck = signal<string | null>(null);
+  /** The TCK just added — for «Підтягнути в картки?». */
+  protected readonly addedTck = signal<string | null>(null);
   protected readonly tckModel = signal<TckForm>({ ...EMPTY_TCK_FORM });
   protected readonly tckForm = form(this.tckModel, (p) => {
     required(p.name, { message: 'Вкажіть назву' });
@@ -149,8 +161,10 @@ export class TckDirectoryComponent {
     await submit(this.tckForm, async () => {
       try {
         const id = this.editingTck();
-        await this.dict.saveTck(this.tckModel(), id && id !== 'new' ? id : undefined);
+        const saved = await this.dict.saveTck(this.tckModel(), id && id !== 'new' ? id : undefined);
         this.editingTck.set(null);
+        // a new TCK: the cards whose document was issued by it are offered to get it
+        this.addedTck.set(id === 'new' ? saved.id : null);
         await this.dict.reloadTcks();
         this.toast.success('ТЦК збережено');
         return undefined;

@@ -11,17 +11,19 @@
         {{ tcks().length }} з {{ dict.tcks().length }} · Email потрібен для надсилання повідомлень;
         назва в родовому відмінку — для «Керівнику …».
       </p>
-      @if (auth.isAdmin()) {
+      @if (auth.canEdit()) {
         <div class="flex gap-2">
-          <label class="btn btn-ghost cursor-pointer" title="Файл з npm run tck:export">
-            <app-icon name="upload" /> Імпорт
-            <input
-              type="file"
-              class="sr-only"
-              accept=".json,application/json"
-              (change)="pickTckFile($event)"
-            />
-          </label>
+          @if (auth.isAdmin()) {
+            <label class="btn btn-ghost cursor-pointer" title="Файл з npm run tck:export">
+              <app-icon name="upload" /> Імпорт
+              <input
+                type="file"
+                class="sr-only"
+                accept=".json,application/json"
+                (change)="pickTckFile($event)"
+              />
+            </label>
+          }
           <button type="button" class="btn btn-secondary cursor-pointer" (click)="editTck(null)">
             <app-icon name="plus" /> Додати
           </button>
@@ -94,6 +96,9 @@
     </div>
   }
 
+  @if (addedTck()) {
+    <div class="border-b border-line p-5"><app-tck-matches [tckId]="addedTck()" /></div>
+  }
   @if (editingTck()) {
     <form
       class="grid gap-3 border-b border-line bg-sunken/50 p-5 md:grid-cols-2"
@@ -145,6 +150,7 @@
       </div>
       <div class="flex gap-2 md:col-span-2">
         <button
+          [uiBusy]="tckForm().submitting()"
           type="submit"
           class="btn btn-primary cursor-pointer"
           [disabled]="tckForm().submitting()"
@@ -158,7 +164,7 @@
     </form>
   }
 
-  <div class="overflow-x-auto">
+  <div class="overflow-x-auto" tabindex="0" role="region" aria-label="Довідник ТЦК — таблиця">
     <table class="table-base">
       <thead>
         <tr>

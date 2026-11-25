@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -76,9 +77,15 @@ export class DictionariesController {
     return this.tckRepo.find({ order: { name: 'ASC' } });
   }
 
-  @Roles('ADMIN')
+  /** A missing TCK may be added by whoever keeps the cards (from the card itself); editing — only the administrator. */
+  @Roles('ADMIN', 'ENTITY_ADMIN', 'DIRECTOR', 'HR')
   @Post('tck')
   async createTck(@Body() dto: CreateTckDto) {
+    const same = await this.tckRepo
+      .createQueryBuilder('t')
+      .where('LOWER(TRIM(t.name)) = LOWER(TRIM(:name))', { name: dto.name })
+      .getOne();
+    if (same) throw new BadRequestException('Такий ТЦК уже є в довіднику — оберіть його зі списку');
     return this.tckRepo.save(this.tckRepo.create(await this.placed(dto)));
   }
 

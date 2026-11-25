@@ -35,6 +35,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { UaDatePipe } from '../../../shared/pipes/ua-date.pipe';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * The own database of a legal entity, stage 1: the connection is saved (the password — encrypted)
@@ -44,6 +45,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
   selector: 'app-entity-database',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PasswordInputComponent,
     PageHeaderComponent,
     FormField,

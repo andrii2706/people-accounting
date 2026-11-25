@@ -56,7 +56,7 @@ async function readXlsx(buffer: Buffer) {
     sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
       const cells: RawCell[] = [];
       row.eachCell({ includeEmpty: true }, (cell, col) => {
-        cells[col - 1] = cellValue(cell.value);
+        cells[col - 1] = paddedNumber(cell.value, cell.numFmt) ?? cellValue(cell.value);
       });
       grid.push({ rowNumber, cells: Array.from(cells, (c) => c ?? null) });
     });
@@ -66,6 +66,16 @@ async function readXlsx(buffer: Buffer) {
     if (hasHeader) return grid;
   }
   return [];
+}
+
+/**
+ * A number shown with leading zeros by its format («0000» → 0001): a personnel number or a code, kept as the text
+ * Excel shows — otherwise «001» would come as 1. null — not such a cell.
+ */
+export function paddedNumber(value: ExcelJS.CellValue, numFmt: string | undefined): string | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < 0 || !numFmt) return null;
+  const zeros = /^0{2,}$/.exec(numFmt.trim());
+  return zeros ? String(value).padStart(zeros[0].length, '0') : null;
 }
 
 function cellValue(value: ExcelJS.CellValue): RawCell {

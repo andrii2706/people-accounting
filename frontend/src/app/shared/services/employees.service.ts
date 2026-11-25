@@ -8,6 +8,7 @@ import type {
   EmployeeList,
   EmployeePayload,
   PendingChange,
+  TckMatch,
 } from '../interfaces/employee.interface';
 
 /**
@@ -64,8 +65,15 @@ export class EmployeesService {
     return firstValueFrom(this.http.post<EmployeeDetails>(`api/employees/${id}/dismiss`, body));
   }
 
-  remove(id: string) {
-    return firstValueFrom(this.http.delete<void>(`api/employees/${id}`));
+  /** Working employees without a TCK whose military document was issued by this TCK. */
+  tckMatches(tckId: string) {
+    return firstValueFrom(this.http.get<TckMatch[]>(`api/employees/tck-matches/${tckId}`));
+  }
+
+  assignTck(tckId: string, employeeIds: string[]) {
+    return firstValueFrom(
+      this.http.post<{ assigned: number }>('api/employees/tck-assign', { tckId, employeeIds }),
+    );
   }
 
   updateChange(id: string, body: EmployeeChangeUpdate) {

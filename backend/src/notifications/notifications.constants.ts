@@ -57,3 +57,9 @@ export const DECREE_LIST_MAX_PAGES = 20;
 /** One request to a decree site. */
 export const DECREE_FETCH_TIMEOUT_MS = 20_000;
 export const DECREE_USER_AGENT = 'military-registry/1.0 (mobilization term check)';
+
+/** The e-mail about the end of the quota decision comes this many days before it. */
+export const QUOTA_EXPIRING_DAYS = 14;
+
+/** How many recalculations of the quota the quota page lists. */
+export const QUOTA_HISTORY_LIMIT = 50;

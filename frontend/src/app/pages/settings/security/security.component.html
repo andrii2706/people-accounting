@@ -133,6 +133,9 @@
       </p>
     }
   } @else {
-    <p class="p-6 text-center text-sm text-muted">Завантажуємо…</p>
+    <div class="p-6" aria-busy="true">
+      <span class="ui-sr-only">Завантажуємо події</span>
+      <ui-skeleton-list [rows]="4" />
+    </div>
   }
 </section>

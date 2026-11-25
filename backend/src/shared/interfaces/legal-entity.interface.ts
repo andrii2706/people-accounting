@@ -135,3 +135,56 @@ export interface QuotaStanding {
   /** Reserved by his own enterprise (uses a place). */
   reservedOwn: boolean;
 }
+
+/** One recalculation of the quota, as the quota page lists it. */
+export interface QuotaRecalculationView {
+  id: string;
+  createdAt: Date;
+  reason: string;
+  base: number;
+  prevBase: number | null;
+  quota: number | null;
+  prevQuota: number | null;
+  reservedCompany: number;
+  prevReserved: number | null;
+  available: number | null;
+  exceeded: boolean;
+}
+
+/** Which quota e-mails the legal entity gets. */
+export interface QuotaNotifySettings {
+  exceeded: boolean;
+  decreased: boolean;
+  expiring: boolean;
+}
+
+/** The quota page of a legal entity: the numbers now, the recalculations, the e-mails. */
+export interface QuotaPage {
+  quota: EntityQuota;
+  docName: string;
+  docDate: IsoDate | null;
+  docNumber: string;
+  recalculations: QuotaRecalculationView[];
+  notify: QuotaNotifySettings;
+  /** Where the e-mails go: the users of the legal entity with reminders on + its extra addresses. */
+  recipients: number;
+  extraEmails: string[];
+  mailConfigured: boolean;
+}
+
+/** What the quota e-mail says (numbers only — no names of employees). */
+export interface QuotaLetterInput {
+  kind: 'EXCEEDED' | 'DECREASED' | 'EXPIRING';
+  entityName: string;
+  entityCode: string;
+  reason: string;
+  percent: number | null;
+  base: number;
+  prevBase: number | null;
+  quota: number | null;
+  reservedCompany: number;
+  available: number | null;
+  prevAvailable: number | null;
+  validUntil: IsoDate | null;
+  url: string;
+}

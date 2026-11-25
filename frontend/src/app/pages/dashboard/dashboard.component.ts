@@ -9,11 +9,12 @@ import { DictionariesService } from '../../shared/services/dictionaries.service'
 import { InboxService } from '../../shared/services/inbox.service';
 import { buildTasks, upcomingTerms } from '../../shared/utils/dashboard-tasks.utils';
 import { percentText } from '../../shared/utils/legal-entity.utils';
+import { UiSkeletonListComponent } from '@mr/ui';
 
 @Component({
   selector: 'app-dashboard',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, UaDatePipe],
+  imports: [UiSkeletonListComponent, RouterLink, IconComponent, UaDatePipe],
   templateUrl: './dashboard.component.html',
 })
 export class DashboardComponent {

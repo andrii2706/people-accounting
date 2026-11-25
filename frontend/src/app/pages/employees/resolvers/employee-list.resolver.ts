@@ -6,7 +6,7 @@ import { resolveOr } from '../../../shared/utils/router.utils';
 
 /**
  * List filters live in query parameters: ?group=G1&search=… The list always holds everyone (dismissed
- * included): the tabs «Усі / Потребують уваги / Відстрочка / Заброньовані / Звільнені» filter it in the browser.
+ * included): the tabs «Працюють / Потребують уваги / Відстрочка / Заброньовані / Звільнені» filter it in the browser.
  */
 export const employeeListResolver: ResolveFn<EmployeeList | never> = (route) => {
   const q = route.queryParamMap;

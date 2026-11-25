@@ -19,12 +19,13 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { VendorBillingService } from '../../../shared/services/vendor-billing.service';
 import { formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { parsePrice, pricingToForm } from '../../../shared/utils/pricing.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /** The vendor: the requisites of ТОВ «ПАВ ІТ» on the invoices and the agreement, the prices, the terms. */
 @Component({
   selector: 'app-pricing',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormField, FormFieldComponent, PhoneInputComponent],
+  imports: [UiBusyDirective, FormField, FormFieldComponent, PhoneInputComponent],
   templateUrl: './pricing.component.html',
 })
 export class PricingComponent {

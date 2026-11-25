@@ -1,159 +1,242 @@
 <app-page-header
   eyebrow="Повідомлення ТЦК"
-  title="Зміни, про які треба повідомити"
-  subtitle="Зміни облікових даних фіксуються автоматично при редагуванні картки. Можна сформувати лист для одного працівника або одразу для кількох — тоді створюється по одному листу на кожен ТЦК."
-/>
+  [title]="grouped() ? 'Об’єднані листи до ТЦК' : 'Зміни, про які треба повідомити'"
+  [subtitle]="
+    grouped()
+      ? 'Зміни з карток самі збираються в чернетку листа для свого ТЦК. Перевірте, зніміть зайве — і сформуйте один лист замість кількох.'
+      : 'Зміни облікових даних фіксуються автоматично при редагуванні картки. Можна сформувати лист для одного працівника або одразу для кількох — тоді створюється по одному листу на кожен ТЦК.'
+  "
+>
+  <label class="flex cursor-pointer items-center gap-2 text-sm whitespace-nowrap">
+    <input
+      type="checkbox"
+      role="switch"
+      class="toggle toggle-sm toggle-primary"
+      [checked]="grouped()"
+      (change)="setGrouped($any($event.target).checked)"
+    />
+    Об’єднувати в листи за ТЦК
+  </label>
+</app-page-header>
 
-@if (groups().length) {
-  <div
-    class="card sticky top-2 z-10 mb-4 flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-  >
-    <label class="flex items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        class="size-4 accent-brand-600"
-        [checked]="allSelected()"
-        (change)="toggleAll($any($event.target).checked)"
-      />
-      Вибрати всіх ({{ groups().length }})
-    </label>
-    <div class="flex flex-wrap items-center gap-3">
-      @if (selectedCount()) {
-        <span class="text-sm text-muted">
-          Вибрано: {{ selectedCount() }} · листів буде: {{ selectedTckCount() }}
-        </span>
-      }
-      @if (auth.canEdit()) {
-        <button
-          type="button"
-          class="btn btn-primary cursor-pointer"
-          [disabled]="!selectedCount() || busy() !== null"
-          (click)="createForSelected()"
-        >
-          <app-icon name="file" />
-          {{ busy() === 'selected' ? 'Формуємо…' : 'Сформувати для вибраних' }}
-        </button>
-      }
-    </div>
-  </div>
-}
-
-<div class="space-y-4">
-  @for (g of groups(); track g.employeeId) {
-    <section class="card overflow-hidden" [class.border-danger/40]="g.overdue">
-      <header
-        class="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-sunken/40 px-5 py-3"
-      >
-        <div class="flex min-w-0 items-start gap-3">
-          <input
-            type="checkbox"
-            class="mt-1 size-4 shrink-0 accent-brand-600"
-            [attr.aria-label]="'Вибрати ' + g.fullName"
-            [checked]="selected().has(g.employeeId)"
-            (change)="toggle(g.employeeId, $any($event.target).checked)"
-          />
-          <div class="min-w-0">
-            <a
-              [routerLink]="['/employees', g.employeeId]"
-              class="font-semibold hover:text-brand-600"
-              >{{ g.fullName }}</a
-            >
-            <p class="text-xs text-muted">
-              {{ g.tckName || 'ТЦК не вказано' }}
-            </p>
-          </div>
-        </div>
-        @if (auth.canEdit()) {
-          <button
-            type="button"
-            class="btn btn-primary cursor-pointer"
-            [disabled]="busy() !== null || !g.tckId"
-            (click)="createLetter(g)"
+@if (grouped()) {
+  @if (letters().length) {
+    <div class="grid items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+      <div class="space-y-4">
+        @for (g of withTck(); track g.key) {
+          <section
+            class="card overflow-hidden"
+            [class.ring-2]="active()?.key === g.key"
+            [class.ring-brand-200]="active()?.key === g.key"
+            [attr.aria-labelledby]="'letter-' + $index"
           >
-            <app-icon name="file" /> Сформувати лист ({{ g.changes.length }})
-          </button>
-        }
-      </header>
-      <ul class="divide-y divide-line">
-        @for (c of g.changes; track c.id) {
-          <li class="flex flex-wrap items-start justify-between gap-3 px-5 py-3 text-sm">
-            <div class="min-w-0">
-              <p class="font-medium">
-                {{ c.typeLabel }}
-                <span class="font-normal text-muted">· з {{ c.effectiveDate | uaDate }}</span>
-              </p>
-              @if (c.newValue) {
-                <p class="text-muted">{{ c.newValue }}</p>
-              }
-              <p class="text-xs text-muted">Підстава: {{ c.basis || 'не вказано' }}</p>
-            </div>
-            <div class="flex flex-col items-end gap-1">
-              <p
-                class="text-xs whitespace-nowrap"
-                [class]="c.overdue ? 'font-semibold text-danger' : 'text-muted'"
+            <header
+              class="flex flex-wrap items-center gap-3 border-b border-line bg-sunken/40 px-5 py-3"
+            >
+              <button
+                type="button"
+                class="min-w-0 flex-1 cursor-pointer text-left"
+                [attr.aria-pressed]="active()?.key === g.key"
+                (click)="activeKey.set(g.key)"
               >
-                {{ c.overdue ? 'прострочено з' : 'до' }} {{ c.deadline | uaDate }}
-              </p>
+                <p [id]="'letter-' + $index" class="font-semibold">{{ g.tckName }}</p>
+                <p class="text-xs text-muted">
+                  Один лист · {{ g.notices.length }} повідомл. · {{ g.employees.length }} працівн.
+                  @if (g.legalEntityName) {
+                    · {{ g.legalEntityName }}
+                  }
+                  @if (g.earliestDeadline) {
+                    ·
+                    <span [class]="g.overdue ? 'font-semibold text-danger' : ''"
+                      >{{ g.overdue ? 'прострочено з' : 'найраніший строк' }}
+                      {{ g.earliestDeadline | uaDate }}</span
+                    >
+                  }
+                </p>
+              </button>
               @if (auth.canEdit()) {
                 <button
+                  [uiBusy]="busy() === g.key"
                   type="button"
-                  class="btn btn-ghost btn-sm cursor-pointer"
-                  [attr.aria-expanded]="recording()?.id === c.id"
-                  title="Повідомлення вже надіслано поза застосунком — внести його номер і дату"
-                  (click)="openRecord(c)"
+                  class="btn btn-primary cursor-pointer"
+                  [disabled]="busy() !== null || !g.included.length"
+                  (click)="createCombined(g)"
                 >
-                  <app-icon name="edit" [size]="14" /> № і дата повідомлення
+                  <app-icon name="file" /> Сформувати лист
                 </button>
               }
-            </div>
-            @if (recording()?.id === c.id) {
-              <form
-                class="grid w-full gap-3 rounded-lg border border-line bg-sunken/50 p-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-start"
-                (submit)="saveRecord($event, g)"
-                novalidate
-              >
-                <p class="text-xs text-muted sm:col-span-3">
-                  Повідомлення про {{ c.typeLabel.toLowerCase() }} надіслано до ТЦК поза
-                  застосунком. Внесіть його вихідний номер і дату — зміна піде з черги і буде в
-                  реєстрі листів та в картці працівника.
-                </p>
-                <app-form-field
-                  label="№ повідомлення"
-                  [required]="true"
-                  [field]="recordForm.number"
-                >
-                  <input
-                    class="input font-mono"
-                    autocomplete="off"
-                    [formField]="recordForm.number"
-                  />
-                </app-form-field>
-                <app-form-field label="Дата" [required]="true" [field]="recordForm.date">
-                  <app-date-input ariaLabel="Дата повідомлення" [formField]="recordForm.date" />
-                </app-form-field>
-                <div class="flex gap-2 sm:pt-6">
-                  <button
-                    type="submit"
-                    class="btn btn-primary cursor-pointer"
-                    [disabled]="recordForm().submitting()"
+            </header>
+            <ul class="divide-y divide-line">
+              @for (emp of g.employees; track emp.employeeId) {
+                <li class="px-5 py-3">
+                  <a
+                    [routerLink]="['/employees', emp.employeeId]"
+                    class="font-semibold hover:text-brand-600"
+                    >{{ emp.fullName }}</a
                   >
-                    Зберегти
-                  </button>
-                  <button
-                    type="button"
-                    class="btn btn-ghost cursor-pointer"
-                    (click)="recording.set(null)"
-                  >
-                    Скасувати
-                  </button>
-                </div>
-              </form>
-            }
-          </li>
+                  <ul class="mt-1.5 space-y-2">
+                    @for (c of emp.changes; track c.id) {
+                      <li class="flex flex-wrap items-start gap-x-3 gap-y-1 text-sm">
+                        <label class="flex min-w-0 flex-1 cursor-pointer items-start gap-2">
+                          <input
+                            type="checkbox"
+                            class="mt-0.5 size-4 shrink-0 cursor-pointer accent-brand-600"
+                            [checked]="!excluded().has(c.id)"
+                            [attr.aria-label]="
+                              'Включити в лист: ' + c.typeLabel + ', ' + emp.fullName
+                            "
+                            (change)="toggleChange(c.id, $any($event.target).checked)"
+                          />
+                          <span class="min-w-0" [class.opacity-50]="excluded().has(c.id)">
+                            <b class="font-medium">{{ c.typeLabel }}</b>
+                            @if (c.newValue) {
+                              <span class="text-muted"> · {{ c.newValue }}</span>
+                            }
+                            <span class="block text-xs text-muted"
+                              >Підстава: {{ c.basis || 'не вказано' }}</span
+                            >
+                          </span>
+                        </label>
+                        <span class="text-xs whitespace-nowrap text-muted tabular-nums"
+                          >з {{ c.effectiveDate | uaDate }}</span
+                        >
+                        @if (c.overdue) {
+                          <span class="badge bg-[#fbe9e7] text-danger">прострочено</span>
+                        }
+                        @if (auth.canEdit()) {
+                          <button
+                            type="button"
+                            class="btn btn-ghost btn-sm cursor-pointer"
+                            [attr.aria-expanded]="recording()?.id === c.id"
+                            title="Повідомлення вже надіслано поза застосунком — внести його номер і дату"
+                            (click)="openRecord(c)"
+                          >
+                            <app-icon name="edit" [size]="14" /> № і дата
+                          </button>
+                        }
+                        @if (recording()?.id === c.id) {
+                          <form
+                            class="grid w-full gap-3 rounded-lg border border-line bg-sunken/50 p-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-start"
+                            (submit)="saveRecord($event, emp)"
+                            novalidate
+                          >
+                            <app-form-field
+                              label="№ повідомлення"
+                              [required]="true"
+                              [field]="recordForm.number"
+                            >
+                              <input
+                                class="input font-mono"
+                                autocomplete="off"
+                                [formField]="recordForm.number"
+                              />
+                            </app-form-field>
+                            <app-form-field
+                              label="Дата"
+                              [required]="true"
+                              [field]="recordForm.date"
+                            >
+                              <app-date-input
+                                ariaLabel="Дата повідомлення"
+                                [formField]="recordForm.date"
+                              />
+                            </app-form-field>
+                            <div class="flex gap-2 sm:pt-6">
+                              <button
+                                [uiBusy]="recordForm().submitting()"
+                                type="submit"
+                                class="btn btn-primary cursor-pointer"
+                                [disabled]="recordForm().submitting()"
+                              >
+                                Зберегти
+                              </button>
+                              <button
+                                type="button"
+                                class="btn btn-ghost cursor-pointer"
+                                (click)="recording.set(null)"
+                              >
+                                Скасувати
+                              </button>
+                            </div>
+                          </form>
+                        }
+                      </li>
+                    }
+                  </ul>
+                </li>
+              }
+            </ul>
+          </section>
         }
-      </ul>
-    </section>
-  } @empty {
+        @for (g of withoutTck(); track g.key) {
+          <section
+            class="rounded-2xl border border-dashed border-warning/50 bg-[#fdf9f2] px-5 py-4 text-sm"
+          >
+            <p class="flex items-center gap-2 font-semibold text-warning">
+              <app-icon name="alert" [size]="16" /> ТЦК не вказано —
+              {{ g.employees.length }} працівн.
+            </p>
+            <p class="mt-1 text-muted">
+              Їхні зміни не потраплять у жоден лист, доки не оберете ТЦК у картці:
+            </p>
+            <ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              @for (emp of g.employees; track emp.employeeId) {
+                <li>
+                  <a
+                    [routerLink]="['/employees', emp.employeeId]"
+                    class="text-brand-700 hover:underline"
+                    >{{ emp.fullName }} ({{ emp.changes.length }})</a
+                  >
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      </div>
+
+      @if (active(); as g) {
+        <section class="card p-5 xl:sticky xl:top-4" aria-labelledby="letter-preview">
+          <h2
+            id="letter-preview"
+            class="mb-3 text-xs font-semibold tracking-wider text-muted uppercase"
+          >
+            Що буде в листі
+          </h2>
+          <div
+            class="rounded-xl border border-line bg-[#fdfdfb] p-4 font-serif text-[13px] leading-relaxed"
+          >
+            <p class="text-right">Керівнику<br />{{ g.tckNameGenitive }}</p>
+            <p class="mt-3">вих. № ____ від {{ today | uaDate }}</p>
+            <p class="mt-3 indent-6">
+              {{ g.legalEntityName || 'Підприємство' }} повідомляє про зміни облікових даних
+              військовозобов’язаних працівників (додатки 1–{{ g.notices.length }}).
+            </p>
+            <ol class="mt-2 list-decimal pl-5">
+              @for (n of g.notices; track $index) {
+                <li>{{ n.title }} — {{ n.who }}</li>
+              }
+            </ol>
+            <p class="mt-3">Додатки: на {{ g.notices.length }} арк.</p>
+          </div>
+          <ul class="mt-4 space-y-2 text-[13px] text-muted">
+            <li>
+              <b class="font-medium text-ink">Один лист — один ТЦК і одна юрособа.</b> Повідомлення
+              — додатки з наскрізною нумерацією.
+            </li>
+            <li>
+              <b class="font-medium text-ink"
+                >Одна людина — одне повідомлення «зміна облікових даних»</b
+              >, навіть коли змінились і паспорт, і адреса.
+            </li>
+            <li>
+              <b class="font-medium text-ink">Прийняття і звільнення</b> — окремими повідомленнями,
+              як вимагає форма.
+            </li>
+          </ul>
+        </section>
+      }
+    </div>
+  } @else {
     <div class="card flex flex-col items-center gap-2 px-6 py-16 text-center">
       <span class="grid size-12 place-items-center rounded-full bg-brand-100 text-brand-600"
         ><app-icon name="check" [size]="22"
@@ -165,4 +248,170 @@
       </p>
     </div>
   }
-</div>
+} @else {
+  @if (groups().length) {
+    <div
+      class="card sticky top-2 z-10 mb-4 flex flex-wrap items-center justify-between gap-3 px-5 py-3"
+    >
+      <label class="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          class="size-4 accent-brand-600"
+          [checked]="allSelected()"
+          (change)="toggleAll($any($event.target).checked)"
+        />
+        Вибрати всіх ({{ groups().length }})
+      </label>
+      <div class="flex flex-wrap items-center gap-3">
+        @if (selectedCount()) {
+          <span class="text-sm text-muted">
+            Вибрано: {{ selectedCount() }} · листів буде: {{ selectedTckCount() }}
+          </span>
+        }
+        @if (auth.canEdit()) {
+          <button
+            [uiBusy]="busy() === 'selected'"
+            type="button"
+            class="btn btn-primary cursor-pointer"
+            [disabled]="!selectedCount() || busy() !== null"
+            (click)="createForSelected()"
+          >
+            <app-icon name="file" />
+            {{ busy() === 'selected' ? 'Формуємо…' : 'Сформувати для вибраних' }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  <div class="space-y-4">
+    @for (g of groups(); track g.employeeId) {
+      <section class="card overflow-hidden" [class.border-danger/40]="g.overdue">
+        <header
+          class="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-sunken/40 px-5 py-3"
+        >
+          <div class="flex min-w-0 items-start gap-3">
+            <input
+              type="checkbox"
+              class="mt-1 size-4 shrink-0 accent-brand-600"
+              [attr.aria-label]="'Вибрати ' + g.fullName"
+              [checked]="selected().has(g.employeeId)"
+              (change)="toggle(g.employeeId, $any($event.target).checked)"
+            />
+            <div class="min-w-0">
+              <a
+                [routerLink]="['/employees', g.employeeId]"
+                class="font-semibold hover:text-brand-600"
+                >{{ g.fullName }}</a
+              >
+              <p class="text-xs text-muted">
+                {{ g.tckName || 'ТЦК не вказано' }}
+              </p>
+            </div>
+          </div>
+          @if (auth.canEdit()) {
+            <button
+              [uiBusy]="busy() === g.employeeId"
+              type="button"
+              class="btn btn-primary cursor-pointer"
+              [disabled]="busy() !== null || !g.tckId"
+              (click)="createLetter(g)"
+            >
+              <app-icon name="file" /> Сформувати лист ({{ g.changes.length }})
+            </button>
+          }
+        </header>
+        <ul class="divide-y divide-line">
+          @for (c of g.changes; track c.id) {
+            <li class="flex flex-wrap items-start justify-between gap-3 px-5 py-3 text-sm">
+              <div class="min-w-0">
+                <p class="font-medium">
+                  {{ c.typeLabel }}
+                  <span class="font-normal text-muted">· з {{ c.effectiveDate | uaDate }}</span>
+                </p>
+                @if (c.newValue) {
+                  <p class="text-muted">{{ c.newValue }}</p>
+                }
+                <p class="text-xs text-muted">Підстава: {{ c.basis || 'не вказано' }}</p>
+              </div>
+              <div class="flex flex-col items-end gap-1">
+                <p
+                  class="text-xs whitespace-nowrap"
+                  [class]="c.overdue ? 'font-semibold text-danger' : 'text-muted'"
+                >
+                  {{ c.overdue ? 'прострочено з' : 'до' }} {{ c.deadline | uaDate }}
+                </p>
+                @if (auth.canEdit()) {
+                  <button
+                    type="button"
+                    class="btn btn-ghost btn-sm cursor-pointer"
+                    [attr.aria-expanded]="recording()?.id === c.id"
+                    title="Повідомлення вже надіслано поза застосунком — внести його номер і дату"
+                    (click)="openRecord(c)"
+                  >
+                    <app-icon name="edit" [size]="14" /> № і дата повідомлення
+                  </button>
+                }
+              </div>
+              @if (recording()?.id === c.id) {
+                <form
+                  class="grid w-full gap-3 rounded-lg border border-line bg-sunken/50 p-3 sm:grid-cols-[minmax(0,1fr)_11rem_auto] sm:items-start"
+                  (submit)="saveRecord($event, g)"
+                  novalidate
+                >
+                  <p class="text-xs text-muted sm:col-span-3">
+                    Повідомлення про {{ c.typeLabel.toLowerCase() }} надіслано до ТЦК поза
+                    застосунком. Внесіть його вихідний номер і дату — зміна піде з черги і буде в
+                    реєстрі листів та в картці працівника.
+                  </p>
+                  <app-form-field
+                    label="№ повідомлення"
+                    [required]="true"
+                    [field]="recordForm.number"
+                  >
+                    <input
+                      class="input font-mono"
+                      autocomplete="off"
+                      [formField]="recordForm.number"
+                    />
+                  </app-form-field>
+                  <app-form-field label="Дата" [required]="true" [field]="recordForm.date">
+                    <app-date-input ariaLabel="Дата повідомлення" [formField]="recordForm.date" />
+                  </app-form-field>
+                  <div class="flex gap-2 sm:pt-6">
+                    <button
+                      [uiBusy]="recordForm().submitting()"
+                      type="submit"
+                      class="btn btn-primary cursor-pointer"
+                      [disabled]="recordForm().submitting()"
+                    >
+                      Зберегти
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-ghost cursor-pointer"
+                      (click)="recording.set(null)"
+                    >
+                      Скасувати
+                    </button>
+                  </div>
+                </form>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+    } @empty {
+      <div class="card flex flex-col items-center gap-2 px-6 py-16 text-center">
+        <span class="grid size-12 place-items-center rounded-full bg-brand-100 text-brand-600"
+          ><app-icon name="check" [size]="22"
+        /></span>
+        <p class="font-medium">Усі зміни повідомлено</p>
+        <p class="text-sm text-muted">
+          Нові з’являться тут, щойно ви зміните ПІБ, посаду, адресу, паспорт, освіту чи сімейний
+          стан працівника.
+        </p>
+      </div>
+    }
+  </div>
+}

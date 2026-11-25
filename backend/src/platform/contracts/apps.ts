@@ -1,11 +1,10 @@
 /**
  * The applications of the system — one domain, each under its own path:
  *   /        portal (sign-in, the list of applications)
- *   /oblik/  військовий облік   /kadry/  облік працівників   /docs/  документообіг
- *   /time/   робочий час        /logistics/  логістика
+ *   /oblik/  військовий облік   /kadry/  облік працівників   /projects/  керування проєктами
  * Every application is its own repository with its own frontend, backend, database and nginx.
  */
-export const APP_IDS = ['oblik', 'kadry', 'docs', 'time', 'logistics'] as const;
+export const APP_IDS = ['oblik', 'kadry', 'projects'] as const;
 export type AppId = (typeof APP_IDS)[number];
 
 export interface AppInfo {
@@ -16,6 +15,11 @@ export interface AppInfo {
   path: string;
   /** false — the application is not deployed yet: the portal shows it as «незабаром», links lead nowhere. */
   ready: boolean;
+  /**
+   * Its own sign-in page (a module sold on its own): opened without a session of the portal, the module is entered
+   * there — with the same account of the portal. None — the sign-in of the portal (or of the module itself).
+   */
+  loginPath?: string;
 }
 
 export const APPS: readonly AppInfo[] = [
@@ -31,28 +35,16 @@ export const APPS: readonly AppInfo[] = [
     title: 'Облік працівників',
     description: 'Особові картки П-2, призначення й переведення, відпустки',
     path: '/kadry/',
-    ready: false,
+    ready: true,
+    loginPath: '/kadry/login',
   },
   {
-    id: 'docs',
-    title: 'Документообіг',
-    description: 'Накази, службові записки, погодження й підпис КЕП',
-    path: '/docs/',
-    ready: false,
-  },
-  {
-    id: 'time',
-    title: 'Робочий час',
-    description: 'Відмітки, таймшити, табель П-5',
-    path: '/time/',
-    ready: false,
-  },
-  {
-    id: 'logistics',
-    title: 'Логістика',
-    description: 'Рейси, маршрути, диспетчерська й режим праці водіїв',
-    path: '/logistics/',
-    ready: false,
+    id: 'projects',
+    title: 'Керування проєктами',
+    description: 'Проєкти й дошки задач, строки, відповідальні та хід робіт',
+    path: '/projects/',
+    ready: true,
+    loginPath: '/projects/login',
   },
 ];
 

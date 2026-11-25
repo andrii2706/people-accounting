@@ -32,6 +32,9 @@ import { UserDevice } from '../security/entities/user-device.entity.js';
 import { ExportUsage } from '../security/entities/export-usage.entity.js';
 
 /** Explicit list of entities — no glob patterns, so it works correctly in ESM. */
+import { EmployeeFieldHistory } from '../employees/entities/employee-field-history.entity.js';
+import { QuotaRecalculation } from '../legal-entities/quota-recalculation.entity.js';
+
 export const ENTITIES = [
   User,
   Organization,
@@ -65,4 +68,6 @@ export const ENTITIES = [
   SecurityEvent,
   UserDevice,
   ExportUsage,
+  EmployeeFieldHistory,
+  QuotaRecalculation,
 ];

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { User } from '../users/user.entity.js';
@@ -34,12 +34,14 @@ import { PASSWORD_REMINDER_LINK_HOURS, REMIND_DAYS_BEFORE } from './notification
 import { employeeFullName } from '../employees/utils/employee-text.utils.js';
 import { LegalEntitiesService } from '../legal-entities/legal-entities.service.js';
 import { groupByEntity } from './utils/group-by-entity.utils.js';
+import { QuotaWatchService } from './quota-watch.service.js';
 
 /**
  * Runs once a day (Cloud Scheduler → Cloud Run Job «military-registry-daily»):
  *  1) reads the term of general mobilization from the presidential decrees;
  *  2) e-mails a reminder 5 days before a deferral ends (incl. «до завершення мобілізації»);
- *  3) the same for reservations.
+ *  3) the same for reservations;
+ *  4) recalculates the reservation quota of every legal entity (+ the e-mail before its decision ends).
  * Every reminder is sent once (notification_log).
  */
 @Injectable()
@@ -54,6 +56,7 @@ export class DailyJobService {
     private readonly legalEntities: LegalEntitiesService,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly usersService: UsersService,
+    @Optional() private readonly quota?: QuotaWatchService,
   ) {}
 
   async run(today: IsoDate = todayIso()) {
@@ -65,6 +68,7 @@ export class DailyJobService {
       deferrals: await this.deferralReminders(org, today),
       reservations: await this.reservationReminders(today),
       passwords: await this.passwordReminders(),
+      quota: (await this.quota?.daily(today)) ?? null,
     };
   }
 

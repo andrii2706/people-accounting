@@ -27,3 +27,6 @@ export const EMPTY_EXTERNAL_NOTICE: ExternalNoticeForm = {
   tckId: '',
   description: '',
 };
+
+/** The page «Повідомлення ТЦК»: combined letters by TCK (or one card per employee) — remembered per browser. */
+export const NOTICES_GROUPED_KEY = 'oblik-notices-grouped';

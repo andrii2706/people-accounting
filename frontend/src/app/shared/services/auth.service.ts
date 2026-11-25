@@ -4,6 +4,7 @@ import { DOCUMENT } from '@angular/common';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import { uiIdlePortalUrl } from '@mr/ui';
 import type {
   AuthUser,
   LogoutOptions,
@@ -188,6 +189,23 @@ export class AuthService {
 
   markSignedOut() {
     this._user.set(null);
+  }
+
+  /**
+   * 10 minutes without activity. Behind the portal (/oblik/) — back to the portal, not to a sign-in: it tells why
+   * and, after a new sign-in if its session is over too, returns to this very page. Alone on a domain — the sign-in
+   * of the module with the same explanation.
+   */
+  async idleLogout(): Promise<void> {
+    await firstValueFrom(this.http.post<void>('api/auth/logout', {})).catch(() => undefined);
+    this._user.set(null);
+    const location = this.document.location;
+    if (this.document.baseURI.endsWith('/oblik/')) {
+      location.replace(uiIdlePortalUrl('oblik', location.pathname + location.search));
+      return;
+    }
+    const returnUrl = this.router.url !== '/' ? this.router.url : undefined;
+    await this.router.navigate(['/login'], { queryParams: { reason: 'idle', returnUrl } });
   }
 
   /** `reason: 'idle'` — signed out after inactivity: the login page explains it and returns to `returnUrl`. */

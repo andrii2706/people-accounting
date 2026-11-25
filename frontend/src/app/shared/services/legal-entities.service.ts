@@ -13,6 +13,8 @@ import type {
   LegalEntity,
   LegalEntityBody,
   LegalEntitySummary,
+  QuotaNotifySettings,
+  QuotaPage,
   RegistryCompany,
 } from '../interfaces/legal-entity.interface';
 import type { AuditEntry } from '../interfaces/employee.interface';
@@ -97,6 +99,17 @@ export class LegalEntitiesService {
   saveLabelSettings(id: string, body: LabelSettings) {
     return firstValueFrom(
       this.http.put<LabelSettings>(`api/legal-entities/${id}/label-settings`, body),
+    );
+  }
+
+  /** The reservation quota: the numbers now, the recalculations, the e-mails. */
+  quota(id: string) {
+    return this.http.get<QuotaPage>(`api/legal-entities/${id}/quota`);
+  }
+
+  saveQuotaNotify(id: string, body: Partial<QuotaNotifySettings>) {
+    return firstValueFrom(
+      this.http.put<QuotaNotifySettings>(`api/legal-entities/${id}/quota-notify`, body),
     );
   }
 

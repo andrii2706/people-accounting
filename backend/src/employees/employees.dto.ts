@@ -102,6 +102,14 @@ export class EmployeeEducationDto {
 export class ChangeMetaDto {
   @IsOptional() @IsIsoDate() effectiveDate?: string;
   @EmployeeStr('changeBasis') basis?: string;
+  /** false — record the change, but do not queue a notice to the TCK about it. */
+  @IsOptional() @IsBoolean() notify?: boolean;
+}
+
+/** Fill in the TCK of the employees whose military document was issued by it. */
+export class AssignTckDto {
+  @IsUUID('4', { message: 'Оберіть ТЦК' }) tckId: string;
+  @IsArray() @ArrayMaxSize(1000) @IsUUID('4', { each: true }) employeeIds: string[];
 }
 
 export class CreateEmployeeDto {

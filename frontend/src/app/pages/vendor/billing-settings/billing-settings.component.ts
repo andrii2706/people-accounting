@@ -17,6 +17,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { billingToForm, formToBilling, parseAmount } from '../../../shared/utils/billing.utils';
 import { validateAmount } from '../../../shared/validators/billing.validators';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Vendor page: debt of the client for using the system. While there is a debt every user may sign in once,
@@ -26,6 +27,7 @@ import { validateAmount } from '../../../shared/validators/billing.validators';
   selector: 'app-billing-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     FormField,
     FormFieldComponent,
     DateInputComponent,

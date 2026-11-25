@@ -13,12 +13,14 @@ import { apiErrorMessage, bindApiErrors } from '../../shared/utils/api-error.uti
 import { passwordProblems } from '../../shared/validators/password.validators';
 import type { UserPreferences } from '../../shared/interfaces/auth.interface';
 import { TwoFactorCardComponent } from './two-factor-card/two-factor-card.component';
+import { UiBusyDirective } from '@mr/ui';
 
 /** Profile: change own password (mandatory while the password is temporary). */
 @Component({
   selector: 'app-profile',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PasswordInputComponent,
     PageHeaderComponent,
     FormField,

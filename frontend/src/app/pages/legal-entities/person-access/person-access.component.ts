@@ -31,6 +31,7 @@ import { ToastService } from '../../../shared/services/toast.service';
 import { AuthService } from '../../../shared/services/auth.service';
 import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-error.utils';
 import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Access of the head / the responsible person to the system and the replacement of the person.
@@ -41,6 +42,7 @@ import { MESSAGE, PATTERN } from '../../../shared/validators/employee-rules';
   selector: 'app-person-access',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     FormField,
     FormFieldComponent,
     IconComponent,

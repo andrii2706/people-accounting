@@ -14,6 +14,8 @@ on:
 
 permissions:
   contents: read
+  # @mr/ui — the private package from GitHub Packages (read with GITHUB_TOKEN)
+  packages: read
   issues: write # the ZAP actions file the findings as an issue (scheduled runs)
 
 jobs:
@@ -49,6 +51,8 @@ jobs:
           nohup node dist/main.js > ../api.log 2>&1 &
       - name: Web (SSR)
         working-directory: frontend
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npm ci
           npm run build

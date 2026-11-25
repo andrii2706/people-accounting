@@ -66,6 +66,7 @@ import {
   withEnvelope,
 } from '../../../shared/utils/label-settings.utils';
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
+import { UiBusyDirective } from '@mr/ui';
 
 /**
  * Envelope labels of a legal entity: A4 sheet or the envelope itself, the font, the sizes, the lines,
@@ -75,6 +76,7 @@ import { injectRouteRefresh } from '../../../shared/utils/router.utils';
   selector: 'app-label-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     PageHeaderComponent,
     FormField,
     FormFieldComponent,

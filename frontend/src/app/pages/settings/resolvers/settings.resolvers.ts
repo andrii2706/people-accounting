@@ -7,6 +7,7 @@ import { OrganizationService } from '../../../shared/services/organization.servi
 import { UsersService } from '../../../shared/services/users.service';
 import type { LabelSettingsPageData } from '../../../shared/interfaces/label-settings.interface';
 import type { LetterheadPageData } from '../../../shared/interfaces/letterhead.interface';
+import type { QuotaPageData } from '../../../shared/interfaces/legal-entity.interface';
 import { LegalEntitiesService } from '../../../shared/services/legal-entities.service';
 import type { EntityDatabasePageData } from '../../../shared/interfaces/entity-database.interface';
 import { EntityDatabaseService } from '../../../shared/services/entity-database.service';
@@ -124,5 +125,21 @@ export const listSettingsResolver: ResolveFn<ListSettingsPageData> = (route) => 
       })),
     ),
     '/reports/lists',
+  ) as never;
+};
+
+/** The quota page of a legal entity. */
+export const quotaResolver: ResolveFn<QuotaPageData> = (route) => {
+  const id = route.paramMap.get('id')!;
+  const service = inject(LegalEntitiesService);
+  return resolveOr(
+    forkJoin({ page: service.quota(id), entity: service.get(id) }).pipe(
+      map(({ page, entity }) => ({
+        ...page,
+        entityId: entity.id,
+        entityName: entity.shortName || entity.fullName,
+      })),
+    ),
+    '/settings',
   ) as never;
 };

@@ -69,7 +69,12 @@
       />
     </app-form-field>
     <div class="flex flex-wrap gap-2 pt-2">
-      <button type="submit" class="btn btn-primary cursor-pointer" [disabled]="f().submitting()">
+      <button
+        [uiBusy]="f().submitting()"
+        type="submit"
+        class="btn btn-primary cursor-pointer"
+        [disabled]="f().submitting()"
+      >
         Зберегти
       </button>
       @if (db.configured) {

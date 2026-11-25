@@ -36,11 +36,27 @@ import { apiErrorMessage, formSubmitErrors } from '../../../shared/utils/api-err
 import { injectRouteRefresh } from '../../../shared/utils/router.utils';
 import type { InfoRow, InfoSection } from '../../../shared/interfaces/ui.interface';
 import type { NotificationStatus } from '../../../shared/interfaces/organization.interface';
+import { UiBusyDirective } from '@mr/ui';
+import { ContactsDialogComponent } from './contacts-dialog/contacts-dialog.component';
+import { PassportDialogComponent } from './passport-dialog/passport-dialog.component';
+import { TckDialogComponent } from './tck-dialog/tck-dialog.component';
+import type { EmployeeDialog } from '../../../shared/interfaces/ui.interface';
+import {
+  contactHistoryLines,
+  lastChange,
+  previousTcks,
+  sinceText,
+} from '../../../shared/utils/field-history.utils';
+import {
+  ACTUAL_AS_REGISTERED,
+  CONTACT_HISTORY_LABELS,
+} from '../../../shared/constants/employee.constants';
 
 @Component({
   selector: 'app-employee-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    UiBusyDirective,
     RouterLink,
     IconComponent,
     CategoryBadgeComponent,
@@ -53,6 +69,9 @@ import type { NotificationStatus } from '../../../shared/interfaces/organization
     FormFieldComponent,
     DateInputComponent,
     SelectComponent,
+    ContactsDialogComponent,
+    PassportDialogComponent,
+    TckDialogComponent,
   ],
   templateUrl: './employee-detail.component.html',
 })
@@ -75,6 +94,21 @@ export class EmployeeDetailComponent {
   private readonly refresh = injectRouteRefresh();
 
   protected readonly showAudit = signal(false);
+  /** The window open now: contacts, the passport or the TCK — each with the date of the change. */
+  protected readonly dialog = signal<EmployeeDialog | null>(null);
+  protected readonly showContactHistory = signal(false);
+  protected readonly contactHistory = computed(() =>
+    contactHistoryLines(this.e()?.fieldHistory, CONTACT_HISTORY_LABELS),
+  );
+
+  protected openDialog(dialog: EmployeeDialog) {
+    this.dialog.set(dialog);
+  }
+
+  protected async dialogSaved() {
+    this.dialog.set(null);
+    await this.refresh();
+  }
   protected readonly audit = this.employeesService.auditResource(() =>
     this.showAudit() ? this.id() : undefined,
   );
@@ -109,6 +143,7 @@ export class EmployeeDetailComponent {
     const join = (...parts: (string | null | undefined | false)[]) =>
       parts.filter((p): p is string => !!p && !!p.trim()).join(', ');
     const officer = e.rankCode !== null && e.rankCode >= 12;
+    const edit = this.auth.canEdit() && !e.dismissalDate;
     const conscript = e.rankCode === 0;
     const mobilizationUntil = this.mobilization.value()?.mobilizationUntil;
     const documents = (e.militaryDocuments ?? [])
@@ -137,8 +172,11 @@ export class EmployeeDetailComponent {
       { label: 'Проходив військову службу', value: e.servedInArmy ? 'так' : 'ні' },
       { label: 'Номер у реєстрі «Оберіг»', value: e.registryNumber },
       {
-        label: 'ТЦК та СП',
-        value: join(e.tck?.name, e.tckRegisteredAt && `з ${d(e.tckRegisteredAt)}`),
+        label: 'ТЦК та СП, де перебуває на обліку',
+        value: e.tck?.name ?? '',
+        since: sinceText(e.tckRegisteredAt),
+        action: edit ? { label: 'Змінити ТЦК', dialog: 'tck' } : undefined,
+        earlier: previousTcks(e.fieldHistory),
       },
       { label: 'Військово-облікові документи', value: documents },
       {
@@ -207,12 +245,41 @@ export class EmployeeDetailComponent {
       },
       { label: 'РНОКПП', value: e.rnokpp },
       { label: 'Табельний №', value: e.personnelNumber },
-      { label: 'Телефон', value: e.phone },
-      { label: 'Email', value: e.email },
-      { label: 'Зареєстроване місце проживання', value: e.registeredAddress },
-      { label: 'Фактичне місце проживання', value: e.actualAddress },
+      {
+        label: 'Телефон',
+        value: e.phone,
+        since: sinceText(lastChange(e.fieldHistory, 'phone')?.effectiveDate),
+        action: edit ? { label: 'Змінити', dialog: 'contacts' } : undefined,
+      },
+      {
+        label: 'Email',
+        value: e.email,
+        since: sinceText(lastChange(e.fieldHistory, 'email')?.effectiveDate),
+      },
+      {
+        label: 'Зареєстроване місце проживання (за документами)',
+        value: e.registeredAddress,
+        since: sinceText(lastChange(e.fieldHistory, 'registeredAddress')?.effectiveDate),
+        action: edit ? { label: 'Змінити', dialog: 'contacts' } : undefined,
+      },
+      e.actualAddress || !e.registeredAddress
+        ? {
+            label: 'Фактичне місце проживання',
+            value: e.actualAddress,
+            since: sinceText(lastChange(e.fieldHistory, 'actualAddress')?.effectiveDate),
+          }
+        : {
+            label: 'Фактичне місце проживання',
+            value: ACTUAL_AS_REGISTERED,
+            muted: true,
+            note: 'Не вказано — у повідомленнях і списках береться зареєстроване',
+          },
       {
         label: 'Паспорт',
+        since: sinceText(
+          lastChange(e.fieldHistory, 'passport')?.effectiveDate ?? e.passportIssuedAt,
+        ),
+        action: edit ? { label: 'Новий паспорт', dialog: 'passport' } : undefined,
         value: join(
           e.passportNumber && (e.passportType === 'ID_CARD' ? 'ID-картка' : 'книжечка'),
           e.passportSeries,
@@ -323,25 +390,6 @@ export class EmployeeDetailComponent {
     try {
       await this.employeesService.updateChange(changeId, { skipped: true });
       await this.refresh();
-    } catch (err) {
-      this.toast.error(apiErrorMessage(err));
-    }
-  }
-
-  protected async remove() {
-    const e = this.e();
-    if (!e) return;
-    const ok = await this.dialogs.confirm({
-      title: `Видалити картку «${e.derived.fullName}» назавжди?`,
-      text: 'Це не те саме, що звільнення: картка, історія змін і повідомлення ТЦК зникнуть. Щоб працівник залишився в архіві — оформіть звільнення.',
-      confirmLabel: 'Видалити картку',
-      tone: 'danger',
-    });
-    if (!ok) return;
-    try {
-      await this.employeesService.remove(e.id);
-      this.toast.success('Картку видалено');
-      await this.router.navigate(['/employees']);
     } catch (err) {
       this.toast.error(apiErrorMessage(err));
     }

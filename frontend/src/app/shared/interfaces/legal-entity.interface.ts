@@ -153,3 +153,44 @@ export interface ChangePersonForm {
   email: string;
   role: AccessRole;
 }
+
+/** One recalculation of the reservation quota. */
+export interface QuotaRecalculation {
+  id: string;
+  createdAt: string;
+  reason: string;
+  base: number;
+  prevBase: number | null;
+  quota: number | null;
+  prevQuota: number | null;
+  reservedCompany: number;
+  prevReserved: number | null;
+  available: number | null;
+  exceeded: boolean;
+}
+
+/** Which quota e-mails the legal entity gets. */
+export interface QuotaNotifySettings {
+  exceeded: boolean;
+  decreased: boolean;
+  expiring: boolean;
+}
+
+/** GET /api/legal-entities/:id/quota */
+export interface QuotaPage {
+  quota: EntityQuota;
+  docName: string;
+  docDate: string | null;
+  docNumber: string;
+  recalculations: QuotaRecalculation[];
+  notify: QuotaNotifySettings;
+  recipients: number;
+  extraEmails: string[];
+  mailConfigured: boolean;
+}
+
+/** The quota page with the legal entity it belongs to. */
+export interface QuotaPageData extends QuotaPage {
+  entityId: string;
+  entityName: string;
+}
