@@ -150,3 +150,31 @@ describe('LoginComponent — вхід', () => {
     expect(page.s.signupEnabled()).toBe(false);
   });
 });
+
+describe('LoginComponent — вхід з порталу не вдався', () => {
+  it('?reason=sso&sso=keys — пояснення й посилання на портал; невідомий код — загальний текст', async () => {
+    const page = renderPage<LoginComponent, State>(LoginComponent, {
+      inputs: { reason: 'sso', sso: 'keys' },
+      auth: { login: vi.fn() },
+      providers: [
+        {
+          provide: AccountService,
+          useValue: { registerInfo: vi.fn(async () => ({ enabled: false })) },
+        },
+      ],
+    });
+    await page.fixture.whenStable();
+    const el = page.fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Не вдалося увійти з порталу');
+    expect(el.textContent).toContain('не отримав ключі порталу');
+    expect(el.querySelector('a[href="/"]')?.textContent).toContain('Повернутись на портал');
+    page.fixture.componentRef.setInput('sso', 'щось-інше');
+    page.update();
+    await page.fixture.whenStable();
+    expect(el.textContent).toContain('Вхід з порталу не підтверджено');
+    page.fixture.componentRef.setInput('reason', 'idle');
+    page.update();
+    await page.fixture.whenStable();
+    expect(el.textContent).not.toContain('Не вдалося увійти з порталу');
+  });
+});

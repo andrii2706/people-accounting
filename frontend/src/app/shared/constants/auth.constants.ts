@@ -1,4 +1,4 @@
-import type { UserRole } from '../interfaces/auth.interface';
+import type { SsoFailure, UserRole } from '../interfaces/auth.interface';
 import type { SelectOption } from '../interfaces/ui.interface';
 /** Role names in the interface. */
 export const ROLE_LABELS: Record<UserRole, string> = {
@@ -62,3 +62,14 @@ export const BILLING_CLOSED_TEXT =
 
 /** An account created in «Військовий облік» opens this module; the other modules are given in the portal. */
 export const NEW_ACCOUNT_MODULES: string[] = ['oblik'];
+
+/** The sign-in page after a refused entrance from the portal (?reason=sso&sso=…): what happened and what to do. */
+export const SSO_FAILURE_TEXT: Record<SsoFailure, string> = {
+  off: 'Вхід з порталу вимкнено: у налаштуваннях військового обліку не задано адресу ключів порталу (PORTAL_JWKS_URL).',
+  keys: 'Військовий облік не зміг перевірити вхід: не отримав ключі порталу. Спробуйте ще раз за хвилину; якщо повториться — повідомте адміністратора.',
+  expired: 'Посилання з порталу застаріло. Відкрийте «Військовий облік» з порталу ще раз.',
+  used: 'Це посилання з порталу вже використано. Відкрийте «Військовий облік» з порталу ще раз.',
+  invalid:
+    'Вхід з порталу не підтверджено. Відкрийте «Військовий облік» з порталу ще раз або увійдіть паролем.',
+  account: 'Ваш обліковий запис у військовому обліку вимкнено. Зверніться до адміністратора.',
+};

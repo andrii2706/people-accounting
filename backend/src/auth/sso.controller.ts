@@ -20,7 +20,7 @@ import {
   type SsoTicketClaims,
 } from '../platform/contracts/session.js';
 import { clientIp } from '../security/utils/security.utils.js';
-import type { UserRole } from '../shared/interfaces/auth.interface.js';
+import type { SsoFailure, UserRole } from '../shared/interfaces/auth.interface.js';
 import { User } from '../users/user.entity.js';
 import { BCRYPT_ROUNDS } from '../users/users.constants.js';
 import { SessionService } from './session.service.js';
@@ -30,6 +30,31 @@ const THIS_MODULE = 'oblik';
 const ROLES: UserRole[] = ['ADMIN', 'ENTITY_ADMIN', 'DIRECTOR', 'HR'];
 /** The keys of the portal are fetched again after this time (a new key of the portal is picked up). */
 const JWKS_CACHE_MS = 10 * 60_000;
+
+/** A refused ticket: the reason for the sign-in page (?sso=…) and the details for the log. */
+class TicketError extends Error {
+  constructor(
+    readonly reason: SsoFailure,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/**
+ * `next` of a ticket WITHOUT checking it — only to choose between two pages of this module (/oblik/login or /login)
+ * when the ticket is refused; nothing else is taken from an unchecked ticket.
+ */
+function unverifiedNext(ticket: string | undefined): string {
+  try {
+    const body = JSON.parse(Buffer.from((ticket ?? '').split('.')[1] ?? '', 'base64url').toString()) as {
+      next?: unknown;
+    };
+    return typeof body.next === 'string' ? body.next : '';
+  } catch {
+    return '';
+  }
+}
 
 /**
  * The entrance from the portal (SSO). The portal — the core of the domain — signs the user in and checks the
@@ -56,16 +81,23 @@ export class SsoController {
 
   @Get('sso')
   async sso(@Query('ticket') ticket: string | undefined, @Req() req: Request, @Res() res: Response) {
+    let failure: SsoFailure = 'invalid';
     const claims = await this.check(ticket).catch((err: Error) => {
+      failure = err instanceof TicketError ? err.reason : 'invalid';
       this.log.warn(`квиток відхилено: ${err.message}`);
       return null;
     });
-    // the base of this application on the domain: /oblik/ behind the portal, / alone
-    const base = claims?.next?.startsWith('/oblik/') ? '/oblik/' : '/';
-    if (!claims) return res.redirect(302, `${base}login?reason=sso`);
+    // the base of this application on the domain: /oblik/ behind the portal, / alone. A refused ticket still
+    // goes to the sign-in of THIS module: «/login» behind the portal is the portal itself, which sees its own
+    // session and shows the list of modules again — the click on «Військовий облік» looked like a reload.
+    const base = (claims?.next ?? unverifiedNext(ticket)).startsWith('/oblik/') ? '/oblik/' : '/';
+    if (!claims) return res.redirect(302, `${base}login?reason=sso&sso=${failure}`);
 
     const user = await this.accountOf(claims);
-    if (!user?.isActive) return res.redirect(302, `${base}login?reason=sso`);
+    if (!user?.isActive) {
+      this.log.warn(`вхід з порталу: обліковий запис ${claims.email} вимкнено`);
+      return res.redirect(302, `${base}login?reason=sso&sso=account`);
+    }
     await this.sessions.issue(res, user, undefined, 'portal');
     await this.audit.log('auth', user.id, 'LOGIN', { via: [null, 'portal'], ip: [null, clientIp(req)] }, user);
     const next = claims.next.startsWith('/') && !claims.next.startsWith('//') ? claims.next : base;
@@ -74,13 +106,21 @@ export class SsoController {
 
   /** The signature (ES256, a key of the portal), the issuer, this module, not expired, not used. */
   private async check(ticket: string | undefined): Promise<SsoTicketClaims> {
-    if (!process.env.PORTAL_JWKS_URL) throw new Error('PORTAL_JWKS_URL не задано — вхід з порталу вимкнено');
+    if (!process.env.PORTAL_JWKS_URL) {
+      throw new TicketError('off', 'PORTAL_JWKS_URL не задано — вхід з порталу вимкнено');
+    }
     const parts = (ticket ?? '').split('.');
     if (parts.length !== 3) throw new Error('не JWT');
     const [head, body, sig] = parts as [string, string, string];
     const header = JSON.parse(Buffer.from(head, 'base64url').toString()) as { alg?: string; kid?: string };
     if (header.alg !== SESSION_ALGORITHM) throw new Error(`алгоритм ${header.alg}`);
-    const key = await this.keyOf(header.kid ?? '');
+    const key = await this.keyOf(header.kid ?? '').catch((err: Error) => {
+      const cause = (err.cause as { code?: string } | undefined)?.code;
+      throw new TicketError(
+        'keys',
+        `ключі порталу (${process.env.PORTAL_JWKS_URL}): ${err.message}${cause ? ` — ${cause}` : ''}`,
+      );
+    });
     const valid = verifySignature(
       'sha256',
       Buffer.from(`${head}.${body}`),
@@ -94,9 +134,9 @@ export class SsoController {
     if (claims.iss !== SESSION_ISSUER || !audience.includes(THIS_MODULE) || claims.typ !== SSO_TICKET_TYPE) {
       throw new Error('не квиток для цього модуля');
     }
-    if (!claims.exp || claims.exp < now) throw new Error('квиток прострочено');
+    if (!claims.exp || claims.exp < now) throw new TicketError('expired', 'квиток прострочено');
     for (const [jti, exp] of this.used) if (exp < now) this.used.delete(jti);
-    if (!claims.jti || this.used.has(claims.jti)) throw new Error('квиток уже використано');
+    if (!claims.jti || this.used.has(claims.jti)) throw new TicketError('used', 'квиток уже використано');
     this.used.set(claims.jti, claims.exp);
     if (!claims.email) throw new Error('без email');
     return claims;

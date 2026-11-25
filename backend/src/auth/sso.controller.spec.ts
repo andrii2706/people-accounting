@@ -78,7 +78,7 @@ describe('SsoController — вхід з порталу', () => {
     await c.sso(t, req, res() as never);
     const again = res();
     await c.sso(t, req, again as never);
-    expect(again.redirect).toHaveBeenCalledWith(302, '/login?reason=sso');
+    expect(again.redirect).toHaveBeenCalledWith(302, '/oblik/login?reason=sso&sso=used');
   });
 
   it('відмова: прострочений, чужий модуль, підробка, інший алгоритм, без email, вимкнений запис', async () => {
@@ -90,15 +90,25 @@ describe('SsoController — вхід з порталу', () => {
       `${ticket().slice(0, -4)}AAAA`,
       'not-a-jwt',
     ];
+    const pages: string[] = [];
     for (const t of bad) {
       const r = res();
       await c.sso(t, req, r as never);
-      expect(r.redirect.mock.calls[0][1]).toMatch(/login\?reason=sso$/);
+      pages.push(r.redirect.mock.calls[0][1]);
     }
+    // a refused ticket — the sign-in of THIS module (not the portal: that looked like a reload) with the reason
+    expect(pages).toEqual([
+      '/oblik/login?reason=sso&sso=expired',
+      '/oblik/login?reason=sso&sso=invalid',
+      '/oblik/login?reason=sso&sso=invalid',
+      '/oblik/login?reason=sso&sso=invalid',
+      '/oblik/login?reason=sso&sso=invalid',
+      '/login?reason=sso&sso=invalid',
+    ]);
     db.getRepository(User).seed({ email: 'hr@example.com', isActive: false } as never);
     const r = res();
     await c.sso(ticket(), req, r as never);
-    expect(r.redirect).toHaveBeenCalledWith(302, '/oblik/login?reason=sso');
+    expect(r.redirect).toHaveBeenCalledWith(302, '/oblik/login?reason=sso&sso=account');
     expect(issue).not.toHaveBeenCalled();
   });
 
@@ -107,10 +117,36 @@ describe('SsoController — вхід з порталу', () => {
     delete process.env['PORTAL_JWKS_URL'];
     const off = res();
     await c.sso(t, req, off as never);
-    expect(off.redirect).toHaveBeenCalledWith(302, '/login?reason=sso');
+    expect(off.redirect).toHaveBeenCalledWith(302, '/login?reason=sso&sso=off');
     process.env['PORTAL_JWKS_URL'] = 'https://portal.example.com/jwks';
     const r = res();
     await c.sso(t, req, r as never);
     expect(r.redirect).toHaveBeenCalledWith(302, '/');
+  });
+
+  it('ключі порталу недоступні (не той порт, портал не запущено) — «keys», причина в журналі', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
+      }),
+    );
+    const r = res();
+    await c.sso(ticket(), req, r as never);
+    expect(r.redirect).toHaveBeenCalledWith(302, '/oblik/login?reason=sso&sso=keys');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: false, status: 404 })),
+    );
+    const notFound = res();
+    await c.sso(ticket(), req, notFound as never);
+    expect(notFound.redirect).toHaveBeenCalledWith(302, '/oblik/login?reason=sso&sso=keys');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, json: async () => ({ keys: [{ ...JWK, kid: 'other' }] }) })),
+    );
+    const unknown = res();
+    await c.sso(ticket(), req, unknown as never);
+    expect(unknown.redirect).toHaveBeenCalledWith(302, '/oblik/login?reason=sso&sso=keys');
   });
 });

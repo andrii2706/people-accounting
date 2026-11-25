@@ -26,7 +26,7 @@ beforeEach(() => {
 
 describe('HrSyncController', () => {
   it('чужа юрособа — «не знайдено» для кожної дії', async () => {
-    const calls = [
+    const calls: (() => Promise<unknown>)[] = [
       () => c.get(LE, 'le2'),
       () => c.save(LE, {} as never, HR, 'le2'),
       () => c.remove(LE, HR, 'le2'),

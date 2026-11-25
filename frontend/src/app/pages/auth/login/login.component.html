@@ -167,6 +167,14 @@
               були.
             </app-form-alert>
           }
+          @if (ssoMessage(); as text) {
+            <app-form-alert class="mt-6" tone="warning" heading="Не вдалося увійти з порталу">
+              {{ text }}
+              <a [href]="portalHome" class="mt-1 block cursor-pointer font-medium underline"
+                >Повернутись на портал</a
+              >
+            </app-form-alert>
+          }
           @if (reason() === 'billing') {
             <app-form-alert class="mt-6">{{ closedMessage() || billingClosedText }}</app-form-alert>
           }

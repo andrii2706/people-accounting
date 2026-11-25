@@ -182,3 +182,11 @@ export interface MfaStatus {
   required: boolean;
   recoveryLeft: number;
 }
+
+/**
+ * Why the entrance from the portal (SSO) was refused — goes to the sign-in page of the module as ?sso=…:
+ * off — PORTAL_JWKS_URL is not set; keys — the keys of the portal could not be fetched or do not know the ticket;
+ * expired / used — the ticket is old or opened already; invalid — not a ticket of the portal for this module;
+ * account — the account of this module is switched off.
+ */
+export type SsoFailure = 'off' | 'keys' | 'expired' | 'used' | 'invalid' | 'account';

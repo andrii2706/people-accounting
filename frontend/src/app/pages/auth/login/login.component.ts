@@ -1,5 +1,9 @@
 import { REPORT_NAMES } from '../../../shared/constants/lists.constants';
-import { BILLING_CLOSED_TEXT } from '../../../shared/constants/auth.constants';
+import {
+  BILLING_CLOSED_TEXT,
+  PORTAL_HOME,
+  SSO_FAILURE_TEXT,
+} from '../../../shared/constants/auth.constants';
 import { COPYRIGHT_TEXT } from '../../../shared/constants/subscription.constants';
 import { PasswordInputComponent } from '../../../shared/components/password-input/password-input.component';
 import { DOCUMENT, isPlatformBrowser, NgTemplateOutlet } from '@angular/common';
@@ -24,7 +28,7 @@ import { apiErrorMessage } from '../../../shared/utils/api-error.utils';
 import { CodeInputComponent } from '../../../shared/components/code-input/code-input.component';
 import { RecoveryCodesComponent } from '../../../shared/components/recovery-codes/recovery-codes.component';
 import { TwoFactorSetupComponent } from '../../../shared/components/two-factor-setup/two-factor-setup.component';
-import type { LoginStep } from '../../../shared/interfaces/auth.interface';
+import type { LoginStep, SsoFailure } from '../../../shared/interfaces/auth.interface';
 import { isCodeLike, normalizeCode } from '../../../shared/utils/two-factor.utils';
 import type { LoginChallenge, TwoFactorSetup } from '../../../../platform/contracts/session';
 import { UiBusyDirective } from '@mr/ui';
@@ -59,6 +63,16 @@ export class LoginComponent {
   readonly reason = input<string>('');
   /** ?signup=rejected — the KEP sign-up was not confirmed. */
   readonly signup = input<string>('');
+  /** ?reason=sso&sso=keys — why the entrance from the portal was refused. */
+  readonly sso = input<string>('');
+
+  /** The text of a refused entrance from the portal; an unknown code — the general one. */
+  protected readonly ssoMessage = computed(() =>
+    this.reason() === 'sso'
+      ? (SSO_FAILURE_TEXT[this.sso() as SsoFailure] ?? SSO_FAILURE_TEXT.invalid)
+      : '',
+  );
+  protected readonly portalHome = PORTAL_HOME;
 
   protected readonly error = signal('');
   /** ?reason=billing — the module was closed for a debt (the text of the API, if it came). */

@@ -231,3 +231,6 @@ export interface MfaCodesResult {
 
 /** Where the sign-in page is: the password, the code, setting up the app, the recovery codes. */
 export type LoginStep = 'password' | 'code' | 'setup' | 'codes';
+
+/** Why the entrance from the portal was refused (?sso=… on the sign-in page; the same codes as the API). */
+export type SsoFailure = 'off' | 'keys' | 'expired' | 'used' | 'invalid' | 'account';

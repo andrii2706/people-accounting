@@ -106,11 +106,12 @@ describe('Налаштування списків', () => {
   it('власний шаблон Word: завантажити, скачати, прибрати; не .docx чи без файлу — помилка', async () => {
     const s = await soldierSettings();
     const example = await buildListTemplateExample('SOLDIERS', s.columns);
-    const file = {
+    const upload = {
       buffer: example,
       originalname: Buffer.from('шаблон.docx', 'utf8').toString('latin1'),
       size: example.length,
-    } as never;
+    };
+    const file = upload as never;
     const req = { ip: '10.0.0.1', headers: {}, socket: {} } as never;
     const withTemplate = await c.upload('le1', 'SOLDIERS', file, HR, 'le1', req);
     expect(withTemplate.SOLDIERS.template?.fileName).toBe('шаблон.docx');
@@ -140,13 +141,13 @@ describe('Налаштування списків', () => {
     await expect(c.template('le1', 'SOLDIERS', 'le1')).rejects.toThrow('шаблон не завантажено');
     await expect(c.upload('le1', 'SOLDIERS', undefined, HR, 'le1', req)).rejects.toThrow('Оберіть файл');
     await expect(
-      c.upload('le1', 'SOLDIERS', { ...file, originalname: 'x.pdf' } as never, HR, 'le1', req),
+      c.upload('le1', 'SOLDIERS', { ...upload, originalname: 'x.pdf' } as never, HR, 'le1', req),
     ).rejects.toThrow('.docx');
     await expect(
       c.upload(
         'le1',
         'SOLDIERS',
-        { ...file, buffer: Buffer.from('not word'), originalname: 'x.docx' } as never,
+        { ...upload, buffer: Buffer.from('not word'), originalname: 'x.docx' } as never,
         HR,
         'le1',
         req,
